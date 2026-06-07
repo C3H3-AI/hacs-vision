@@ -35,6 +35,18 @@ HACS Vision 就是为了解决这些问题而开发的！
 - 📋 **Changelog 预览**：查看仓库的更新历史
 - ⚙️ **管理功能**：归档、重命名、忽略仓库
 
+## 📸 效果图
+
+![商店 - 卡片视图](assets/screenshot_1_store_card.png)
+
+![商店 - 列表视图](assets/screenshot_2_store_list.png)
+
+![更新视图](assets/screenshot_3_updates.png)
+
+![管理视图](assets/screenshot_4_manage.png)
+
+![详情弹窗](assets/screenshot_5_detail.png)
+
 ## 🚀 安装
 
 ### 方法 1：通过 HACS（推荐）
