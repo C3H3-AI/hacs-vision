@@ -517,7 +517,10 @@ export class ManagementView extends LitElement {
     });
     if (!ok) return;
     try {
-      await api.removeCustomRepo(repoName);
+      const result = await api.removeCustomRepo(repoName);
+      if (result && result.success === false) {
+        showToast(`${t('removeRepoFailed')}: ${result.error}`, 'error');
+      }
       this._load();
       this.dispatchEvent(new CustomEvent('refresh-stats', { bubbles: true, composed: true }));
     } catch(e) { showToast(`${t('removeRepoFailed')}: ${e.message}`, 'error'); }

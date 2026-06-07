@@ -473,27 +473,29 @@ class HACSOperator:
         """Add a custom repository to HACS."""
         config = await self._data.get_config()
         custom_repos = config.get("custom_repositories", [])
+        already_in_config = any(r.get("repository") == full_name for r in custom_repos)
 
-        for r in custom_repos:
-            if r.get("repository") == full_name:
-                return {"success": False, "error": "already_exists"}
-
-        custom_repos.append({"repository": full_name, "category": category})
-        config["custom_repositories"] = custom_repos
-        ok = await self._data.update_config(config)
-        if not ok:
-            return {"success": False, "error": "write_failed"}
+        if not already_in_config:
+            custom_repos.append({"repository": full_name, "category": category})
+            config["custom_repositories"] = custom_repos
+            ok = await self._data.update_config(config)
+            if not ok:
+                return {"success": False, "error": "write_failed"}
 
         self.invalidate_index()
 
         if self.available:
-            try:
-                await self._hacs.async_register_repository(
-                    repository_full_name=full_name,
-                    category=category,
-                )
-            except Exception as e:
-                _LOGGER.warning("HACS register failed after add: %s", e, exc_info=True)
+            already_in_memory = self._hacs.repositories.is_registered(
+                repository_full_name=full_name.lower()
+            )
+            if not already_in_memory:
+                try:
+                    await self._hacs.async_register_repository(
+                        repository_full_name=full_name,
+                        category=category,
+                    )
+                except Exception as e:
+                    _LOGGER.warning("HACS register failed after add: %s", e, exc_info=True)
 
         return {"success": True, "repository": full_name}
 
@@ -502,18 +504,23 @@ class HACSOperator:
         config = await self._data.get_config()
         custom_repos = config.get("custom_repositories", [])
         filtered = [r for r in custom_repos if r.get("repository") != full_name]
-        if len(filtered) == len(custom_repos):
-            return {"success": False, "error": "not_found"}
-        config["custom_repositories"] = filtered
-        ok = await self._data.update_config(config)
-        if not ok:
-            return {"success": False, "error": "write_failed"}
+        config_updated = len(filtered) < len(custom_repos)
+        if config_updated:
+            config["custom_repositories"] = filtered
+            ok = await self._data.update_config(config)
+            if not ok:
+                return {"success": False, "error": "write_failed"}
 
         self.invalidate_index()
 
         if self.available:
             try:
                 repository = self._hacs.repositories.get_by_full_name(full_name)
+                if not repository:
+                    for r in self._hacs.repositories.list_all:
+                        if r.data.full_name.lower() == full_name.lower():
+                            repository = r
+                            break
                 if repository:
                     self._hacs.repositories.unregister(repository)
             except Exception as e:
