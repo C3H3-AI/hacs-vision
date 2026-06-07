@@ -269,10 +269,22 @@ class HACSOperator:
             _LOGGER.error("get_available_updates error: %s", e, exc_info=True)
         return updates
 
-    def get_all_repos_from_hacs(self) -> list[dict]:
+    async def get_all_repos_from_hacs(self) -> list[dict]:
         """Get ALL repositories from HACS in-memory data (same source as HACS UI)."""
         if not self.available:
             return []
+
+        # Pre-load custom repo names from config for is_custom detection
+        custom_repo_names = set()
+        try:
+            config = await self._data.get_config()
+            for r in config.get("custom_repositories", []):
+                repo_name = r.get("repository", "")
+                if repo_name:
+                    custom_repo_names.add(repo_name.lower())
+        except Exception:
+            pass
+
         result = []
         errors = []
         try:
@@ -293,12 +305,14 @@ class HACSOperator:
                         or (getattr(repo.data, 'last_commit', None)[:7] if getattr(repo.data, 'last_commit', None) else None)
                     )
 
+                    pending_restart = hasattr(repo.data, 'pending_restart') and repo.data.pending_restart
+
                     status = "default"
                     if repo.data.installed:
                         status = "installed"
                     if has_update:
                         status = "pending-upgrade"
-                    if hasattr(repo.data, 'pending_restart') and repo.data.pending_restart:
+                    if pending_restart:
                         status = "pending-restart"
                     if hasattr(repo.data, 'new') and repo.data.new:
                         status = "new"
@@ -311,17 +325,20 @@ class HACSOperator:
                         except Exception:
                             pass
 
-                    # In HACS 2.0, "custom" means not in default repositories
-                    # But _default_repositories is loaded asynchronously from the HACS catalog
-                    # Only trust is_default() if the set has been populated (>500 entries)
-                    default_repos_ready = (
-                        hasattr(self._hacs.repositories, '_default_repositories')
-                        and len(self._hacs.repositories._default_repositories) > 500
-                    )
-                    is_custom = (
-                        not self._hacs.repositories.is_default(str(repo.data.id))
-                        if default_repos_ready else False
-                    )
+                    # is_custom detection:
+                    # 1. First check if the repo is in the HACS config's custom_repositories list
+                    # 2. Fallback: check is_default() if _default_repositories is loaded
+                    is_custom = False
+                    full_name_lower = repo.data.full_name.lower()
+                    if full_name_lower in custom_repo_names:
+                        is_custom = True
+                    else:
+                        default_repos_ready = (
+                            hasattr(self._hacs.repositories, '_default_repositories')
+                            and len(self._hacs.repositories._default_repositories) > 500
+                        )
+                        if default_repos_ready:
+                            is_custom = not self._hacs.repositories.is_default(str(repo.data.id))
 
                     result.append({
                         "id": str(repo.data.id),
@@ -339,6 +356,7 @@ class HACSOperator:
                         "latest_version": display_latest,
                         "has_update": has_update,
                         "status": status,
+                        "pending_restart": pending_restart,
                         "new": getattr(repo.data, 'new', False),
                         "topics": getattr(repo.data, 'topics', []) or [],
                         "custom": is_custom,

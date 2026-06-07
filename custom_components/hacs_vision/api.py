@@ -187,7 +187,7 @@ class HACSEnhancedAPI(HomeAssistantView):
 
     async def _list_repositories(self, query) -> web.Response:
         # Primary data source: HACS in-memory (same as HACS UI)
-        repos = self.operator.get_all_repos_from_hacs()
+        repos = await self.operator.get_all_repos_from_hacs()
 
         # Fallback to storage file if HACS not available
         if not repos:
@@ -313,7 +313,7 @@ class HACSEnhancedAPI(HomeAssistantView):
         return web.json_response({"installed": installed})
 
     async def _get_stats(self) -> web.Response:
-        repos = self.operator.get_all_repos_from_hacs()
+        repos = await self.operator.get_all_repos_from_hacs()
         if not repos:
             repos = await self.data.get_all_repositories()
         installed_count = sum(1 for r in repos if r.get("installed"))
@@ -339,7 +339,7 @@ class HACSEnhancedAPI(HomeAssistantView):
         return web.json_response(config)
 
     async def _get_custom_repos(self) -> web.Response:
-        repos = self.operator.get_all_repos_from_hacs()
+        repos = await self.operator.get_all_repos_from_hacs()
         custom = [r for r in repos if r.get("custom")]
         return web.json_response({"custom_repositories": custom})
 
