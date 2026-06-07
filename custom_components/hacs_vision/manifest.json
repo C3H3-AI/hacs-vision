@@ -1,0 +1,10 @@
+{
+  "domain": "hacs_vision",
+  "name": "HACS Vision",
+  "version": "1.0.0",
+  "requirements": [],
+  "dependencies": ["hacs"],
+  "codeowners": ["@user"],
+  "config_flow": true,
+  "iot_class": "calculated"
+}

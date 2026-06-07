@@ -1,0 +1,19 @@
+{
+  "name": "hacs-vision-panel",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "rollup -c rollup.config.js",
+    "postbuild": "node -e \"require('fs').copyFileSync('www/index.html', '../custom_components/hacs_vision/frontend/index.html')\""
+  },
+  "dependencies": {
+    "dompurify": "^3.4.8",
+    "lit": "^3.0.0"
+  },
+  "devDependencies": {
+    "@rollup/plugin-node-resolve": "^15.0.0",
+    "@rollup/plugin-terser": "^0.4.0",
+    "rollup": "^4.0.0"
+  }
+}

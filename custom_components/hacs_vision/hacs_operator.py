@@ -1,0 +1,501 @@
+"""HACS internal operations via hass.data['hacs']."""
+from __future__ import annotations
+import asyncio
+import logging
+from typing import Any
+
+from homeassistant.core import HomeAssistant
+
+from .const import DOMAIN_HACS
+from .hacs_data import HACSData
+
+_LOGGER = logging.getLogger(__name__)
+
+class HACSOperator:
+    """Operate HACS via its internal API."""
+
+    def __init__(self, hass: HomeAssistant, shared_data: HACSData | None = None) -> None:
+        self.hass = hass
+        # N3: Accept shared HACSData instance to avoid redundant file reads
+        self._data = shared_data or HACSData(hass)
+        self._repo_index_by_id = None
+        self._repo_index_by_name = None
+        # P1: Install/update/remove locks for idempotency protection
+        self._install_locks: dict[str, asyncio.Lock] = {}
+
+    @property
+    def _hacs(self):
+        """Dynamically get HACS instance — may not be available at init time."""
+        return self.hass.data.get(DOMAIN_HACS)
+
+    @property
+    def available(self) -> bool:
+        """Check if HACS is loaded and accessible."""
+        return self._hacs is not None
+
+    def _ensure_index(self):
+        """Build lookup index if not cached."""
+        if self._repo_index_by_id is not None:
+            return
+        self._repo_index_by_id = {}
+        self._repo_index_by_name = {}
+        try:
+            for repo in self._hacs.repositories.list_all:
+                rid = str(repo.data.id)
+                self._repo_index_by_id[rid] = repo
+                self._repo_index_by_name[repo.data.full_name] = repo
+        except (AttributeError, KeyError, TypeError) as e:
+            _LOGGER.error("Index build error: %s", e, exc_info=True)
+
+    def invalidate_index(self):
+        """Clear cached index, will be rebuilt on next access."""
+        self._repo_index_by_id = None
+        self._repo_index_by_name = None
+
+    def _get_lock(self, repo_id: str) -> asyncio.Lock:
+        """Get or create an asyncio.Lock for a specific repo."""
+        if repo_id not in self._install_locks:
+            self._install_locks[repo_id] = asyncio.Lock()
+        return self._install_locks[repo_id]
+
+    def _cleanup_lock(self, repo_id: str) -> None:
+        """Remove a lock that's no longer in use."""
+        lock = self._install_locks.get(repo_id)
+        if lock and not lock.locked():
+            del self._install_locks[repo_id]
+
+    def _find_repo_by_id(self, repo_id: str):
+        """Find a repository object by its string ID."""
+        if not self.available:
+            return None
+        self._ensure_index()
+        return self._repo_index_by_id.get(str(repo_id))
+
+    def _find_repo_by_full_name(self, full_name: str):
+        """Find a repository object by its full_name."""
+        if not self.available:
+            return None
+        self._ensure_index()
+        return self._repo_index_by_name.get(full_name)
+
+    def _find_repo(self, repo_id_or_name: str):
+        """Find repo by full_name first, then by ID."""
+        repo = self._find_repo_by_full_name(repo_id_or_name)
+        if not repo:
+            repo = self._find_repo_by_id(repo_id_or_name)
+        return repo
+
+    async def install_repository(self, repo_id_or_name: str, category: str) -> dict:
+        """Install a repository via HACS internal API — with idempotency lock."""
+        if not self.available:
+            return {"success": False, "error": "HACS not available"}
+
+        lock = self._get_lock(repo_id_or_name)
+        if lock.locked():
+            return {"success": False, "error": "install_already_in_progress"}
+
+        async with lock:
+            try:
+                repo = self._find_repo(repo_id_or_name)
+                if not repo:
+                    return {"success": False, "error": f"Repository '{repo_id_or_name}' not found in HACS catalog"}
+
+                # Idempotency: already installed?
+                if repo.data.installed:
+                    return {
+                        "success": True,
+                        "repository": repo.data.full_name,
+                        "version": repo.display_installed_version or "unknown",
+                        "note": "already_installed",
+                    }
+
+                await repo.async_install(version=repo.display_available_version)
+                # N1: Invalidate index after mutation
+                self.invalidate_index()
+                self._cleanup_lock(repo_id_or_name)
+                return {
+                    "success": True,
+                    "repository": repo.data.full_name,
+                    "version": repo.display_installed_version or "unknown",
+                }
+            except (AttributeError, KeyError, ValueError) as e:
+                _LOGGER.error("Install failed for %s: %s", repo_id_or_name, e, exc_info=True)
+                return {"success": False, "error": str(e)}
+            except Exception as e:
+                _LOGGER.error("Install unexpected error for %s: %s", repo_id_or_name, e, exc_info=True)
+                return {"success": False, "error": str(e)}
+
+    async def update_repositories(self, repo_ids: list[str]) -> dict:
+        """Batch update repositories — with per-repo locks."""
+        if not self.available:
+            return {"success": False, "error": "HACS not available"}
+
+        results = {"success": [], "failed": []}
+        for rid in repo_ids:
+            lock = self._get_lock(rid)
+            if lock.locked():
+                results["failed"].append({"id": rid, "error": "update_already_in_progress"})
+                continue
+            async with lock:
+                repo = self._find_repo(rid)
+                if not repo:
+                    results["failed"].append({"id": rid, "error": "not found"})
+                    continue
+                try:
+                    await repo.async_install(version=repo.display_available_version)
+                    results["success"].append(rid)
+                except (AttributeError, KeyError, ValueError) as e:
+                    _LOGGER.error("Update failed for %s: %s", rid, e, exc_info=True)
+                    results["failed"].append({"id": rid, "error": str(e)})
+                except Exception as e:
+                    _LOGGER.error("Update unexpected error for %s: %s", rid, e, exc_info=True)
+                    results["failed"].append({"id": rid, "error": str(e)})
+                finally:
+                    self._cleanup_lock(rid)
+
+        # N1: Invalidate index after batch mutations
+        if results["success"]:
+            self.invalidate_index()
+        return results
+
+    async def remove_repository(self, repo_id_or_name: str) -> dict:
+        """Uninstall an installed repository — with idempotency lock."""
+        if not self.available:
+            return {"success": False, "error": "HACS not available"}
+
+        lock = self._get_lock(repo_id_or_name)
+        if lock.locked():
+            return {"success": False, "error": "remove_already_in_progress"}
+
+        async with lock:
+            try:
+                repo = self._find_repo(repo_id_or_name)
+                if not repo:
+                    return {"success": False, "error": f"Repository '{repo_id_or_name}' not found"}
+
+                if not repo.data.installed:
+                    return {"success": True, "repository": repo.data.full_name, "note": "not_installed"}
+
+                await repo.uninstall()
+                # N1: Invalidate index after mutation
+                self.invalidate_index()
+                self._cleanup_lock(repo_id_or_name)
+                return {"success": True, "repository": repo.data.full_name}
+            except (AttributeError, KeyError, ValueError) as e:
+                _LOGGER.error("Remove failed for %s: %s", repo_id_or_name, e, exc_info=True)
+                return {"success": False, "error": str(e)}
+            except Exception as e:
+                _LOGGER.error("Remove unexpected error for %s: %s", repo_id_or_name, e, exc_info=True)
+                return {"success": False, "error": str(e)}
+
+    def get_installed_list(self) -> list[dict]:
+        """Get actually installed repos from HACS in-memory data."""
+        if not self.available:
+            return []
+        result = []
+        try:
+            for repo in self._hacs.repositories.list_downloaded:
+                installed = repo.data.installed_version
+                available = repo.display_available_version
+                has_update = installed and available and installed != available
+                result.append({
+                    "id": str(repo.data.id),
+                    "full_name": repo.data.full_name,
+                    "name": repo.data.name or repo.data.full_name.split("/")[-1],
+                    "installed_version": repo.display_installed_version,
+                    "category": repo.data.category,
+                    "has_update": has_update,
+                })
+        except (AttributeError, KeyError, TypeError) as e:
+            _LOGGER.error("get_installed_list error: %s", e, exc_info=True)
+        return result
+
+    def get_version_map(self) -> dict[str, dict]:
+        """Get version info for all installed repos from HACS in-memory data."""
+        if not self.available:
+            return {}
+        result = {}
+        try:
+            for repo in self._hacs.repositories.list_all:
+                if repo.data.installed:
+                    installed_ver = (
+                        repo.data.installed_version
+                        or repo.display_installed_version
+                        or (repo.data.installed_commit[:7] if repo.data.installed_commit else None)
+                    )
+                    latest_ver = (
+                        repo.display_available_version
+                        or repo.data.available_version
+                        or (repo.data.last_commit[:7] if repo.data.last_commit else None)
+                    )
+                    result[str(repo.data.id)] = {
+                        "installed_version": installed_ver,
+                        "latest_version": latest_ver,
+                        "installed": True,
+                        "has_update": bool(
+                            installed_ver and latest_ver and installed_ver != latest_ver
+                        ),
+                        "full_name": repo.data.full_name,
+                        "category": repo.data.category,
+                        "name": repo.data.name or repo.data.full_name.split("/")[-1],
+                    }
+        except (AttributeError, KeyError, TypeError) as e:
+            _LOGGER.error("get_version_map error: %s", e, exc_info=True)
+        return result
+
+    def get_available_updates(self) -> list[dict]:
+        """Get list of repositories with available updates."""
+        if not self.available:
+            return []
+        updates = []
+        try:
+            for repo in self._hacs.repositories.list_all:
+                if not repo.data.installed:
+                    continue
+                installed = repo.data.installed_version
+                available = repo.display_available_version
+                if installed and available and installed != available:
+                    updates.append({
+                        "id": str(repo.data.id),
+                        "full_name": repo.data.full_name,
+                        "name": repo.data.name or repo.data.full_name.split("/")[-1],
+                        "installed_version": installed,
+                        "latest_version": available,
+                        "category": repo.data.category,
+                        "installed": True,
+                        "has_update": True,
+                    })
+        except (AttributeError, KeyError, TypeError) as e:
+            _LOGGER.error("get_available_updates error: %s", e, exc_info=True)
+        return updates
+
+    def get_all_repos_from_hacs(self) -> list[dict]:
+        """Get ALL repositories from HACS in-memory data (same source as HACS UI)."""
+        if not self.available:
+            return []
+        result = []
+        errors = []
+        try:
+            repo_list = list(self._hacs.repositories.list_all)
+            for i, repo in enumerate(repo_list):
+                try:
+                    installed_ver = repo.data.installed_version
+                    latest_ver = repo.display_available_version or getattr(repo.data, 'available_version', None)
+                    has_update = bool(installed_ver and latest_ver and installed_ver != latest_ver)
+
+                    display_installed = (
+                        installed_ver
+                        or repo.display_installed_version
+                        or (getattr(repo.data, 'installed_commit', None)[:7] if getattr(repo.data, 'installed_commit', None) else None)
+                    )
+                    display_latest = (
+                        latest_ver
+                        or (getattr(repo.data, 'last_commit', None)[:7] if getattr(repo.data, 'last_commit', None) else None)
+                    )
+
+                    status = "default"
+                    if repo.data.installed:
+                        status = "installed"
+                    if has_update:
+                        status = "pending-upgrade"
+                    if hasattr(repo.data, 'pending_restart') and repo.data.pending_restart:
+                        status = "pending-restart"
+                    if hasattr(repo.data, 'new') and repo.data.new:
+                        status = "new"
+
+                    # Get manifest_name safely
+                    manifest_name = getattr(repo.data, 'manifest_name', None)
+                    if not manifest_name and hasattr(repo.data, 'repository_manifest') and repo.data.repository_manifest:
+                        try:
+                            manifest_name = repo.data.repository_manifest.name
+                        except Exception:
+                            pass
+
+                    # In HACS 2.0, "custom" means not in default repositories
+                    # But _default_repositories is loaded asynchronously from the HACS catalog
+                    # Only trust is_default() if the set has been populated (>500 entries)
+                    default_repos_ready = (
+                        hasattr(self._hacs.repositories, '_default_repositories')
+                        and len(self._hacs.repositories._default_repositories) > 500
+                    )
+                    is_custom = (
+                        not self._hacs.repositories.is_default(str(repo.data.id))
+                        if default_repos_ready else False
+                    )
+
+                    result.append({
+                        "id": str(repo.data.id),
+                        "full_name": repo.data.full_name,
+                        "name": repo.data.name or repo.data.full_name.split("/")[-1],
+                        "manifest_name": manifest_name,
+                        "category": repo.data.category,
+                        "description": repo.data.description or "",
+                        "authors": repo.data.authors or [],
+                        "stargazers_count": repo.data.stargazers_count or 0,
+                        "downloads": getattr(repo.data, 'downloads', 0) or 0,
+                        "last_updated": repo.data.last_updated or "",
+                        "installed": repo.data.installed or False,
+                        "installed_version": display_installed,
+                        "latest_version": display_latest,
+                        "has_update": has_update,
+                        "status": status,
+                        "new": getattr(repo.data, 'new', False),
+                        "topics": getattr(repo.data, 'topics', []) or [],
+                        "custom": is_custom,
+                        "domain": getattr(repo.data, 'domain', None),
+                        "releases": getattr(repo.data, 'releases', None),
+                    })
+                except Exception as inner_e:
+                    if len(errors) < 5:
+                        errors.append(f"repo#{i}({getattr(repo, 'data', None) and getattr(repo.data, 'full_name', '?')}): {type(inner_e).__name__}: {inner_e}")
+            self._last_debug = f"total={len(repo_list)} ok={len(result)} errors={len(errors)}"
+            if errors:
+                self._last_debug += f" first_errors={errors}"
+        except (AttributeError, KeyError, TypeError) as e:
+            self._last_debug = f"outer_error: {e}"
+        return result
+
+    async def get_repo_releases(self, repo_id_or_name: str) -> list[dict]:
+        """Get available releases for a repository."""
+        if not self.available:
+            return []
+        repo = self._find_repo(repo_id_or_name)
+        if not repo:
+            return []
+        try:
+            releases = []
+            # Try HACS internal releases first
+            if hasattr(repo, 'releases') and repo.releases:
+                for release in repo.releases:
+                    releases.append({
+                        "tag_name": getattr(release, 'tag_name', str(release)),
+                        "name": getattr(release, 'name', ''),
+                        "prerelease": getattr(release, 'prerelease', False),
+                        "published_at": getattr(release, 'published_at', ''),
+                    })
+            # If no releases from HACS, try fetching from repo.data
+            if not releases and hasattr(repo.data, 'last_version') and repo.data.last_version:
+                # At least show the latest version
+                releases.append({
+                    "tag_name": repo.data.last_version,
+                    "name": repo.data.last_version,
+                    "prerelease": False,
+                    "published_at": getattr(repo.data, 'last_updated', ''),
+                })
+            return releases
+        except Exception as e:
+            _LOGGER.error("get_repo_releases error: %s", e)
+            return []
+
+    async def install_repository_version(self, repo_id_or_name: str, version: str | None = None) -> dict:
+        """Install a specific version of a repository."""
+        if not self.available:
+            return {"success": False, "error": "HACS not available"}
+        lock = self._get_lock(repo_id_or_name)
+        if lock.locked():
+            return {"success": False, "error": "install_already_in_progress"}
+        async with lock:
+            try:
+                repo = self._find_repo(repo_id_or_name)
+                if not repo:
+                    return {"success": False, "error": "not found"}
+                await repo.async_install(version=version or repo.display_available_version)
+                self.invalidate_index()
+                self._cleanup_lock(repo_id_or_name)
+                return {"success": True, "repository": repo.data.full_name, "version": version or repo.display_installed_version}
+            except Exception as e:
+                _LOGGER.error("Install version failed: %s", e, exc_info=True)
+                return {"success": False, "error": str(e)}
+
+    def get_repo_rt_status(self, repo_id_or_name: str) -> dict | None:
+        """Get real-time status from HACS in-memory data (not from .storage file)."""
+        repo = self._find_repo(repo_id_or_name)
+        if not repo:
+            return None
+        installed = repo.data.installed_version
+        available = repo.display_available_version
+        return {
+            "id": str(repo.data.id),
+            "full_name": repo.data.full_name,
+            "installed": repo.data.installed or False,
+            "installed_version": installed,
+            "latest_version": available,
+            "has_update": bool(installed and available and installed != available),
+            "pending_restart": getattr(repo.data, 'pending_restart', False),
+        }
+
+    async def refresh_repositories(self) -> dict:
+        """Refresh HACS repository data with fallback methods."""
+        if not self.available:
+            return {"success": False, "error": "HACS not available"}
+
+        self.invalidate_index()
+
+        methods = [
+            lambda: self._hacs.async_update_downloaded_custom_repositories(),
+            lambda: self._hacs.data.async_update_downloaded_custom_repositories(),
+        ]
+
+        for method in methods:
+            try:
+                await method()
+                return {"success": True}
+            except AttributeError:
+                continue
+            except (ConnectionError, TimeoutError, OSError) as e:
+                _LOGGER.warning("Refresh network error: %s", e, exc_info=True)
+                continue
+            except Exception as e:
+                _LOGGER.warning("Refresh method failed: %s", e, exc_info=True)
+                continue
+
+        return {"success": False, "error": "All refresh methods failed"}
+
+    async def add_custom_repository(self, full_name: str, category: str) -> dict:
+        """Add a custom repository to HACS."""
+        config = await self._data.get_config()
+        custom_repos = config.get("custom_repositories", [])
+
+        for r in custom_repos:
+            if r.get("repository") == full_name:
+                return {"success": False, "error": "already_exists"}
+
+        custom_repos.append({"repository": full_name, "category": category})
+        config["custom_repositories"] = custom_repos
+        ok = await self._data.update_config(config)
+        if not ok:
+            return {"success": False, "error": "write_failed"}
+
+        # N1: Invalidate index after config mutation
+        self.invalidate_index()
+
+        if self.available:
+            try:
+                await self._hacs.async_reload()
+            except (AttributeError, ConnectionError) as e:
+                _LOGGER.warning("HACS reload failed after add: %s", e, exc_info=True)
+
+        return {"success": True, "repository": full_name}
+
+    async def remove_custom_repository(self, full_name: str) -> dict:
+        """Remove a custom repository from HACS."""
+        config = await self._data.get_config()
+        custom_repos = config.get("custom_repositories", [])
+        filtered = [r for r in custom_repos if r.get("repository") != full_name]
+        if len(filtered) == len(custom_repos):
+            return {"success": False, "error": "not_found"}
+        config["custom_repositories"] = filtered
+        ok = await self._data.update_config(config)
+        if not ok:
+            return {"success": False, "error": "write_failed"}
+
+        # N1: Invalidate index after config mutation
+        self.invalidate_index()
+
+        if self.available:
+            try:
+                await self._hacs.async_reload()
+            except (AttributeError, ConnectionError) as e:
+                _LOGGER.warning("HACS reload failed after remove: %s", e, exc_info=True)
+
+        return {"success": True, "repository": full_name}

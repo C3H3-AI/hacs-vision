@@ -1,0 +1,4 @@
+﻿# Temp files
+temp_*/
+*.tmp
+*.bak
