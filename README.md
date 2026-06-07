@@ -1,8 +1,6 @@
 
 # HACS Vision
 
-![HACS Vision](assets/hero.png)
-
 一个现代化的 HACS 视觉界面，提供卡片/列表双视图、自定义仓库标识、主题适配等增强功能。
 
 ## 🎯 为什么开发这个项目？
@@ -36,6 +34,8 @@ HACS Vision 就是为了解决这些问题而开发的！
 - ⚙️ **管理功能**：归档、重命名、忽略仓库
 
 ## 📸 效果图
+
+![HACS Vision](assets/hero.png)
 
 ![商店 - 卡片视图](assets/screenshot_1_store_card.png)
 
