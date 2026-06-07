@@ -484,14 +484,16 @@ class HACSOperator:
         if not ok:
             return {"success": False, "error": "write_failed"}
 
-        # N1: Invalidate index after config mutation
         self.invalidate_index()
 
         if self.available:
             try:
-                await self._hacs.async_reload()
-            except (AttributeError, ConnectionError) as e:
-                _LOGGER.warning("HACS reload failed after add: %s", e, exc_info=True)
+                await self._hacs.async_register_repository(
+                    repository_full_name=full_name,
+                    category=category,
+                )
+            except Exception as e:
+                _LOGGER.warning("HACS register failed after add: %s", e, exc_info=True)
 
         return {"success": True, "repository": full_name}
 
@@ -507,13 +509,14 @@ class HACSOperator:
         if not ok:
             return {"success": False, "error": "write_failed"}
 
-        # N1: Invalidate index after config mutation
         self.invalidate_index()
 
         if self.available:
             try:
-                await self._hacs.async_reload()
-            except (AttributeError, ConnectionError) as e:
-                _LOGGER.warning("HACS reload failed after remove: %s", e, exc_info=True)
+                repository = self._hacs.repositories.get_by_full_name(full_name)
+                if repository:
+                    self._hacs.repositories.unregister(repository)
+            except Exception as e:
+                _LOGGER.warning("HACS unregister failed after remove: %s", e, exc_info=True)
 
         return {"success": True, "repository": full_name}
