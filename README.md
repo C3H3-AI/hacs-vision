@@ -1,6 +1,8 @@
 
 # HACS Vision
 
+![HACS Vision](assets/hero.png)
+
 一个现代化的 HACS 视觉界面，提供卡片/列表双视图、自定义仓库标识、主题适配等增强功能。
 
 ## 🎯 为什么开发这个项目？
@@ -32,23 +34,6 @@ HACS Vision 就是为了解决这些问题而开发的！
 - 📦 **备份与恢复**：导出/导入 HACS 配置与已安装仓库
 - 📋 **Changelog 预览**：查看仓库的更新历史
 - ⚙️ **管理功能**：归档、重命名、忽略仓库
-
-## 📸 截图
-
-### 商店 - 卡片视图
-![商店 - 卡片视图](assets/screenshot_1_store_card.png)
-
-### 商店 - 列表视图
-![商店 - 列表视图](assets/screenshot_2_store_list.png)
-
-### 更新视图
-![更新视图](assets/screenshot_3_updates.png)
-
-### 管理视图
-![管理视图](assets/screenshot_4_manage.png)
-
-### 详情弹窗
-![详情弹窗](assets/screenshot_5_detail.png)
 
 ## 🚀 安装
 
@@ -86,4 +71,3 @@ MIT License
 ## 🤝 贡献
 
 欢迎提交 Issue 和 Pull Request！
-
