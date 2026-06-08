@@ -917,11 +917,6 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
                 </div>
               </div>
 
-              ${r.config_entry_id ? html`
-                <button class="detail-action-btn" @click=${() => window.top.location.href = '/config/integrations/dashboard/settings?config_entry=' + r.config_entry_id} title="${t('addIntegrationHint')}">
-                  ${t('addIntegration')}
-                </button>` : ''}
-
               ${r.topics && r.topics.length ? html`
                 <div class="detail-topics">
                   ${r.topics.map(topic => html`
