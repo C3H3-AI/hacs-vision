@@ -308,8 +308,8 @@ const T = {
   quickInstallAuto: { zh: '自动识别', en: 'Auto detect' },
 
   // Add Integration Entry
-  addIntegration: { zh: '添加集成', en: 'Add Integration' },
-  addIntegrationHint: { zh: '将此仓库作为 HA 集成添加', en: 'Add this repo as a HA integration' },
+  addIntegration: { zh: '配置', en: 'Configure' },
+  addIntegrationHint: { zh: '配置此 HA 集成', en: 'Configure this HA integration' },
 
   // Check Updates + Notification
   checkUpdates: { zh: '检查更新', en: 'Check Updates' },

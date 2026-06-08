@@ -409,10 +409,6 @@ class BrowseView extends LitElement {
     }
     .batch-bar-btn:hover { background: rgba(255,255,255,0.35); }
     .batch-bar-btn.danger { border-color: #ff5252; color: #ff5252; }
-    .batch-checkbox {
-      display: inline-flex; align-items: center; margin-right: 4px; cursor: pointer;
-    }
-    .batch-checkbox input { width: 16px; height: 16px; cursor: pointer; }
   `;
 
   async connectedCallback() {
@@ -424,7 +420,7 @@ class BrowseView extends LitElement {
     this.addEventListener('uninstall', (e) => this._handleUninstall(e.detail.repo));
     this.addEventListener('detail', (e) => this._handleDetail(e.detail.repo));
     this.addEventListener('readme', (e) => this._handleDetail(e.detail.repo));
-    this.addEventListener('favorite', () => this._syncFavoriteCount());
+    this.addEventListener('favorite', async () => { await this._loadFavorites(); this._syncFavoriteCount(); });
   }
 
   willUpdate(changedProps) {
@@ -506,8 +502,14 @@ class BrowseView extends LitElement {
   async _load() {
     this.loading = true;
     try {
+      // Detect GitHub URL pattern: don't send URL search to server (server can't match URLs)
+      const isUrlSearch = !!(this.search && (
+        this.search.match(/github\.com\/([^/]+\/[^/\s?#]+)/i) ||
+        this.search.match(/^[a-zA-Z0-9_-]+\/[a-zA-Z0-9_.-]+$/)
+      ));
       const result = await api.listRepositories({
-        search: this.search, category: this.category, sort: this.sort,
+        search: isUrlSearch ? '' : this.search,
+        category: this.category, sort: this.sort,
         sortDir: this.sortDir, page: this.page, limit: this.limit,
         status: this.statusFilter,
       });
@@ -743,13 +745,15 @@ class BrowseView extends LitElement {
       return html`<div class="list-view">${this._renderListTable(repos)}</div>`;
     }
     return html`<div class="grid">${repos.map(r => html`
-      ${this._batchMode ? html`
-        <label class="batch-checkbox" @click=${e => e.stopPropagation()}>
-          <input type="checkbox" ?checked=${this._selectedRepos.includes(r.full_name)}
-            @change=${() => this._toggleSelect(r.full_name)} />
-        </label>
-      ` : ''}
-      <repo-card .repo=${r} ._installing=${!!this._installingIds?.[r.id || r.full_name]}></repo-card>
+      <div style="position:relative;">
+        ${this._batchMode ? html`
+          <label class="batch-checkbox" style="position:absolute;top:8px;left:8px;z-index:10;background:rgba(0,0,0,0.4);border-radius:4px;padding:4px;" @click=${e => e.stopPropagation()}>
+            <input type="checkbox" ?checked=${this._selectedRepos.includes(r.full_name)}
+              @change=${() => this._toggleSelect(r.full_name)} />
+          </label>
+        ` : ''}
+        <repo-card .repo=${r} ._installing=${!!this._installingIds?.[r.id || r.full_name]}></repo-card>
+      </div>
     `)}</div>`;
   }
 

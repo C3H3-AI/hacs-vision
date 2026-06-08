@@ -836,12 +836,6 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
               ${t('restartHA')}
             </button>
             ` : ''}
-            ${(this.stats.pending_restart ?? 0) > 0 || true ? html`
-            <button class="action-btn-sm" @click=${this._checkUpdates} title="${t('checkUpdatesNotify')}">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:13px;height:13px;"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
-              ${t('checkUpdates')}
-            </button>
-            ` : ''}
             <div class="stat" @click=${() => this._applyFilter('favorites')}>
               <div class="stat-num">${this._favoriteCount ?? 0}</div>
               <div class="stat-label">${t('statFavorites') || '收藏'}</div>
@@ -924,10 +918,9 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
               </div>
 
               ${r.config_entry_id ? html`
-                <button class="detail-action-btn" @click=${() => window.open('/config/integrations/dashboard?config_entry=' + r.config_entry_id, '_self')} title="${t('addIntegrationHint')}">
+                <button class="detail-action-btn" @click=${() => window.top.location.href = '/config/integrations/dashboard/settings?config_entry=' + r.config_entry_id} title="${t('addIntegrationHint')}">
                   ${t('addIntegration')}
-                </button>
-              ` : ''}
+                </button>` : ''}
 
               ${r.topics && r.topics.length ? html`
                 <div class="detail-topics">
