@@ -336,7 +336,6 @@ class RepoCard extends LitElement {
               <span class="initials" style="display:none">${this._getInitials(name)}</span>
             ` : this._getInitials(name)}
           </div>
-          <span class="badge ${category}">${this._getCategoryLabel(category)}</span>
           ${isInstalled ? html`<span class="installed-badge"><svg class="mini-icon" viewBox="0 0 24 24" fill="none" stroke="#4caf50" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg> ${t('installed')}</span>` : ''}
           <button class="fav-btn ${this._isFavorite ? 'active' : ''}"
                   @click=${this._handleFavorite}

@@ -921,7 +921,6 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
               <span class="initials" style="display:none">${this._getInitials(t)}</span>
             `:this._getInitials(t)}
           </div>
-          <span class="badge ${a}">${this._getCategoryLabel(a)}</span>
           ${s?H`<span class="installed-badge"><svg class="mini-icon" viewBox="0 0 24 24" fill="none" stroke="#4caf50" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg> ${ue("installed")}</span>`:""}
           <button class="fav-btn ${this._isFavorite?"active":""}"
                   @click=${this._handleFavorite}
