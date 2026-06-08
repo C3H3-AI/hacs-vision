@@ -130,6 +130,7 @@ class HACSEnhancedAPI {
   importBackup(data) { return this.post('backup/import', data); }
   checkDependencies() { return this.get('dependencies'); }
   refresh() { return this.post('refresh'); }
+  restartHA() { return this.post('restart'); }
 
   /* F3: Get single repo status (for progress polling) — uses real-time HACS memory data */
   getRepoStatus(repoId) { return this.get(`repos/status/${encodeURIComponent(repoId)}`); }

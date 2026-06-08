@@ -123,6 +123,15 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
     .stat { text-align: center; cursor: pointer; }
     .stat:hover .stat-num { opacity: 0.8; }
     .stat-num { font-size: 20px; font-weight: 700; color: var(--primary-color, #03a9f4); transition: opacity 0.15s; }
+    .restart-btn {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 4px 12px; border: 1px solid #f44336; border-radius: 4px;
+      background: rgba(244,67,54,0.1); color: #f44336;
+      cursor: pointer; font-size: 12px; font-weight: 600; white-space: nowrap;
+      transition: background 0.15s;
+    }
+    .restart-btn:hover { background: rgba(244,67,54,0.25); }
+    .restart-btn svg { width: 14px; height: 14px; flex-shrink: 0; }
     .stat-label { font-size: 11px; color: var(--secondary-text-color, #727272); margin-top: 2px; text-transform: uppercase; }
 
     /* ===== Sticky Tabs ===== */
@@ -470,6 +479,8 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
       .stat { text-align: center; min-width: 32px; }
       .stat-num { font-size: 12px; }
       .stat-label { font-size: 8px; }
+      .restart-btn { font-size: 10px; padding: 2px 8px; }
+      .restart-btn svg { width: 12px; height: 12px; }
       .sticky-header { margin: 0 -10px 8px; padding: 0 10px 8px; }
       .tab { padding: 8px 12px; font-size: 12px; min-height: 44px; display: flex; align-items: center; }
 
@@ -537,6 +548,22 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
       console.error('Stats error:', e);
       this.stats = {};
       this._error = `API: ${e.message}`;
+    }
+  }
+
+  async _restartHA() {
+    const { ConfirmDialog } = await import('./shared/confirm-dialog.js');
+    const ok = await ConfirmDialog.show(this, {
+      message: t('restartConfirm'),
+      confirmText: t('restartHA'),
+      danger: true,
+    });
+    if (!ok) return;
+    try {
+      await api.restartHA();
+      showToast(t('haRestarting'), 'info');
+    } catch(e) {
+      showToast(`${t('restartFailed')}: ${e.message}`, 'error');
     }
   }
 
@@ -769,6 +796,10 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
               <div class="stat-num">${this.stats.pending_restart}</div>
               <div class="stat-label">${t('statusPendingRestart')}</div>
             </div>
+            <button class="restart-btn" @click=${() => this._restartHA()} title="${t('restartHATitle')}">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 4v6h6M23 20v-6h-6"/><path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"/></svg>
+              ${t('restartHA')}
+            </button>
             ` : ''}
             <div class="stat" @click=${() => this._applyFilter('favorites')}>
               <div class="stat-num">${this._favoriteCount ?? 0}</div>

@@ -168,6 +168,8 @@ class HACSEnhancedAPI(HomeAssistantView):
             return await self._replace_renamed(body)
         if path == "management/remove_renamed":
             return await self._remove_renamed_entry(body)
+        if path in ("restart", "restart/"):
+            return await self._restart()
 
         return web.json_response({"error": "not_found"}, status=404)
 
@@ -743,3 +745,14 @@ class HACSEnhancedAPI(HomeAssistantView):
             "repository": old_name,
             "purged_ids": purged_ids,
         })
+
+    # ── Restart Home Assistant ────────────────────────────
+
+    async def _restart(self) -> web.Response:
+        """Restart Home Assistant via homeassistant.restart service."""
+        try:
+            await self.hass.services.async_call("homeassistant", "restart", blocking=False)
+            return web.json_response({"success": True})
+        except Exception as e:
+            _LOGGER.error("Restart failed: %s", e, exc_info=True)
+            return web.json_response({"success": False, "error": str(e)}, status=500)

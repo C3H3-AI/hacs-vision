@@ -219,6 +219,12 @@ const T = {
   haRestarting: { zh: 'Home Assistant 正在重启，请稍候...', en: 'Home Assistant is restarting, please wait...' },
   rateLimited: { zh: 'GitHub API 限流，请稍后重试', en: 'GitHub API rate limited — try again later' },
 
+  // Restart HA button
+  restartHA: { zh: '重启', en: 'Restart' },
+  restartHATitle: { zh: '重启 Home Assistant', en: 'Restart Home Assistant' },
+  restartConfirm: { zh: '确定要重启 Home Assistant 吗？面板将暂时不可用。', en: 'Restart Home Assistant? The panel will be temporarily unavailable.' },
+  restartFailed: { zh: '重启失败', en: 'Restart failed' },
+
   // F3: Progress Indicators
   installing: { zh: '安装中…', en: 'Installing…' },
   installComplete: { zh: '已安装', en: 'Installed' },
