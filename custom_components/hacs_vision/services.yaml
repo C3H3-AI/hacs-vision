@@ -1,0 +1,29 @@
+refresh:
+  name: Refresh HACS data
+  description: Force refresh of HACS repository data.
+
+install_repository:
+  name: Install repository
+  description: Install a repository from HACS.
+  fields:
+    repository:
+      name: Repository
+      description: Full name of the repository (author/repo).
+      required: true
+      example: "custom-components/sensor"
+      selector:
+        text:
+    category:
+      name: Category
+      description: Repository category.
+      required: false
+      default: "integration"
+      selector:
+        select:
+          options:
+            - "integration"
+            - "plugin"
+            - "theme"
+            - "appdaemon"
+            - "python_script"
+            - "netdaemon"

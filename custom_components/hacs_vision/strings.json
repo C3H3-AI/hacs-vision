@@ -1,0 +1,34 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "HACS Vision",
+        "description": "Set up HACS Vision panel. Make sure HACS is already installed."
+      }
+    },
+    "abort": {
+      "single_instance_allowed": "Only a single instance of HACS Vision is allowed.",
+      "hacs_not_found": "HACS integration is required but not found."
+    }
+  },
+  "services": {
+    "refresh": {
+      "name": "Refresh",
+      "description": "Force refresh of HACS repository data."
+    },
+    "install_repository": {
+      "name": "Install repository",
+      "description": "Install a repository from HACS.",
+      "fields": {
+        "repository": {
+          "name": "Repository",
+          "description": "Full name of the repository (author/repo)."
+        },
+        "category": {
+          "name": "Category",
+          "description": "Repository category."
+        }
+      }
+    }
+  }
+}
