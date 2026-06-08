@@ -9,6 +9,8 @@ class RepoCard extends LitElement {
     _isFavorite: { type: Boolean, state: true },
     _installing: { type: Boolean },
     _favorites: { type: Array, state: true },
+    selected: { type: Boolean },
+    showCheckbox: { type: Boolean },
   };
 
   constructor() {
@@ -79,10 +81,9 @@ class RepoCard extends LitElement {
     .avatar img { width: 100%; height: 100%; object-fit: cover; }
     .avatar .initials { display: flex; }
     .badge {
-      position: absolute; top: 10px; left: 10px;
       padding: 4px 10px; border-radius: 6px;
       font-size: 10px; font-weight: 600; color: #fff;
-      text-transform: uppercase;
+      text-transform: uppercase; flex-shrink: 0;
     }
     .badge.integration { background: #1565c0; }
     .badge.plugin { background: #7b1fa2; }
@@ -97,6 +98,26 @@ class RepoCard extends LitElement {
       padding: 4px 10px; border-radius: 6px;
       font-size: 10px; font-weight: 600;
       background: rgba(76,175,80,0.15); color: #4caf50;
+    }
+
+    .top-bar {
+      position: absolute; top: 0; left: 0; right: 0;
+      display: flex; align-items: center; gap: 6px;
+      padding: 10px; z-index: 2;
+    }
+    .checkbox {
+      width: 18px; height: 18px; border-radius: 4px;
+      border: 2px solid rgba(255,255,255,0.7); cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0; transition: all 0.2s;
+      background: rgba(0,0,0,0.25);
+      -webkit-appearance: none; appearance: none; touch-action: manipulation;
+    }
+    .checkbox:checked {
+      background: var(--primary-color); border-color: var(--primary-color);
+    }
+    .checkbox:checked::after {
+      content: '✓'; color: #fff; font-size: 12px; font-weight: 700;
     }
 
     .fav-btn {
@@ -301,6 +322,14 @@ class RepoCard extends LitElement {
     return html`
       <div class="card${r.is_custom ? ' custom-repo' : ''}" @click=${this._handleCardClick}>
         <div class="img-container">
+          ${this.showCheckbox ? html`
+            <div class="top-bar">
+              <input type="checkbox" class="checkbox" ?checked=${this.selected}
+                     @click=${(e) => e.stopPropagation()}
+                     @change=${() => this.dispatchEvent(new CustomEvent('check-change', { detail: { fullName: this.repo?.full_name }, bubbles: true, composed: true }))}>
+              <span class="badge ${category}">${this._getCategoryLabel(category)}</span>
+            </div>
+          ` : html`<span class="badge ${category}" style="position:absolute;top:10px;left:10px;">${this._getCategoryLabel(category)}</span>`}
           <div class="avatar" style="background: ${categoryColor}">
             ${this._getIconUrl(r) ? html`
               <img src="${this._getIconUrl(r)}" @error=${(e) => { e.target.style.display = 'none'; e.target.nextElementSibling.style.display = 'flex'; }} alt="">

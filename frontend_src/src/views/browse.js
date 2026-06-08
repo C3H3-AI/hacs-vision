@@ -749,13 +749,10 @@ class BrowseView extends LitElement {
       return html`<div class="list-view">${this._renderListTable(repos)}</div>`;
     }
     return html`<div class="grid">${repos.map(r => html`
-      <div style="position:relative;">
-        <label class="batch-checkbox" style="position:absolute;top:8px;left:8px;z-index:10;background:rgba(255,255,255,0.9);border-radius:6px;padding:6px;box-shadow:0 2px 6px rgba(0,0,0,0.2);cursor:pointer;" @click=${e => e.stopPropagation()}>
-            <input type="checkbox" ?checked=${this._selectedRepos.includes(r.full_name)}
-              @change=${() => this._toggleSelect(r.full_name)} style="width:18px;height:18px;cursor:pointer;display:block;" />
-        </label>
-        <repo-card .repo=${r} ._installing=${!!this._installingIds?.[r.id || r.full_name]}></repo-card>
-      </div>
+      <repo-card .repo=${r} ._installing=${!!this._installingIds?.[r.id || r.full_name]}
+        ?showCheckbox=${true} ?selected=${this._selectedRepos.includes(r.full_name)}
+        @check-change=${(e) => { if (e.detail?.fullName) this._toggleSelect(e.detail.fullName); }}>
+      </repo-card>
     `)}</div>`;
   }
 
