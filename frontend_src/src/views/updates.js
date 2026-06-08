@@ -15,6 +15,8 @@ class UpdatesView extends LitElement {
     _changelogs: { type: Object, state: true },
     _searchText: { type: String, state: true },
     _selectedIds: { type: Object, state: true },
+    _selectedRepos: { type: Array, state: true },
+    _batchMode: { type: Boolean, state: true },
     _viewMode: { type: String, state: true },
   };
 
@@ -29,6 +31,8 @@ class UpdatesView extends LitElement {
     this._changelogs = {};
     this._searchText = '';
     this._selectedIds = {};
+    this._selectedRepos = [];
+    this._batchMode = false;
     const saved = localStorage.getItem('hacs_vision_view_mode');
     this._viewMode = saved || 'card';
   }
@@ -205,6 +209,31 @@ class UpdatesView extends LitElement {
         .update-all-bar { justify-content: stretch; }
         .update-all-btn { width: 100%; justify-content: center; min-height: 44px; }
       }
+
+      .batch-toggle {
+        padding: 3px 10px; border-radius: 4px; font-size: 11px;
+        border: 1px solid var(--divider-color, #ccc);
+        background: var(--card-background-color);
+        color: var(--primary-text-color); cursor: pointer;
+      }
+      .batch-toggle:hover { border-color: var(--primary-color); }
+      .batch-bar {
+        display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+        padding: 8px 12px; margin: 6px 0;
+        background: var(--primary-color, #03a9f4); color: #fff;
+        border-radius: 8px; font-size: 13px; font-weight: 600;
+      }
+      .batch-bar-btn {
+        padding: 4px 12px; border-radius: 4px; font-size: 11px; font-weight: 600;
+        background: rgba(255,255,255,0.2); color: #fff;
+        border: 1px solid rgba(255,255,255,0.4); cursor: pointer;
+      }
+      .batch-bar-btn:hover { background: rgba(255,255,255,0.35); }
+      .batch-bar-btn.danger { border-color: #ff5252; color: #ff5252; }
+      .batch-checkbox {
+        display: inline-flex; align-items: center; margin-right: 4px; cursor: pointer;
+      }
+      .batch-checkbox input { width: 16px; height: 16px; cursor: pointer; }
     `
   ];
 
@@ -272,6 +301,41 @@ class UpdatesView extends LitElement {
 
   _toggleSelect(repoId) {
     this._selectedIds = { ...this._selectedIds, [repoId]: !this._selectedIds[repoId] };
+  }
+
+  _toggleSelectFull(fullName) {
+    if (this._selectedRepos.includes(fullName)) {
+      this._selectedRepos = this._selectedRepos.filter(n => n !== fullName);
+    } else {
+      this._selectedRepos = [...this._selectedRepos, fullName];
+    }
+  }
+
+  async _batchDo(action) {
+    if (this._selectedRepos.length === 0) return;
+    if (action === 'remove') {
+      const ok = await ConfirmDialog.show(this, {
+        message: t('batchRemoveConfirm', { n: this._selectedRepos.length }),
+        confirmText: t('batchRemove'),
+        danger: true,
+      });
+      if (!ok) return;
+    }
+    try {
+      showToast(t('batchInProgress'), 'info');
+      if (action === 'update') {
+        await api.update(this._selectedRepos);
+      } else if (action === 'remove') {
+        await api.batchRemove(this._selectedRepos.map(r => r));
+      }
+      showToast(t('batchComplete'), 'success');
+      this._selectedRepos = [];
+      this._batchMode = false;
+      this._load();
+      this.dispatchEvent(new CustomEvent('refresh-stats', { bubbles: true, composed: true }));
+    } catch(e) {
+      showToast(`${action} failed: ${e.message}`, 'error');
+    }
   }
 
   _toggleSelectAll() {
@@ -455,6 +519,9 @@ class UpdatesView extends LitElement {
           <button class="view-toggle-btn ${this._viewMode === 'card' ? 'active' : ''}" @click=${() => this._setViewMode('card')} title="${t('viewCard')}">${t('viewCard')}</button>
           <button class="view-toggle-btn ${this._viewMode === 'list' ? 'active' : ''}" @click=${() => this._setViewMode('list')} title="${t('viewList')}">${t('viewList')}</button>
         </div>
+        <button class="batch-toggle" @click=${() => { this._batchMode = !this._batchMode; if (!this._batchMode) this._selectedRepos = []; }}>
+          ${this._batchMode ? t('cancel') : t('batchSelect')}
+        </button>
       </div>
 
       ${this.loading ? html`
@@ -488,6 +555,15 @@ class UpdatesView extends LitElement {
             <button class="update-all-btn" @click=${this._updateSelected} ?disabled=${this.updating || this._selectedCount() === 0}>
               <svg class="mini-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg> ${this.updating ? t('updatingProgress') : `${t('updateAll')} (${this._selectedCount() || 0})`}
             </button>
+          </div>
+        ` : ''}
+
+        ${this._batchMode && this._selectedRepos.length > 0 ? html`
+          <div class="batch-bar">
+            <span>${t('batchSelected', { n: this._selectedRepos.length })}</span>
+            <button class="batch-bar-btn" @click=${() => this._batchDo('update')}>${t('batchUpdate')}</button>
+            <button class="batch-bar-btn danger" @click=${() => this._batchDo('remove')}>${t('batchRemove')}</button>
+            <button class="batch-bar-btn" @click=${() => { this._selectedRepos = []; this._batchMode = false; }}>${t('cancel')}</button>
           </div>
         ` : ''}
 

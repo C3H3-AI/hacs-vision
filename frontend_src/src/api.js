@@ -132,6 +132,20 @@ class HACSEnhancedAPI {
   refresh() { return this.post('refresh'); }
   restartHA() { return this.post('restart'); }
 
+  /* Settings */
+  getSettings() { return this.get('settings'); }
+  updateSettings(settings) { return this.post('settings', settings); }
+
+  /* Config Entries (for Add Integration button) */
+  getConfigEntries() { return this.get('config_entries'); }
+
+  /* Batch Operations */
+  batchInstall(repos) { return this.post('batch/install', { repositories: repos }); }
+  batchRemove(repos) { return this.post('batch/remove', { repositories: repos }); }
+
+  /* Check Updates + Notification */
+  checkUpdatesWithNotify() { return this.post('check_updates'); }
+
   /* F3: Get single repo status (for progress polling) — uses real-time HACS memory data */
   getRepoStatus(repoId) { return this.get(`repos/status/${encodeURIComponent(repoId)}`); }
 

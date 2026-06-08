@@ -227,6 +227,15 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
     @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
     .update-badge { background: var(--warning-color, #ff9800); color: #fff; padding: 1px 6px; border-radius: 8px; font-size: 10px; display: inline-flex; align-items: center; gap: 2px; }
 
+    .action-btn-sm {
+      display: inline-flex; align-items: center; gap: 3px;
+      padding: 3px 10px; border: 1px solid var(--divider-color, #ccc);
+      border-radius: 4px; background: var(--card-background-color);
+      color: var(--primary-text-color); cursor: pointer;
+      font-size: 11px; white-space: nowrap;
+    }
+    .action-btn-sm:hover { border-color: var(--primary-color); }
+
     /* ===== Detail Modal ===== */
     .modal-overlay {
       position: fixed; top: 0; left: 0; width: 100%; height: 100%;
@@ -395,6 +404,14 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
     .modal-btn.danger:hover { background: #f44336; color: #fff; }
     .modal-btn svg { width: 16px; height: 16px; }
 
+    .detail-action-btn {
+      display: inline-block; padding: 6px 14px; border-radius: 6px;
+      background: var(--primary-color); color: #fff;
+      border: none; cursor: pointer; font-size: 12px; font-weight: 600;
+      margin: 4px 4px 0 0;
+    }
+    .detail-action-btn:hover { opacity: 0.9; }
+
     /* ===== Detail README — single scroll (no double scroll) ===== */
     .detail-changelog {
       margin-bottom: 16px; padding: 14px 16px;
@@ -520,7 +537,7 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
       if (!this._showDetail && document.activeElement?.tagName !== 'INPUT'
           && document.activeElement?.tagName !== 'SELECT'
           && document.activeElement?.tagName !== 'TEXTAREA') {
-        const views = ['browse', 'updates', 'management'];
+        const views = ['browse', 'updates', 'management', 'settings'];
         const num = parseInt(e.key);
         if (num >= 1 && num <= views.length) {
           e.preventDefault();
@@ -640,6 +657,23 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
     this._releasesLoading = false;
   }
 
+  async _checkUpdates() {
+    try {
+      const result = await api.checkUpdatesWithNotify();
+      if (result.success) {
+        if (result.updates_found > 0) {
+          showToast(t('updatesChecked', { n: result.updates_found }), 'success');
+        } else {
+          showToast(t('noUpdatesFound'), 'info');
+        }
+        if (result.notified) showToast(t('notifySent'), 'success');
+        this._loadStats();
+      }
+    } catch(e) {
+      showToast(`Update check failed: ${e.message}`, 'error');
+    }
+  }
+
   _toggleDetailExpand() {
     this._detailExpanded = !this._detailExpanded;
   }
@@ -742,6 +776,7 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
       { view: 'browse', label: t('tabBrowse'), icon: '', count: null },
       { view: 'updates', label: t('tabUpdates'), icon: '', count: null },
       { view: 'management', label: t('tabManagement'), icon: '', count: null },
+      { view: 'settings', label: t('tabSettings'), icon: '', count: null },
     ];
 
     const r = this._detailRepo;
@@ -801,6 +836,12 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
               ${t('restartHA')}
             </button>
             ` : ''}
+            ${(this.stats.pending_restart ?? 0) > 0 || true ? html`
+            <button class="action-btn-sm" @click=${this._checkUpdates} title="${t('checkUpdatesNotify')}">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:13px;height:13px;"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+              ${t('checkUpdates')}
+            </button>
+            ` : ''}
             <div class="stat" @click=${() => this._applyFilter('favorites')}>
               <div class="stat-num">${this._favoriteCount ?? 0}</div>
               <div class="stat-label">${t('statFavorites') || '收藏'}</div>
@@ -836,6 +877,7 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
           ${this.currentView === 'browse' ? html`<browse-view .hass=${this.hass} .presetFilter=${this._presetFilter}></browse-view>` : ''}
           ${this.currentView === 'updates' ? html`<updates-view .hass=${this.hass}></updates-view>` : ''}
           ${this.currentView === 'management' ? html`<management-view .hass=${this.hass}></management-view>` : ''}
+          ${this.currentView === 'settings' ? html`<config-view .hass=${this.hass} @refresh-stats=${this._loadStats}></config-view>` : ''}
         </div>
       </div>
 
@@ -880,6 +922,12 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
                   <span class="val">${r.full_name || r.name || ''}</span>
                 </div>
               </div>
+
+              ${r.config_entry_id ? html`
+                <button class="detail-action-btn" @click=${() => window.open('/config/integrations/dashboard?config_entry=' + r.config_entry_id, '_self')} title="${t('addIntegrationHint')}">
+                  ${t('addIntegration')}
+                </button>
+              ` : ''}
 
               ${r.topics && r.topics.length ? html`
                 <div class="detail-topics">

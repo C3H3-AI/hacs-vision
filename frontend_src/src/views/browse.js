@@ -44,6 +44,8 @@ class BrowseView extends LitElement {
     _filterExpanded: { type: Boolean, state: true },
     _favorites: { type: Array, state: true },
     presetFilter: { type: String },
+    _selectedRepos: { type: Array, state: true },
+    _batchMode: { type: Boolean, state: true },
   };
 
   constructor() {
@@ -74,6 +76,8 @@ class BrowseView extends LitElement {
     this._collapsedGroups = {};
     this._filterExpanded = false;
     this._favorites = [];
+    this._selectedRepos = [];
+    this._batchMode = false;
 
     this.statusOptions = [
       { value: '', label: t('statusAll') },
@@ -384,6 +388,31 @@ class BrowseView extends LitElement {
       .form-actions { flex-direction: column; }
       .form-actions .btn { width: 100%; min-height: 44px; justify-content: center; }
     }
+
+    .batch-toggle {
+      padding: 3px 10px; border-radius: 4px; font-size: 11px;
+      border: 1px solid var(--divider-color, #ccc);
+      background: var(--card-background-color);
+      color: var(--primary-text-color); cursor: pointer;
+    }
+    .batch-toggle:hover { border-color: var(--primary-color); }
+    .batch-bar {
+      display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+      padding: 8px 12px; margin: 6px 0;
+      background: var(--primary-color, #03a9f4); color: #fff;
+      border-radius: 8px; font-size: 13px; font-weight: 600;
+    }
+    .batch-bar-btn {
+      padding: 4px 12px; border-radius: 4px; font-size: 11px; font-weight: 600;
+      background: rgba(255,255,255,0.2); color: #fff;
+      border: 1px solid rgba(255,255,255,0.4); cursor: pointer;
+    }
+    .batch-bar-btn:hover { background: rgba(255,255,255,0.35); }
+    .batch-bar-btn.danger { border-color: #ff5252; color: #ff5252; }
+    .batch-checkbox {
+      display: inline-flex; align-items: center; margin-right: 4px; cursor: pointer;
+    }
+    .batch-checkbox input { width: 16px; height: 16px; cursor: pointer; }
   `;
 
   async connectedCallback() {
@@ -597,6 +626,32 @@ class BrowseView extends LitElement {
     return repos;
   }
 
+  _getFiltered() {
+    let repos = this._applyFilters(this.repos);
+    if (!this.search) return repos;
+    const q = this.search.toLowerCase();
+    // Extract owner/repo from GitHub URL if applicable
+    let extractedPath = null;
+    const githubMatch = q.match(/github\.com\/([^/]+\/[^/\s?#]+)/i);
+    if (githubMatch) {
+      extractedPath = githubMatch[1].replace(/\.git$/, '').toLowerCase();
+    }
+    return repos.filter(r => {
+      const fullName = (r.full_name || '').toLowerCase();
+      const name = (r.name || '').toLowerCase();
+      const desc = (r.description || '').toLowerCase();
+      const authors = (r.authors || []).join(',').toLowerCase();
+      const manifestName = (r.manifest_name || r.repository_manifest?.name || '').toLowerCase();
+      // Basic field matching
+      if (fullName.includes(q) || name.includes(q) || desc.includes(q) || authors.includes(q)) return true;
+      // GitHub URL match: compare extracted owner/repo against full_name
+      if (extractedPath && (fullName === extractedPath || fullName.includes(extractedPath))) return true;
+      // manifest_name match
+      if (manifestName.includes(q)) return true;
+      return false;
+    });
+  }
+
   _groupRepos(repos) {
     if (this.groupBy === 'none') return null;
     const groups = {};
@@ -644,11 +699,58 @@ class BrowseView extends LitElement {
     } catch { return ''; }
   }
 
+  _toggleSelect(fullName) {
+    if (this._selectedRepos.includes(fullName)) {
+      this._selectedRepos = this._selectedRepos.filter(n => n !== fullName);
+    } else {
+      this._selectedRepos = [...this._selectedRepos, fullName];
+    }
+  }
+
+  async _batchDo(action) {
+    if (this._selectedRepos.length === 0) return;
+    const repos = this._selectedRepos.map(name => {
+      const repo = this.repos.find(r => r.full_name === name);
+      return { repository: name, category: repo?.category || 'integration' };
+    });
+
+    if (action === 'remove') {
+      const { ConfirmDialog } = await import('../shared/confirm-dialog.js');
+      const ok = await ConfirmDialog.show(this, {
+        message: t('batchRemoveConfirm', { n: repos.length }),
+        confirmText: t('batchRemove'),
+        danger: true,
+      });
+      if (!ok) return;
+    }
+
+    try {
+      showToast(t('batchInProgress'), 'info');
+      const result = action === 'install'
+        ? await api.batchInstall(repos)
+        : await api.batchRemove(repos.map(r => r.repository));
+      showToast(t('batchComplete'), 'success');
+      this._selectedRepos = [];
+      this._batchMode = false;
+      this._load();
+    } catch(e) {
+      showToast(`${action} failed: ${e.message}`, 'error');
+    }
+  }
+
   _renderRepoList(repos) {
     if (this.viewMode === 'list') {
       return html`<div class="list-view">${this._renderListTable(repos)}</div>`;
     }
-    return html`<div class="grid">${repos.map(r => html`<repo-card .repo=${r} ._installing=${!!this._installingIds?.[r.id || r.full_name]}></repo-card>`)}</div>`;
+    return html`<div class="grid">${repos.map(r => html`
+      ${this._batchMode ? html`
+        <label class="batch-checkbox" @click=${e => e.stopPropagation()}>
+          <input type="checkbox" ?checked=${this._selectedRepos.includes(r.full_name)}
+            @change=${() => this._toggleSelect(r.full_name)} />
+        </label>
+      ` : ''}
+      <repo-card .repo=${r} ._installing=${!!this._installingIds?.[r.id || r.full_name]}></repo-card>
+    `)}</div>`;
   }
 
   _renderListTable(repos) {
@@ -728,7 +830,7 @@ class BrowseView extends LitElement {
 
   render() {
     const totalPages = Math.ceil(this.total / this.limit);
-    const displayRepos = this._applyFilters(this.repos);
+    const displayRepos = this._getFiltered();
     const grouped = this._groupRepos(displayRepos);
 
     return html`
@@ -741,6 +843,9 @@ class BrowseView extends LitElement {
           <input type="text" placeholder="${t('searchPlaceholder')}" .value=${this._searchText} @input=${this._onSearch} />
           ${this.search ? html`<button class="search-clear" @click=${this._clearSearch}>✕</button>` : ''}
         </div>
+        <button class="batch-toggle" @click=${() => { this._batchMode = !this._batchMode; if (!this._batchMode) this._selectedRepos = []; }}>
+          ${this._batchMode ? t('cancel') : t('batchSelect')}
+        </button>
         <div class="controls-right">
           <div class="view-toggle">
             <button class="view-toggle-btn ${this.viewMode === 'card' ? 'active' : ''}" @click=${() => this._onViewModeChange('card')} title="${t('viewCard')}">${t('viewCard')}</button>
@@ -807,6 +912,16 @@ class BrowseView extends LitElement {
           </div>
         </div>
       </div>
+
+      <!-- Batch Action Bar -->
+      ${this._batchMode && this._selectedRepos.length > 0 ? html`
+        <div class="batch-bar">
+          <span>${t('batchSelected', { n: this._selectedRepos.length })}</span>
+          <button class="batch-bar-btn" @click=${() => this._batchDo('install')}>${t('batchInstall')}</button>
+          <button class="batch-bar-btn danger" @click=${() => this._batchDo('remove')}>${t('batchRemove')}</button>
+          <button class="batch-bar-btn" @click=${() => { this._selectedRepos = []; this._batchMode = false; }}>${t('cancel')}</button>
+        </div>
+      ` : ''}
 
       <!-- Sort Bar (always visible, both card and list mode) -->
       <div class="sort-bar">

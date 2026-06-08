@@ -14,6 +14,8 @@ STORAGE_PATHS = {
     "config": ".storage/hacs.hacs",
     "install_times": ".storage/hacs_vision_install_times.json",
     "favorites": ".storage/hacs_vision_favorites.json",
+    "custom_repos": ".storage/hacs_vision_custom_repos.json",
+    "settings": ".storage/hacs_vision_settings.json",
 }
 
 API_BASE = "/api/hacs_vision"

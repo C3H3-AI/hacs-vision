@@ -277,6 +277,46 @@ const T = {
   installedAt: { zh: '安装时间', en: 'Installed At' },
   today: { zh: '今天', en: 'Today' },
   yesterday: { zh: '昨天', en: 'Yesterday' },
+
+  // Config tab
+  tabSettings: { zh: '设置', en: 'Settings' },
+  settingsTitle: { zh: '设置', en: 'Settings' },
+  settingsDesc: { zh: '自定义 HACS Vision 的显示和行为', en: 'Customize HACS Vision look and behavior' },
+  settingsRefreshInterval: { zh: '刷新间隔（秒）', en: 'Refresh interval (s)' },
+  settingsDefaultView: { zh: '默认视图', en: 'Default view' },
+  settingsNotifyUpdates: { zh: '推送更新通知', en: 'Push update notifications' },
+  settingsNotifyRestart: { zh: '推送重启提醒', en: 'Push restart reminders' },
+  settingsLanguage: { zh: '语言', en: 'Language' },
+  settingsSaved: { zh: '设置已保存', en: 'Settings saved' },
+  settingsSaveFailed: { zh: '设置保存失败', en: 'Settings save failed' },
+
+  // Batch operations
+  batchSelect: { zh: '批量选择', en: 'Batch select' },
+  batchInstall: { zh: '批量安装', en: 'Batch install' },
+  batchRemove: { zh: '批量卸载', en: 'Batch uninstall' },
+  batchUpdate: { zh: '批量更新', en: 'Batch update' },
+  batchSelected: { zh: '已选 {n} 个', en: '{n} selected' },
+  batchInstallConfirm: { zh: '确定要批量安装 {n} 个仓库吗？', en: 'Install {n} repositories?' },
+  batchRemoveConfirm: { zh: '确定要批量卸载 {n} 个仓库吗？', en: 'Uninstall {n} repositories?' },
+  batchInProgress: { zh: '批量操作进行中…', en: 'Batch operation in progress…' },
+  batchComplete: { zh: '批量操作完成', en: 'Batch complete' },
+
+  // Quick Install
+  quickInstallTitle: { zh: '快捷安装', en: 'Quick Install' },
+  quickInstallDetected: { zh: '检测到 GitHub URL', en: 'Detected GitHub URL' },
+  quickInstallDetectedDesc: { zh: '是否要安装此仓库？', en: 'Install this repository?' },
+  quickInstallAuto: { zh: '自动识别', en: 'Auto detect' },
+
+  // Add Integration Entry
+  addIntegration: { zh: '添加集成', en: 'Add Integration' },
+  addIntegrationHint: { zh: '将此仓库作为 HA 集成添加', en: 'Add this repo as a HA integration' },
+
+  // Check Updates + Notification
+  checkUpdates: { zh: '检查更新', en: 'Check Updates' },
+  checkUpdatesNotify: { zh: '检查并通知', en: 'Check & Notify' },
+  updatesChecked: { zh: '检查完成，{n} 个可更新', en: 'Check done, {n} updates' },
+  noUpdatesFound: { zh: '所有仓库已是最新', en: 'All repositories up to date' },
+  notifySent: { zh: '通知已发送', en: 'Notification sent' },
 };
 
 /**

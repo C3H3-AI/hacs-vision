@@ -195,3 +195,40 @@ class HACSData:
             return await self.set_favorites(favs)
         return True
 
+    # ===== Settings (our own data) =====
+
+    async def get_settings(self) -> dict:
+        """Get user settings for HACS Vision."""
+        data = await self.read_storage("settings")
+        if not data:
+            return {}
+        return data.get("data", {})
+
+    async def set_settings(self, settings: dict) -> bool:
+        """Save user settings for HACS Vision."""
+        return await self.write_storage("settings", {"data": settings})
+
+    async def get_config_entries_map(self) -> dict[str, str]:
+        """Get a mapping of domain -> config_entry_id for all installed HA integrations."""
+        result = {}
+        for entry in self.hass.config_entries.async_entries():
+            if entry.domain:
+                result[entry.domain] = entry.entry_id
+        return result
+
+    async def send_persistent_notification(self, title: str, message: str) -> None:
+        """Send a persistent notification to HA."""
+        try:
+            await self.hass.services.async_call(
+                "persistent_notification",
+                "create",
+                {
+                    "title": title,
+                    "message": message,
+                    "notification_id": f"hacs_vision_{int(__import__('time').time())}",
+                },
+                blocking=False,
+            )
+        except Exception as e:
+            _LOGGER.error("Failed to send notification: %s", e)
+

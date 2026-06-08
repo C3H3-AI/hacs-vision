@@ -440,6 +440,7 @@ class HACSOperator:
                         "custom": is_custom,
                         "domain": getattr(repo.data, 'domain', None),
                         "releases": getattr(repo.data, 'releases', None),
+                        "config_entry_id": await self._find_config_entry_id(getattr(repo.data, 'domain', None)),
                     })
                 except Exception as inner_e:
                     if len(errors) < 5:
@@ -585,6 +586,18 @@ class HACSOperator:
                 _LOGGER.warning("HACS data write failed after add: %s", e, exc_info=True)
 
         return {"success": True, "repository": full_name}
+
+    async def _find_config_entry_id(self, domain: str | None) -> str | None:
+        """Find HA config entry ID for a given integration domain."""
+        if not domain:
+            return None
+        try:
+            for entry in self._hacs.hass.config_entries.async_entries():
+                if entry.domain == domain:
+                    return entry.entry_id
+        except Exception:
+            pass
+        return None
 
     async def remove_custom_repository(self, full_name: str) -> dict:
         """Remove a custom repository from HACS."""

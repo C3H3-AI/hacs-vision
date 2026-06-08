@@ -132,6 +132,10 @@ class HACSEnhancedAPI(HomeAssistantView):
             return await self._get_repo_rt_status(path[12:])
         if path in ("favorites", "favorites/"):
             return await self._get_favorites()
+        if path in ("settings", "settings/"):
+            return await self._get_settings()
+        if path in ("config_entries", "config_entries/"):
+            return await self._get_config_entries()
 
         return web.json_response({"error": "not_found"}, status=404)
 
@@ -170,6 +174,14 @@ class HACSEnhancedAPI(HomeAssistantView):
             return await self._remove_renamed_entry(body)
         if path in ("restart", "restart/"):
             return await self._restart()
+        if path in ("settings", "settings/"):
+            return await self._update_settings(body)
+        if path in ("batch/install", "batch/install/"):
+            return await self._batch_install(body)
+        if path in ("batch/remove", "batch/remove/"):
+            return await self._batch_remove(body)
+        if path in ("check_updates", "check_updates/"):
+            return await self._check_updates_with_notification()
 
         return web.json_response({"error": "not_found"}, status=404)
 
@@ -747,6 +759,90 @@ class HACSEnhancedAPI(HomeAssistantView):
         })
 
     # ── Restart Home Assistant ────────────────────────────
+
+    async def _get_settings(self) -> web.Response:
+        """Get user settings (refresh interval, default view, etc)."""
+        settings = await self.data.get_settings()
+        return web.json_response(settings)
+
+    async def _update_settings(self, body: dict) -> web.Response:
+        """Save user settings."""
+        ok = await self.data.set_settings(body)
+        return web.json_response({"success": ok})
+
+    async def _get_config_entries(self) -> web.Response:
+        """Get HA config entries map for installed integrations."""
+        mapping = await self.data.get_config_entries_map()
+        return web.json_response({"entries": mapping})
+
+    async def _batch_install(self, body: dict) -> web.Response:
+        """Batch install repositories."""
+        repos = body.get("repositories", [])
+        results = []
+        for item in repos:
+            repo_name = item.get("repository", "")
+            category = item.get("category", "integration")
+            if not repo_name:
+                continue
+            try:
+                result = await self.operator.install_repository(repo_name, category)
+                if result.get("success"):
+                    from datetime import datetime, timezone
+                    await self.data.set_install_time(repo_name, datetime.now(timezone.utc).isoformat())
+                results.append({"repository": repo_name, "result": result})
+            except Exception as e:
+                results.append({"repository": repo_name, "result": {"success": False, "error": str(e)}})
+        return web.json_response({"success": True, "results": results})
+
+    async def _batch_remove(self, body: dict) -> web.Response:
+        """Batch remove repositories."""
+        repos = body.get("repositories", [])
+        results = []
+        for repo_name in repos:
+            if not repo_name:
+                continue
+            try:
+                result = await self.operator.remove_repository(repo_name)
+                if result.get("success"):
+                    await self.data.remove_install_time(repo_name)
+                results.append({"repository": repo_name, "result": result})
+            except Exception as e:
+                results.append({"repository": repo_name, "result": {"success": False, "error": str(e)}})
+        self.operator.invalidate_index()
+        return web.json_response({"success": True, "results": results})
+
+    async def _check_updates_with_notification(self) -> web.Response:
+        """Check for updates and send a persistent notification."""
+        try:
+            self.operator.invalidate_index()
+            repos = await self.operator.get_all_repos_from_hacs()
+            updatable = [r for r in repos if r.get("has_update")]
+            pending_restart = [r for r in repos if r.get("pending_restart")]
+
+            if updatable:
+                names = "\n".join(f"- **{r.get('manifest_name') or r.get('name', r.get('full_name', '?'))}**: {r.get('installed_version', '?')} → {r.get('latest_version', '?')}" for r in updatable[:10])
+                title = f"HACS Vision: {len(updatable)} 个仓库可更新"
+                message = f"发现 **{len(updatable)}** 个仓库可以更新：\n{names}"
+                if len(updatable) > 10:
+                    message += f"\n…以及 {len(updatable) - 10} 个其他仓库"
+                await self.data.send_persistent_notification(title, message)
+
+            if pending_restart:
+                names = ", ".join(r.get('manifest_name') or r.get('full_name', '?') for r in pending_restart)
+                await self.data.send_persistent_notification(
+                    f"HACS Vision: {len(pending_restart)} 个仓库待重启",
+                    f"以下仓库更新后需要重启 HA：{names}"
+                )
+
+            return web.json_response({
+                "success": True,
+                "updates_found": len(updatable),
+                "pending_restart": len(pending_restart),
+                "notified": True,
+            })
+        except Exception as e:
+            _LOGGER.error("Check updates+notify failed: %s", e, exc_info=True)
+            return web.json_response({"success": False, "error": str(e)}, status=500)
 
     async def _restart(self) -> web.Response:
         """Restart Home Assistant via homeassistant.restart service."""
