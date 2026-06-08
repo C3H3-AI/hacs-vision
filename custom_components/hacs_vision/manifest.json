@@ -7,7 +7,7 @@
   "authors": ["@C3H3-AI"],
   "codeowners": ["@C3H3-AI"],
   "config_flow": true,
-  "documentation": "https://github.com/C3H3-AI/ha-huawei-q6",
-  "issue_tracker": "https://github.com/C3H3-AI/ha-huawei-q6/issues",
+  "documentation": "https://github.com/C3H3-AI/hacs-vision",
+  "issue_tracker": "https://github.com/C3H3-AI/hacs-vision/issues",
   "iot_class": "calculated"
 }

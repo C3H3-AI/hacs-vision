@@ -57,7 +57,11 @@ export class ManagementView extends LitElement {
   }
 
   static styles = css`
+<<<<<<< HEAD
     :host { display: block; touch-action: manipulation; background: var(--primary-background-color); }
+=======
+    :host { display: block; touch-action: manipulation; }
+>>>>>>> origin/main
 
     /* ===== Section Base ===== */
     .section {

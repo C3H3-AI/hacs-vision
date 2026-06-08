@@ -827,8 +827,13 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
               ${r.authors && r.authors.length ? html`
                 <div class="detail-authors">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+<<<<<<< HEAD
                   ${r.authors.filter(a => a && a !== '@user').map(a => html`
                     <a class="detail-author-link" href="https://github.com/${a.replace(/^@/, '')}" target="_blank" rel="noopener">@${a.replace(/^@/, '')}</a>
+=======
+                  ${r.authors.map(a => html`
+                    <a class="detail-author-link" href="https://github.com/${a}" target="_blank" rel="noopener">@${a}</a>
+>>>>>>> origin/main
                   `)}
                 </div>
               ` : ''}
