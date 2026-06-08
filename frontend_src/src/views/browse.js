@@ -119,11 +119,7 @@ class BrowseView extends LitElement {
   static styles = css`
     ${commonStyles}
 
-<<<<<<< HEAD
     :host { display: block; touch-action: manipulation; background: var(--primary-background-color); }
-=======
-    :host { display: block; touch-action: manipulation; }
->>>>>>> origin/main
 
     /* ===== Controls Bar ===== */
     .controls {
@@ -543,7 +539,6 @@ class BrowseView extends LitElement {
   _refresh() { this.page = 1; this._persistState(); this._load(); }
 
   async _addRepo() {
-<<<<<<< HEAD
     const fullName = this._parseRepoUrl(this._newRepoUrl);
     if (!fullName) { showToast(t('invalidRepoUrl'), 'error'); return; }
     this._addRepoInstalling = true;
@@ -554,31 +549,16 @@ class BrowseView extends LitElement {
         this._newRepoUrl = ''; this._showAddRepo = false; this._load();
         this.dispatchEvent(new CustomEvent('refresh-stats', { bubbles: true, composed: true }));
       } else { showToast(`${t('addFailed')}: ${result.error}`, 'error'); }
-=======
-    if (!this._newRepoUrl.trim()) return;
-    this._addRepoInstalling = true;
-    try {
-      const result = await api.addCustomRepo(this._newRepoUrl.trim(), this._newRepoCategory);
-      if (result.success) {
-        showToast(`${t('installComplete')}: ${this._newRepoUrl.trim()}`, 'success');
-        this._newRepoUrl = ''; this._showAddRepo = false; this._load();
-        this.dispatchEvent(new CustomEvent('refresh-stats', { bubbles: true, composed: true }));
-      } else { showToast(`${t('addFailed')}: ${result.error || 'unknown'}`, 'error'); }
->>>>>>> origin/main
     } catch(e) { showToast(`${t('addFailed')}: ${e.message}`, 'error'); }
     this._addRepoInstalling = false;
   }
 
-<<<<<<< HEAD
   _parseRepoUrl(url) {
     const match = url.match(/github\.com\/([^/]+\/[^/\s?#]+)/i);
     if (match) return match[1].replace(/\.git$/, '');
     if (/^[a-zA-Z0-9_-]+\/[a-zA-Z0-9_.-]+$/.test(url)) return url;
     return null;
   }
-
-=======
->>>>>>> origin/main
   _getRepoStatus(repo) {
     const repoId = repo.id || repo.full_name;
     if (repo.pending_restart) return 'pending_restart';

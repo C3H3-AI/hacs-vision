@@ -7,7 +7,6 @@
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     html, body {
-<<<<<<< HEAD
       width: 100%; min-height: 100%;
       overflow-x: hidden;
       background: #1c1c1c;
@@ -15,11 +14,6 @@
     hacs-vision-panel {
       display: block;
       min-height: 100vh;
-=======
-      width: 100%; height: 100%;
-      overflow-x: hidden;
-      background: transparent;
->>>>>>> origin/main
     }
   </style>
 </head>
@@ -38,18 +32,13 @@
           var haEl = window.parent.document.querySelector('home-assistant');
           if (haEl && haEl.hass && !panel.hass) {
             panel.hass = haEl.hass;
-<<<<<<< HEAD
             syncIframeBg();
               return true;
-=======
-            return true;
->>>>>>> origin/main
           }
         } catch(e) {}
         return false;
       }
 
-<<<<<<< HEAD
       function syncIframeBg() {
         try {
           var parentDoc = window.parent.document;
@@ -73,9 +62,6 @@
       }
       // Try immediately, then poll up to 10s
       syncIframeBg();
-=======
-      // Try immediately, then poll up to 10s
->>>>>>> origin/main
       if (!bridgeHass()) {
         var count = 0;
         var iv = setInterval(function() {

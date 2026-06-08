@@ -36,11 +36,7 @@ class UpdatesView extends LitElement {
   static styles = [
     commonStyles,
     css`
-<<<<<<< HEAD
       :host { display: block; touch-action: manipulation; background: var(--primary-background-color); }
-=======
-      :host { display: block; touch-action: manipulation; }
->>>>>>> origin/main
 
       .search { min-width: 160px; }
 
