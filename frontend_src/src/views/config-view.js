@@ -276,7 +276,7 @@ class ConfigView extends LitElement {
           </button>
         </div>
 
-        <div class="version">HACS Vision v2.0.0</div>
+        <div class="version">HACS Vision v2.0.1</div>
       </div>
 
       ${this._showIntegrationPicker ? this._renderPicker() : ''}

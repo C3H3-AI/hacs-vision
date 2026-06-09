@@ -2705,7 +2705,7 @@ const qt=1;class Wt{constructor(e){}get _$AU(){return this._$AM._$AU}_$AT(e,t,o)
           </button>
         </div>
 
-        <div class="version">HACS Vision v2.0.0</div>
+        <div class="version">HACS Vision v2.0.1</div>
       </div>
 
       ${this._showIntegrationPicker?this._renderPicker():""}
