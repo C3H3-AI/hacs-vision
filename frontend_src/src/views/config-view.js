@@ -59,8 +59,7 @@ class ConfigView extends LitElement {
     if (this._handlers.length === 0) {
       this._handlersLoading = true;
       try {
-        const resp = await this.hass.fetchWithAuth('/api/config/config_entries/flow_handlers');
-        const data = await resp.json();
+        const data = await this.hass.callApi('GET', 'config/config_entries/flow_handlers');
         // API returns array of strings (domain names)
         this._handlers = Array.isArray(data)
           ? data.map(h => typeof h === 'string' ? { domain: h, name: h } : h)

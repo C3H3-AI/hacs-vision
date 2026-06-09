@@ -1112,6 +1112,7 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
 
       <!-- Config Flow Dialog -->
       <config-flow-dialog
+        .hass=${this.hass}
         .domain=${this._configFlowDomain}
         .entryId=${this._configFlowEntryId}
         .configEntries=${this._configEntries}

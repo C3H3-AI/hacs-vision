@@ -18,6 +18,7 @@ import { t } from '../i18n.js';
  */
 class ConfigFlowDialog extends LitElement {
   static properties = {
+    hass: { type: Object },
     domain: { type: String },
     entryId: { type: String },
     configEntries: { type: Object },
@@ -215,7 +216,7 @@ class ConfigFlowDialog extends LitElement {
 
   _cancelFlow() {
     if (this._flowId) {
-      this.hass.fetchWithAuth(`/api/config/config_entries/flow/${this._flowId}`, { method: 'DELETE' }).catch(() => {});
+      this.hass.callApi('DELETE', `config/config_entries/flow/${this._flowId}`).catch(() => {});
     }
     this._close();
   }
