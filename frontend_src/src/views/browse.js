@@ -411,6 +411,8 @@ class BrowseView extends LitElement {
     this.addEventListener('uninstall', (e) => this._handleUninstall(e.detail.repo));
     this.addEventListener('detail', (e) => this._handleDetail(e.detail.repo));
     this.addEventListener('readme', (e) => this._handleDetail(e.detail.repo));
+    this.addEventListener('configure', (e) => this._handleConfigure(e.detail.repo));
+    this.addEventListener('add-integration', (e) => this._handleAddIntegration(e.detail.repo));
     this.addEventListener('favorite', async () => { await this._loadFavorites(); this._syncFavoriteCount(); });
   }
 
@@ -488,6 +490,17 @@ class BrowseView extends LitElement {
 
   _handleDetail(repo) {
     this.dispatchEvent(new CustomEvent('detail', { detail: { repo }, bubbles: true, composed: true }));
+  }
+
+  _handleConfigure(repo) {
+    // Open options flow for an already-configured integration
+    this.dispatchEvent(new CustomEvent('open-options-flow', { detail: { entryId: repo.config_entry_id }, bubbles: true, composed: true }));
+  }
+
+  _handleAddIntegration(repo) {
+    // Open config flow for an installed-but-not-configured integration
+    const domain = repo.domain || (repo.full_name || '').split('/')[1] || '';
+    this.dispatchEvent(new CustomEvent('open-flow', { detail: { domain }, bubbles: true, composed: true }));
   }
 
   async _load() {

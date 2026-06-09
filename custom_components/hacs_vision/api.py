@@ -7,6 +7,7 @@ import time
 import aiohttp
 from aiohttp import web
 from homeassistant.components.http import HomeAssistantView
+from homeassistant.util import dt as dt_util
 
 from .const import API_BASE
 from .hacs_data import HACSData
@@ -136,6 +137,8 @@ class HACSEnhancedAPI(HomeAssistantView):
             return await self._get_settings()
         if path in ("config_entries", "config_entries/"):
             return await self._get_config_entries()
+        if path == "config_flow/handlers":
+            return await self._config_flow_handlers(request)
 
         return web.json_response({"error": "not_found"}, status=404)
 
@@ -182,8 +185,132 @@ class HACSEnhancedAPI(HomeAssistantView):
             return await self._batch_remove(body)
         if path in ("check_updates", "check_updates/"):
             return await self._check_updates_with_notification()
+        # ── Config Flow proxy ──
+        if path == "config_flow/start":
+            return await self._config_flow_start(request, body)
+        if path == "config_flow/options/start":
+            return await self._config_flow_options_start(request, body)
+        if path.startswith("config_flow/options/step/"):
+            flow_id = path.split("/")[-1]
+            return await self._config_flow_options_step(request, flow_id, body)
+        if path.startswith("config_flow/step/"):
+            flow_id = path.split("/")[-1]
+            return await self._config_flow_step(request, flow_id, body)
 
         return web.json_response({"error": "not_found"}, status=404)
+
+    # ── Config Flow proxy (HTTP passthrough to HA native API) ──
+
+    def _extract_token(self, request: web.Request) -> str:
+        """Extract the bearer token from the incoming request's Authorization header."""
+        auth = request.headers.get("Authorization", "")
+        if auth.startswith("Bearer "):
+            return auth[7:]
+        return ""
+
+    async def _config_flow_handlers(self, request: web.Request) -> web.Response:
+        """Get available config flow handlers — proxy to HA native REST API."""
+        token = self._extract_token(request)
+        if not token:
+            return web.json_response({"error": "unauthorized"}, status=401)
+        try:
+            session = await self._get_session()
+            url = "http://localhost:8123/api/config/config_entries/flow_handlers"
+            headers = {"Authorization": f"Bearer {token}"}
+            async with session.get(url, headers=headers) as resp:
+                data = await resp.json()
+                return web.Response(text=json.dumps(data), content_type="application/json", status=resp.status)
+        except Exception as e:
+            _LOGGER.error("Config flow handlers error: %s", e, exc_info=True)
+            return web.json_response({"error": str(e)}, status=500)
+
+    async def _config_flow_start(self, request: web.Request, body: dict) -> web.Response:
+        """Start a new config flow — proxy to HA native REST API."""
+        handler = body.get("handler")
+        if not handler:
+            return web.json_response({"error": "handler required"}, status=400)
+        token = self._extract_token(request)
+        if not token:
+            return web.json_response({"error": "unauthorized"}, status=401)
+        try:
+            session = await self._get_session()
+            url = f"http://localhost:8123/api/config/config_entries/flow"
+            headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+            payload = {"handler": handler, "show_advanced_options": body.get("show_advanced_options", False)}
+            async with session.post(url, headers=headers, json=payload) as resp:
+                data = await resp.json()
+                return web.Response(text=json.dumps(data), content_type="application/json", status=resp.status)
+        except Exception as e:
+            _LOGGER.error("Config flow start error for %s: %s", handler, e, exc_info=True)
+            return web.json_response({"error": f"flow_start_error: {e}"}, status=500)
+
+    async def _config_flow_step(self, request: web.Request, flow_id: str, body: dict) -> web.Response:
+        """Submit a config flow step — proxy to HA native REST API."""
+        token = self._extract_token(request)
+        if not token:
+            return web.json_response({"error": "unauthorized"}, status=401)
+        try:
+            session = await self._get_session()
+            url = f"http://localhost:8123/api/config/config_entries/flow/{flow_id}"
+            headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+            async with session.post(url, headers=headers, json=body) as resp:
+                data = await resp.json()
+                return web.Response(text=json.dumps(data), content_type="application/json", status=resp.status)
+        except Exception as e:
+            _LOGGER.error("Config flow step error %s: %s", flow_id, e, exc_info=True)
+            return web.json_response({"error": f"flow_step_error: {e}"}, status=500)
+
+    async def _config_flow_cancel(self, request: web.Request, flow_id: str) -> web.Response:
+        """Cancel a config flow — proxy to HA native REST API."""
+        token = self._extract_token(request)
+        if not token:
+            return web.json_response({"error": "unauthorized"}, status=401)
+        try:
+            session = await self._get_session()
+            url = f"http://localhost:8123/api/config/config_entries/flow/{flow_id}"
+            headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+            async with session.delete(url, headers=headers) as resp:
+                data = await resp.json()
+                return web.Response(text=json.dumps(data), content_type="application/json", status=resp.status)
+        except Exception as e:
+            _LOGGER.error("Config flow cancel error %s: %s", flow_id, e, exc_info=True)
+            return web.json_response({"error": f"flow_cancel_error: {e}"}, status=500)
+
+    async def _config_flow_options_start(self, request: web.Request, body: dict) -> web.Response:
+        """Start an options flow — proxy to HA native REST API."""
+        handler = body.get("handler")
+        if not handler:
+            return web.json_response({"error": "handler (entry_id) required"}, status=400)
+        token = self._extract_token(request)
+        if not token:
+            return web.json_response({"error": "unauthorized"}, status=401)
+        try:
+            session = await self._get_session()
+            url = f"http://localhost:8123/api/config/config_entries/options/flow"
+            headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+            payload = {"handler": handler}
+            async with session.post(url, headers=headers, json=payload) as resp:
+                data = await resp.json()
+                return web.Response(text=json.dumps(data), content_type="application/json", status=resp.status)
+        except Exception as e:
+            _LOGGER.error("Options flow start error %s: %s", handler, e, exc_info=True)
+            return web.json_response({"error": f"options_start_error: {e}"}, status=500)
+
+    async def _config_flow_options_step(self, request: web.Request, flow_id: str, body: dict) -> web.Response:
+        """Submit an options flow step — proxy to HA native REST API."""
+        token = self._extract_token(request)
+        if not token:
+            return web.json_response({"error": "unauthorized"}, status=401)
+        try:
+            session = await self._get_session()
+            url = f"http://localhost:8123/api/config/config_entries/options/flow/{flow_id}"
+            headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+            async with session.post(url, headers=headers, json=body) as resp:
+                data = await resp.json()
+                return web.Response(text=json.dumps(data), content_type="application/json", status=resp.status)
+        except Exception as e:
+            _LOGGER.error("Options flow step error %s: %s", flow_id, e, exc_info=True)
+            return web.json_response({"error": f"options_step_error: {e}"}, status=500)
 
     # ── DELETE ───────────────────────────────────────────
 
@@ -195,6 +322,10 @@ class HACSEnhancedAPI(HomeAssistantView):
             except (json.JSONDecodeError, ValueError):
                 return web.json_response({"error": "invalid_json"}, status=400)
             return await self._remove_custom_repo(body)
+        # Config flow cancellation
+        if path.startswith("config_flow/flow/"):
+            flow_id = path.split("/")[-1]
+            return await self._config_flow_cancel(request, flow_id)
         return web.json_response({"error": "not_found"}, status=404)
 
     # ── Repositories ─────────────────────────────────────
@@ -332,6 +463,15 @@ class HACSEnhancedAPI(HomeAssistantView):
 
     async def _list_installed(self) -> web.Response:
         installed = self.operator.get_installed_list()
+        # Merge config_entry_id from HA config entries
+        entry_map = {}
+        for entry in self.hass.config_entries.async_entries():
+            if entry.domain:
+                entry_map.setdefault(entry.domain, []).append(entry.entry_id)
+        for item in installed:
+            domain = item.get("domain")
+            if domain and domain in entry_map:
+                item["config_entry_id"] = entry_map[domain][0]
         return web.json_response({"installed": installed})
 
     async def _get_stats(self) -> web.Response:

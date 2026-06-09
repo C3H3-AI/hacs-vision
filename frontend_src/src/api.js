@@ -146,6 +146,14 @@ class HACSEnhancedAPI {
   /* Check Updates + Notification */
   checkUpdatesWithNotify() { return this.post('check_updates'); }
 
+  /* Config Flow (proxied through backend) */
+  getFlowHandlers() { return this.get('config_flow/handlers'); }
+  startConfigFlow(domain) { return this.post('config_flow/start', { handler: domain }); }
+  stepConfigFlow(flowId, data) { return this.post(`config_flow/step/${flowId}`, data); }
+  cancelConfigFlow(flowId) { return this.request('DELETE', `config_flow/flow/${flowId}`); }
+  startOptionsFlow(entryId) { return this.post('config_flow/options/start', { handler: entryId }); }
+  stepOptionsFlow(flowId, data) { return this.post(`config_flow/options/step/${flowId}`, data); }
+
   /* F3: Get single repo status (for progress polling) — uses real-time HACS memory data */
   getRepoStatus(repoId) { return this.get(`repos/status/${encodeURIComponent(repoId)}`); }
 

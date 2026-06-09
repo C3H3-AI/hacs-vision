@@ -3,7 +3,7 @@
  * Detects HA language and provides translations
  */
 
-const _LANG = (() => {
+let _LANG = (() => {
   try {
     const top = window.top || window.parent;
     const haEl = top?.document?.querySelector('home-assistant');
@@ -310,6 +310,11 @@ const T = {
   // Add Integration Entry
   addIntegration: { zh: '配置', en: 'Configure' },
   addIntegrationHint: { zh: '配置此 HA 集成', en: 'Configure this HA integration' },
+  addHAIntegration: { zh: '添加 HA 集成', en: 'Add HA Integration' },
+  addHAIntegrationDesc: { zh: '搜索并添加 Home Assistant 内置或自定义集成', en: 'Search and add Home Assistant built-in or custom integrations' },
+  searchIntegration: { zh: '搜索集成...', en: 'Search integration...' },
+  noIntegrationMatch: { zh: '没有匹配的集成', en: 'No matching integration' },
+  integrationCount: { zh: '个可用集成', en: 'available integrations' },
 
   // Check Updates + Notification
   checkUpdates: { zh: '检查更新', en: 'Check Updates' },
@@ -317,17 +322,65 @@ const T = {
   updatesChecked: { zh: '检查完成，{n} 个可更新', en: 'Check done, {n} updates' },
   noUpdatesFound: { zh: '所有仓库已是最新', en: 'All repositories up to date' },
   notifySent: { zh: '通知已发送', en: 'Notification sent' },
+
+  // Config Flow Dialog
+  flowProcessing: { zh: '处理中...', en: 'Processing...' },
+  flowStarting: { zh: '启动配置流程...', en: 'Starting configuration...' },
+  flowTitle: { zh: '配置集成', en: 'Configure Integration' },
+  flowTitleOptions: { zh: '选项配置', en: 'Options Configuration' },
+  flowStartFailed: { zh: '启动配置流程失败', en: 'Failed to start configuration' },
+  flowStartFailedOptions: { zh: '启动选项配置失败', en: 'Failed to start options' },
+  flowSubmitFailed: { zh: '提交失败', en: 'Submit failed' },
+  flowUnknownType: { zh: '集成返回了未知流程类型（{type}），请前往设备与服务完成配置。', en: 'Unknown flow type ({type}). Please configure in Devices & Services.' },
+  flowExternalAuth: { zh: '此集成需要外部认证，请在打开的页面中完成授权。', en: 'This integration requires external authentication. Please complete authorization in the opened page.' },
+  flowStepNext: { zh: '下一步', en: 'Next' },
+  flowStepFinish: { zh: '完成', en: 'Finish' },
+  flowCancel: { zh: '取消', en: 'Cancel' },
+  flowClose: { zh: '关闭', en: 'Close' },
+  flowDone: { zh: '完成', en: 'Done' },
+  flowGotIt: { zh: '知道了', en: 'Got it' },
+  flowSelectOption: { zh: '-- 请选择 --', en: '-- Select --' },
+  flowResultCreated: { zh: '配置完成', en: 'Setup Complete' },
+  flowResultCreatedDesc: { zh: '集成已成功添加到设备与服务', en: 'Integration has been added to Devices & Services' },
+  flowResultAborted: { zh: '无需配置', en: 'Skipped' },
+  flowResultAbortedDesc: { zh: '该集成已被跳过', en: 'Integration was skipped' },
+  flowResultExternal: { zh: '外部认证', en: 'External Authentication' },
+  flowResultExternalDesc: { zh: '请在外部页面完成授权。', en: 'Please authorize in the external page.' },
+  flowResultFailed: { zh: '配置失败', en: 'Setup Failed' },
+  flowResultFailedDesc: { zh: '请稍后在设备与服务中重试', en: 'Please retry in Devices & Services' },
+  flowAbortAlreadyConfigured: { zh: '该集成已在设备与服务中配置', en: 'Already configured in Devices & Services' },
+  flowAbortSingleInstance: { zh: '此集成只允许配置一次', en: 'Only one instance allowed' },
+  flowAbortNoDevices: { zh: '未找到可配置的设备', en: 'No devices found' },
+  flowAbortInProgress: { zh: '已有进行中的流程', en: 'Flow already in progress' },
+  flowOpenAuthPage: { zh: '打开认证页面 ↗', en: 'Open auth page ↗' },
 };
 
 /**
  * Get translated text by key
  * @param {string} key - Translation key
+ * @param {object} [params] - Optional interpolation params, e.g. { n: 3 } replaces {n}
  * @returns {string} Translated text
  */
-export function t(key) {
+export function t(key, params) {
   const entry = T[key];
   if (!entry) return key;
-  return entry[_LANG] || entry.zh || entry.en || key;
+  let text = entry[_LANG] || entry.zh || entry.en || key;
+  if (params) {
+    for (const [k, v] of Object.entries(params)) {
+      text = text.replace(new RegExp(`\\{${k}\\}`, 'g'), v);
+    }
+  }
+  return text;
+}
+
+/**
+ * Set language from HA hass object (called when panel receives hass)
+ * @param {object} hass - HA hass object
+ */
+export function setLangFromHass(hass) {
+  if (hass?.language) {
+    _LANG = hass.language.indexOf('zh') === 0 ? 'zh' : 'en';
+  }
 }
 
 /**
@@ -338,4 +391,4 @@ export function getLang() {
   return _LANG;
 }
 
-export default { t, getLang };
+export default { t, getLang, setLangFromHass };

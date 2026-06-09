@@ -22,6 +22,11 @@ class HACSData:
 
     async def _async_read_file(self, path: str) -> str | None:
         """Read a file in executor to avoid blocking."""
+        # Check if file exists first to avoid spamming error logs
+        import os
+        if not os.path.isfile(path):
+            _LOGGER.debug("File not found, skipping: %s", path)
+            return None
         try:
             return await self.hass.async_add_executor_job(self._read_file, path)
         except Exception as e:

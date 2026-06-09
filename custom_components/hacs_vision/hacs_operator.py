@@ -262,15 +262,18 @@ class HACSOperator:
                 installed = repo.data.installed_version
                 available = repo.display_available_version
                 has_update = installed and available and installed != available
+                domain = getattr(repo.data, 'domain', None)
                 result.append({
                     "id": str(repo.data.id),
                     "full_name": repo.data.full_name,
                     "name": repo.data.name or repo.data.full_name.split("/")[-1],
+                    "manifest_name": getattr(repo.data, 'name', None) or repo.data.full_name.split("/")[-1],
                     "installed_version": repo.display_installed_version,
                     "category": repo.data.category,
                     "has_update": has_update,
                     "installed": repo.data.installed or False,
                     "pending_restart": getattr(repo, 'pending_restart', False),
+                    "domain": domain,
                 })
         except (AttributeError, KeyError, TypeError) as e:
             _LOGGER.error("get_installed_list error: %s", e, exc_info=True)
@@ -463,7 +466,13 @@ class HACSOperator:
             releases = []
             # Try HACS internal releases first
             if hasattr(repo, 'releases') and repo.releases:
-                for release in repo.releases:
+                # RepositoryReleases may or may not be iterable
+                try:
+                    releases_iter = iter(repo.releases)
+                except TypeError:
+                    _LOGGER.debug("Repo %s: releases object not iterable", repo_id_or_name)
+                    releases_iter = []
+                for release in releases_iter:
                     releases.append({
                         "tag_name": getattr(release, 'tag_name', str(release)),
                         "name": getattr(release, 'name', ''),

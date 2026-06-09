@@ -1,7 +1,7 @@
 import { LitElement, html, css } from 'lit';
 import { api } from './api.js';
 import { themeMixin } from './theme.js';
-import { t } from './i18n.js';
+import { t, setLangFromHass } from './i18n.js';
 import { getCategoryColor } from './shared/constants.js';
 import DOMPurify from 'dompurify';
 
@@ -28,6 +28,11 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
     _changelogData: { type: Object, state: true },
     _changelogLoading: { type: Boolean, state: true },
     _presetFilter: { type: String, state: true },
+    // Config Flow
+    _configFlowDomain: { type: String, state: true },
+    _configFlowEntryId: { type: String, state: true },
+    _showConfigFlow: { type: Boolean, state: true },
+    _configEntries: { type: Object, state: true },
   };
 
   constructor() {
@@ -52,6 +57,10 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
     this._changelogData = null;
     this._changelogLoading = false;
     this._presetFilter = '';
+    this._configFlowDomain = '';
+    this._configFlowEntryId = null;
+    this._showConfigFlow = false;
+    this._configEntries = null;
     registerPanel(this);
     window.addEventListener('resize', () => {
       this.narrow = window.innerWidth < 768;
@@ -72,10 +81,12 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
 
   willUpdate(changedProps) {
     if (changedProps.has('hass') && this.hass) {
+      setLangFromHass(this.hass);
       api.setHass(this.hass);
       if (!this._apiReady) {
         this._apiReady = true;
         this._loadStats();
+        this._loadConfigEntries();
         // F2: Register network status callback once
         api._onNetworkStatus = (status) => { this._networkStatus = status; };
       }
@@ -521,6 +532,15 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
     this.addEventListener('refresh-stats', () => this._loadStats());
     this.addEventListener('detail', (e) => this._openDetail(e.detail.repo));
     this.addEventListener('favorite', () => this._loadStats());
+    // Config flow events from child views
+    this.addEventListener('open-flow', (e) => {
+      const domain = e.detail?.domain;
+      if (domain) this._openConfigFlow(domain);
+    });
+    this.addEventListener('open-options-flow', (e) => {
+      const entryId = e.detail?.entryId;
+      if (entryId) this._openOptionsFlow(entryId);
+    });
     // F1: Keyboard shortcuts
     this._keydownHandler = (e) => {
       if (e.key === 'Escape' && this._showDetail) {
@@ -657,6 +677,38 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
     this._releasesLoading = false;
   }
 
+  /** Open a new config flow for a given integration domain */
+  _openConfigFlow(domain) {
+    this._configFlowDomain = domain;
+    this._configFlowEntryId = null;
+    this._showConfigFlow = true;
+  }
+
+  /** Open an options flow to reconfigure an existing config entry */
+  _openOptionsFlow(entryId) {
+    this._configFlowDomain = '';
+    this._configFlowEntryId = entryId;
+    this._showConfigFlow = true;
+  }
+
+  async _loadConfigEntries() {
+    try {
+      const entries = await api.getConfigEntries();
+      // Convert to a map of domain -> entries for quick lookup
+      const map = {};
+      if (Array.isArray(entries)) {
+        for (const entry of entries) {
+          const d = entry.domain || entry.handler || '?';
+          if (!map[d]) map[d] = [];
+          map[d].push(entry);
+        }
+      }
+      this._configEntries = map;
+    } catch {
+      this._configEntries = null;
+    }
+  }
+
   async _checkUpdates() {
     try {
       const result = await api.checkUpdatesWithNotify();
@@ -672,6 +724,12 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
     } catch(e) {
       showToast(`Update check failed: ${e.message}`, 'error');
     }
+  }
+
+  _onFlowClose() {
+    this._showConfigFlow = false;
+    this._configFlowDomain = '';
+    this._configFlowEntryId = null;
   }
 
   _toggleDetailExpand() {
@@ -1051,6 +1109,15 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
 
       <!-- Toast container (supports queue) -->
       <div class="toast-container" id="toast-container"></div>
+
+      <!-- Config Flow Dialog -->
+      <config-flow-dialog
+        .domain=${this._configFlowDomain}
+        .entryId=${this._configFlowEntryId}
+        .configEntries=${this._configEntries}
+        .open=${this._showConfigFlow}
+        @close=${this._onFlowClose}>
+      </config-flow-dialog>
     `;
   }
 }

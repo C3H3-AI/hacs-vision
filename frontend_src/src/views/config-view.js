@@ -7,12 +7,20 @@ class ConfigView extends LitElement {
     hass: { type: Object },
     _settings: { type: Object, state: true },
     _saving: { type: Boolean, state: true },
+    _showIntegrationPicker: { type: Boolean, state: true },
+    _handlers: { type: Array, state: true },
+    _handlerSearch: { type: String, state: true },
+    _handlersLoading: { type: Boolean, state: true },
   };
 
   constructor() {
     super();
     this._settings = {};
     this._saving = false;
+    this._showIntegrationPicker = false;
+    this._handlers = [];
+    this._handlerSearch = '';
+    this._handlersLoading = false;
   }
 
   connectedCallback() {
@@ -43,6 +51,50 @@ class ConfigView extends LitElement {
 
   _set(key, val) {
     this._settings = { ...this._settings, [key]: val };
+  }
+
+  async _openIntegrationPicker() {
+    this._showIntegrationPicker = true;
+    this._handlerSearch = '';
+    if (this._handlers.length === 0) {
+      this._handlersLoading = true;
+      try {
+        const data = await this.hass.callApi('GET', 'config/config_entries/flow_handlers');
+        // API returns array of strings (domain names)
+        this._handlers = Array.isArray(data)
+          ? data.map(h => typeof h === 'string' ? { domain: h, name: h } : h)
+          : [];
+        this._handlers.sort((a, b) => (a.name || a.domain).localeCompare(b.name || b.domain));
+      } catch(e) {
+        console.error('Failed to load flow handlers:', e);
+        this._handlers = [];
+      }
+      this._handlersLoading = false;
+    }
+  }
+
+  _closeIntegrationPicker() {
+    this._showIntegrationPicker = false;
+    this._handlerSearch = '';
+  }
+
+  _selectHandler(domain) {
+    this._showIntegrationPicker = false;
+    this._handlerSearch = '';
+    this.dispatchEvent(new CustomEvent('open-flow', {
+      detail: { domain },
+      bubbles: true,
+      composed: true,
+    }));
+  }
+
+  get _filteredHandlers() {
+    const q = this._handlerSearch.toLowerCase().trim();
+    if (!q) return this._handlers;
+    return this._handlers.filter(h =>
+      (h.name || '').toLowerCase().includes(q) ||
+      (h.domain || '').toLowerCase().includes(q)
+    );
   }
 
   static styles = css`
@@ -84,6 +136,86 @@ class ConfigView extends LitElement {
     .action-btn:hover { border-color: var(--primary-color); }
     .action-btn.primary { background: var(--primary-color); color: #fff; border-color: var(--primary-color); }
     .action-btn.primary:hover { opacity: 0.9; }
+
+    /* Integration Picker — match store modal style */
+    .picker-overlay {
+      position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.6); z-index: 9999;
+      display: flex; align-items: center; justify-content: center;
+      padding: 20px; box-sizing: border-box;
+      animation: fadeIn 0.2s ease;
+    }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    .picker-dialog {
+      background: var(--card-background-color, #fff);
+      color: var(--primary-text-color, #212121);
+      border-radius: 16px; box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+      width: 90%; max-width: 520px; max-height: 80vh;
+      display: flex; flex-direction: column;
+      animation: slideUp 0.25s ease;
+    }
+    @keyframes slideUp { from { transform: translateY(30px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+    .picker-header {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 16px 20px; border-bottom: 1px solid var(--divider-color, #e0e0e0);
+    }
+    .picker-title { font-size: 16px; font-weight: 700; color: var(--primary-text-color, #212121); }
+    .picker-close {
+      width: 32px; height: 32px; border: none; border-radius: 50%;
+      background: var(--divider-color, #e0e0e0);
+      color: var(--secondary-text-color, #727272);
+      cursor: pointer; font-size: 18px;
+      display: flex; align-items: center; justify-content: center;
+      transition: all 0.2s;
+    }
+    .picker-close:hover { background: var(--primary-color, #03a9f4); color: #fff; }
+    .picker-search {
+      padding: 12px 20px; border-bottom: 1px solid var(--divider-color, #e0e0e0);
+    }
+    .picker-search input {
+      width: 100%; padding: 10px 12px; border-radius: 10px;
+      border: 1px solid var(--divider-color, #e0e0e0);
+      background: var(--card-background-color, #fff);
+      color: var(--primary-text-color, #212121); font-size: 14px;
+      box-sizing: border-box; transition: border-color 0.2s;
+    }
+    .picker-search input:focus { border-color: var(--primary-color, #03a9f4); outline: none; }
+    .picker-count {
+      font-size: 12px; color: var(--secondary-text-color); padding: 8px 20px 0;
+    }
+    .picker-list {
+      overflow-y: auto; flex: 1; padding: 8px 12px;
+    }
+    .picker-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 12px; border-radius: 10px; cursor: pointer;
+      transition: all 0.2s;
+    }
+    .picker-item:hover {
+      background: rgba(var(--rgb-primary-color, 3,169,244), 0.04);
+      border-color: var(--primary-color, #03a9f4);
+    }
+    .picker-item-domain {
+      font-size: 12px; color: var(--secondary-text-color);
+      background: rgba(var(--rgb-primary-color, 3,169,244), 0.08);
+      color: var(--primary-color, #03a9f4);
+      padding: 2px 8px; border-radius: 4px; flex-shrink: 0;
+    }
+    .picker-item-name { font-size: 14px; font-weight: 500; }
+    .picker-empty {
+      text-align: center; padding: 32px 0; color: var(--secondary-text-color); font-size: 14px;
+    }
+    .picker-loading {
+      text-align: center; padding: 32px 0; color: var(--secondary-text-color);
+    }
+    .spinner {
+      width: 28px; height: 28px;
+      border: 3px solid var(--divider-color, #e0e0e0);
+      border-top-color: var(--primary-color, #03a9f4);
+      border-radius: 50%; animation: spin 1s linear infinite;
+      margin: 0 auto 8px;
+    }
+    @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
   `;
 
   render() {
@@ -133,7 +265,10 @@ class ConfigView extends LitElement {
         </button>
 
         <div class="actions">
-          <button class="action-btn primary" @click=${this._checkUpdates}>
+          <button class="action-btn primary" @click=${this._openIntegrationPicker}>
+            ${t('addHAIntegration')}
+          </button>
+          <button class="action-btn" @click=${this._checkUpdates}>
             ${t('checkUpdatesNotify')}
           </button>
           <button class="action-btn" @click=${this._checkAndRestart}>
@@ -141,7 +276,49 @@ class ConfigView extends LitElement {
           </button>
         </div>
 
-        <div class="version">HACS Vision v1.1.2</div>
+        <div class="version">HACS Vision v2.0.0</div>
+      </div>
+
+      ${this._showIntegrationPicker ? this._renderPicker() : ''}
+    `;
+  }
+
+  _renderPicker() {
+    const filtered = this._filteredHandlers;
+    return html`
+      <div class="picker-overlay" @click=${(e) => { if (e.target === e.currentTarget) this._closeIntegrationPicker(); }}>
+        <div class="picker-dialog">
+          <div class="picker-header">
+            <span class="picker-title">${t('addHAIntegration')}</span>
+            <button class="picker-close" @click=${this._closeIntegrationPicker}>&times;</button>
+          </div>
+          <div class="picker-search">
+            <input type="text"
+              placeholder=${t('searchIntegration')}
+              .value=${this._handlerSearch}
+              @input=${e => { this._handlerSearch = e.target.value; }}
+              @keydown=${e => { if (e.key === 'Escape') this._closeIntegrationPicker(); }}
+            />
+          </div>
+          <div class="picker-count">${filtered.length} ${t('integrationCount')}</div>
+          <div class="picker-list">
+            ${this._handlersLoading ? html`
+              <div class="picker-loading">
+                <div class="spinner"></div>
+                <div>${t('loading')}</div>
+              </div>
+            ` : filtered.length === 0 ? html`
+              <div class="picker-empty">${t('noIntegrationMatch')}</div>
+            ` : filtered.map(h => html`
+              <div class="picker-item" @click=${() => this._selectHandler(h.domain)}>
+                <span class="picker-item-name">${h.name || h.domain}</span>
+                ${h.name && h.name !== h.domain ? html`
+                  <span class="picker-item-domain">${h.domain}</span>
+                ` : ''}
+              </div>
+            `)}
+          </div>
+        </div>
       </div>
     `;
   }
