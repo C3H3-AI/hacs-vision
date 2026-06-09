@@ -215,7 +215,7 @@ class ConfigFlowDialog extends LitElement {
 
   _cancelFlow() {
     if (this._flowId) {
-      this.hass.callApi('DELETE', `config/config_entries/flow/${this._flowId}`).catch(() => {});
+      this.hass.fetchWithAuth(`/api/config/config_entries/flow/${this._flowId}`, { method: 'DELETE' }).catch(() => {});
     }
     this._close();
   }
