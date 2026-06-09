@@ -6,6 +6,8 @@
 
 **A modern visual panel for HACS — browse, manage, and configure Home Assistant integrations, plugins, and themes in a built-in storefront interface.**
 
+> **Current version**: v2.0.0 | **Minimum HA**: 2024.1.0
+
 > **⚠️ Prerequisite**: [HACS](https://hacs.xyz) must be already installed and configured.
 
 ---
