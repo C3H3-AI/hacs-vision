@@ -6,7 +6,7 @@ from typing import Any
 
 from homeassistant.core import HomeAssistant
 
-from .const import DOMAIN_HACS
+from .const import DOMAIN_HACS, VERSION
 from .hacs_data import HACSData
 
 _LOGGER = logging.getLogger(__name__)
@@ -24,6 +24,8 @@ class HACSOperator:
         self._install_locks: dict[str, asyncio.Lock] = {}
         # F1: Track whether custom repos have been verified from config in this session
         self._custom_repos_verified: bool = False
+        # F2: Cache for HACS Vision's own latest version (fetched during refresh)
+        self._self_latest_version: str | None = None
 
     @property
     def _hacs(self):
@@ -313,7 +315,10 @@ class HACSOperator:
         return result
 
     def get_available_updates(self) -> list[dict]:
-        """Get list of repositories with available updates."""
+        """Get list of repositories with available updates.
+
+        Checks both HACS-tracked repositories and HACS Vision's own version.
+        """
         if not self.available:
             return []
         updates = []
@@ -336,6 +341,20 @@ class HACSOperator:
                     })
         except (AttributeError, KeyError, TypeError) as e:
             _LOGGER.error("get_available_updates error: %s", e, exc_info=True)
+
+        # Also check HACS Vision's own update
+        if self._self_latest_version and self._self_latest_version != VERSION:
+            updates.append({
+                "id": "hacs_vision_self",
+                "full_name": "C3H3-AI/hacs-vision",
+                "name": "HACS Vision",
+                "installed_version": VERSION,
+                "latest_version": self._self_latest_version,
+                "category": "integration",
+                "installed": True,
+                "has_update": True,
+            })
+
         return updates
 
     async def get_all_repos_from_hacs(self) -> list[dict]:
@@ -531,12 +550,39 @@ class HACSOperator:
         }
 
     async def refresh_repositories(self) -> dict:
-        """Refresh HACS repository data with fallback methods."""
+        """Refresh HACS repository data with fallback methods.
+
+        Steps:
+          1. Ensure all custom repos (including hacs-vision) are registered in HACS memory
+          2. Fetch HACS Vision's own latest version from GitHub releases
+          3. Call HACS's internal refresh methods
+        """
         if not self.available:
             return {"success": False, "error": "HACS not available"}
 
+        # Step 1: Register custom repos in HACS memory
+        await self._ensure_custom_repos_registered()
+
+        # Also ensure hacs-vision itself is always registered (survives restart)
+        try:
+            if not self._hacs.repositories.is_registered(
+                repository_full_name="c3h3-ai/hacs-vision"
+            ):
+                await self._hacs.async_register_repository(
+                    repository_full_name="C3H3-AI/hacs-vision",
+                    category="integration",
+                    check=False,
+                )
+                _LOGGER.info("Registered hacs-vision in HACS memory")
+        except Exception as e:
+            _LOGGER.warning("Failed to register hacs-vision: %s", e)
+
+        # Step 2: Fetch HACS Vision's own latest version
+        self._self_latest_version = await self._fetch_self_latest_version()
+
         self.invalidate_index()
 
+        # Step 3: Call HACS's internal refresh
         methods = [
             lambda: self._hacs.async_update_downloaded_custom_repositories(),
             lambda: self._hacs.data.async_update_downloaded_custom_repositories(),
@@ -556,6 +602,28 @@ class HACSOperator:
                 continue
 
         return {"success": False, "error": "All refresh methods failed"}
+
+    async def _fetch_self_latest_version(self) -> str | None:
+        """Fetch the latest HACS Vision version from GitHub releases."""
+        import aiohttp
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(
+                    "https://api.github.com/repos/C3H3-AI/hacs-vision/releases/latest",
+                    timeout=aiohttp.ClientTimeout(total=10),
+                    headers={"Accept": "application/vnd.github.v3+json"},
+                ) as resp:
+                    if resp.status == 200:
+                        data = await resp.json()
+                        tag = data.get("tag_name", "")
+                        return tag.lstrip("v") if tag else None
+                    else:
+                        _LOGGER.warning(
+                            "GitHub API returned %s for hacs-vision releases", resp.status
+                        )
+        except Exception as e:
+            _LOGGER.warning("Failed to fetch HACS Vision latest version: %s", e)
+        return None
 
     async def add_custom_repository(self, full_name: str, category: str) -> dict:
         """Add a custom repository to HACS."""

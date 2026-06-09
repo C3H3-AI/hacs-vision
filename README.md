@@ -4,7 +4,7 @@
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://github.com/hacs/integration)
 [![GitHub Release](https://img.shields.io/github/v/release/C3H3-AI/hacs-vision)](https://github.com/C3H3-AI/hacs-vision/releases)
 
-> **当前版本**: v2.0.1 | **最低 HA 版本**: 2024.1.0 | **Current version**: v2.0.1 | **Minimum HA**: 2024.1.0
+> **当前版本**: v2.0.2 | **最低 HA 版本**: 2024.1.0 | **Current version**: v2.0.2 | **Minimum HA**: 2024.1.0
 
 > **⚠️ 前置条件**: 必须先安装并配置好 [HACS](https://hacs.xyz)
 > **⚠️ Prerequisite**: [HACS](https://hacs.xyz) must be already installed and configured.
@@ -104,10 +104,15 @@
 
 ## 更新日志 / Changelog
 
+### v2.0.2 (2026-06-09)
+- Fix: HACS Vision自身更新检测——点击刷新时从GitHub获取最新版本，无需通过HACS面板
+- Fix: `refresh_repositories()` 现在在HACS内存中注册hacs-vision自身，重启后也能自动注册
+- Improvement: 更新页面点击刷新先调用后端刷新接口，再拉取最新数据
+
 ### v2.0.1 (2026-06-09)
-- 修复配置流对话框崩溃：`Cannot read properties of undefined (reading 'callApi')`
-  - `config-flow-dialog` 组件缺少 `.hass` 属性绑定
-- Fixed config flow dialog crash: missing `.hass` property binding
+- Fix: config flow dialog 的 `.hass` 属性未传递导致 `Cannot read properties of undefined (reading 'callApi')`
+- Fix: HA 2026.6.0 升级后 `.pyc` 缓存导致 API 404
+- UI: 抬头图标改为 SVG 眼睛图标
 
 ### v2.0.0 (2026-06-09)
 - 完整 UI 重设计，现代化卡片布局 / Complete UI redesign

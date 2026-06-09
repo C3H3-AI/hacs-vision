@@ -245,6 +245,9 @@ class UpdatesView extends LitElement {
   async _load() {
     this.loading = true;
     try {
+      // Trigger backend refresh first (register custom repos, check versions)
+      await api.refresh().catch(() => {});
+      // Then fetch the updated updates list
       const result = await api.getUpdates();
       this.updates = Array.isArray(result) ? result : (result.updates || []);
       // F6: Load changelogs asynchronously
