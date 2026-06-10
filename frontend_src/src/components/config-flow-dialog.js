@@ -45,6 +45,41 @@ class ConfigFlowDialog extends LitElement {
     this._finished = false;
     this._result = null;
     this._isOptions = false;
+    this._loadingTimeout = null;
+  }
+
+  /** Get hass object — from prop or directly from parent HA iframe */
+  _getHass() {
+    if (this.hass) return this.hass;
+    try {
+      const haEl = window.parent?.document?.querySelector('home-assistant');
+      return haEl?.hass || null;
+    } catch(e) { return null; }
+  }
+
+  disconnectedCallback() {
+    super.disconnectedCallback();
+    this._clearLoadingTimeout();
+  }
+
+  _clearLoadingTimeout() {
+    if (this._loadingTimeout) {
+      clearTimeout(this._loadingTimeout);
+      this._loadingTimeout = null;
+    }
+  }
+
+  _startLoadingTimeout() {
+    this._clearLoadingTimeout();
+    this._loadingTimeout = setTimeout(() => {
+      if (this._loading && !this._finished) {
+        this._clearLoadingTimeout();
+        this._finished = true;
+        this._result = { type: 'error', message: t('flowTimeout') };
+        this._loading = false;
+        this.requestUpdate();
+      }
+    }, 30000); // 30s timeout
   }
 
   connectedCallback() {
@@ -83,6 +118,18 @@ class ConfigFlowDialog extends LitElement {
     this.open = true;
   }
 
+  /** Load backend translations so hass.localize() can resolve component keys */
+  async _loadTranslations(domain) {
+    const hass = this._getHass();
+    if (hass?.loadBackendTranslation && domain) {
+      await Promise.allSettled([
+        hass.loadBackendTranslation("config", domain, true),
+        hass.loadBackendTranslation("title", domain, true),
+        hass.loadBackendTranslation("selector", domain),
+      ]);
+    }
+  }
+
   async _startFlow() {
     this._loading = true;
     this._finished = false;
@@ -91,19 +138,29 @@ class ConfigFlowDialog extends LitElement {
     this._errors = {};
     this.requestUpdate();
 
+    this._startLoadingTimeout();
+
     try {
+      // Load translations BEFORE starting the flow, so localize works
+      const flowDomain = this._isOptions
+        ? this._getFlowDomain()
+        : this.domain;
+      if (flowDomain) {
+        await this._loadTranslations(flowDomain);
+      }
+
       let result;
       if (this._isOptions && this.entryId) {
-        result = await this.hass.callApi('POST', 'config/config_entries/options/flow', { handler: this.entryId });
+        result = await api.startOptionsFlow(this.entryId);
       } else {
-        result = await this.hass.callApi('POST', 'config/config_entries/flow', { handler: this.domain, show_advanced_options: true });
+        result = await api.startConfigFlow(this.domain);
       }
 
       this._handleFlowResponse(result);
     } catch (e) {
       console.error('HACS Vision: config flow start error:', e);
       this._finished = true;
-      this._result = { type: 'error', message: e.message || (this._isOptions ? t('flowStartFailedOptions') : t('flowStartFailed')) };
+      this._result = { type: 'error', message: this._getFlowErrorMessage(e) };
       this._loading = false;
       this.requestUpdate();
     }
@@ -131,6 +188,10 @@ class ConfigFlowDialog extends LitElement {
       this._step = result;
       this._errors = result.errors || {};
       this._loading = false;
+      // Load translations for this step's handler (may differ from initial domain)
+      if (result.handler) {
+        this._loadTranslations(result.handler);
+      }
       this.requestUpdate();
       return;
     }
@@ -175,9 +236,9 @@ class ConfigFlowDialog extends LitElement {
     try {
       let result;
       if (this._isOptions && this._step) {
-        result = await this.hass.callApi('POST', `config/config_entries/options/flow/${this._flowId}`, data);
+        result = await api.stepOptionsFlow(this._flowId, data);
       } else {
-        result = await this.hass.callApi('POST', `config/config_entries/flow/${this._flowId}`, data);
+        result = await api.stepConfigFlow(this._flowId, data);
       }
 
       this._handleFlowResponse(result);
@@ -216,7 +277,7 @@ class ConfigFlowDialog extends LitElement {
 
   _cancelFlow() {
     if (this._flowId) {
-      this.hass.callApi('DELETE', `config/config_entries/flow/${this._flowId}`).catch(() => {});
+      api.cancelConfigFlow(this._flowId).catch(() => {});
     }
     this._close();
   }
@@ -279,7 +340,7 @@ class ConfigFlowDialog extends LitElement {
     }
     .close-btn:hover { background: var(--primary-color, #03a9f4); color: #fff; }
 
-    .loading { text-align: center; padding: 40px 0; color: var(--secondary-text-color, #727272); }
+    .loading { text-align: center; padding: 60px 20px; color: var(--secondary-text-color, #727272); }
     .spinner {
       width: 36px; height: 36px;
       border: 3px solid var(--divider-color, #e0e0e0);
@@ -303,7 +364,7 @@ class ConfigFlowDialog extends LitElement {
       display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px;
       color: var(--primary-text-color, #212121);
     }
-    .form-field input, .form-field select {
+    .form-field input, .form-field select, .form-field textarea {
       width: 100%; box-sizing: border-box;
       padding: 10px 12px; border: 1px solid var(--divider-color, #e0e0e0);
       border-radius: 10px; font-size: 14px;
@@ -312,7 +373,11 @@ class ConfigFlowDialog extends LitElement {
       font-family: inherit;
       transition: border-color 0.2s;
     }
-    .form-field input:focus, .form-field select:focus {
+    .form-field textarea {
+      min-height: 80px; resize: vertical;
+      line-height: 1.5;
+    }
+    .form-field input:focus, .form-field select:focus, .form-field textarea:focus {
       border-color: var(--primary-color, #03a9f4); outline: none;
     }
     .form-field select { cursor: pointer; appearance: auto; }
@@ -378,7 +443,9 @@ class ConfigFlowDialog extends LitElement {
   render() {
     if (!this.open) return '';
 
-    const title = this._step?.handler || this.domain || (this._isOptions ? t('flowTitleOptions') : t('flowTitle'));
+    const title = this._isOptions
+      ? (this._getFlowDomain() || t('flowTitleOptions'))
+      : (this._step?.title || this._localizeTitle() || this._step?.handler || this.domain || t('flowTitle'));
 
     return html`
       <div class="overlay" @click=${(e) => { if (e.target === e.currentTarget) this._cancelFlow(); }}>
@@ -482,37 +549,132 @@ class ConfigFlowDialog extends LitElement {
 
   _buildDescription(step) {
     let desc = step.description || step.description_placeholders?.description || '';
+
+    // If description looks like a translation key (contains dots), resolve it
+    if (desc && desc.includes('.') && this._getHass()?.localize) {
+      const resolved = this._getHass()?.localize(desc);
+      if (resolved && resolved !== desc) {
+        desc = resolved;
+      }
+    }
+
+    // Try localization if API didn't provide description
+    if (!desc && this._getHass()?.localize) {
+      const handler = step.handler;
+      const stepId = step.step_id;
+      if (handler && stepId) {
+        const key = `component.${handler}.config.step.${stepId}.description`;
+        const translated = this._getHass()?.localize(key);
+        if (translated && translated !== key) {
+          desc = translated;
+        }
+      }
+    }
+
+    // Substitute description_placeholders (e.g. {note_url} → "http://...")
     const placeholders = step.description_placeholders || {};
     for (const [key, val] of Object.entries(placeholders)) {
-      if (key === 'description') continue;
       desc = desc.replace(new RegExp(`\\{${key}\\}`, 'g'), val);
     }
-    // Show placeholder values if no description template
+
+    // If still no description, show placeholder values
     if (!desc && Object.keys(placeholders).length > 0) {
       const lines = Object.entries(placeholders)
-        .filter(([k]) => k !== 'description')
         .map(([, v]) => v);
       desc = lines.join('\n');
     }
     return desc;
   }
 
+  /* ── Derive domain for translation ── */
+
+  _getFlowDomain() {
+    if (this.domain) return this.domain;
+    // configEntries is { domain: [entry, ...] } — search all entries by entryId
+    if (this.entryId && this.configEntries) {
+      for (const entries of Object.values(this.configEntries)) {
+        for (const entry of entries) {
+          if (entry.entry_id === this.entryId) {
+            return entry.domain || '';
+          }
+        }
+      }
+    }
+    return '';
+  }
+
+  /* ── Localize title via hass.localize() when not in API response ── */
+
+  _localizeTitle() {
+    const handler = this._step?.handler;
+    const stepId = this._step?.step_id;
+    if (handler && stepId && this._getHass()?.localize) {
+      const key = `component.${handler}.config.step.${stepId}.title`;
+      const translated = this._getHass()?.localize(key);
+      if (translated && translated !== key) return translated;
+    }
+    // Try with domain as fallback
+    if (this.domain && stepId && this._getHass()?.localize) {
+      const key = `component.${this.domain}.config.step.${stepId}.title`;
+      const translated = this._getHass()?.localize(key);
+      if (translated && translated !== key) return translated;
+    }
+    return '';
+  }
+
+  /* ── Translate field label via hass.localize() ── */
+
+  _getFieldLabel(schema) {
+    const domain = this._getFlowDomain();
+    const stepId = this._step?.step_id;
+    if (domain && stepId && this._getHass()?.localize) {
+      // Try domain.handler (e.g. xiaomi_miot.config.step.init.data.username)
+      const key = `component.${domain}.config.step.${stepId}.data.${schema.name}`;
+      const translated = this._getHass()?.localize(key);
+      if (translated && translated !== key) return translated;
+    }
+    return schema.label || schema.name.replace(/_/g, ' ');
+  }
+
+  /* ── Translate error messages ── */
+
+  _getFlowErrorMessage(e) {
+    const msg = e?.message || '';
+    if (msg.includes('404')) {
+      return this._isOptions
+        ? t('flowOptionsNotSupported')
+        : t('flowHandlerNotFound');
+    }
+    if (msg.includes('401') || msg.includes('403')) {
+      return t('flowAuthError');
+    }
+    return msg || (this._isOptions ? t('flowStartFailedOptions') : t('flowStartFailed'));
+  }
+
   /* ── Single form field renderer ── */
 
   _renderField(schema) {
     const name = schema.name;
-    const label = schema.label || schema.name.replace(/_/g, ' ');
+    const label = this._getFieldLabel(schema);
     const type = schema.type || 'string';
     const required = schema.required !== false;
     const hasDefault = schema.default !== undefined && schema.default !== null;
     const defaultValue = hasDefault ? schema.default : '';
-    const placeholder = schema.description || schema.placeholder || '';
+    const placeholder = schema.placeholder || '';
     const fieldDesc = schema.description || '';
     const error = this._errors?.[name] || '';
+    const multiline = schema.multiline === true;
+    const isPassword = schema.password === true
+      || schema.type === 'password'
+      || (/token|secret|password|key|api_key|apiKey/i.test(name) && type === 'string');
 
     // Select (enum) rendering
     if (type === 'select' || type === 'multi_select' || schema.options || schema.enum) {
-      const options = schema.options || schema.enum || [];
+      const rawOptions = schema.options || schema.enum || [];
+      // multi_select options can be an object: {"add": "新增", "del": "不可用", ...}
+      const options = Array.isArray(rawOptions)
+        ? rawOptions
+        : Object.entries(rawOptions).map(([k, v]) => ({ value: k, label: v }));
       const isMulti = type === 'multi_select';
 
       return html`
@@ -522,8 +684,9 @@ class ConfigFlowDialog extends LitElement {
           <select name=${name} ?multiple=${isMulti} ?required=${required}>
             ${!required && !isMulti ? html`<option value="">${t('flowSelectOption')}</option>` : ''}
             ${options.map(opt => {
-              const optValue = typeof opt === 'string' ? opt : opt.value || opt;
-              const optLabel = typeof opt === 'string' ? opt : opt.label || opt.description || opt.value || opt;
+              const optIsArray = Array.isArray(opt);
+              const optValue = typeof opt === 'string' ? opt : optIsArray ? opt[0] : (opt.value ?? opt);
+              const optLabel = typeof opt === 'string' ? opt : optIsArray ? (opt[1] || opt[0]) : (opt.label || opt.description || opt.value || opt);
               const isSelected = hasDefault && (Array.isArray(defaultValue)
                 ? defaultValue.includes(optValue)
                 : defaultValue === optValue);
@@ -541,7 +704,7 @@ class ConfigFlowDialog extends LitElement {
         <div class="form-field">
           <label class="checkbox-label">
             <input type="checkbox" name=${name} ?checked=${defaultValue === true || defaultValue === 'true'}>
-            <span>${fieldDesc || label}</span>
+            <span>${label !== schema.name.replace(/_/g, ' ') ? label : (fieldDesc || label)}</span>
           </label>
           ${error ? html`<div class="form-error">${error}</div>` : ''}
         </div>
@@ -563,12 +726,23 @@ class ConfigFlowDialog extends LitElement {
     }
 
     // String / text (default)
+    if (multiline) {
+      return html`
+        <div class="form-field">
+          <label>${label}${required ? ' *' : ''}</label>
+          ${fieldDesc ? html`<div class="field-desc">${fieldDesc}</div>` : ''}
+          <textarea name=${name} .value=${defaultValue}
+                    ?required=${required} placeholder=${placeholder}></textarea>
+          ${error ? html`<div class="form-error">${error}</div>` : ''}
+        </div>
+      `;
+    }
     return html`
       <div class="form-field">
         <label>${label}${required ? ' *' : ''}</label>
         ${fieldDesc && fieldDesc !== placeholder ? html`<div class="field-desc">${fieldDesc}</div>` : ''}
-        <input type="text" name=${name} .value=${defaultValue}
-               ?required=${required} placeholder=${placeholder}>
+        <input type=${isPassword ? 'password' : 'text'} name=${name}
+               .value=${defaultValue} ?required=${required} placeholder=${placeholder}>
         ${error ? html`<div class="form-error">${error}</div>` : ''}
       </div>
     `;

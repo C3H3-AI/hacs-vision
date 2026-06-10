@@ -4,6 +4,7 @@ import { api } from '../api.js';
 import { t } from '../i18n.js';
 import { showToast } from '../hacs-vision-panel.js';
 import { ConfirmDialog } from '../shared/confirm-dialog.js';
+import '../components/repo-card.js';
 
 export class ManagementView extends LitElement {
   static properties = {
@@ -184,7 +185,7 @@ export class ManagementView extends LitElement {
     /* ===== Card View ===== */
     .repo-cards {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
       gap: 12px;
     }
     .repo-card {
@@ -296,7 +297,7 @@ export class ManagementView extends LitElement {
     .btn-group { display: flex; gap: 4px; flex-shrink: 0; align-items: center; }
     .btn-group-wide { display: flex; gap: 12px; flex-wrap: wrap; }
 
-    .empty { font-size: 13px; color: var(--secondary-text-color); padding: 8px 0; }
+    .empty { font-size: 13px; color: var(--secondary-text-color); padding: 32px 0; text-align: center; }
 
     /* ===== Add Form ===== */
     .add-form {
@@ -572,12 +573,7 @@ export class ManagementView extends LitElement {
   }
 
   _getCategoryColor(cat) {
-    const colors = {
-      integration: '#1565c0', plugin: '#7b1fa2', theme: '#2e7d32',
-      python_script: '#f9a825', template: '#6a1b9a', appdaemon: '#e65100',
-      netdaemon: '#00838f', dashboard: '#f57f17',
-    };
-    return colors[cat] || '#78909c';
+    return getCategoryColor(cat);
   }
 
   _getCategoryLabel(category) {
@@ -788,7 +784,16 @@ export class ManagementView extends LitElement {
 
           ${customRepos.length > 0
             ? (_viewMode === 'card'
-              ? html`<div class="repo-cards">${this._getFilteredCustomRepos().map(r => this._renderCard(r, renamedEntries))}</div>`
+              ? html`<div class="repo-cards">${this._getFilteredCustomRepos().map(r => {
+              const renamedEntry = this.renamedEntries.find(([old, nw]) => nw === (r.full_name || r.repository));
+              return html`
+                <repo-card .repo=${r} viewMode="management"
+                  .renamedFrom=${renamedEntry ? renamedEntry[0] : undefined}
+                  showRemoveBtn=true
+                  @detail=${(e) => this._openCardDetail(e.detail.repo)}
+                  @remove-repo=${(e) => this._removeCustomRepo(e.detail.repo?.full_name || e.detail.repo?.repository, e.detail.repo?.category)}>
+                </repo-card>`;
+            })}</div>`
               : html`<div class="repo-list">${this._getFilteredCustomRepos().map(r => this._renderListItem(r, renamedEntries))}</div>`)
             : html`<div class="empty">${t('noCustomRepos')}</div>`}
         </div>

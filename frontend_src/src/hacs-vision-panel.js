@@ -33,6 +33,11 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
     _configFlowEntryId: { type: String, state: true },
     _showConfigFlow: { type: Boolean, state: true },
     _configEntries: { type: Object, state: true },
+    // Entry selector (multiple entries for same domain)
+    _showEntrySelector: { type: Boolean, state: true },
+    _entrySelectorDomain: { type: String, state: true },
+    _entrySelectorEntries: { type: Array, state: true },
+    _entrySelectorCurrentId: { type: String, state: true },
   };
 
   constructor() {
@@ -61,6 +66,10 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
     this._configFlowEntryId = null;
     this._showConfigFlow = false;
     this._configEntries = null;
+    this._showEntrySelector = false;
+    this._entrySelectorDomain = '';
+    this._entrySelectorEntries = [];
+    this._entrySelectorCurrentId = null;
     registerPanel(this);
     window.addEventListener('resize', () => {
       this.narrow = window.innerWidth < 768;
@@ -193,11 +202,13 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
       transition: opacity 0.15s ease;
     }
     .content.transitioning { opacity: 0; }
+    /* Force hidden views to not display (child :host display overrides [hidden]) */
+    .content > [hidden] { display: none !important; }
 
     /* ===== Loading ===== */
     .loading { text-align: center; padding: 60px 20px; color: var(--secondary-text-color, #727272); }
     .spinner {
-      width: 40px; height: 40px; border: 3px solid var(--divider-color, #e0e0e0);
+      width: 36px; height: 36px; border: 3px solid var(--divider-color, #e0e0e0);
       border-top-color: var(--primary-color, #03a9f4); border-radius: 50%;
       animation: spin 1s linear infinite; margin: 0 auto 16px;
     }
@@ -525,6 +536,49 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
       .modal-btn { width: 100%; justify-content: center; min-height: 44px; }
       .version-selector-body { max-height: 200px; }
     }
+
+    /* ===== Entry Selector ===== */
+    .entry-overlay {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0,0,0,0.5); z-index: 10001;
+      display: flex; align-items: center; justify-content: center;
+      padding: 20px; box-sizing: border-box;
+      animation: fadeIn 0.15s ease;
+    }
+    .entry-dialog {
+      background: var(--card-background-color, #fff);
+      border-radius: 16px; padding: 24px;
+      max-width: 400px; width: 100%;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+      animation: slideUp 0.2s ease;
+    }
+    .entry-title { font-size: 17px; font-weight: 600; margin-bottom: 4px; color: var(--primary-text-color, #212121); }
+    .entry-subtitle { font-size: 13px; color: var(--secondary-text-color, #727272); margin-bottom: 16px; }
+    .entry-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
+    .entry-btn {
+      display: flex; align-items: center; gap: 12px;
+      padding: 12px 16px; border: 1px solid var(--divider-color, #e0e0e0);
+      border-radius: 12px; background: var(--card-background-color, #fff);
+      cursor: pointer; transition: all 0.15s; text-align: left; width: 100%;
+    }
+    .entry-btn:hover { border-color: var(--primary-color, #03a9f4); background: rgba(var(--rgb-primary-color, 3,169,244), 0.04); }
+    .entry-btn-icon {
+      width: 36px; height: 36px; border-radius: 50%;
+      background: rgba(var(--rgb-primary-color, 3,169,244), 0.1);
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0; font-size: 16px;
+    }
+    .entry-btn-text { display: flex; flex-direction: column; min-width: 0; }
+    .entry-btn-title { font-size: 14px; font-weight: 500; color: var(--primary-text-color, #212121); }
+    .entry-btn-domain { font-size: 12px; color: var(--secondary-text-color, #727272); }
+    .entry-btn-current { font-size: 11px; color: var(--primary-color, #03a9f4); }
+    .entry-cancel {
+      display: block; width: 100%; text-align: center;
+      padding: 10px; border: none; background: none;
+      color: var(--secondary-text-color, #727272); font-size: 14px;
+      cursor: pointer; border-radius: 10px;
+    }
+    .entry-cancel:hover { background: rgba(0,0,0,0.04); }
   `;
 
   async connectedCallback() {
@@ -538,8 +592,8 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
       if (domain) this._openConfigFlow(domain);
     });
     this.addEventListener('open-options-flow', (e) => {
-      const entryId = e.detail?.entryId;
-      if (entryId) this._openOptionsFlow(entryId);
+      const { entryId, domain } = e.detail || {};
+      if (entryId) this._openOptionsFlow(entryId, domain);
     });
     // F1: Keyboard shortcuts
     this._keydownHandler = (e) => {
@@ -685,8 +739,25 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
   }
 
   /** Open an options flow to reconfigure an existing config entry */
-  _openOptionsFlow(entryId) {
+  _openOptionsFlow(entryId, domain) {
     this._configFlowDomain = '';
+    this._configFlowEntryId = null;
+
+    // Check for multiple entries for the same domain
+    if (domain && this._configEntries && this._configEntries[domain] && this._configEntries[domain].length > 1) {
+      this._entrySelectorDomain = domain;
+      this._entrySelectorEntries = this._configEntries[domain];
+      this._entrySelectorCurrentId = entryId;
+      this._showEntrySelector = true;
+      return;
+    }
+
+    this._configFlowEntryId = entryId;
+    this._showConfigFlow = true;
+  }
+
+  _selectConfigEntry(entryId) {
+    this._showEntrySelector = false;
     this._configFlowEntryId = entryId;
     this._showConfigFlow = true;
   }
@@ -730,6 +801,7 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
     this._showConfigFlow = false;
     this._configFlowDomain = '';
     this._configFlowEntryId = null;
+    this._showEntrySelector = false;
   }
 
   _toggleDetailExpand() {
@@ -774,6 +846,7 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
       integration: t('catIntegration'), plugin: t('catPlugin'), theme: t('catTheme'),
       appdaemon: t('catAppDaemon'), netdaemon: t('catNetDaemon'),
       python_script: t('catPython'), template: t('catTemplate'),
+      dashboard: t('catDashboard'),
     };
     return labels[category] || category;
   }
@@ -832,7 +905,7 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
   render() {
     const tabs = [
       { view: 'browse', label: t('tabBrowse'), icon: '', count: null },
-      { view: 'updates', label: t('tabUpdates'), icon: '', count: null },
+      { view: 'updates', label: t('tabUpdates'), icon: '', count: this.stats?.available_updates ?? null },
       { view: 'management', label: t('tabManagement'), icon: '', count: null },
       { view: 'settings', label: t('tabSettings'), icon: '', count: null },
     ];
@@ -929,12 +1002,12 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
           </div>
         </div>
 
-        <!-- Content with fade transition -->
+        <!-- Content with fade transition — use hidden to preserve scroll position -->
         <div class="content ${this._viewTransition ? 'transitioning' : ''}">
-          ${this.currentView === 'browse' ? html`<browse-view .hass=${this.hass} .presetFilter=${this._presetFilter}></browse-view>` : ''}
-          ${this.currentView === 'updates' ? html`<updates-view .hass=${this.hass}></updates-view>` : ''}
-          ${this.currentView === 'management' ? html`<management-view .hass=${this.hass}></management-view>` : ''}
-          ${this.currentView === 'settings' ? html`<config-view .hass=${this.hass} @refresh-stats=${this._loadStats}></config-view>` : ''}
+          <browse-view .hass=${this.hass} .presetFilter=${this._presetFilter} ?hidden=${this.currentView !== 'browse'}></browse-view>
+          <updates-view .hass=${this.hass} ?hidden=${this.currentView !== 'updates'}></updates-view>
+          <management-view .hass=${this.hass} ?hidden=${this.currentView !== 'management'}></management-view>
+          <config-view .hass=${this.hass} @refresh-stats=${this._loadStats} ?hidden=${this.currentView !== 'settings'}></config-view>
         </div>
       </div>
 
@@ -1019,7 +1092,7 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
                   <div class="version-selector-body">
                     ${this._releasesLoading ? html`
                       <div class="releases-loading">
-                        <div class="spinner" style="width:20px;height:20px;border-width:2px;margin:0 auto 8px;"></div>
+                        <div class="spinner-sm"></div>
                         ${t('loading')}
                       </div>
                     ` : this._releases.length === 0 ? html`
@@ -1052,7 +1125,7 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
                   <div class="detail-changelog-title">${t('changelogTitle') || '更新内容'}</div>
                   ${this._changelogLoading ? html`
                     <div class="readme-loading">
-                      <div class="spinner" style="width:20px;height:20px;border-width:2px;margin:0 auto 8px;"></div>
+                      <div class="spinner-sm"></div>
                       ${t('loading') || '加载中...'}
                     </div>
                   ` : this._changelogData ? html`
@@ -1098,7 +1171,7 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
                 <div class="detail-readme-title">${t('readmeTitle')}</div>
                 ${this._readmeLoading ? html`
                   <div class="readme-loading">
-                    <div class="spinner" style="width:24px;height:24px;border-width:2px;margin:0 auto 8px;"></div>
+                    <div class="spinner-sm"></div>
                     ${t('loadingReadme')}
                   </div>
                 ` : this._readmeHtml ? html`
@@ -1114,6 +1187,28 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
 
       <!-- Toast container (supports queue) -->
       <div class="toast-container" id="toast-container"></div>
+
+      <!-- Entry Selector (multiple config entries for same domain) -->
+      ${this._showEntrySelector ? html`
+        <div class="entry-overlay" @click=${() => { this._showEntrySelector = false; }}>
+          <div class="entry-dialog" @click=${(e) => e.stopPropagation()}>
+            <div class="entry-title">${t('selectEntryTitle')}</div>
+            <div class="entry-subtitle">${t('selectEntrySubtitle') || '请选择要配置的集成实例'}</div>
+            <div class="entry-list">
+              ${this._entrySelectorEntries.map(entry => html`
+                <button class="entry-btn" @click=${() => this._selectConfigEntry(entry.entry_id)}>
+                  <div class="entry-btn-icon">⚙️</div>
+                  <div class="entry-btn-text">
+                    <span class="entry-btn-title">${entry.title || entry.entry_id}</span>
+                    <span class="entry-btn-domain">${entry.domain}${entry.entry_id === this._entrySelectorCurrentId ? ' · ' + (t('currentEntry') || '当前') : ''}</span>
+                  </div>
+                </button>
+              `)}
+            </div>
+            <button class="entry-cancel" @click=${() => { this._showEntrySelector = false; }}>${t('cancel')}</button>
+          </div>
+        </div>
+      ` : ''}
 
       <!-- Config Flow Dialog -->
       <config-flow-dialog

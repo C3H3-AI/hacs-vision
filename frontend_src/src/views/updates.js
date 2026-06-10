@@ -4,6 +4,7 @@ import { showToast } from '../hacs-vision-panel.js';
 import { t } from '../i18n.js';
 import { commonStyles } from '../shared/styles.js';
 import { ConfirmDialog } from '../shared/confirm-dialog.js';
+import { getCategoryColor } from '../shared/constants.js';
 
 class UpdatesView extends LitElement {
   static properties = {
@@ -29,6 +30,8 @@ class UpdatesView extends LitElement {
     this._searchTimer = null;
     this._installingIds = {};
     this._changelogs = {};
+    this._changelogsLoading = {};
+    this._expandedChangelogs = {};
     this._searchText = '';
     this._selectedIds = {};
     this._selectedRepos = [];
@@ -116,6 +119,13 @@ class UpdatesView extends LitElement {
         display: inline-block; margin-top: 6px;
       }
       .changelog-preview-link:hover { text-decoration: underline; }
+      .changelog-preview-body.expanded { max-height: none; }
+      .changelog-expand-btn {
+        display: inline-block; margin-top: 6px; margin-right: 10px;
+        color: var(--primary-color); font-size: 11px; cursor: pointer;
+        background: none; border: none; padding: 0;
+      }
+      .changelog-expand-btn:hover { text-decoration: underline; }
 
       .mini-icon { width: 14px; height: 14px; vertical-align: -2px; display: inline; flex-shrink: 0; }
       .mini-icon.spin { animation: spin 1s linear infinite; }
@@ -185,7 +195,7 @@ class UpdatesView extends LitElement {
       .status-badge.pending-upgrade { background: rgba(255,152,0,0.15); color: #ff9800; }
 
       .update-all-bar {
-        display: flex; justify-content: flex-end; margin-bottom: 12px;
+        display: flex; justify-content: flex-end; gap: 8px; margin-bottom: 12px;
       }
       .update-all-btn {
         padding: 10px 20px; border-radius: 10px;
@@ -196,6 +206,11 @@ class UpdatesView extends LitElement {
       }
       .update-all-btn:hover { opacity: 0.9; }
       .update-all-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+      .update-all-btn.selected-btn {
+        background: transparent; border: 1px solid var(--primary-color);
+        color: var(--primary-color);
+      }
+      .update-all-btn.selected-btn:disabled { opacity: 0.4; }
 
       @media (max-width: 768px) {
         .search { min-width: 0; }
@@ -206,8 +221,8 @@ class UpdatesView extends LitElement {
         .version-value { font-size: 12px; }
         .card-desc { font-size: 11px; margin-bottom: 10px; }
         .btn.primary { min-height: 44px; }
-        .update-all-bar { justify-content: stretch; }
-        .update-all-btn { width: 100%; justify-content: center; min-height: 44px; }
+        .update-all-bar { justify-content: stretch; flex-wrap: wrap; }
+        .update-all-btn { flex: 1; min-width: 120px; justify-content: center; min-height: 44px; }
       }
 
       .batch-toggle {
@@ -242,6 +257,19 @@ class UpdatesView extends LitElement {
     await this._load();
   }
 
+  /* Lazy load changelogs: load one at a time with gap */
+  _lazyLoadChangelogs() {
+    const repos = this.updates.filter(r => r.full_name && !this._changelogs[r.full_name]);
+    if (repos.length === 0) return;
+    let i = 0;
+    const next = () => {
+      if (i >= repos.length) return;
+      this._loadChangelog(repos[i++].full_name);
+      setTimeout(next, 150);
+    };
+    setTimeout(next, 300);
+  }
+
   async _load() {
     this.loading = true;
     try {
@@ -250,13 +278,32 @@ class UpdatesView extends LitElement {
       // Then fetch the updated updates list
       const result = await api.getUpdates();
       this.updates = Array.isArray(result) ? result : (result.updates || []);
-      // F6: Load changelogs asynchronously
-      this._loadChangelogs();
+      this._lazyLoadChangelogs();
     } catch(e) {
       console.error('Failed to load updates', e);
       this.updates = [];
     }
     this.loading = false;
+  }
+
+  /* Lazy load changelog for a single repo */
+  async _loadChangelog(fullName) {
+    if (!fullName || this._changelogs[fullName] || this._changelogsLoading[fullName]) return;
+    this._changelogsLoading = { ...this._changelogsLoading, [fullName]: true };
+    try {
+      const data = await api.getChangelog(fullName);
+      if (data?.body) {
+        this._changelogs = { ...this._changelogs, [fullName]: data };
+      }
+    } catch {}
+    this._changelogsLoading = { ...this._changelogsLoading, [fullName]: false };
+  }
+
+  _toggleChangelog(fullName) {
+    this._expandedChangelogs = {
+      ...this._expandedChangelogs,
+      [fullName]: !this._expandedChangelogs?.[fullName]
+    };
   }
 
   /* F6: Load changelogs for all updates — parallel */
@@ -279,7 +326,7 @@ class UpdatesView extends LitElement {
     }
   }
 
-  /* Multi-select: update only selected repos */
+  /* "Update Selected" — updates only checked repos */
   async _updateSelected() {
     const ids = Object.keys(this._selectedIds).filter(k => this._selectedIds[k]);
     if (ids.length === 0) return;
@@ -293,6 +340,29 @@ class UpdatesView extends LitElement {
     try {
       await api.update(ids);
       showToast(`${t('allUpdatesStarted')} (${ids.length})`, 'success');
+      this._selectedIds = {};
+      this._load();
+      this.dispatchEvent(new CustomEvent('refresh-stats', { bubbles: true, composed: true }));
+    } catch(e) {
+      showToast(`${t('updateFailed')}: ${e.message}`, 'error');
+    }
+    this.updating = false;
+  }
+
+  /* "Update All" — updates ALL repos without requiring selection */
+  async _updateAll() {
+    const allIds = this.updates.map(r => r.id || r.full_name);
+    if (allIds.length === 0) return;
+    const confirmed = await ConfirmDialog.show(this, {
+      message: `${t('updateAll')} ${allIds.length}?`,
+      confirmText: t('confirmUpdate'),
+      danger: false,
+    });
+    if (!confirmed) return;
+    this.updating = true;
+    try {
+      await api.update(allIds);
+      showToast(`${t('allUpdatesStarted')} (${allIds.length})`, 'success');
       this._selectedIds = {};
       this._load();
       this.dispatchEvent(new CustomEvent('refresh-stats', { bubbles: true, composed: true }));
@@ -555,8 +625,11 @@ class UpdatesView extends LitElement {
 
         ${this.updates.length > 1 ? html`
           <div class="update-all-bar">
-            <button class="update-all-btn" @click=${this._updateSelected} ?disabled=${this.updating || this._selectedCount() === 0}>
-              <svg class="mini-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg> ${this.updating ? t('updatingProgress') : `${t('updateAll')} (${this._selectedCount() || 0})`}
+            <button class="update-all-btn" @click=${this._updateAll} ?disabled=${this.updating || this.updates.length === 0}>
+              <svg class="mini-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg> ${this.updating ? t('updatingProgress') : t('updateAllNow')}
+            </button>
+            <button class="update-all-btn selected-btn" @click=${this._updateSelected} ?disabled=${this.updating || this._selectedCount() === 0}>
+              <svg class="mini-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="10"/></svg> ${t('updateSelected')} (${this._selectedCount() || 0})
             </button>
           </div>
         ` : ''}
@@ -607,8 +680,11 @@ class UpdatesView extends LitElement {
                 ${changelog?.body ? html`
                   <div class="changelog-preview">
                     <div class="changelog-preview-title">${t('changelogTitle')} ${changelog.tag ? html`<small>(${changelog.tag})</small>` : ''}</div>
-                    <div class="changelog-preview-body">${changelog.body}</div>
-                    <a class="changelog-preview-link" href="${changelog.url || `https://github.com/${r.full_name}/releases`}" target="_blank" rel="noopener">${t('viewFullChangelog')} →</a>
+                    <div class="changelog-preview-body${this._expandedChangelogs?.[r.full_name] ? ' expanded' : ''}">${changelog.body}</div>
+                    <div>
+                      <button class="changelog-expand-btn" @click=${() => this._toggleChangelog(r.full_name)}>${this._expandedChangelogs?.[r.full_name] ? t('changelogShowLess') : t('changelogShowMore')}</button>
+                      <a class="changelog-preview-link" href="${changelog.url || `https://github.com/${r.full_name}/releases`}" target="_blank" rel="noopener">${t('viewFullChangelog')} →</a>
+                    </div>
                   </div>
                 ` : ''}
 

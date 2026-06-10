@@ -494,7 +494,8 @@ class BrowseView extends LitElement {
 
   _handleConfigure(repo) {
     // Open options flow for an already-configured integration
-    this.dispatchEvent(new CustomEvent('open-options-flow', { detail: { entryId: repo.config_entry_id }, bubbles: true, composed: true }));
+    const domain = repo.domain || (repo.full_name || '').split('/')[1] || '';
+    this.dispatchEvent(new CustomEvent('open-options-flow', { detail: { entryId: repo.config_entry_id, domain }, bubbles: true, composed: true }));
   }
 
   _handleAddIntegration(repo) {
@@ -506,13 +507,20 @@ class BrowseView extends LitElement {
   async _load() {
     this.loading = true;
     try {
-      // Detect GitHub URL pattern: don't send URL search to server (server can't match URLs)
+      // Detect GitHub URL pattern: extract owner/repo for server-side search
       const isUrlSearch = !!(this.search && (
         this.search.match(/github\.com\/([^/]+\/[^/\s?#]+)/i) ||
         this.search.match(/^[a-zA-Z0-9_-]+\/[a-zA-Z0-9_.-]+$/)
       ));
+      let serverSearch = this.search;
+      if (isUrlSearch) {
+        const match = this.search.match(/github\.com\/([^/]+\/[^/\s?#]+)/i);
+        if (match) {
+          serverSearch = match[1].replace(/\.git$/, '');
+        }
+      }
       const result = await api.listRepositories({
-        search: isUrlSearch ? '' : this.search,
+        search: serverSearch,
         category: this.category, sort: this.sort,
         sortDir: this.sortDir, page: this.page, limit: this.limit,
         status: this.statusFilter,
@@ -872,7 +880,7 @@ class BrowseView extends LitElement {
               <path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/>
             </svg>
           </button>
-          <button class="btn primary" style="padding:6px 12px;font-size:12px;min-height:36px;" @click=${() => { this._showAddRepo = !this._showAddRepo; }}>${t('addCustomRepo')}</button>
+          <button class="btn primary" style="padding:6px 12px;font-size:12px;min-height:44px;" @click=${() => { this._showAddRepo = !this._showAddRepo; }}>${t('addCustomRepo')}</button>
         </div>
       </div>
 

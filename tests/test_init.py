@@ -1,7 +1,7 @@
 """Tests for HACS Enhanced integration."""
 import pytest
 from unittest.mock import MagicMock, patch, AsyncMock
-from custom_components.hacs_enhanced.const import DOMAIN
+from custom_components.hacs_vision.const import DOMAIN
 
 
 @pytest.fixture
@@ -20,14 +20,14 @@ class TestHACSData:
 
     def test_get_path_resolves_relative(self, hass):
         """Storage paths should be resolved via hass.config.path()."""
-        from custom_components.hacs_enhanced.hacs_data import HACSData
+        from custom_components.hacs_vision.hacs_data import HACSData
         data = HACSData(hass)
         path = data._get_path("repositories")
         assert path == "/config/.storage/hacs.repositories"
 
     def test_get_path_unknown_key_raises(self, hass):
         """Unknown storage key should raise ValueError."""
-        from custom_components.hacs_enhanced.hacs_data import HACSData
+        from custom_components.hacs_vision.hacs_data import HACSData
         data = HACSData(hass)
         with pytest.raises(ValueError, match="Unknown storage key"):
             data._get_path("nonexistent")
@@ -35,7 +35,7 @@ class TestHACSData:
     @pytest.mark.asyncio
     async def test_get_all_repositories_field_mapping(self, hass):
         """Storage fields should be mapped to API field names."""
-        from custom_components.hacs_enhanced.hacs_data import HACSData
+        from custom_components.hacs_vision.hacs_data import HACSData
         data = HACSData(hass)
 
         mock_storage = {
@@ -61,7 +61,7 @@ class TestHACSData:
     @pytest.mark.asyncio
     async def test_get_all_repositories_empty(self, hass):
         """Empty storage should return empty list."""
-        from custom_components.hacs_enhanced.hacs_data import HACSData
+        from custom_components.hacs_vision.hacs_data import HACSData
         data = HACSData(hass)
         with patch.object(data, 'read_storage', new_callable=AsyncMock, return_value=None):
             repos = await data.get_all_repositories()
@@ -70,7 +70,7 @@ class TestHACSData:
     @pytest.mark.asyncio
     async def test_get_repository_by_id(self, hass):
         """Should find a repo by ID."""
-        from custom_components.hacs_enhanced.hacs_data import HACSData
+        from custom_components.hacs_vision.hacs_data import HACSData
         data = HACSData(hass)
         mock_storage = {
             "data": {
@@ -86,7 +86,7 @@ class TestHACSData:
     @pytest.mark.asyncio
     async def test_get_repository_by_full_name(self, hass):
         """Should find a repo by full_name."""
-        from custom_components.hacs_enhanced.hacs_data import HACSData
+        from custom_components.hacs_vision.hacs_data import HACSData
         data = HACSData(hass)
         mock_storage = {
             "data": {
@@ -104,7 +104,7 @@ class TestHACSOperator:
 
     def test_invalidate_index(self, hass):
         """invalidate_index should clear cached indices."""
-        from custom_components.hacs_enhanced.hacs_operator import HACSOperator
+        from custom_components.hacs_vision.hacs_operator import HACSOperator
         op = HACSOperator(hass)
         op._repo_index_by_id = {"1": MagicMock()}
         op._repo_index_by_name = {"a/b": MagicMock()}
@@ -114,14 +114,14 @@ class TestHACSOperator:
 
     def test_available_false_when_hacs_missing(self, hass):
         """available should be False when HACS is not loaded."""
-        from custom_components.hacs_enhanced.hacs_operator import HACSOperator
+        from custom_components.hacs_vision.hacs_operator import HACSOperator
         hass.data = {}  # No 'hacs' key
         op = HACSOperator(hass)
         assert op.available is False
 
     def test_get_lock_returns_same_lock(self, hass):
         """Same repo ID should always get the same lock."""
-        from custom_components.hacs_enhanced.hacs_operator import HACSOperator
+        from custom_components.hacs_vision.hacs_operator import HACSOperator
         import asyncio
         op = HACSOperator(hass)
         lock1 = op._get_lock("repo1")
@@ -131,7 +131,7 @@ class TestHACSOperator:
     @pytest.mark.asyncio
     async def test_install_returns_error_when_hacs_unavailable(self, hass):
         """Install should return error when HACS is not available."""
-        from custom_components.hacs_enhanced.hacs_operator import HACSOperator
+        from custom_components.hacs_vision.hacs_operator import HACSOperator
         hass.data = {}
         op = HACSOperator(hass)
         result = await op.install_repository("test/repo", "integration")
@@ -141,7 +141,7 @@ class TestHACSOperator:
     @pytest.mark.asyncio
     async def test_remove_returns_error_when_hacs_unavailable(self, hass):
         """Remove should return error when HACS is not available."""
-        from custom_components.hacs_enhanced.hacs_operator import HACSOperator
+        from custom_components.hacs_vision.hacs_operator import HACSOperator
         hass.data = {}
         op = HACSOperator(hass)
         result = await op.remove_repository("test/repo")
@@ -149,8 +149,8 @@ class TestHACSOperator:
 
     def test_shared_data_instance(self, hass):
         """Operator should use shared HACSData when provided."""
-        from custom_components.hacs_enhanced.hacs_data import HACSData
-        from custom_components.hacs_enhanced.hacs_operator import HACSOperator
+        from custom_components.hacs_vision.hacs_data import HACSData
+        from custom_components.hacs_vision.hacs_operator import HACSOperator
         shared = HACSData(hass)
         op = HACSOperator(hass, shared_data=shared)
         assert op._data is shared
@@ -160,6 +160,6 @@ class TestConfigFlow:
     """Test config flow singleton behavior."""
 
     def test_domain_constant(self):
-        """DOMAIN should be 'hacs_enhanced'."""
-        from custom_components.hacs_enhanced.const import DOMAIN
-        assert DOMAIN == "hacs_enhanced"
+        """DOMAIN should be 'hacs_vision'."""
+        from custom_components.hacs_vision.const import DOMAIN
+        assert DOMAIN == "hacs_vision"

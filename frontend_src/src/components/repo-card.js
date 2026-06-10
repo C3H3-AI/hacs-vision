@@ -11,6 +11,9 @@ class RepoCard extends LitElement {
     _favorites: { type: Array, state: true },
     selected: { type: Boolean },
     showCheckbox: { type: Boolean },
+    viewMode: { type: String },
+    renamedFrom: { type: String },
+    showRemoveBtn: { type: Boolean },
   };
 
   constructor() {
@@ -19,6 +22,9 @@ class RepoCard extends LitElement {
     this._isFavorite = false;
     this._installing = false;
     this._favorites = [];
+    this.viewMode = 'store'; // 'store' | 'installed' | 'management' | 'updates'
+    this.renamedFrom = null;
+    this.showRemoveBtn = false;
   }
 
   async connectedCallback() {
@@ -133,6 +139,17 @@ class RepoCard extends LitElement {
     .fav-btn.active svg { fill: #ff9800; color: #ff9800; }
     .fav-btn:not(.active) svg { fill: none; color: var(--secondary-text-color, #727272); }
 
+    .remove-btn {
+      position: absolute; top: 10px; right: 10px;
+      width: 32px; height: 32px; border-radius: 50%;
+      border: none; background: rgba(244,67,54,0.12);
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+      transition: all 0.2s; z-index: 2; padding: 0; color: #f44336;
+      font-size: 16px; font-weight: 700; line-height: 1;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.12);
+    }
+    .remove-btn:hover { background: rgba(244,67,54,0.25); transform: scale(1.1); }
+
     .content { padding: 14px; flex: 1; display: flex; flex-direction: column; }
 
     .name {
@@ -232,6 +249,7 @@ class RepoCard extends LitElement {
       .action-btn .label { display: none; }
       .fav-btn { width: 36px; height: 36px; }
       .fav-btn svg { width: 20px; height: 20px; }
+      .remove-btn { width: 36px; height: 36px; font-size: 18px; }
     }
 
     .mini-icon { width: 14px; height: 14px; vertical-align: -2px; display: inline; flex-shrink: 0; }
@@ -260,6 +278,7 @@ class RepoCard extends LitElement {
       integration: t('catIntegration'), plugin: t('catPlugin'), theme: t('catTheme'),
       appdaemon: t('catAppDaemon'), netdaemon: t('catNetDaemon'),
       python_script: t('catPython'), template: t('catTemplate'),
+      dashboard: t('catDashboard'),
     };
     return labels[category] || category;
   }
@@ -337,6 +356,8 @@ class RepoCard extends LitElement {
             ` : this._getInitials(name)}
           </div>
           ${isInstalled ? html`<span class="installed-badge"><svg class="mini-icon" viewBox="0 0 24 24" fill="none" stroke="#4caf50" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg> ${t('installed')}</span>` : ''}
+          ${this.renamedFrom ? html`<span class="renamed-badge" style="position:absolute;bottom:10px;right:10px;font-size:9px;padding:2px 7px;border-radius:4px;background:#ff9800;color:#fff;display:flex;align-items:center;gap:3px;"><svg class="mini-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg> ${this.renamedFrom}</span>` : ''}
+          ${this.viewMode !== 'management' ? html`
           <button class="fav-btn ${this._isFavorite ? 'active' : ''}"
                   @click=${this._handleFavorite}
                   title=${this._isFavorite ? t('favOn') : t('favOff')}>
@@ -344,6 +365,11 @@ class RepoCard extends LitElement {
               <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
             </svg>
           </button>
+          ` : this.showRemoveBtn ? html`
+          <button class="remove-btn" @click=${e => this._handleAction(e, 'remove-repo')} title="${t('removeRepo')}">
+            ✕
+          </button>
+          ` : ''}
         </div>
 
         <div class="content">
@@ -366,9 +392,18 @@ class RepoCard extends LitElement {
                 ${downloads.toLocaleString()}
               </span>
             ` : ''}
+            ${this.viewMode !== 'store' ? html`
+              <span style="font-size:10px;color:var(--secondary-text-color);display:flex;align-items:center;gap:3px;">
+                <svg class="mini-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+                ${isUpdateAvailable
+                  ? html`${r.installed_version || '?'} → <span style="color:var(--primary-color);font-weight:600;">${r.latest_version || '?'}</span>`
+                  : r.installed_version || t('installed')}
+              </span>
+            ` : ''}
           </div>
         </div>
 
+        ${this.viewMode !== 'management' ? html`
         <div class="actions">
           <button class="action-btn readme-btn" @click=${e => this._handleAction(e, 'readme')} title="README">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
@@ -399,6 +434,7 @@ class RepoCard extends LitElement {
             </button>
           `}
         </div>
+        ` : ''}
       </div>
     `;
   }

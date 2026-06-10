@@ -10,6 +10,7 @@ export const CATEGORY_COLORS = {
   netdaemon: '#00838f',
   python_script: '#f9a825',
   template: '#6a1b9a',
+  dashboard: '#f57f17',
 };
 
 export function getCategoryColor(category) {

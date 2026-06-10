@@ -138,6 +138,7 @@ class HACSEnhancedAPI {
 
   /* Config Entries (for Add Integration button) */
   getConfigEntries() { return this.get('config_entries'); }
+  getVersion() { return this.get('version'); }
 
   /* Batch Operations */
   batchInstall(repos) { return this.post('batch/install', { repositories: repos }); }

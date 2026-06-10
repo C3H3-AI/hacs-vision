@@ -112,6 +112,8 @@ const T = {
   allUpToDate: { zh: '所有仓库已是最新版本', en: 'All repositories are up to date' },
   totalUpdates: { zh: '个可更新仓库', en: 'repositories can be updated' },
   updateAll: { zh: '全部更新', en: 'Update All' },
+  updateSelected: { zh: '更新已选', en: 'Update Selected' },
+  updateAllNow: { zh: '全部更新', en: 'Update All' },
   currentVersion: { zh: '当前版本', en: 'Current' },
   latestVersion: { zh: '最新版本', en: 'Latest' },
   updateNow: { zh: '立即更新', en: 'Update Now' },
@@ -243,6 +245,8 @@ const T = {
   changelogTitle: { zh: '更新内容', en: "What's New" },
   viewFullChangelog: { zh: '查看完整更新日志', en: 'View full changelog' },
   noChangelog: { zh: '暂无更新日志', en: 'No changelog available' },
+  changelogShowMore: { zh: '展开', en: 'Show more' },
+  changelogShowLess: { zh: '收起', en: 'Show less' },
 
   // View Mode & Grouping
   viewCard: { zh: '卡片', en: 'Cards' },
@@ -323,13 +327,22 @@ const T = {
   noUpdatesFound: { zh: '所有仓库已是最新', en: 'All repositories up to date' },
   notifySent: { zh: '通知已发送', en: 'Notification sent' },
 
-  // Config Flow Dialog
+  // Config flow
+  flowTitle: { zh: '配置 HA 集成', en: 'Configure HA Integration' },
+  flowTitleOptions: { zh: '选项配置', en: 'Options Configuration' },
   flowProcessing: { zh: '处理中...', en: 'Processing...' },
   flowStarting: { zh: '启动配置流程...', en: 'Starting configuration...' },
-  flowTitle: { zh: '配置集成', en: 'Configure Integration' },
-  flowTitleOptions: { zh: '选项配置', en: 'Options Configuration' },
-  flowStartFailed: { zh: '启动配置流程失败', en: 'Failed to start configuration' },
-  flowStartFailedOptions: { zh: '启动选项配置失败', en: 'Failed to start options' },
+  flowSubmit: { zh: '提交', en: 'Submit' },
+
+  flowSelectOption: { zh: '--- 请选择 ---', en: '--- Select ---' },
+  flowOptionsNotSupported: { zh: '此集成无需配置', en: 'This integration does not require configuration' },
+  flowHandlerNotFound: { zh: '未找到此集成的配置流程', en: 'Configuration handler not found' },
+  flowAuthError: { zh: '认证失败，请刷新页面后重试', en: 'Authentication failed. Please refresh and try again' },
+  flowTimeout: { zh: '配置超时，请重试', en: 'Configuration timed out, please try again' },
+  // Entry selector (multiple entries)
+  selectEntryTitle: { zh: '选择集成实例', en: 'Select Entry' },
+  selectEntrySubtitle: { zh: '此集成有多个实例，请选择要配置的实例', en: 'Multiple instances found, please select one to configure' },
+  currentEntry: { zh: '当前', en: 'Current' },
   flowSubmitFailed: { zh: '提交失败', en: 'Submit failed' },
   flowUnknownType: { zh: '集成返回了未知流程类型（{type}），请前往设备与服务完成配置。', en: 'Unknown flow type ({type}). Please configure in Devices & Services.' },
   flowExternalAuth: { zh: '此集成需要外部认证，请在打开的页面中完成授权。', en: 'This integration requires external authentication. Please complete authorization in the opened page.' },
@@ -339,7 +352,7 @@ const T = {
   flowClose: { zh: '关闭', en: 'Close' },
   flowDone: { zh: '完成', en: 'Done' },
   flowGotIt: { zh: '知道了', en: 'Got it' },
-  flowSelectOption: { zh: '-- 请选择 --', en: '-- Select --' },
+
   flowResultCreated: { zh: '配置完成', en: 'Setup Complete' },
   flowResultCreatedDesc: { zh: '集成已成功添加到设备与服务', en: 'Integration has been added to Devices & Services' },
   flowResultAborted: { zh: '无需配置', en: 'Skipped' },

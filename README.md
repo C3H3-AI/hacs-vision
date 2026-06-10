@@ -4,21 +4,24 @@
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://github.com/hacs/integration)
 [![GitHub Release](https://img.shields.io/github/v/release/C3H3-AI/hacs-vision)](https://github.com/C3H3-AI/hacs-vision/releases)
 
-> **当前版本**: v2.0.2 | **最低 HA 版本**: 2024.1.0 | **Current version**: v2.0.2 | **Minimum HA**: 2024.1.0
+> **当前版本**: v2.1.0 | **最低 HA 版本**: 2024.1.0 | **Current version**: v2.1.0 | **Minimum HA**: 2024.1.0
 
 > **⚠️ 前置条件**: 必须先安装并配置好 [HACS](https://hacs.xyz)
 > **⚠️ Prerequisite**: [HACS](https://hacs.xyz) must be already installed and configured.
 
 ---
 
+<!-- zh-CN -->
 **HACS Vision — HACS 的现代化可视化面板，内置商店界面，让你更直观地浏览、管理和配置 Home Assistant 集成、插件和主题。**
 
+<!-- en -->
 **A modern visual panel for HACS — browse, manage, and configure Home Assistant integrations, plugins, and themes in a built-in storefront interface.**
 
 ---
 
 ## 功能特性 / Features
 
+<!-- zh-CN -->
 - **🛒 商店浏览** — 搜索、分类筛选、收藏 HACS 仓库
 - **🔄 更新管理** — 一览所有待更新仓库，支持单个或批量更新
 - **📦 仓库管理** — 管理已下载的仓库、版本历史、重新安装
@@ -26,6 +29,15 @@
 - **🔌 集成配置** — 直接在面板中配置 HA 内置集成（900+ 集成）
 - **🔔 更新通知** — 有新更新时自动通知
 - **📱 响应式设计** — 桌面端和移动端均优化
+
+<!-- en -->
+- **🛒 Store Browsing** — Search, filter by category, and favorite HACS repositories
+- **🔄 Update Management** — View all pending updates, update individually or in batch
+- **📦 Repository Management** — Manage installed repos, version history, reinstall
+- **⚙️ Settings Panel** — Configure refresh interval, default view, notification toggle
+- **🔌 Integration Config** — Configure HA built-in integrations directly from the panel (900+)
+- **🔔 Update Notifications** — Auto-notify when updates are available
+- **📱 Responsive Design** — Optimized for both desktop and mobile
 
 ---
 
@@ -41,6 +53,7 @@
 
 ## 安装方法 / Installation
 
+<!-- zh-CN -->
 ### 通过 HACS 安装（推荐）
 
 1. 确保已安装 [HACS](https://hacs.xyz)
@@ -56,42 +69,82 @@
 2. 将 `custom_components/hacs_vision` 目录复制到 HA 的 `custom_components/` 目录
 3. 重启 Home Assistant
 
+<!-- en -->
+### Via HACS (Recommended)
+
+1. Ensure [HACS](https://hacs.xyz) is installed
+2. Go to **HACS → Integrations → Custom repositories** (top-right menu)
+3. Add repository URL: `https://github.com/C3H3-AI/hacs-vision`
+4. Category: **Integration**
+5. Click **Install**
+6. **Restart Home Assistant**
+
+### Manual Installation
+
+1. Download the latest [Release](https://github.com/C3H3-AI/hacs-vision/releases)
+2. Copy `custom_components/hacs_vision` to HA's `custom_components/` directory
+3. Restart Home Assistant
+
 ---
 
 ## 配置说明 / Configuration
 
+<!-- zh-CN -->
 1. 进入 **设置 → 设备与服务 → 添加集成**
 2. 搜索 **HACS Vision**
 3. 点击 **提交**（无需额外配置）
 4. 面板将出现在侧边栏
 
+<!-- en -->
+1. Go to **Settings → Devices & Services → Add Integration**
+2. Search for **HACS Vision**
+3. Click **Submit** (no extra config needed)
+4. The panel will appear in the sidebar
+
 ---
 
 ## 使用指南 / Usage
 
+<!-- zh-CN -->
 ### 🛒 商店 / Store
 浏览所有可用的 HACS 仓库。使用搜索栏筛选，或点击分类标签缩小范围。点击爱心图标收藏仓库。
 
+<!-- en -->
 *Browse all available HACS repositories. Use the search bar to filter, or click category chips to narrow down. Click the heart icon to add favorites.*
 
+<!-- zh-CN -->
 ### 🔄 更新 / Updates
 查看所有可更新的仓库。使用**全部更新**按钮一键更新，或逐个更新。
 
+<!-- en -->
 *View all repositories with available updates. Use **Update All** button to apply all updates at once.*
 
+<!-- zh-CN -->
 ### 📦 仓库管理 / Management
 管理已安装的仓库。查看版本历史、重新安装或移除。
 
+<!-- en -->
 *Manage your installed repositories. View version history, reinstall, or remove repositories.*
 
+<!-- zh-CN -->
 ### ⚙️ 设置 / Settings
 配置面板行为、检查更新、重启 HA，或从面板直接添加新的 HA 集成。
 
+<!-- en -->
 *Configure panel behavior, check for updates, restart HA, or add new HA integrations directly.*
 
 ---
 
 ## 更新日志 / Changelog
+
+### v2.1.0 (2026-06-10)
+- **New**: 设置页动态显示版本号（从API获取，告别硬编码）
+- **New**: Config Flow 表单增强 — 支持密码掩码输入、多行文本框（textarea），字段说明文字正常显示
+- **New**: 浏览器缓存自动清除机制 — `panel.js` 带 `?v=VERSION` 缓存失效，`index.html` 强制重新验证
+- **UI**: 更新详情支持展开/收起 changelog 预览
+- **UI**: 移动端触控目标优化（44px规范）、空状态内边距统一、spinner 尺寸统一
+- **Fix**: 集成配置弹窗字段说明文字不显示（placeholder/description 混用）
+- Fix: 测试文件 import 路径修正（`hacs_enhanced` → `hacs_vision`）
 
 ### v2.0.2 (2026-06-09)
 - Fix: HACS Vision自身更新检测——点击刷新时从GitHub获取最新版本，无需通过HACS面板
@@ -127,41 +180,51 @@
 
 ## 常见问题 / FAQ
 
+<!-- zh-CN -->
 **问：HACS 和 HACS Vision 有什么区别？**
 答：HACS Vision 是 HACS 的可视化前端面板，不替代 HACS。它提供更现代化的浏览和管理体验，底层使用 HACS 作为后端。
 
+<!-- en -->
 **Q: What's the difference between HACS and HACS Vision?**
 A: HACS Vision is a visual frontend panel for HACS. It doesn't replace HACS.
 
 ---
 
+<!-- zh-CN -->
 **问：可以从 HACS Vision 安装仓库吗？**
 答：可以。在商店中浏览，点击安装即可。
 
+<!-- en -->
 **Q: Can I install repositories from HACS Vision?**
 A: Yes, browse the store, click install.
 
 ---
 
+<!-- zh-CN -->
 **问：面板显示"HACS not available"？**
 答：确保 HACS 已正确安装和配置。
 
+<!-- en -->
 **Q: The panel shows "HACS not available"?**
 A: Make sure HACS is properly installed and configured.
 
 ---
 
+<!-- zh-CN -->
 **问：如何更新 HACS Vision？**
 答：通过 HACS 安装的会在 HACS 面板中显示更新。手动安装的请下载最新 Release 替换文件。
 
+<!-- en -->
 **Q: How do I update HACS Vision?**
 A: Updates appear in HACS dashboard. For manual install, replace files from the latest release.
 
 ---
 
+<!-- zh-CN -->
 **问：可以从面板配置 HA 集成吗？**
 答：可以！进入设置 → 添加 HA 集成，搜索并配置任意 HA 内置集成。
 
+<!-- en -->
 **Q: Can I configure HA integrations from the panel?**
 A: Yes! Go to Settings → Add HA Integration to configure any built-in integration.
 

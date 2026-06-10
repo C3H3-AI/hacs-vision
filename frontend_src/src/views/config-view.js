@@ -11,6 +11,7 @@ class ConfigView extends LitElement {
     _handlers: { type: Array, state: true },
     _handlerSearch: { type: String, state: true },
     _handlersLoading: { type: Boolean, state: true },
+    _version: { type: String, state: true },
   };
 
   constructor() {
@@ -21,6 +22,7 @@ class ConfigView extends LitElement {
     this._handlers = [];
     this._handlerSearch = '';
     this._handlersLoading = false;
+    this._version = '';
   }
 
   connectedCallback() {
@@ -35,6 +37,10 @@ class ConfigView extends LitElement {
       console.error('Settings load failed:', e);
       this._settings = {};
     }
+    try {
+      const data = await api.getVersion();
+      this._version = data?.version || '';
+    } catch(e) { /* ignore */ }
   }
 
   async _save() {
@@ -208,9 +214,9 @@ class ConfigView extends LitElement {
     .picker-loading {
       text-align: center; padding: 32px 0; color: var(--secondary-text-color);
     }
-    .spinner {
-      width: 28px; height: 28px;
-      border: 3px solid var(--divider-color, #e0e0e0);
+    .spinner-sm {
+      width: 20px; height: 20px;
+      border: 2px solid var(--divider-color, #e0e0e0);
       border-top-color: var(--primary-color, #03a9f4);
       border-radius: 50%; animation: spin 1s linear infinite;
       margin: 0 auto 8px;
@@ -276,7 +282,7 @@ class ConfigView extends LitElement {
           </button>
         </div>
 
-        <div class="version">HACS Vision v2.0.1</div>
+        <div class="version">HACS Vision${this._version ? ` v${this._version}` : ''}</div>
       </div>
 
       ${this._showIntegrationPicker ? this._renderPicker() : ''}
@@ -304,7 +310,7 @@ class ConfigView extends LitElement {
           <div class="picker-list">
             ${this._handlersLoading ? html`
               <div class="picker-loading">
-                <div class="spinner"></div>
+                <div class="spinner-sm"></div>
                 <div>${t('loading')}</div>
               </div>
             ` : filtered.length === 0 ? html`

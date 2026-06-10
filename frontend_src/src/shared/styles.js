@@ -18,6 +18,14 @@ export const commonStyles = css`
     animation: spin 1s linear infinite;
     margin: 0 auto 16px;
   }
+  .spinner-sm {
+    width: 20px; height: 20px;
+    border: 2px solid var(--divider-color, #e0e0e0);
+    border-top-color: var(--primary-color, #03a9f4);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin: 0 auto 8px;
+  }
   @keyframes spin {
     from { transform: rotate(0deg); }
     to { transform: rotate(360deg); }

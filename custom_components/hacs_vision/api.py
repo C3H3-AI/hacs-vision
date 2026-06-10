@@ -9,7 +9,7 @@ from aiohttp import web
 from homeassistant.components.http import HomeAssistantView
 from homeassistant.util import dt as dt_util
 
-from .const import API_BASE
+from .const import API_BASE, VERSION
 from .hacs_data import HACSData
 from .hacs_operator import HACSOperator
 from .backup import BackupManager
@@ -48,8 +48,16 @@ class HACSEnhancedStaticView(HomeAssistantView):
         try:
             content = await self.hass.async_add_executor_job(self._read_file, filepath)
             ctype = "application/javascript" if filename.endswith(".js") else "text/html" if filename.endswith(".html") else "text/plain"
+            # Inject version into HTML for JS cache-busting
+            if filename.endswith(".html"):
+                content = content.replace("__VERSION__", VERSION)
             resp = web.Response(text=content, content_type=ctype)
-            resp.headers["Cache-Control"] = "public, max-age=3600"
+            # HTML: always revalidate so the app pulls the latest ?v=VERSION panel.js
+            # JS:  let the browser cache for 1h since ?v= busts on version change
+            if filename.endswith(".html"):
+                resp.headers["Cache-Control"] = "no-cache, must-revalidate"
+            else:
+                resp.headers["Cache-Control"] = "public, max-age=3600"
             return resp
         except FileNotFoundError:
             return web.json_response({"error": "file_not_found"}, status=404)
@@ -139,6 +147,8 @@ class HACSEnhancedAPI(HomeAssistantView):
             return await self._get_config_entries()
         if path == "config_flow/handlers":
             return await self._config_flow_handlers(request)
+        if path == "version":
+            return web.json_response({"version": VERSION})
 
         return web.json_response({"error": "not_found"}, status=404)
 
