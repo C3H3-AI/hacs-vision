@@ -213,12 +213,12 @@ class HACSData:
         """Save user settings for HACS Vision."""
         return await self.write_storage("settings", {"data": settings})
 
-    async def get_config_entries_map(self) -> dict[str, str]:
-        """Get a mapping of domain -> config_entry_id for all installed HA integrations."""
-        result = {}
+    async def get_config_entries_map(self) -> list[dict]:
+        """Get all config entries with domain and entry_id for installed HA integrations."""
+        result = []
         for entry in self.hass.config_entries.async_entries():
             if entry.domain:
-                result[entry.domain] = entry.entry_id
+                result.append({"domain": entry.domain, "entry_id": entry.entry_id})
         return result
 
     async def send_persistent_notification(self, title: str, message: str) -> None:

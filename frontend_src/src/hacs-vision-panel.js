@@ -152,6 +152,24 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
     }
     .restart-btn:hover { background: rgba(244,67,54,0.25); }
     .restart-btn svg { width: 14px; height: 14px; flex-shrink: 0; }
+
+    /* ===== Restart Bar (between header and content) ===== */
+    .restart-bar {
+      display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+      padding: 10px 14px; margin: 0 0 6px;
+      background: rgba(244,67,54,0.08); border: 1px solid rgba(244,67,54,0.25);
+      border-radius: 10px; font-size: 13px;
+    }
+    .restart-bar span { font-weight: 600; color: #f44336; flex: 1; }
+    .restart-bar-btn {
+      padding: 6px 14px; border: none; border-radius: 8px;
+      font-size: 12px; font-weight: 600; cursor: pointer; white-space: nowrap;
+      background: #f44336; color: #fff; transition: opacity 0.15s;
+    }
+    .restart-bar-btn:hover { opacity: 0.85; }
+    .restart-bar-btn.outline { background: transparent; border: 1px solid #f44336; color: #f44336; }
+    .restart-bar-btn.outline:hover { background: rgba(244,67,54,0.1); }
+    .restart-bar svg { flex-shrink: 0; }
     .stat-label { font-size: 11px; color: var(--secondary-text-color, #727272); margin-top: 2px; text-transform: uppercase; }
 
     /* ===== Sticky Tabs ===== */
@@ -514,6 +532,8 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
       .header-icon { width: 28px; height: 28px; font-size: 14px; border-radius: 8px; flex-shrink: 0; }
       .title-group h1 { font-size: 14px; text-align: left; }
       .title-group p { display: none; }
+      .restart-bar { font-size: 12px; padding: 8px 10px; }
+      .restart-bar-btn { font-size: 11px; padding: 5px 10px; }
       .header-right { gap: 6px; justify-content: flex-end; flex-wrap: nowrap; }
       .stat { text-align: center; min-width: 32px; }
       .stat-num { font-size: 12px; }
@@ -740,7 +760,8 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
 
   /** Open an options flow to reconfigure an existing config entry */
   _openOptionsFlow(entryId, domain) {
-    this._configFlowDomain = '';
+    // Keep domain for translation lookups (don't clear it)
+    this._configFlowDomain = domain || '';
     this._configFlowEntryId = null;
 
     // Check for multiple entries for the same domain
@@ -759,13 +780,24 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
   _selectConfigEntry(entryId) {
     this._showEntrySelector = false;
     this._configFlowEntryId = entryId;
+    // Try to resolve domain from selected entry
+    if (this._configEntries) {
+      for (const entries of Object.values(this._configEntries)) {
+        const found = entries.find(e => e.entry_id === entryId);
+        if (found) {
+          this._configFlowDomain = found.domain || '';
+          break;
+        }
+      }
+    }
     this._showConfigFlow = true;
   }
 
   async _loadConfigEntries() {
     try {
-      const entries = await api.getConfigEntries();
+      const resp = await api.getConfigEntries();
       // Convert to a map of domain -> entries for quick lookup
+      const entries = resp?.entries || [];
       const map = {};
       if (Array.isArray(entries)) {
         for (const entry of entries) {
@@ -967,10 +999,6 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
               <div class="stat-num">${this.stats.pending_restart}</div>
               <div class="stat-label">${t('statusPendingRestart')}</div>
             </div>
-            <button class="restart-btn" @click=${() => this._restartHA()} title="${t('restartHATitle')}">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 4v6h6M23 20v-6h-6"/><path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"/></svg>
-              ${t('restartHA')}
-            </button>
             ` : ''}
             <div class="stat" @click=${() => this._applyFilter('favorites')}>
               <div class="stat-num">${this._favoriteCount ?? 0}</div>
@@ -1002,9 +1030,9 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
           </div>
         </div>
 
-        <!-- Content with fade transition — use hidden to preserve scroll position -->
+        <!-- Content with fade transition -->
         <div class="content ${this._viewTransition ? 'transitioning' : ''}">
-          <browse-view .hass=${this.hass} .presetFilter=${this._presetFilter} ?hidden=${this.currentView !== 'browse'}></browse-view>
+          <browse-view .hass=${this.hass} .presetFilter=${this._presetFilter} .pendingRestart=${this.stats.pending_restart ?? 0} ?hidden=${this.currentView !== 'browse'}></browse-view>
           <updates-view .hass=${this.hass} ?hidden=${this.currentView !== 'updates'}></updates-view>
           <management-view .hass=${this.hass} ?hidden=${this.currentView !== 'management'}></management-view>
           <config-view .hass=${this.hass} @refresh-stats=${this._loadStats} ?hidden=${this.currentView !== 'settings'}></config-view>

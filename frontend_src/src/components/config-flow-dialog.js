@@ -46,6 +46,8 @@ class ConfigFlowDialog extends LitElement {
     this._result = null;
     this._isOptions = false;
     this._loadingTimeout = null;
+    this._translations = null;
+    this._lang = 'zh-Hans';
   }
 
   /** Get hass object — from prop or directly from parent HA iframe */
@@ -91,8 +93,8 @@ class ConfigFlowDialog extends LitElement {
     if (changed.has('open') && this.open) {
       if (this.entryId) {
         // entryId set from outside → options flow
+        // domain is passed from panel via property, keep it for translation lookups
         this._isOptions = true;
-        this.domain = '';
         this._startFlow();
       } else if (this.domain) {
         this._isOptions = false;
@@ -118,16 +120,52 @@ class ConfigFlowDialog extends LitElement {
     this.open = true;
   }
 
-  /** Load backend translations so hass.localize() can resolve component keys */
+  /** Load translations from our backend (reads custom_components translation files) */
   async _loadTranslations(domain) {
-    const hass = this._getHass();
-    if (hass?.loadBackendTranslation && domain) {
-      await Promise.allSettled([
-        hass.loadBackendTranslation("config", domain, true),
-        hass.loadBackendTranslation("title", domain, true),
-        hass.loadBackendTranslation("selector", domain),
-      ]);
+    if (!domain) return;
+    // Skip if translations already loaded for this domain
+    if (this._translations && this._translations._domain === domain) return;
+    try {
+      const resp = await api.getTranslations(domain, this._lang);
+      const data = resp?.data || {};
+      this._translations = { _domain: domain, _data: data };
+    } catch (e) {
+      this._translations = { _domain: domain, _data: {} };
     }
+  }
+
+  /** Look up a translation key in our loaded translations.
+   *  Strips 'component.{domain}.' prefix and traverses the nested data.
+   *  HA stores config-flow keys under 'config.' and options-flow under 'options.',
+   *  but our key format always uses 'config.step.{id}'. So we try:
+   *  1. The key as-is (works for 'config.step.{id}')
+   *  2. Replace 'config.' with 'options.' (works for 'options.step.{id}')
+   */
+  _t(key) {
+    if (!this._translations?._data) return null;
+    const domain = this._translations._domain;
+    const prefix = 'component.' + domain + '.';
+    const cleanKey = key.startsWith(prefix) ? key.slice(prefix.length) : key;
+
+    let result = this._traverse(this._translations._data, cleanKey);
+    if (result) return result;
+
+    if (cleanKey.startsWith('config.')) {
+      result = this._traverse(this._translations._data, 'options.' + cleanKey.slice('config.'.length));
+      if (result) return result;
+    }
+
+    return null;
+  }
+
+  _traverse(data, key) {
+    const parts = key.split('.');
+    let node = data;
+    for (const part of parts) {
+      if (node == null || typeof node !== 'object') return null;
+      node = node[part];
+    }
+    return typeof node === 'string' ? node : null;
   }
 
   async _startFlow() {
@@ -156,7 +194,7 @@ class ConfigFlowDialog extends LitElement {
         result = await api.startConfigFlow(this.domain);
       }
 
-      this._handleFlowResponse(result);
+      await this._handleFlowResponse(result);
     } catch (e) {
       console.error('HACS Vision: config flow start error:', e);
       this._finished = true;
@@ -166,7 +204,7 @@ class ConfigFlowDialog extends LitElement {
     }
   }
 
-  _handleFlowResponse(result) {
+  async _handleFlowResponse(result) {
     if (result.type === 'abort') {
       this._finished = true;
       this._result = { type: 'abort', reason: result.reason };
@@ -187,11 +225,13 @@ class ConfigFlowDialog extends LitElement {
       this._flowId = result.flow_id || result.flowId;
       this._step = result;
       this._errors = result.errors || {};
-      this._loading = false;
-      // Load translations for this step's handler (may differ from initial domain)
-      if (result.handler) {
-        this._loadTranslations(result.handler);
+      // Load translations BEFORE rendering so hass.localize() works
+      // Use the real domain (not result.handler which can be a UUID)
+      const transDomain = this._getFlowDomain() || result.handler;
+      if (transDomain) {
+        await this._loadTranslations(transDomain);
       }
+      this._loading = false;
       this.requestUpdate();
       return;
     }
@@ -506,8 +546,9 @@ class ConfigFlowDialog extends LitElement {
         ${options.map((opt, i) => {
           const isSimple = typeof opt === 'string';
           const value = isSimple ? opt : opt.value || '';
-          const label = isSimple ? opt : opt.label || opt.title || opt.value || '';
-          const desc = isSimple ? '' : opt.description || '';
+          const label = this._t(`component.${this._getFlowDomain()}.config.step.${step.step_id}.menu_options.${value}`)
+            || (isSimple ? opt : opt.label || opt.title || opt.value || '');
+          const desc = isSimple ? '' : (opt.description || '');
           return html`
             <div class="menu-option" @click=${() => this._handleMenuSelect(value)}>
               <span class="menu-label">${label}</span>
@@ -551,23 +592,19 @@ class ConfigFlowDialog extends LitElement {
     let desc = step.description || step.description_placeholders?.description || '';
 
     // If description looks like a translation key (contains dots), resolve it
-    if (desc && desc.includes('.') && this._getHass()?.localize) {
-      const resolved = this._getHass()?.localize(desc);
-      if (resolved && resolved !== desc) {
-        desc = resolved;
-      }
+    if (desc && desc.includes('.')) {
+      const resolved = this._t(desc) || null;
+      if (resolved) desc = resolved;
     }
 
-    // Try localization if API didn't provide description
-    if (!desc && this._getHass()?.localize) {
-      const handler = step.handler;
+    // Try localization from our translations if API didn't provide description
+    if (!desc) {
+      const domain = this._getFlowDomain();
       const stepId = step.step_id;
-      if (handler && stepId) {
-        const key = `component.${handler}.config.step.${stepId}.description`;
-        const translated = this._getHass()?.localize(key);
-        if (translated && translated !== key) {
-          desc = translated;
-        }
+      if (domain && stepId) {
+        const key = `component.${domain}.config.step.${stepId}.description`;
+        const translated = this._t(key);
+        if (translated) desc = translated;
       }
     }
 
@@ -590,7 +627,6 @@ class ConfigFlowDialog extends LitElement {
 
   _getFlowDomain() {
     if (this.domain) return this.domain;
-    // configEntries is { domain: [entry, ...] } — search all entries by entryId
     if (this.entryId && this.configEntries) {
       for (const entries of Object.values(this.configEntries)) {
         for (const entry of entries) {
@@ -600,24 +636,27 @@ class ConfigFlowDialog extends LitElement {
         }
       }
     }
+    const handler = this._step?.handler;
+    if (handler && !/^[0-9A-Z]{20,}$/.test(handler)) {
+      return handler;
+    }
     return '';
   }
 
   /* ── Localize title via hass.localize() when not in API response ── */
 
   _localizeTitle() {
-    const handler = this._step?.handler;
+    const domain = this._getFlowDomain();
     const stepId = this._step?.step_id;
-    if (handler && stepId && this._getHass()?.localize) {
-      const key = `component.${handler}.config.step.${stepId}.title`;
-      const translated = this._getHass()?.localize(key);
-      if (translated && translated !== key) return translated;
+    if (domain && stepId) {
+      const key = `component.${domain}.config.step.${stepId}.title`;
+      const translated = this._t(key);
+      if (translated) return translated;
     }
-    // Try with domain as fallback
-    if (this.domain && stepId && this._getHass()?.localize) {
-      const key = `component.${this.domain}.config.step.${stepId}.title`;
-      const translated = this._getHass()?.localize(key);
-      if (translated && translated !== key) return translated;
+    if (domain) {
+      const key = `component.${domain}.title`;
+      const translated = this._t(key);
+      if (translated) return translated;
     }
     return '';
   }
@@ -627,13 +666,51 @@ class ConfigFlowDialog extends LitElement {
   _getFieldLabel(schema) {
     const domain = this._getFlowDomain();
     const stepId = this._step?.step_id;
-    if (domain && stepId && this._getHass()?.localize) {
-      // Try domain.handler (e.g. xiaomi_miot.config.step.init.data.username)
+    if (domain && stepId) {
       const key = `component.${domain}.config.step.${stepId}.data.${schema.name}`;
-      const translated = this._getHass()?.localize(key);
-      if (translated && translated !== key) return translated;
+      const translated = this._t(key);
+      if (translated) return translated;
     }
     return schema.label || schema.name.replace(/_/g, ' ');
+  }
+
+  /* ── Translate field description from our translations ── */
+
+  _getFieldDescription(schema) {
+    const domain = this._getFlowDomain();
+    const stepId = this._step?.step_id;
+    if (domain && stepId) {
+      const key = `component.${domain}.config.step.${stepId}.data.${schema.name}.description`;
+      const translated = this._t(key);
+      if (translated) return translated;
+    }
+    return schema.description || '';
+  }
+
+  /* ── Translate field placeholder from our translations ── */
+
+  _getFieldPlaceholder(schema) {
+    const domain = this._getFlowDomain();
+    const stepId = this._step?.step_id;
+    if (domain && stepId) {
+      const key = `component.${domain}.config.step.${stepId}.data.${schema.name}.placeholder`;
+      const translated = this._t(key);
+      if (translated) return translated;
+    }
+    return schema.placeholder || '';
+  }
+
+  /* ── Translate select option labels from our translations ── */
+
+  _getOptionLabel(schema, optValue) {
+    const domain = this._getFlowDomain();
+    const stepId = this._step?.step_id;
+    if (domain && stepId) {
+      const key = `component.${domain}.config.step.${stepId}.data.${schema.name}.options.${optValue}`;
+      const translated = this._t(key);
+      if (translated) return translated;
+    }
+    return null;
   }
 
   /* ── Translate error messages ── */
@@ -660,8 +737,8 @@ class ConfigFlowDialog extends LitElement {
     const required = schema.required !== false;
     const hasDefault = schema.default !== undefined && schema.default !== null;
     const defaultValue = hasDefault ? schema.default : '';
-    const placeholder = schema.placeholder || '';
-    const fieldDesc = schema.description || '';
+    const placeholder = this._getFieldPlaceholder(schema);
+    const fieldDesc = this._getFieldDescription(schema);
     const error = this._errors?.[name] || '';
     const multiline = schema.multiline === true;
     const isPassword = schema.password === true
@@ -686,7 +763,8 @@ class ConfigFlowDialog extends LitElement {
             ${options.map(opt => {
               const optIsArray = Array.isArray(opt);
               const optValue = typeof opt === 'string' ? opt : optIsArray ? opt[0] : (opt.value ?? opt);
-              const optLabel = typeof opt === 'string' ? opt : optIsArray ? (opt[1] || opt[0]) : (opt.label || opt.description || opt.value || opt);
+              const optTranslated = this._getOptionLabel(schema, optValue);
+              const optLabel = optTranslated || (typeof opt === 'string' ? opt : optIsArray ? (opt[1] || opt[0]) : (opt.label || opt.description || opt.value || opt));
               const isSelected = hasDefault && (Array.isArray(defaultValue)
                 ? defaultValue.includes(optValue)
                 : defaultValue === optValue);

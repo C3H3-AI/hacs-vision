@@ -155,6 +155,12 @@ class HACSEnhancedAPI {
   startOptionsFlow(entryId) { return this.post('config_flow/options/start', { handler: entryId }); }
   stepOptionsFlow(flowId, data) { return this.post(`config_flow/options/step/${flowId}`, data); }
 
+  /* Translations — read custom component translation files */
+  getTranslations(domain, lang) {
+    const langParam = lang || 'zh-Hans';
+    return this.get(`translations/${encodeURIComponent(domain)}?lang=${encodeURIComponent(langParam)}`);
+  }
+
   /* F3: Get single repo status (for progress polling) — uses real-time HACS memory data */
   getRepoStatus(repoId) { return this.get(`repos/status/${encodeURIComponent(repoId)}`); }
 

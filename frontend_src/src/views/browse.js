@@ -44,6 +44,7 @@ class BrowseView extends LitElement {
     _filterExpanded: { type: Boolean, state: true },
     _favorites: { type: Array, state: true },
     presetFilter: { type: String },
+    pendingRestart: { type: Number },
     _selectedRepos: { type: Array, state: true },
   };
 
@@ -400,6 +401,13 @@ class BrowseView extends LitElement {
     }
     .batch-bar-btn:hover { background: rgba(255,255,255,0.35); }
     .batch-bar-btn.danger { border-color: #ff5252; color: #ff5252; }
+    .restart-bar {
+      display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+      padding: 8px 12px; margin: 6px 0;
+      background: rgba(244,67,54,0.1); border: 1px solid rgba(244,67,54,0.3);
+      border-radius: 8px; font-size: 13px; font-weight: 600; color: #f44336;
+    }
+    .restart-bar .batch-bar-btn { background: #f44336; border-color: #f44336; color: #fff; }
   `;
 
   async connectedCallback() {
@@ -409,8 +417,7 @@ class BrowseView extends LitElement {
     this.addEventListener('install', (e) => this._handleInstall(e.detail.repo));
     this.addEventListener('update', (e) => this._handleUpdate(e.detail.repo));
     this.addEventListener('uninstall', (e) => this._handleUninstall(e.detail.repo));
-    this.addEventListener('detail', (e) => this._handleDetail(e.detail.repo));
-    this.addEventListener('readme', (e) => this._handleDetail(e.detail.repo));
+    // Card 'detail' events bubble directly to hacs-vision-panel (composed:true)
     this.addEventListener('configure', (e) => this._handleConfigure(e.detail.repo));
     this.addEventListener('add-integration', (e) => this._handleAddIntegration(e.detail.repo));
     this.addEventListener('favorite', async () => { await this._loadFavorites(); this._syncFavoriteCount(); });
@@ -469,10 +476,18 @@ class BrowseView extends LitElement {
 
   async _handleUpdate(repo) {
     try {
-      await api.update([repo.id || repo.full_name]);
+      const result = await api.update([repo.id || repo.full_name]);
+      if (result?.success?.length > 0) {
+        showToast(`${t('updateComplete')}: ${repo.full_name || repo.name}`, 'success');
+      } else {
+        showToast(`${t('updateFailed')}: ${repo.full_name || repo.name}`, 'error');
+      }
       this.dispatchEvent(new CustomEvent('refresh-stats', { bubbles: true, composed: true }));
       this._load();
-    } catch(e) { console.error('Update failed', e); }
+    } catch(e) {
+      console.error('Update failed', e);
+      showToast(`${t('updateFailed')}: ${e.message}`, 'error');
+    }
   }
 
   async _handleUninstall(repo) {
@@ -486,10 +501,6 @@ class BrowseView extends LitElement {
       this.dispatchEvent(new CustomEvent('refresh-stats', { bubbles: true, composed: true }));
       this._load();
     } catch(e) { console.error('Uninstall failed', e); }
-  }
-
-  _handleDetail(repo) {
-    this.dispatchEvent(new CustomEvent('detail', { detail: { repo }, bubbles: true, composed: true }));
   }
 
   _handleConfigure(repo) {
@@ -754,14 +765,35 @@ class BrowseView extends LitElement {
 
     try {
       showToast(t('batchInProgress'), 'info');
-      const result = action === 'install'
-        ? await api.batchInstall(repos)
-        : await api.batchRemove(repos.map(r => r.repository));
+      let result;
+      if (action === 'install') {
+        result = await api.batchInstall(repos);
+      } else if (action === 'update') {
+        result = await api.update(repos.map(r => r.repository));
+      } else {
+        result = await api.batchRemove(repos.map(r => r.repository));
+      }
       showToast(t('batchComplete'), 'success');
       this._selectedRepos = [];
       this._load();
     } catch(e) {
       showToast(`${action} failed: ${e.message}`, 'error');
+    }
+  }
+
+  async _restartHA() {
+    const { ConfirmDialog } = await import('../shared/confirm-dialog.js');
+    const ok = await ConfirmDialog.show(this, {
+      message: this.t?.('restartConfirm'),
+      confirmText: this.t?.('restartHA'),
+      danger: true,
+    });
+    if (!ok) return;
+    try {
+      await api.restartHA();
+      showToast(this.t?.('haRestarting'), 'info');
+    } catch(e) {
+      showToast(`${this.t?.('restartFailed')}: ${e.message}`, 'error');
     }
   }
 
@@ -934,10 +966,24 @@ class BrowseView extends LitElement {
         </div>
       </div>
 
+      <!-- Restart Bar — between filters and batch bar -->
+      ${(this.pendingRestart ?? 0) > 0 ? html`
+      <div class="restart-bar">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21.5 2v6h-6M2.5 22v-6h6"/><path d="M3.67 10.5a8 8 0 0114.7-2.17L21.5 8M2.5 16l3.13 3.67a8 8 0 0014.7-2.17"/></svg>
+        <span>${t('statusPendingRestart')}: ${this.pendingRestart}</span>
+        <button class="batch-bar-btn" @click=${() => this._restartHA()}>${t('restartHA')}</button>
+        <button class="batch-bar-btn" style="background:transparent;border-color:#f44336;color:#f44336;" @click=${() => this._onStatusFilter('pending_restart')}>${t('viewDetail')}</button>
+      </div>
+      ` : ''}
+
       <!-- Batch Action Bar -->
       ${this._selectedRepos.length > 0 ? html`
         <div class="batch-bar">
           <span>${t('batchSelected', { n: this._selectedRepos.length })}</span>
+          <button class="batch-bar-btn" @click=${() => this._batchDo('update')}
+            ?disabled=${!this._selectedRepos.some(n => { const r = this.repos.find(x => x.full_name === n); return r?.installed; })}>
+            ${t('batchUpdate')}
+          </button>
           <button class="batch-bar-btn" @click=${() => this._batchDo('install')}>${t('batchInstall')}</button>
           <button class="batch-bar-btn danger" @click=${() => this._batchDo('remove')}>${t('batchRemove')}</button>
           <button class="batch-bar-btn" @click=${() => { this._selectedRepos = []; }}>${t('cancel')}</button>

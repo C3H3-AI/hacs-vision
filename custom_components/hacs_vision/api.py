@@ -149,6 +149,10 @@ class HACSEnhancedAPI(HomeAssistantView):
             return await self._config_flow_handlers(request)
         if path == "version":
             return web.json_response({"version": VERSION})
+        if path.startswith("translations/"):
+            domain = path.split("/", 1)[1]
+            lang = request.query.get("lang", "en")
+            return await self._get_translations(domain, lang)
 
         return web.json_response({"error": "not_found"}, status=404)
 
@@ -924,6 +928,43 @@ class HACSEnhancedAPI(HomeAssistantView):
         """Get HA config entries map for installed integrations."""
         mapping = await self.data.get_config_entries_map()
         return web.json_response({"entries": mapping})
+
+    async def _get_translations(self, domain: str, lang: str) -> web.Response:
+        """Read translations from a custom component's translations directory.
+
+        Returns translations for the specified domain and language.
+        The translations are returned as-is (nested JSON matching HA's format)
+        under a ``data`` key that the frontend can traverse.
+        """
+        import os
+        # Sanitize domain to prevent path traversal
+        safe_domain = domain.replace("..", "").replace("/", "").replace("\\", "")
+        if not safe_domain or safe_domain != domain:
+            return web.json_response({"error": "invalid_domain"}, status=400)
+
+        # Try multiple possible translation file locations
+        # HA 2026.x stores custom component translations in:
+        #   /config/custom_components/{domain}/translations/{lang}.json
+        # Older versions might use different naming
+        lang_files = []
+        if lang and lang != "en":
+            lang_files.append(f"{lang}.json")
+        lang_files.append("en.json")
+
+        for lang_file in lang_files:
+            trans_path = self.hass.config.path(
+                "custom_components", safe_domain, "translations", lang_file
+            )
+            if os.path.isfile(trans_path):
+                try:
+                    with open(trans_path, "r", encoding="utf-8") as f:
+                        data = json.load(f)
+                    return web.json_response({"data": data, "domain": safe_domain, "lang": lang_file.replace(".json", "")})
+                except (json.JSONDecodeError, OSError) as e:
+                    _LOGGER.warning("Failed to read translations for %s: %s", safe_domain, e)
+                    continue
+
+        return web.json_response({"data": {}, "domain": safe_domain, "lang": lang, "error": "not_found"}, status=404)
 
     async def _batch_install(self, body: dict) -> web.Response:
         """Batch install repositories."""
