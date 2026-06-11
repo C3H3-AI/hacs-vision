@@ -45,3 +45,17 @@ tmp/
 
 # Build artifacts
 *.map
+
+# Dev source (users only need built panel.js)
+frontend_src/
+
+# Docs (internal)
+docs/
+
+# Tests
+tests/
+conftest.py
+pytest.ini
+
+# Old review
+REVIEW.md
