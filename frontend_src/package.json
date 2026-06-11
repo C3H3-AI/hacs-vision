@@ -1,11 +1,11 @@
 {
   "name": "hacs-vision-panel",
-  "version": "2.1.1",
+  "version": "2.2.0",
   "private": true,
   "type": "module",
   "scripts": {
     "build": "rollup -c rollup.config.js",
-    "postbuild": "node -e \"require('fs').copyFileSync('www/index.html', '../custom_components/hacs_vision/frontend/index.html')\""
+    "postbuild": "node -e \"const fs=require('fs');const v=require('./package.json').version;let h=fs.readFileSync('www/index.html','utf8');h=h.replace(/__VERSION__/g,v);fs.writeFileSync('../custom_components/hacs_vision/frontend/index.html',h)\""
   },
   "dependencies": {
     "dompurify": "^3.4.8",

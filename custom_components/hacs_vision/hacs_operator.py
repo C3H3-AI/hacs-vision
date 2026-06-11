@@ -2,6 +2,7 @@
 from __future__ import annotations
 import asyncio
 import logging
+import threading
 from typing import Any
 
 from homeassistant.core import HomeAssistant
@@ -20,6 +21,7 @@ class HACSOperator:
         self._data = shared_data or HACSData(hass)
         self._repo_index_by_id = None
         self._repo_index_by_name = None
+        self._index_lock = threading.Lock()
         # P1: Install/update/remove locks for idempotency protection
         self._install_locks: dict[str, asyncio.Lock] = {}
         # F1: Track whether custom repos have been verified from config in this session
@@ -37,18 +39,19 @@ class HACSOperator:
         return self._hacs is not None
 
     def _ensure_index(self):
-        """Build lookup index if not cached."""
-        if self._repo_index_by_id is not None:
-            return
-        self._repo_index_by_id = {}
-        self._repo_index_by_name = {}
-        try:
-            for repo in self._hacs.repositories.list_all:
-                rid = str(repo.data.id)
-                self._repo_index_by_id[rid] = repo
-                self._repo_index_by_name[repo.data.full_name] = repo
-        except (AttributeError, KeyError, TypeError) as e:
-            _LOGGER.error("Index build error: %s", e, exc_info=True)
+        """Build lookup index if not cached — thread-safe."""
+        with self._index_lock:
+            if self._repo_index_by_id is not None:
+                return
+            self._repo_index_by_id = {}
+            self._repo_index_by_name = {}
+            try:
+                for repo in self._hacs.repositories.list_all:
+                    rid = str(repo.data.id)
+                    self._repo_index_by_id[rid] = repo
+                    self._repo_index_by_name[repo.data.full_name] = repo
+            except (AttributeError, KeyError, TypeError) as e:
+                _LOGGER.error("Index build error: %s", e, exc_info=True)
 
     def invalidate_index(self):
         """Clear cached index, will be rebuilt on next access."""
@@ -179,7 +182,6 @@ class HACSOperator:
                 await repo.async_install(version=repo.display_available_version)
                 # N1: Invalidate index after mutation
                 self.invalidate_index()
-                self._cleanup_lock(repo_id_or_name)
                 return {
                     "success": True,
                     "repository": repo.data.full_name,
@@ -191,6 +193,8 @@ class HACSOperator:
             except Exception as e:
                 _LOGGER.error("Install unexpected error for %s: %s", repo_id_or_name, e, exc_info=True)
                 return {"success": False, "error": str(e)}
+            finally:
+                self._cleanup_lock(repo_id_or_name)
 
     async def update_repositories(self, repo_ids: list[str]) -> dict:
         """Batch update repositories — with per-repo locks."""
@@ -246,7 +250,6 @@ class HACSOperator:
                 await repo.uninstall()
                 # N1: Invalidate index after mutation
                 self.invalidate_index()
-                self._cleanup_lock(repo_id_or_name)
                 return {"success": True, "repository": repo.data.full_name}
             except (AttributeError, KeyError, ValueError) as e:
                 _LOGGER.error("Remove failed for %s: %s", repo_id_or_name, e, exc_info=True)
@@ -254,6 +257,8 @@ class HACSOperator:
             except Exception as e:
                 _LOGGER.error("Remove unexpected error for %s: %s", repo_id_or_name, e, exc_info=True)
                 return {"success": False, "error": str(e)}
+            finally:
+                self._cleanup_lock(repo_id_or_name)
 
     def get_installed_list(self) -> list[dict]:
         """Get actually installed repos from HACS in-memory data."""

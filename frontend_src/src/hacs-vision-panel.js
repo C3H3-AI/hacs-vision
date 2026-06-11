@@ -3,6 +3,7 @@ import { api } from './api.js';
 import { themeMixin } from './theme.js';
 import { t, setLangFromHass } from './i18n.js';
 import { getCategoryColor } from './shared/constants.js';
+import { getCommonStyles } from './shared/styles.js';
 import DOMPurify from 'dompurify';
 
 export class HacsVisionPanel extends themeMixin(LitElement) {
@@ -28,6 +29,7 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
     _changelogData: { type: Object, state: true },
     _changelogLoading: { type: Boolean, state: true },
     _presetFilter: { type: String, state: true },
+    _presetTag: { type: String, state: true },
     // Config Flow
     _configFlowDomain: { type: String, state: true },
     _configFlowEntryId: { type: String, state: true },
@@ -62,6 +64,7 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
     this._changelogData = null;
     this._changelogLoading = false;
     this._presetFilter = '';
+    this._presetTag = '';
     this._configFlowDomain = '';
     this._configFlowEntryId = null;
     this._showConfigFlow = false;
@@ -102,7 +105,7 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
     }
   }
 
-  static styles = css`
+  static styles = [getCommonStyles(), css`
     :host {
       display: block;
     }
@@ -222,15 +225,6 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
     .content.transitioning { opacity: 0; }
     /* Force hidden views to not display (child :host display overrides [hidden]) */
     .content > [hidden] { display: none !important; }
-
-    /* ===== Loading ===== */
-    .loading { text-align: center; padding: 60px 20px; color: var(--secondary-text-color, #727272); }
-    .spinner {
-      width: 36px; height: 36px; border: 3px solid var(--divider-color, #e0e0e0);
-      border-top-color: var(--primary-color, #03a9f4); border-radius: 50%;
-      animation: spin 1s linear infinite; margin: 0 auto 16px;
-    }
-    @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 
     /* ===== Network Banner (F2) ===== */
     .network-banner {
@@ -599,7 +593,7 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
       cursor: pointer; border-radius: 10px;
     }
     .entry-cancel:hover { background: rgba(0,0,0,0.04); }
-  `;
+  `];
 
   async connectedCallback() {
     super.connectedCallback();
@@ -702,6 +696,8 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
     this._changelogLoading = true;
     this._loadReadme(repo);
     this._loadChangelog(repo);
+    // Focus trap: install after render
+    requestAnimationFrame(() => this._installFocusTrap());
   }
 
   async _loadReadme(repo) {
@@ -736,8 +732,12 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
   _applyFilter(filter) {
     this._presetFilter = filter;
     this.switchView('browse');
-    // Reset after applying so re-clicking same stat re-applies
     setTimeout(() => { this._presetFilter = ''; }, 100);
+  }
+  _applyTag(tag) {
+    this._presetTag = tag;
+    this.switchView('browse');
+    setTimeout(() => { this._presetTag = ''; }, 100);
   }
 
   _closeDetail() {
@@ -749,6 +749,45 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
     this._showVersionSelector = false;
     this._releases = [];
     this._releasesLoading = false;
+    this._removeFocusTrap();
+  }
+
+  /** Focus trap: keep Tab within modal */
+  _installFocusTrap() {
+    this._removeFocusTrap();
+    const overlay = this.renderRoot?.querySelector('.modal-overlay');
+    if (!overlay) return;
+    this._focusTrapHandler = (e) => {
+      if (e.key !== 'Tab') return;
+      const focusable = overlay.querySelectorAll(
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+      );
+      if (focusable.length === 0) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (e.shiftKey) {
+        if (document.activeElement === first || !overlay.contains(document.activeElement)) {
+          e.preventDefault();
+          last.focus();
+        }
+      } else {
+        if (document.activeElement === last || !overlay.contains(document.activeElement)) {
+          e.preventDefault();
+          first.focus();
+        }
+      }
+    };
+    // Focus the close button initially
+    const closeBtn = overlay.querySelector('.modal-close');
+    if (closeBtn) closeBtn.focus();
+    window.addEventListener('keydown', this._focusTrapHandler);
+  }
+
+  _removeFocusTrap() {
+    if (this._focusTrapHandler) {
+      window.removeEventListener('keydown', this._focusTrapHandler);
+      this._focusTrapHandler = null;
+    }
   }
 
   /** Open a new config flow for a given integration domain */
@@ -827,6 +866,20 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
     } catch(e) {
       showToast(`Update check failed: ${e.message}`, 'error');
     }
+  }
+
+  _onConfigureIntegration(e) {
+    const { domain, entry_id } = e.detail;
+    this._configFlowDomain = domain;
+    this._configFlowEntryId = entry_id;
+    this._showConfigFlow = true;
+  }
+
+  _onAddIntegration(e) {
+    const { domain } = e.detail;
+    this._configFlowDomain = domain;
+    this._configFlowEntryId = null;
+    this._showConfigFlow = true;
   }
 
   _onFlowClose() {
@@ -937,7 +990,8 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
   render() {
     const tabs = [
       { view: 'browse', label: t('tabBrowse'), icon: '', count: null },
-      { view: 'updates', label: t('tabUpdates'), icon: '', count: this.stats?.available_updates ?? null },
+      { view: 'integrations', label: t('tabIntegrations') || '集成管理', icon: '', count: null },
+      { view: 'updates', label: t('tabUpdates'), icon: '', count: this.stats.available_updates },
       { view: 'management', label: t('tabManagement'), icon: '', count: null },
       { view: 'settings', label: t('tabSettings'), icon: '', count: null },
     ];
@@ -1000,11 +1054,11 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
               <div class="stat-label">${t('statusPendingRestart')}</div>
             </div>
             ` : ''}
-            <div class="stat" @click=${() => this._applyFilter('favorites')}>
+            <div class="stat" @click=${() => this._applyTag('favorites')}>
               <div class="stat-num">${this._favoriteCount ?? 0}</div>
               <div class="stat-label">${t('statFavorites') || '收藏'}</div>
             </div>
-            <div class="stat" @click=${() => this._applyFilter('custom')}>
+            <div class="stat" @click=${() => this._applyTag('custom')}>
               <div class="stat-num">${this.stats.custom_count ?? 0}</div>
               <div class="stat-label">${t('statCustom') || '自定义'}</div>
             </div>
@@ -1018,12 +1072,14 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
         <!-- Sticky Tabs -->
         <div class="sticky-header">
           <div class="tabs-wrapper">
-            <div class="tabs">
+            <div class="tabs" role="tablist">
               ${tabs.map(tab => html`
                 <button class="tab ${this.currentView === tab.view ? 'active' : ''}"
+                        role="tab" aria-selected=${this.currentView === tab.view}
+                        aria-label=${tab.label}
                         @click=${() => this.switchView(tab.view)}>
                   ${tab.icon ? html`${tab.icon} ` : ''}${tab.label}
-                  ${tab.count !== undefined && tab.count !== null ? html`<span class="badge">${tab.count}</span>` : ''}
+                  ${tab.count !== undefined && tab.count !== null ? html`<span class="badge" aria-label="${tab.count}">${tab.count}</span>` : ''}
                 </button>
               `)}
             </div>
@@ -1032,7 +1088,8 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
 
         <!-- Content with fade transition -->
         <div class="content ${this._viewTransition ? 'transitioning' : ''}">
-          <browse-view .hass=${this.hass} .presetFilter=${this._presetFilter} .pendingRestart=${this.stats.pending_restart ?? 0} ?hidden=${this.currentView !== 'browse'}></browse-view>
+          <browse-view .hass=${this.hass} .presetFilter=${this._presetFilter} .presetTag=${this._presetTag} .pendingRestart=${this.stats.pending_restart ?? 0} ?hidden=${this.currentView !== 'browse'}></browse-view>
+          <integrations-list .hass=${this.hass} ?hidden=${this.currentView !== 'integrations'} @configure-integration=${this._onConfigureIntegration} @add-integration=${this._onAddIntegration}></integrations-list>
           <updates-view .hass=${this.hass} ?hidden=${this.currentView !== 'updates'}></updates-view>
           <management-view .hass=${this.hass} ?hidden=${this.currentView !== 'management'}></management-view>
           <config-view .hass=${this.hass} @refresh-stats=${this._loadStats} ?hidden=${this.currentView !== 'settings'}></config-view>
@@ -1041,12 +1098,12 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
 
       <!-- Detail Modal -->
       ${this._showDetail && r ? html`
-        <div class="modal-overlay" @click=${(e) => { if (e.target === e.currentTarget) this._closeDetail(); }}>
+        <div class="modal-overlay" role="dialog" aria-modal="true" aria-label="${r.manifest_name || r.full_name || t('detail')}" @click=${(e) => { if (e.target === e.currentTarget) this._closeDetail(); }}>
           <div class="modal ${this._detailExpanded ? 'expanded' : ''}" @dblclick=${this._toggleDetailExpand}>
             ${!this._detailExpanded ? html`<div class="modal-expand-hint">${t('dblZoomHint') || '双击放大'}</div>` : ''}
             <div class="modal-header">
               <div class="modal-title">${r.manifest_name || r.repository_manifest?.name || r.full_name || r.name || 'unknown'}</div>
-              <button class="modal-close" @click=${this._closeDetail}>✕</button>
+              <button class="modal-close" aria-label="${t('close') || '关闭'}" @click=${this._closeDetail}>✕</button>
             </div>
             <div class="modal-body">
               <div class="detail-category" style="background: ${categoryColor}">
@@ -1214,11 +1271,11 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
       ` : ''}
 
       <!-- Toast container (supports queue) -->
-      <div class="toast-container" id="toast-container"></div>
+      <div class="toast-container" id="toast-container" aria-live="polite" aria-atomic="true"></div>
 
       <!-- Entry Selector (multiple config entries for same domain) -->
       ${this._showEntrySelector ? html`
-        <div class="entry-overlay" @click=${() => { this._showEntrySelector = false; }}>
+        <div class="entry-overlay" role="dialog" aria-modal="true" aria-label="${t('selectEntryTitle')}" @click=${() => { this._showEntrySelector = false; }}>
           <div class="entry-dialog" @click=${(e) => e.stopPropagation()}>
             <div class="entry-title">${t('selectEntryTitle')}</div>
             <div class="entry-subtitle">${t('selectEntrySubtitle') || '请选择要配置的集成实例'}</div>

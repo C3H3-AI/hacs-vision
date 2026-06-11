@@ -1,10 +1,12 @@
 import { css } from 'lit';
 
 /**
- * Shared CSS styles for HACS Vision views
- * Import and spread into component's static styles
+ * Shared CSS styles for HACS Vision views.
+ * Uses a function to prevent terser from tree-shaking the CSS assignment
+ * in IIFE bundle format.
  */
-export const commonStyles = css`
+export function getCommonStyles() {
+  return css`
   /* ===== Loading ===== */
   .loading {
     text-align: center; padding: 60px 20px;
@@ -119,4 +121,40 @@ export const commonStyles = css`
     .controls { flex-wrap: wrap; gap: 4px; }
     .info-bar { flex-wrap: wrap; gap: 4px; font-size: 12px; }
   }
+
+  /* ===== Skeleton Loading ===== */
+  .skeleton-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 14px;
+  }
+  .skeleton-card {
+    border-radius: 14px; overflow: hidden;
+    background: var(--card-background-color, #fff);
+    border: 1px solid var(--divider-color, #e0e0e0);
+  }
+  .skeleton-card-img {
+    height: 100px;
+    background: var(--secondary-background-color, #f0f0f0);
+  }
+  .skeleton-card-body {
+    padding: 16px;
+  }
+  .skeleton-line {
+    height: 14px; border-radius: 6px; margin-bottom: 12px;
+    background: linear-gradient(90deg,
+      var(--secondary-background-color, #eee) 25%,
+      var(--divider-color, #ddd) 50%,
+      var(--secondary-background-color, #eee) 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+  }
+  .skeleton-line:last-child { width: 60%; }
+  .skeleton-line.wide { width: 100%; }
+  .skeleton-line.medium { width: 75%; }
+  @keyframes shimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+  }
 `;
+}

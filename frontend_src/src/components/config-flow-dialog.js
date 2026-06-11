@@ -1,6 +1,7 @@
 import { LitElement, html, css } from 'lit';
 import { api } from '../api.js';
 import { t } from '../i18n.js';
+import { getCommonStyles } from '../shared/styles.js';
 
 /**
  * Config Flow Dialog — inline HA config flow inside HACS Vision.
@@ -30,6 +31,12 @@ class ConfigFlowDialog extends LitElement {
     _finished: { type: Boolean, state: true },
     _result: { type: Object, state: true },
     _isOptions: { type: Boolean, state: true },
+    _isSubentry: { type: Boolean, state: true },
+    _subentryTypes: { type: Array, state: true },
+    _subentryType: { type: String, state: true },
+    _existingSubentries: { type: Array, state: true },
+    _isSubentryReconfigure: { type: Boolean, state: true },
+    _subentryReconfigureId: { type: String, state: true },
   };
 
   constructor() {
@@ -45,6 +52,12 @@ class ConfigFlowDialog extends LitElement {
     this._finished = false;
     this._result = null;
     this._isOptions = false;
+    this._isSubentry = false;
+    this._subentryTypes = [];
+    this._subentryType = '';
+    this._existingSubentries = [];
+    this._isSubentryReconfigure = false;
+    this._subentryReconfigureId = '';
     this._loadingTimeout = null;
     this._translations = null;
     this._lang = 'zh-Hans';
@@ -92,10 +105,24 @@ class ConfigFlowDialog extends LitElement {
   updated(changed) {
     if (changed.has('open') && this.open) {
       if (this.entryId) {
-        // entryId set from outside → options flow
-        // domain is passed from panel via property, keep it for translation lookups
-        this._isOptions = true;
-        this._startFlow();
+        this._isOptions = false;
+        this._isSubentry = false;
+        this._subentryTypes = [];
+        this._subentryType = '';
+        this._existingSubentries = [];
+        this._isSubentryReconfigure = false;
+        this._subentryReconfigureId = '';
+
+        const entry = this._findEntry(this.entryId);
+        if (entry && entry.supported_subentry_types && entry.supported_subentry_types.length > 0) {
+          this._isSubentry = true;
+          this._subentryTypes = entry.supported_subentry_types;
+          this._loadExistingSubentries();
+          this._startFlow();
+        } else {
+          this._isOptions = true;
+          this._startFlow();
+        }
       } else if (this.domain) {
         this._isOptions = false;
         this.entryId = null;
@@ -108,6 +135,12 @@ class ConfigFlowDialog extends LitElement {
   openFlow(domain) {
     this.entryId = null;
     this._isOptions = false;
+    this._isSubentry = false;
+    this._subentryTypes = [];
+    this._subentryType = '';
+    this._existingSubentries = [];
+    this._isSubentryReconfigure = false;
+    this._subentryReconfigureId = '';
     this.domain = domain;
     this.open = true;
   }
@@ -115,23 +148,151 @@ class ConfigFlowDialog extends LitElement {
   /** Public: open an OPTIONS flow for an existing config entry */
   openOptionsFlow(entryId) {
     this.domain = '';
-    this._isOptions = true;
+    this._isOptions = false;
+    this._isSubentry = false;
+    this._subentryTypes = [];
+    this._subentryType = '';
+    this._existingSubentries = [];
+    this._isSubentryReconfigure = false;
+    this._subentryReconfigureId = '';
     this.entryId = entryId;
     this.open = true;
   }
 
-  /** Load translations from our backend (reads custom_components translation files) */
+  /** Find entry data from configEntries by entryId */
+  _findEntry(entryId) {
+    if (!this.configEntries || !entryId) return null;
+    for (const entries of Object.values(this.configEntries)) {
+      const found = entries.find(e => e.entry_id === entryId);
+      if (found) return found;
+    }
+    return null;
+  }
+
+  /** Fetch existing subentries for the current entry */
+  async _loadExistingSubentries() {
+    if (!this.entryId) return;
+    try {
+      const resp = await api.getSubentries(this.entryId);
+      this._existingSubentries = resp?.subentries || [];
+    } catch {
+      this._existingSubentries = [];
+    }
+  }
+
+  /** Load translations from BOTH our custom API AND HA's backend built-in system.
+   *  Custom components → our API reads from /config/custom_components/{domain}/translations/{lang}.json
+   *  Built-in HA integrations → hass.loadBackendTranslation() loads from HA core.
+   *  Merge both so we have full coverage.
+   */
   async _loadTranslations(domain) {
     if (!domain) return;
-    // Skip if translations already loaded for this domain
     if (this._translations && this._translations._domain === domain) return;
+
+    let merged = {};
+
+    // 1. Try our custom backend API (for custom_components/ translations)
     try {
       const resp = await api.getTranslations(domain, this._lang);
       const data = resp?.data || {};
-      this._translations = { _domain: domain, _data: data };
+      merged = this._deepMerge(merged, data);
     } catch (e) {
-      this._translations = { _domain: domain, _data: {} };
+      // ignore custom API failures
     }
+
+    // 2. Try HA's built-in loadBackendTranslation (for HA core integrations)
+    try {
+      const hass = this._getHass();
+      if (hass && typeof hass.loadBackendTranslation === 'function') {
+        // Try both argument orders: (category, integration) vs (integration, category)
+        // HA 2024+ uses (category, integration): loadBackendTranslation('config', domain)
+        // Some versions use (integration, category) — we try both
+        let haData;
+        try {
+          // HA 2024+ order: category first
+          haData = await hass.loadBackendTranslation('config', domain);
+        } catch (e1) {
+          try {
+            // Older order: integration first
+            haData = await hass.loadBackendTranslation(domain, 'config');
+          } catch (e2) {
+            console.warn(`HACS Vision: loadBackendTranslation failed for ${domain}:`, e1?.message || e2?.message);
+          }
+        }
+        if (haData && typeof haData === 'object') {
+          if (typeof haData === 'object' && Object.keys(haData).length > 0) {
+            haData = this._flatToNested(haData);
+            merged = this._deepMerge(merged, haData);
+            console.debug(`HACS Vision: loaded HA backend translations for ${domain}:`, Object.keys(haData).length, 'keys');
+          }
+        }
+      } else {
+        console.warn('HACS Vision: hass.loadBackendTranslation is not available');
+      }
+    } catch (e) {
+      console.warn(`HACS Vision: loadBackendTranslation error for ${domain}:`, e);
+    }
+
+    // 3. Try HA's built-in for options flow too
+    if (this._isOptions) {
+      try {
+        const hass = this._getHass();
+        if (hass && typeof hass.loadBackendTranslation === 'function') {
+          let haOptionsData;
+          try {
+            haOptionsData = await hass.loadBackendTranslation('options', domain);
+          } catch (e1) {
+            try {
+              haOptionsData = await hass.loadBackendTranslation(domain, 'options');
+            } catch (e2) {
+              // both orders failed
+            }
+          }
+          if (haOptionsData && typeof haOptionsData === 'object' && Object.keys(haOptionsData).length > 0) {
+            haOptionsData = this._flatToNested(haOptionsData);
+            merged = this._deepMerge(merged, haOptionsData);
+          }
+        }
+      } catch (e) {
+        // ignore
+      }
+    }
+
+    this._translations = { _domain: domain, _data: merged };
+  }
+
+  /** Deep merge b into a (mutates a, returns a) */
+  _deepMerge(a, b) {
+    for (const key of Object.keys(b)) {
+      if (b[key] && typeof b[key] === 'object' && !Array.isArray(b[key])) {
+        if (!a[key] || typeof a[key] !== 'object') a[key] = {};
+        this._deepMerge(a[key], b[key]);
+      } else {
+        a[key] = b[key];
+      }
+    }
+    return a;
+  }
+
+  /** Convert flat key-value map (e.g. {"component.xiaomi.config.step.user.title":"..."})
+   *  into nested structure that our _t() / _traverse() can navigate. */
+  _flatToNested(obj) {
+    if (!obj || typeof obj !== 'object') return obj;
+    // Check if it's already nested (first key has no dot) → return as-is
+    const firstKey = Object.keys(obj)[0];
+    if (!firstKey || !firstKey.includes('.')) return obj;
+    const result = {};
+    for (const [key, value] of Object.entries(obj)) {
+      if (typeof value !== 'string') continue;
+      const parts = key.split('.');
+      let current = result;
+      for (let i = 0; i < parts.length - 1; i++) {
+        if (!current[parts[i]] || typeof current[parts[i]] !== 'object') current[parts[i]] = {};
+        current = current[parts[i]];
+      }
+      current[parts[parts.length - 1]] = value;
+    }
+    return result;
   }
 
   /** Look up a translation key in our loaded translations.
@@ -169,6 +330,15 @@ class ConfigFlowDialog extends LitElement {
   }
 
   async _startFlow() {
+    if (this._isSubentry && !this._subentryType && !this._isSubentryReconfigure) {
+      this._loading = false;
+      this._finished = false;
+      this._result = null;
+      this._step = null;
+      this.requestUpdate();
+      return;
+    }
+
     this._loading = true;
     this._finished = false;
     this._result = null;
@@ -179,8 +349,7 @@ class ConfigFlowDialog extends LitElement {
     this._startLoadingTimeout();
 
     try {
-      // Load translations BEFORE starting the flow, so localize works
-      const flowDomain = this._isOptions
+      const flowDomain = this._isOptions || this._isSubentry
         ? this._getFlowDomain()
         : this.domain;
       if (flowDomain) {
@@ -188,7 +357,14 @@ class ConfigFlowDialog extends LitElement {
       }
 
       let result;
-      if (this._isOptions && this.entryId) {
+      if (this._isSubentryReconfigure && this._subentryType && this.entryId) {
+        result = await api.startSubentryFlow(
+          this.entryId, this._subentryType,
+          { source: 'reconfigure', subentry_id: this._subentryReconfigureId }
+        );
+      } else if (this._isSubentry && this._subentryType && this.entryId) {
+        result = await api.startSubentryFlow(this.entryId, this._subentryType);
+      } else if (this._isOptions && this.entryId) {
         result = await api.startOptionsFlow(this.entryId);
       } else {
         result = await api.startConfigFlow(this.domain);
@@ -275,7 +451,9 @@ class ConfigFlowDialog extends LitElement {
 
     try {
       let result;
-      if (this._isOptions && this._step) {
+      if (this._isSubentry && this._flowId) {
+        result = await api.stepSubentryFlow(this._flowId, data);
+      } else if (this._isOptions && this._step) {
         result = await api.stepOptionsFlow(this._flowId, data);
       } else {
         result = await api.stepConfigFlow(this._flowId, data);
@@ -311,13 +489,31 @@ class ConfigFlowDialog extends LitElement {
   }
 
   _handleMenuSelect(value) {
-    // Menu selection submits the chosen option
     this._submitStep({ next_step_id: value });
+  }
+
+  _handleSubentrySelect(type) {
+    this._subentryType = type;
+    this._isSubentryReconfigure = false;
+    this._subentryReconfigureId = '';
+    this._startFlow();
+  }
+
+  _handleExistingSubentrySelect(subentry) {
+    this._subentryType = subentry.subentry_type;
+    this._isSubentryReconfigure = true;
+    this._subentryReconfigureId = subentry.subentry_id;
+    this._subentryType = subentry.subentry_type;
+    this._startFlow();
   }
 
   _cancelFlow() {
     if (this._flowId) {
-      api.cancelConfigFlow(this._flowId).catch(() => {});
+      if (this._isSubentry) {
+        api.cancelSubentryFlow(this._flowId).catch(() => {});
+      } else {
+        api.cancelConfigFlow(this._flowId).catch(() => {});
+      }
     }
     this._close();
   }
@@ -330,12 +526,18 @@ class ConfigFlowDialog extends LitElement {
     this._result = null;
     this._errors = {};
     this._isOptions = false;
+    this._isSubentry = false;
+    this._subentryTypes = [];
+    this._subentryType = '';
+    this._existingSubentries = [];
+    this._isSubentryReconfigure = false;
+    this._subentryReconfigureId = '';
     this.domain = '';
     this.entryId = null;
     this.dispatchEvent(new CustomEvent('close', { bubbles: true, composed: true }));
   }
 
-  static styles = css`
+  static styles = [getCommonStyles(), css`
     :host { display: block; }
     :host([open]) {
       position: fixed;
@@ -344,10 +546,10 @@ class ConfigFlowDialog extends LitElement {
       pointer-events: none;
     }
     .overlay {
-      position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+      position: fixed; inset: 0;
       background: rgba(0,0,0,0.6);
       z-index: 9999;
-      display: flex; align-items: center; justify-content: center;
+      display: grid; place-items: center;
       padding: 20px; box-sizing: border-box;
       animation: fadeIn 0.2s ease;
       pointer-events: auto;
@@ -380,7 +582,6 @@ class ConfigFlowDialog extends LitElement {
     }
     .close-btn:hover { background: var(--primary-color, #03a9f4); color: #fff; }
 
-    .loading { text-align: center; padding: 60px 20px; color: var(--secondary-text-color, #727272); }
     .spinner {
       width: 36px; height: 36px;
       border: 3px solid var(--divider-color, #e0e0e0);
@@ -389,8 +590,6 @@ class ConfigFlowDialog extends LitElement {
       animation: spin 1s linear infinite;
       margin: 0 auto 12px;
     }
-    @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-
     .step-desc {
       font-size: 14px; color: var(--secondary-text-color, #727272);
       margin-bottom: 16px;
@@ -445,6 +644,10 @@ class ConfigFlowDialog extends LitElement {
     .menu-option .menu-label { font-size: 14px; font-weight: 500; flex: 1; }
     .menu-option .menu-desc { font-size: 12px; color: var(--secondary-text-color); }
     .menu-option .menu-arrow { color: var(--secondary-text-color); font-size: 18px; }
+    .menu-label-group { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+    .menu-sublabel { font-size: 11px; color: var(--secondary-text-color, #727272); margin-top: 1px; }
+    .menu-icon { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; background: rgba(var(--rgb-primary-color, 3,169,244), 0.1); flex-shrink: 0; }
+    .subentry-divider { height: 1px; background: var(--divider-color, #e0e0e0); margin: 10px 0; }
 
     /* Result States */
     .result { text-align: center; padding: 24px 0; }
@@ -464,35 +667,38 @@ class ConfigFlowDialog extends LitElement {
       cursor: pointer; font-size: 14px; font-family: inherit;
       transition: all 0.2s;
     }
-    .btn:hover { border-color: var(--primary-color, #03a9f4); color: var(--primary-color, #03a9f4); }
-    .btn.primary {
-      background: var(--primary-color, #03a9f4); border-color: var(--primary-color, #03a9f4);
-      color: #fff;
-    }
     .btn.primary:hover { opacity: 0.9; color: #fff; }
-    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
     .btn.external {
       background: #2196f3; border-color: #2196f3; color: #fff;
       text-decoration: none; display: inline-flex; align-items: center; gap: 6px;
       border-radius: 10px; padding: 8px 20px;
     }
-  `;
 
-  /* ── Top-level render ── */
+    @media (max-width: 600px) {
+      .overlay { padding: 0; align-items: flex-end; }
+      .dialog {
+        max-width: 100%; max-height: 75vh;
+        border-radius: 16px 16px 0 0;
+        padding-bottom: max(24px, env(safe-area-inset-bottom, 16px));
+      }
+    }
+  `];
 
   render() {
     if (!this.open) return '';
 
-    const title = this._isOptions
+    const title = this._isSubentry
+      ? (this._getFlowDomain() || '') + ' - ' + t('subentryTitle')
+      : this._isOptions
       ? (this._getFlowDomain() || t('flowTitleOptions'))
       : (this._step?.title || this._localizeTitle() || this._step?.handler || this.domain || t('flowTitle'));
 
     return html`
-      <div class="overlay" @click=${(e) => { if (e.target === e.currentTarget) this._cancelFlow(); }}>
+      <div class="overlay" role="dialog" aria-modal="true" aria-label="${this._flowTitle || t('flowTitle')}" @click=${(e) => { if (e.target === e.currentTarget) this._cancelFlow(); }}>
         <div class="dialog">
           <div class="header">
             <span class="title">${title}</span>
-            <button class="close-btn" @click=${this._cancelFlow}>&times;</button>
+            <button class="close-btn" aria-label="${t('close')}" @click=${this._cancelFlow}>&times;</button>
           </div>
 
           ${this._loading ? html`
@@ -506,7 +712,38 @@ class ConfigFlowDialog extends LitElement {
 
           ${!this._loading && !this._finished && this._step ? this._renderStep() : ''}
 
-          ${!this._loading && !this._finished && !this._step && !this._result ? html`
+          ${!this._loading && !this._finished && !this._step && !this._result && this._isSubentry && !this._subentryType ? html`
+            <div class="subentry-list">
+              ${this._existingSubentries.length > 0 ? html`
+                <div class="step-desc" style="margin-bottom:8px">${t('subentryExisting')}</div>
+                ${this._existingSubentries.map(se => html`
+                  <div class="menu-option" @click=${() => this._handleExistingSubentrySelect(se)}>
+                    <span class="menu-icon">⚙</span>
+                    <div class="menu-label-group">
+                      <span class="menu-label">${se.title || this._getSubentryTypeLabel(se.subentry_type)}</span>
+                      <span class="menu-sublabel">${this._getSubentryTypeLabel(se.subentry_type)}</span>
+                    </div>
+                    <span class="menu-arrow">${t('subentryReconfigure')}</span>
+                  </div>
+                `)}
+                <div class="subentry-divider"></div>
+              ` : ''}
+
+              <div class="step-desc" style="margin-bottom:8px">${t('subentryAddNew')}</div>
+              ${this._subentryTypes.map(type => html`
+                <div class="menu-option" @click=${() => this._handleSubentrySelect(type)}>
+                  <span class="menu-icon">+</span>
+                  <span class="menu-label">${t('subentryAddPrefix')} ${this._getSubentryTypeLabel(type)}</span>
+                  <span class="menu-arrow">→</span>
+                </div>
+              `)}
+              <div class="actions" style="margin-top:16px">
+                <button class="btn" @click=${this._cancelFlow}>${t('flowCancel')}</button>
+              </div>
+            </div>
+          ` : ''}
+
+          ${!this._loading && !this._finished && !this._step && !this._result && !(this._isSubentry && !this._subentryType) ? html`
             <div class="loading">
               <div class="spinner"></div>
               <div>${t('flowStarting')}</div>
@@ -547,6 +784,7 @@ class ConfigFlowDialog extends LitElement {
           const isSimple = typeof opt === 'string';
           const value = isSimple ? opt : opt.value || '';
           const label = this._t(`component.${this._getFlowDomain()}.config.step.${step.step_id}.menu_options.${value}`)
+            || (this._isOptions && this._t(`component.${this._getFlowDomain()}.options.step.${step.step_id}.menu_options.${value}`))
             || (isSimple ? opt : opt.label || opt.title || opt.value || '');
           const desc = isSimple ? '' : (opt.description || '');
           return html`
@@ -599,25 +837,23 @@ class ConfigFlowDialog extends LitElement {
 
     // Try localization from our translations if API didn't provide description
     if (!desc) {
-      const domain = this._getFlowDomain();
-      const stepId = step.step_id;
-      if (domain && stepId) {
-        const key = `component.${domain}.config.step.${stepId}.description`;
-        const translated = this._t(key);
-        if (translated) desc = translated;
-      }
+      const translated = this._translateField('description');
+      if (translated) desc = translated;
     }
 
     // Substitute description_placeholders (e.g. {note_url} → "http://...")
     const placeholders = step.description_placeholders || {};
     for (const [key, val] of Object.entries(placeholders)) {
-      desc = desc.replace(new RegExp(`\\{${key}\\}`, 'g'), val);
+      // val could be a string, number, or object — only substitute primitives
+      const strVal = (val !== null && val !== undefined && typeof val !== 'object') ? String(val) : '';
+      desc = desc.replace(new RegExp(`\\{${key}\\}`, 'g'), strVal);
     }
 
-    // If still no description, show placeholder values
+    // If still no description, show placeholder values (primitives only)
     if (!desc && Object.keys(placeholders).length > 0) {
       const lines = Object.entries(placeholders)
-        .map(([, v]) => v);
+        .map(([, v]) => (v !== null && v !== undefined && typeof v !== 'object') ? String(v) : '')
+        .filter(Boolean);
       desc = lines.join('\n');
     }
     return desc;
@@ -643,14 +879,33 @@ class ConfigFlowDialog extends LitElement {
     return '';
   }
 
+  _getSubentryTypeLabel(type) {
+    const mapped = {
+      'conversation': 'subentryConversation',
+      'tts': 'subentryTts',
+      'stt': 'subentryStt',
+      'translation': 'subentryTranslation',
+      'ai_task_data': 'subentryAiTaskData',
+      'device': 'subentryDevice',
+      'wecom': 'subentryWecom',
+      'wechat': 'subentryWechat',
+      'qq': 'subentryQq',
+      'feishu': 'subentryFeishu',
+      'dingtalk': 'subentryDingtalk',
+      'xiaoyi': 'subentryXiaoyi',
+      'custom': 'subentryCustom',
+    };
+    const key = mapped[type];
+    return key ? t(key) : type;
+  }
+
   /* ── Localize title via hass.localize() when not in API response ── */
 
   _localizeTitle() {
     const domain = this._getFlowDomain();
     const stepId = this._step?.step_id;
     if (domain && stepId) {
-      const key = `component.${domain}.config.step.${stepId}.title`;
-      const translated = this._t(key);
+      const translated = this._translateField('title');
       if (translated) return translated;
     }
     if (domain) {
@@ -661,55 +916,68 @@ class ConfigFlowDialog extends LitElement {
     return '';
   }
 
-  /* ── Translate field label via hass.localize() ── */
+  /* ── Translate field label via hass.localize() ──
+   *  For subentry flows, subentry translations are stored under
+   *  `config_subentries.<type>.step.<id>` in translation files. */
 
-  _getFieldLabel(schema) {
+  _translateField(suffix) {
     const domain = this._getFlowDomain();
     const stepId = this._step?.step_id;
-    if (domain && stepId) {
-      const key = `component.${domain}.config.step.${stepId}.data.${schema.name}`;
-      const translated = this._t(key);
-      if (translated) return translated;
+    if (!domain || !stepId) return null;
+    if (this._isSubentry && this._subentryType) {
+      const key = `component.${domain}.config_subentries.${this._subentryType}.step.${stepId}.${suffix}`;
+      const result = this._t(key);
+      if (result) return result;
     }
-    return schema.label || schema.name.replace(/_/g, ' ');
+    const key = `component.${domain}.config.step.${stepId}.${suffix}`;
+    return this._t(key);
+  }
+
+  _getFieldLabel(schema) {
+    const translated = this._translateField(`data.${schema.name}`);
+    if (translated) return translated;
+    return schema.label || this._friendlyName(schema.name);
+  }
+
+  /** Convert snake_case field name to human-readable label */
+  _friendlyName(name) {
+    return name
+      .replace(/_/g, ' ')
+      .replace(/(^|\s)\w/g, c => c.toUpperCase())
+      .replace(/Id\b/gi, 'ID')
+      .replace(/Ip\b/gi, 'IP')
+      .replace(/Url\b/gi, 'URL')
+      .replace(/Api\b/gi, 'API');
   }
 
   /* ── Translate field description from our translations ── */
 
   _getFieldDescription(schema) {
-    const domain = this._getFlowDomain();
-    const stepId = this._step?.step_id;
-    if (domain && stepId) {
-      const key = `component.${domain}.config.step.${stepId}.data.${schema.name}.description`;
-      const translated = this._t(key);
-      if (translated) return translated;
+    const translated = this._translateField(`data.${schema.name}.description`);
+    if (translated) return translated;
+    // schema.description can be a string OR an object {suggested_value: ...} in selector format
+    const desc = schema.description;
+    if (typeof desc === 'string') return desc;
+    if (desc && typeof desc === 'object') {
+      // In selector format, description is {suggested_value, ...} — not a user-visible description
+      return '';
     }
-    return schema.description || '';
+    return '';
   }
 
   /* ── Translate field placeholder from our translations ── */
 
   _getFieldPlaceholder(schema) {
-    const domain = this._getFlowDomain();
-    const stepId = this._step?.step_id;
-    if (domain && stepId) {
-      const key = `component.${domain}.config.step.${stepId}.data.${schema.name}.placeholder`;
-      const translated = this._t(key);
-      if (translated) return translated;
-    }
+    const translated = this._translateField(`data.${schema.name}.placeholder`);
+    if (translated) return translated;
     return schema.placeholder || '';
   }
 
   /* ── Translate select option labels from our translations ── */
 
   _getOptionLabel(schema, optValue) {
-    const domain = this._getFlowDomain();
-    const stepId = this._step?.step_id;
-    if (domain && stepId) {
-      const key = `component.${domain}.config.step.${stepId}.data.${schema.name}.options.${optValue}`;
-      const translated = this._t(key);
-      if (translated) return translated;
-    }
+    const translated = this._translateField(`data.${schema.name}.options.${optValue}`);
+    if (translated) return translated;
     return null;
   }
 
@@ -718,6 +986,7 @@ class ConfigFlowDialog extends LitElement {
   _getFlowErrorMessage(e) {
     const msg = e?.message || '';
     if (msg.includes('404')) {
+      if (this._isSubentry) return this._getSubentryTypeLabel(this._subentryType) + ' ' + t('flowHandlerNotFound');
       return this._isOptions
         ? t('flowOptionsNotSupported')
         : t('flowHandlerNotFound');
@@ -735,8 +1004,13 @@ class ConfigFlowDialog extends LitElement {
     const label = this._getFieldLabel(schema);
     const type = schema.type || 'string';
     const required = schema.required !== false;
-    const hasDefault = schema.default !== undefined && schema.default !== null;
-    const defaultValue = hasDefault ? schema.default : '';
+    // Default value: schema.default (old format) or schema.description.suggested_value (selector format)
+    const suggestedValue = schema.description?.suggested_value;
+    const hasDefault = schema.default !== undefined && schema.default !== null
+      || suggestedValue !== undefined && suggestedValue !== null;
+    const defaultValue = schema.default !== undefined && schema.default !== null
+      ? schema.default
+      : (suggestedValue !== undefined ? suggestedValue : '');
     const placeholder = this._getFieldPlaceholder(schema);
     const fieldDesc = this._getFieldDescription(schema);
     const error = this._errors?.[name] || '';
@@ -745,14 +1019,45 @@ class ConfigFlowDialog extends LitElement {
       || schema.type === 'password'
       || (/token|secret|password|key|api_key|apiKey/i.test(name) && type === 'string');
 
-    // Select (enum) rendering
-    if (type === 'select' || type === 'multi_select' || schema.options || schema.enum) {
-      const rawOptions = schema.options || schema.enum || [];
+    // HA 2024+ selector format: { selector: { select: { options: [...] } } }
+    const selector = schema.selector || {};
+    const selectorType = Object.keys(selector)[0]; // 'select', 'text', 'number', 'boolean', 'entity', etc.
+
+    // Select (enum) rendering — handles both old format and selector format
+    const isSelectType = type === 'select' || type === 'multi_select' || schema.options || schema.enum
+      || selectorType === 'select';
+    if (isSelectType) {
+      // Extract options from: schema.options / schema.enum / selector.select.options
+      let rawOptions = schema.options || schema.enum || [];
+      if (!rawOptions.length && selector.select?.options) {
+        rawOptions = selector.select.options;
+      }
+      const isMulti = type === 'multi_select' || selector.select?.multiple === true;
+      // Debug: log select field schema for troubleshooting
+      if (!rawOptions.length) {
+        console.warn(`HACS Vision: select field "${name}" has empty options`, schema);
+      } else {
+        console.debug(`HACS Vision: select field "${name}" options:`, JSON.stringify(rawOptions).slice(0, 200));
+      }
       // multi_select options can be an object: {"add": "新增", "del": "不可用", ...}
-      const options = Array.isArray(rawOptions)
-        ? rawOptions
-        : Object.entries(rawOptions).map(([k, v]) => ({ value: k, label: v }));
-      const isMulti = type === 'multi_select';
+      // Also handle edge case where rawOptions is falsy or empty
+      let options = [];
+      if (Array.isArray(rawOptions)) {
+        options = rawOptions;
+      } else if (rawOptions && typeof rawOptions === 'object') {
+        options = Object.entries(rawOptions).map(([k, v]) => ({ value: k, label: v }));
+      }
+      // Normalize each option to {value, label} format regardless of input format
+      options = options.filter(Boolean).map(opt => {
+        if (typeof opt === 'string') return { value: opt, label: opt };
+        if (Array.isArray(opt)) return { value: opt[0], label: opt[1] || opt[0] };
+        if (opt && typeof opt === 'object') {
+          const v = opt.value ?? opt.val ?? opt.id ?? Object.values(opt)[0] ?? '';
+          const l = opt.label ?? opt.name ?? opt.description ?? Object.values(opt)[1] ?? v;
+          return { value: String(v), label: String(l) };
+        }
+        return { value: String(opt), label: String(opt) };
+      });
 
       return html`
         <div class="form-field">
@@ -761,14 +1066,12 @@ class ConfigFlowDialog extends LitElement {
           <select name=${name} ?multiple=${isMulti} ?required=${required}>
             ${!required && !isMulti ? html`<option value="">${t('flowSelectOption')}</option>` : ''}
             ${options.map(opt => {
-              const optIsArray = Array.isArray(opt);
-              const optValue = typeof opt === 'string' ? opt : optIsArray ? opt[0] : (opt.value ?? opt);
-              const optTranslated = this._getOptionLabel(schema, optValue);
-              const optLabel = optTranslated || (typeof opt === 'string' ? opt : optIsArray ? (opt[1] || opt[0]) : (opt.label || opt.description || opt.value || opt));
+              const optTranslated = this._getOptionLabel(schema, opt.value);
+              const optLabel = optTranslated || opt.label;
               const isSelected = hasDefault && (Array.isArray(defaultValue)
-                ? defaultValue.includes(optValue)
-                : defaultValue === optValue);
-              return html`<option value=${optValue} ?selected=${isSelected}>${optLabel}</option>`;
+                ? defaultValue.includes(opt.value)
+                : defaultValue === opt.value);
+              return html`<option value=${opt.value} ?selected=${isSelected}>${optLabel}</option>`;
             })}
           </select>
           ${error ? html`<div class="form-error">${error}</div>` : ''}
@@ -776,8 +1079,16 @@ class ConfigFlowDialog extends LitElement {
       `;
     }
 
-    // Boolean (checkbox)
-    if (type === 'boolean') {
+    // Boolean (checkbox) — also handles selector.boolean
+    // Special case: "back" field renders as a "Go Back" button instead of a checkbox
+    if (type === 'boolean' || selectorType === 'boolean') {
+      if (name === 'back' && !required) {
+        return html`
+          <div class="form-field">
+            <button type="button" class="btn" @click=${this._cancelFlow}>${t('flowBack')}</button>
+          </div>
+        `;
+      }
       return html`
         <div class="form-field">
           <label class="checkbox-label">
@@ -789,22 +1100,26 @@ class ConfigFlowDialog extends LitElement {
       `;
     }
 
-    // Number / integer
-    if (type === 'integer' || type === 'number') {
+    // Number / integer — also handles selector.number / selector.integer
+    if (type === 'integer' || type === 'number' || selectorType === 'number' || selectorType === 'integer') {
+      const step = selector.number?.step || (type === 'integer' ? 1 : 'any');
+      const min = selector.number?.min;
+      const max = selector.number?.max;
       return html`
         <div class="form-field">
           <label>${label}${required ? ' *' : ''}</label>
           ${fieldDesc ? html`<div class="field-desc">${fieldDesc}</div>` : ''}
           <input type="number" name=${name} .value=${defaultValue}
                  ?required=${required} placeholder=${placeholder}
-                 step=${type === 'integer' ? 1 : 'any'}>
+                 step=${step} min=${min ?? ''} max=${max ?? ''}>
           ${error ? html`<div class="form-error">${error}</div>` : ''}
         </div>
       `;
     }
 
-    // String / text (default)
-    if (multiline) {
+    // String / text (default) — also handles selector.text / selector.entity / selector.area etc.
+    // For entity/area selectors, render as text input (full entity picker requires HA components)
+    if (multiline || selectorType === 'text' && selector.text?.multiline) {
       return html`
         <div class="form-field">
           <label>${label}${required ? ' *' : ''}</label>

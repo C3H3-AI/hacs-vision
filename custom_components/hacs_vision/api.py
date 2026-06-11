@@ -81,7 +81,7 @@ class HACSEnhancedAPI(HomeAssistantView):
         # N3: Accept shared instances from __init__.py
         self.data = data or HACSData(hass)
         self.operator = operator or HACSOperator(hass, shared_data=self.data)
-        self.backup = backup or BackupManager(hass, shared_data=self.data)
+        self.backup = backup or BackupManager(hass, shared_data=self.data, operator=self.operator)
         self.checker = checker or DependencyChecker(hass, shared_data=self.data)
         # Shared aiohttp session for GitHub API calls (reuse TCP connections)
         self._session: aiohttp.ClientSession | None = None
@@ -153,6 +153,9 @@ class HACSEnhancedAPI(HomeAssistantView):
             domain = path.split("/", 1)[1]
             lang = request.query.get("lang", "en")
             return await self._get_translations(domain, lang)
+        if path.startswith("config_entries/subentries/"):
+            entry_id = path.split("/")[-1]
+            return await self._get_subentries(request, entry_id)
 
         return web.json_response({"error": "not_found"}, status=404)
 
@@ -210,6 +213,12 @@ class HACSEnhancedAPI(HomeAssistantView):
         if path.startswith("config_flow/step/"):
             flow_id = path.split("/")[-1]
             return await self._config_flow_step(request, flow_id, body)
+        # ── Subentry Flow proxy ──
+        if path == "config_flow/subentry/start":
+            return await self._config_flow_subentry_start(request, body)
+        if path.startswith("config_flow/subentry/step/"):
+            flow_id = path.split("/")[-1]
+            return await self._config_flow_subentry_step(request, flow_id, body)
 
         return web.json_response({"error": "not_found"}, status=404)
 
@@ -290,6 +299,22 @@ class HACSEnhancedAPI(HomeAssistantView):
             _LOGGER.error("Config flow cancel error %s: %s", flow_id, e, exc_info=True)
             return web.json_response({"error": f"flow_cancel_error: {e}"}, status=500)
 
+    async def _config_flow_subentry_cancel(self, request: web.Request, flow_id: str) -> web.Response:
+        """Cancel a subentry flow — proxy to HA native REST API."""
+        token = self._extract_token(request)
+        if not token:
+            return web.json_response({"error": "unauthorized"}, status=401)
+        try:
+            session = await self._get_session()
+            url = f"http://localhost:8123/api/config/config_entries/subentries/flow/{flow_id}"
+            headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+            async with session.delete(url, headers=headers) as resp:
+                data = await resp.json()
+                return web.Response(text=json.dumps(data), content_type="application/json", status=resp.status)
+        except Exception as e:
+            _LOGGER.error("Subentry flow cancel error %s: %s", flow_id, e, exc_info=True)
+            return web.json_response({"error": f"subentry_cancel_error: {e}"}, status=500)
+
     async def _config_flow_options_start(self, request: web.Request, body: dict) -> web.Response:
         """Start an options flow — proxy to HA native REST API."""
         handler = body.get("handler")
@@ -326,6 +351,71 @@ class HACSEnhancedAPI(HomeAssistantView):
             _LOGGER.error("Options flow step error %s: %s", flow_id, e, exc_info=True)
             return web.json_response({"error": f"options_step_error: {e}"}, status=500)
 
+    async def _config_flow_subentry_start(self, request: web.Request, body: dict) -> web.Response:
+        """Start a subentry flow — proxy to HA native REST API.
+
+        HA endpoint: POST /api/config/config_entries/subentries/flow
+        Body: {"handler": ["entry_id", "subentry_type"]}
+        For reconfigure: add "source": "reconfigure", "subentry_id": "xxx"
+        """
+        handler = body.get("handler")
+        if not handler or not isinstance(handler, list) or len(handler) != 2:
+            return web.json_response({"error": "handler must be [entry_id, subentry_type]"}, status=400)
+        token = self._extract_token(request)
+        if not token:
+            return web.json_response({"error": "unauthorized"}, status=401)
+        try:
+            session = await self._get_session()
+            url = "http://localhost:8123/api/config/config_entries/subentries/flow"
+            headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+            # Pass through any extra fields (source, subentry_id) for reconfigure support
+            payload = {"handler": handler}
+            if "source" in body:
+                payload["source"] = body["source"]
+            if "subentry_id" in body:
+                payload["subentry_id"] = body["subentry_id"]
+            async with session.post(url, headers=headers, json=payload) as resp:
+                data = await resp.json()
+                return web.Response(text=json.dumps(data), content_type="application/json", status=resp.status)
+        except Exception as e:
+            _LOGGER.error("Subentry flow start error %s: %s", handler, e, exc_info=True)
+            return web.json_response({"error": f"subentry_start_error: {e}"}, status=500)
+
+    async def _get_subentries(self, request: web.Request, entry_id: str) -> web.Response:
+        """List subentries of a config entry."""
+        entry = self.hass.config_entries.async_get_entry(entry_id)
+        if not entry:
+            return web.json_response({"error": "entry_not_found"}, status=404)
+        result = [
+            {
+                "subentry_id": se.subentry_id,
+                "subentry_type": se.subentry_type,
+                "title": se.title,
+                "unique_id": se.unique_id,
+            }
+            for se in entry.subentries.values()
+        ]
+        return web.json_response({"subentries": result})
+
+    async def _config_flow_subentry_step(self, request: web.Request, flow_id: str, body: dict) -> web.Response:
+        """Submit a subentry flow step — proxy to HA native REST API.
+
+        HA endpoint: POST /api/config/config_entries/subentries/flow/{flow_id}
+        """
+        token = self._extract_token(request)
+        if not token:
+            return web.json_response({"error": "unauthorized"}, status=401)
+        try:
+            session = await self._get_session()
+            url = f"http://localhost:8123/api/config/config_entries/subentries/flow/{flow_id}"
+            headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+            async with session.post(url, headers=headers, json=body) as resp:
+                data = await resp.json()
+                return web.Response(text=json.dumps(data), content_type="application/json", status=resp.status)
+        except Exception as e:
+            _LOGGER.error("Subentry flow step error %s: %s", flow_id, e, exc_info=True)
+            return web.json_response({"error": f"subentry_step_error: {e}"}, status=500)
+
     # ── DELETE ───────────────────────────────────────────
 
     async def delete(self, request, path: str = "") -> web.Response:
@@ -340,6 +430,10 @@ class HACSEnhancedAPI(HomeAssistantView):
         if path.startswith("config_flow/flow/"):
             flow_id = path.split("/")[-1]
             return await self._config_flow_cancel(request, flow_id)
+        # Subentry flow cancellation
+        if path.startswith("config_flow/subentry/flow/"):
+            flow_id = path.split("/")[-1]
+            return await self._config_flow_subentry_cancel(request, flow_id)
         return web.json_response({"error": "not_found"}, status=404)
 
     # ── Repositories ─────────────────────────────────────
@@ -358,6 +452,32 @@ class HACSEnhancedAPI(HomeAssistantView):
             fn = r.get("full_name", "")
             if fn and fn in install_times:
                 r["installed_at"] = install_times[fn]
+
+        # Cross-reference config entries to add config_entry_id / load_failed to repos
+        entry_map = {}
+        for entry in self.hass.config_entries.async_entries():
+            if entry.domain:
+                entry_state = None
+                try:
+                    entry_state = str(entry.state) if hasattr(entry, 'state') else None
+                except Exception:
+                    pass
+                if entry.domain not in entry_map:
+                    entry_map[entry.domain] = []
+                entry_map[entry.domain].append({
+                    "entry_id": entry.entry_id,
+                    "state": entry_state or "loaded",
+                    "disabled_by": entry.disabled_by,
+                })
+        for r in repos:
+            domain = r.get("domain", "")
+            if domain and domain in entry_map:
+                r["config_entry_id"] = entry_map[domain][0]["entry_id"]
+                # Mark load_failed if config entry state is failed_setup
+                if entry_map[domain][0].get("state", "").lower() == "failed_setup":
+                    r["load_failed"] = True
+                if entry_map[domain][0].get("disabled_by"):
+                    r["disabled_by"] = entry_map[domain][0]["disabled_by"]
 
         search = query.get("search", "").lower()
         category = query.get("category", "")
@@ -383,15 +503,12 @@ class HACSEnhancedAPI(HomeAssistantView):
             cat = r.get("category", "unknown")
             category_counts[cat] = category_counts.get(cat, 0) + 1
 
-        # Status counts — use frontend-friendly keys (computed on full set before status filter)
+        # Status counts — pure repo run-state (no favorites/new/custom)
         status_counts = {
             "installed": 0,
             "not_installed": 0,
             "update_available": 0,
-            "new": 0,
-            "custom": 0,
             "pending_restart": 0,
-            "favorites": 0,
         }
         for r in repos:
             if r.get("pending_restart"):
@@ -400,12 +517,15 @@ class HACSEnhancedAPI(HomeAssistantView):
                 status_counts["update_available"] += 1
             elif r.get("installed"):
                 status_counts["installed"] += 1
-            elif r.get("new") or r.get("status") == "new":
-                status_counts["new"] += 1
             else:
                 status_counts["not_installed"] += 1
-            if r.get("custom"):
-                status_counts["custom"] += 1
+
+        # Tag counts — orthogonal markers (new / custom / favorites)
+        tag_counts = {
+            "new": sum(1 for r in repos if r.get("new") or r.get("status") == "new"),
+            "custom": sum(1 for r in repos if r.get("custom")),
+        }
+        # favorites is client-side, tag_counts.favorites is set on frontend
 
         # Apply category filter
         if category:
@@ -419,13 +539,8 @@ class HACSEnhancedAPI(HomeAssistantView):
                 repos = [r for r in repos if not r.get("installed")]
             elif status == "update_available":
                 repos = [r for r in repos if r.get("has_update")]
-            elif status == "new":
-                repos = [r for r in repos if r.get("new") or r.get("status") == "new"]
-            elif status == "custom":
-                repos = [r for r in repos if r.get("custom")]
             elif status == "pending_restart":
                 repos = [r for r in repos if r.get("pending_restart")]
-            # favorites is client-side only, skip server filter
 
         reverse = sort_dir == "desc"
         if sort == "stars" or sort == "stargazers_count":
@@ -467,6 +582,7 @@ class HACSEnhancedAPI(HomeAssistantView):
             "limit": limit,
             "category_counts": category_counts,
             "status_counts": status_counts,
+            "tag_counts": tag_counts,
         })
 
     async def _get_repository(self, repo_id: str) -> web.Response:
@@ -497,6 +613,20 @@ class HACSEnhancedAPI(HomeAssistantView):
         new_count = sum(1 for r in repos if r.get("new") or r.get("status") == "new")
         pending_restart_count = sum(1 for r in repos if r.get("pending_restart"))
         custom_count = sum(1 for r in repos if r.get("custom"))
+        # Cross-reference config entries for load_failed count
+        entry_domains = {}
+        for entry in self.hass.config_entries.async_entries():
+            if entry.domain:
+                try:
+                    entry_state = str(entry.state) if hasattr(entry, 'state') else "loaded"
+                except Exception:
+                    entry_state = "loaded"
+                entry_domains[entry.domain] = entry_state
+        load_failed_count = 0
+        for r in repos:
+            domain = r.get("domain", "")
+            if domain and domain in entry_domains and entry_domains[domain].lower() == "failed_setup":
+                load_failed_count += 1
         return web.json_response({
             "total_repos": len(repos),
             "total_installed": installed_count,
@@ -504,6 +634,7 @@ class HACSEnhancedAPI(HomeAssistantView):
             "new_repos": new_count,
             "pending_restart": pending_restart_count,
             "custom_count": custom_count,
+            "load_failed": load_failed_count,
         })
 
     async def _get_updates(self) -> web.Response:

@@ -10,5 +10,13 @@
       "single_instance_allowed": "Only a single instance of HACS Vision is allowed.",
       "hacs_not_found": "HACS integration is required but not found."
     }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "HACS Vision",
+        "description": "Current version: {version}\n\nNo additional configuration is needed for this integration."
+      }
+    }
   }
 }

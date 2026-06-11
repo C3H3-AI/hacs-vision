@@ -32,7 +32,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigType) -> bool:
     # N3: Share a single HACSData instance across all components
     shared_data = HACSData(hass)
     operator = HACSOperator(hass, shared_data=shared_data)
-    backup = BackupManager(hass, shared_data=shared_data)
+    backup = BackupManager(hass, shared_data=shared_data, operator=operator)
     checker = DependencyChecker(hass, shared_data=shared_data)
 
     hass.http.register_view(HACSEnhancedStaticView(hass))
@@ -62,24 +62,36 @@ async def _register_panel(hass: HomeAssistant) -> None:
         except Exception:
             pass
 
-    # 2. Create/update the Lovelace dashboard entry in .storage/lovelace_dashboards
+    # 2. Deduplicate & upsert the Lovelace dashboard entry in .storage/lovelace_dashboards
     dash_store = Store(hass, 1, "lovelace_dashboards")
     raw = await dash_store.async_load()
-    dashboards = raw if raw else {"items": []}
-    existing_ids = {d.get("id") for d in dashboards.get("items", [])}
+    dashboards: dict = raw if raw else {"items": []}
 
-    if STORE_KEY not in existing_ids:
-        dashboards.setdefault("items", []).append({
-            "id": STORE_KEY,
-            "title": PANEL_TITLE,
-            "url_path": URL_PATH,
-            "icon": PANEL_ICON,
-            "show_in_sidebar": True,
-            "require_admin": True,
-            "mode": "storage",
-        })
-        await dash_store.async_save(dashboards)
-        _LOGGER.debug("Created lovelace dashboard entry: %s", STORE_KEY)
+    # Remove ANY existing entry that conflicts by url_path or store_key
+    # (handles upgrades from v2.1.x where a different id/url_path may exist)
+    items: list = dashboards.setdefault("items", [])
+    stale = [d for d in items if d.get("url_path") == URL_PATH or d.get("id") == STORE_KEY]
+    items[:] = [d for d in items if d not in stale]
+    for d in stale:
+        _LOGGER.debug("Removed stale dashboard: id=%s url_path=%s", d.get("id"), d.get("url_path"))
+        try:
+            stale_store = Store(hass, 1, f"lovelace.{d.get('id')}")
+            await stale_store.async_remove()
+        except Exception:
+            pass
+
+    # Insert canonical entry
+    items.append({
+        "id": STORE_KEY,
+        "title": PANEL_TITLE,
+        "url_path": URL_PATH,
+        "icon": PANEL_ICON,
+        "show_in_sidebar": True,
+        "require_admin": True,
+        "mode": "storage",
+    })
+    await dash_store.async_save(dashboards)
+    _LOGGER.debug("Upserted lovelace dashboard entry: %s", STORE_KEY)
 
     # 3. Create/update the dashboard config with an iframe card
     config_store = Store(hass, 1, f"lovelace.{STORE_KEY}")
@@ -113,22 +125,22 @@ async def _register_panel(hass: HomeAssistant) -> None:
     )
     _LOGGER.debug("Registered sidebar panel: %s", URL_PATH)
 
-    # 5. Register in LOVELACE_DATA runtime registry if available
+    # 5. Register/update LOVELACE_DATA runtime registry
     try:
         from homeassistant.components.lovelace import LOVELACE_DATA
         from homeassistant.components.lovelace.dashboard import LovelaceStorage
         if LOVELACE_DATA in hass.data:
             lovelace_data = hass.data[LOVELACE_DATA]
-            if URL_PATH not in lovelace_data.dashboards:
-                lovelace_data.dashboards[URL_PATH] = LovelaceStorage(hass, {
-                    "id": STORE_KEY,
-                    "url_path": URL_PATH,
-                    "title": PANEL_TITLE,
-                    "icon": PANEL_ICON,
-                    "show_in_sidebar": True,
-                    "require_admin": True,
-                })
-                _LOGGER.debug("Registered LovelaceStorage for: %s", URL_PATH)
+            # Always replace — handles version upgrades
+            lovelace_data.dashboards[URL_PATH] = LovelaceStorage(hass, {
+                "id": STORE_KEY,
+                "url_path": URL_PATH,
+                "title": PANEL_TITLE,
+                "icon": PANEL_ICON,
+                "show_in_sidebar": True,
+                "require_admin": True,
+            })
+            _LOGGER.debug("Updated LovelaceStorage runtime for: %s", URL_PATH)
     except Exception:
         pass
 

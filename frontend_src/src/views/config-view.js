@@ -252,8 +252,8 @@ class ConfigView extends LitElement {
           <div class="field-label">${t('settingsNotifyUpdates')}</div>
           <select @change=${e => this._set('notify_updates', e.target.value === 'true')}
             .value=${String(this._settings.notify_updates ?? true)}>
-            <option value="true">${t('confirm')}</option>
-            <option value="false">${t('cancel')}</option>
+            <option value="true">${t('enabled')}</option>
+            <option value="false">${t('disabled')}</option>
           </select>
         </div>
 
@@ -261,13 +261,13 @@ class ConfigView extends LitElement {
           <div class="field-label">${t('settingsNotifyRestart')}</div>
           <select @change=${e => this._set('notify_restart', e.target.value === 'true')}
             .value=${String(this._settings.notify_restart ?? true)}>
-            <option value="true">${t('confirm')}</option>
-            <option value="false">${t('cancel')}</option>
+            <option value="true">${t('enabled')}</option>
+            <option value="false">${t('disabled')}</option>
           </select>
         </div>
 
         <button class="save-btn" @click=${this._save} ?disabled=${this._saving}>
-          ${this._saving ? t('loading') : t('confirm')}
+          ${this._saving ? t('loading') : t('save')}
         </button>
 
         <div class="actions">

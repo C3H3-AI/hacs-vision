@@ -99,18 +99,48 @@ export const themeMixin = (superClass) => class extends superClass {
 
   _isDarkMode() {
     try {
+      // Priority 1: HA explicit dark theme attribute
+      const html = document.documentElement;
+      const dt = html.getAttribute('data-theme');
+      if (dt && dt.includes('dark')) return true;
+
+      // Priority 2: Compute background color luminance
       const bg = this._getHAVar('--primary-background-color');
       if (bg) {
-        const hex = bg.replace('#', '').toLowerCase();
-        if (/^[0-3]/.test(hex)) return true;
-        const m = bg.match(/rgba?\((\d+)/);
-        if (m && parseInt(m[1]) < 80) return true;
-        if (bg.includes('#111') || bg.includes('#1c1c')) return true;
+        const rgb = this._parseColor(bg);
+        if (rgb) {
+          const luma = 0.299 * rgb.r + 0.587 * rgb.g + 0.114 * rgb.b;
+          return luma < 128;
+        }
       }
-      const dt = document.body?.getAttribute('data-theme');
-      if (dt && dt.includes('dark')) return true;
+
+      // Priority 3: Body data-theme fallback
+      const bodyDt = document.body?.getAttribute('data-theme');
+      if (bodyDt && bodyDt.includes('dark')) return true;
     } catch(e) { /* ignore */ }
+    // Priority 4: System preference
     try { return window.matchMedia('(prefers-color-scheme: dark)').matches; } catch(e) { return false; }
+  }
+
+  _parseColor(str) {
+    // Try hex format
+    const hexMatch = str.match(/^#([0-9a-f]{3,8})$/i);
+    if (hexMatch) {
+      let hex = hexMatch[1];
+      if (hex.length === 3) hex = hex[0]+hex[0]+hex[1]+hex[1]+hex[2]+hex[2];
+      if (hex.length >= 6) {
+        const r = parseInt(hex.substring(0,2), 16);
+        const g = parseInt(hex.substring(2,4), 16);
+        const b = parseInt(hex.substring(4,6), 16);
+        if (!isNaN(r+g+b)) return { r, g, b };
+      }
+    }
+    // Try rgb/rgba format
+    const rgbMatch = str.match(/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/);
+    if (rgbMatch) {
+      return { r: parseInt(rgbMatch[1]), g: parseInt(rgbMatch[2]), b: parseInt(rgbMatch[3]) };
+    }
+    return null;
   }
 
   _hexToRgb(hex) {

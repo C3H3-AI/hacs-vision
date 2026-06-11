@@ -1,28 +1,49 @@
 """Backup and restore installed repository lists."""
 from __future__ import annotations
 from datetime import datetime
+from typing import TYPE_CHECKING
+
 from .hacs_data import HACSData
 
+if TYPE_CHECKING:
+    from .hacs_operator import HACSOperator
+
 class BackupManager:
-    def __init__(self, hass, shared_data: HACSData | None = None) -> None:
+    def __init__(self, hass, shared_data: HACSData | None = None, operator: HACSOperator | None = None) -> None:
         self.data = shared_data or HACSData(hass)
         self.hass = hass
+        self.operator = operator
 
     async def export(self) -> dict:
-        """Export installed repository list as JSON."""
-        installed = await self.data.get_installed_repositories()
-        config = await self.data.get_config()
-        return {
-            "exported_at": datetime.now().isoformat(),
-            "version": "1.0",
-            "installed": [
+        """Export installed repository list as JSON — uses HACS in-memory data for real-time accuracy."""
+        # Prefer HACS in-memory data (real-time) over .storage file (may be stale)
+        if self.operator and self.operator.available:
+            installed = self.operator.get_installed_list()
+            installed_records = [
                 {
                     "full_name": r.get("full_name", ""),
                     "category": r.get("category", "integration"),
                     "installed_version": r.get("installed_version", ""),
                 }
                 for r in installed
-            ],
+            ]
+        else:
+            # Fallback to storage file if HACS not available
+            installed_raw = await self.data.get_installed_repositories()
+            installed_records = [
+                {
+                    "full_name": r.get("full_name", ""),
+                    "category": r.get("category", "integration"),
+                    "installed_version": r.get("installed_version", ""),
+                }
+                for r in installed_raw
+            ]
+
+        config = await self.data.get_config()
+        return {
+            "exported_at": datetime.now().isoformat(),
+            "version": "1.0",
+            "installed": installed_records,
             "custom_repositories": config.get("custom_repositories", []),
         }
 

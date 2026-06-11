@@ -8,7 +8,7 @@ class RepoCard extends LitElement {
     repo: { type: Object },
     _isFavorite: { type: Boolean, state: true },
     _installing: { type: Boolean },
-    _favorites: { type: Array, state: true },
+    favorites: { type: Array },  // Received from parent — no independent API call
     selected: { type: Boolean },
     showCheckbox: { type: Boolean },
     viewMode: { type: String },
@@ -21,36 +21,20 @@ class RepoCard extends LitElement {
     this.repo = {};
     this._isFavorite = false;
     this._installing = false;
-    this._favorites = [];
+    this.favorites = [];  // Set by parent component
     this.viewMode = 'store'; // 'store' | 'installed' | 'management' | 'updates'
     this.renamedFrom = null;
     this.showRemoveBtn = false;
   }
 
-  async connectedCallback() {
-    super.connectedCallback();
-    // Load favorites from server
-    await this._loadFavorites();
-  }
-
-  async _loadFavorites() {
-    try {
-      const result = await api.getFavorites();
-      this._favorites = Array.isArray(result) ? result : (result.favorites || []);
-    } catch(e) {
-      this._favorites = [];
-    }
-    this._updateFavoriteState();
-  }
-
   _updateFavoriteState() {
-    if (this.repo) {
-      this._isFavorite = this._favorites.includes(this.repo.id || this.repo.full_name);
+    if (this.repo && this.favorites) {
+      this._isFavorite = this.favorites.includes(this.repo.id || this.repo.full_name);
     }
   }
 
   willUpdate(changedProps) {
-    if (changedProps.has('repo') && this.repo) {
+    if (changedProps.has('repo') || changedProps.has('favorites')) {
       this._updateFavoriteState();
     }
   }
@@ -94,17 +78,31 @@ class RepoCard extends LitElement {
     .badge.integration { background: #1565c0; }
     .badge.plugin { background: #7b1fa2; }
     .badge.theme { background: #2e7d32; }
-    .badge.appdaemon { background: #e65100; }
-    .badge.netdaemon { background: #00838f; }
-    .badge.python_script { background: #f9a825; color: #333; }
     .badge.template { background: #6a1b9a; }
 
-    .installed-badge {
+    /* Status badge — auto switches between states, only one shown */
+    .status-badge {
       position: absolute; bottom: 10px; left: 10px;
       padding: 4px 10px; border-radius: 6px;
       font-size: 10px; font-weight: 600;
-      background: rgba(76,175,80,0.15); color: #4caf50;
     }
+    .status-badge.installed { background: rgba(76,175,80,0.15); color: #4caf50; }
+    .status-badge.update-available { background: rgba(255,152,0,0.15); color: #ff9800; }
+    .status-badge.pending-restart { background: rgba(244,67,54,0.15); color: #f44336; }
+
+    /* Right-side independent badges — symmetrical with status-badge */
+    .right-tags {
+      position: absolute; bottom: 10px; right: 10px;
+      display: flex; flex-direction: column; gap: 2px;
+      align-items: flex-end; pointer-events: none; z-index: 2;
+    }
+    .right-tags .tag {
+      font-size: 9px; padding: 2px 7px; border-radius: 4px;
+      white-space: nowrap; line-height: 1.5;
+    }
+    .right-tags .tag.configured { background: rgba(33,150,243,0.15); color: #2196f3; }
+    .right-tags .tag.load-failed { background: rgba(244,67,54,0.15); color: #f44336; }
+    .right-tags .tag.custom-tag { background: rgba(255,111,0,0.15); color: #ff6f00; font-weight: 600; }
 
     .top-bar {
       position: absolute; top: 0; left: 0; right: 0;
@@ -273,11 +271,19 @@ class RepoCard extends LitElement {
     return null;
   }
 
+  _getStatusBadge(repo) {
+    if (repo.pending_restart) return { label: t('statusPendingRestart'), cls: 'pending-restart' };
+    if (repo.installed && (repo.has_update || (repo.installed_version && repo.latest_version && repo.installed_version !== repo.latest_version))) {
+      return { label: t('statusPendingUpgrade'), cls: 'update-available' };
+    }
+    if (repo.installed) return { label: t('installed'), cls: 'installed' };
+    return null; // not installed → no status badge
+  }
+
   _getCategoryLabel(category) {
     const labels = {
       integration: t('catIntegration'), plugin: t('catPlugin'), theme: t('catTheme'),
-      appdaemon: t('catAppDaemon'), netdaemon: t('catNetDaemon'),
-      python_script: t('catPython'), template: t('catTemplate'),
+      template: t('catTemplate'),
       dashboard: t('catDashboard'),
     };
     return labels[category] || category;
@@ -295,7 +301,7 @@ class RepoCard extends LitElement {
     e.stopPropagation();
     const repoId = this.repo.id || this.repo.full_name;
     // Toggle favorite via server
-    const favs = [...this._favorites];
+    const favs = [...this.favorites];
     const idx = favs.indexOf(repoId);
     if (idx >= 0) {
       favs.splice(idx, 1);
@@ -306,7 +312,7 @@ class RepoCard extends LitElement {
     }
     try {
       await api.setFavorites(favs);
-      this._favorites = favs;
+      this.favorites = favs;
     } catch(e) {
       // Revert on failure
       this._isFavorite = !this._isFavorite;
@@ -355,7 +361,13 @@ class RepoCard extends LitElement {
               <span class="initials" style="display:none">${this._getInitials(name)}</span>
             ` : this._getInitials(name)}
           </div>
-          ${isInstalled ? html`<span class="installed-badge"><svg class="mini-icon" viewBox="0 0 24 24" fill="none" stroke="#4caf50" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg> ${t('installed')}</span>` : ''}
+          ${this._getStatusBadge(r) ? html`<span class="status-badge ${this._getStatusBadge(r).cls}">${this._getStatusBadge(r).label}</span>` : ''}
+          <!-- Right-side independent badges (symmetrical with status-badge) -->
+          <div class="right-tags">
+            ${r.config_entry_id ? html`<span class="tag configured">${t('badgeConfigured')}</span>` : ''}
+            ${r.load_failed ? html`<span class="tag load-failed">${t('badgeLoadFailed')}</span>` : ''}
+            ${r.is_custom ? html`<span class="tag custom-tag">${t('customBadge')}</span>` : ''}
+          </div>
           ${this.renamedFrom ? html`<span class="renamed-badge" style="position:absolute;bottom:10px;right:10px;font-size:9px;padding:2px 7px;border-radius:4px;background:#ff9800;color:#fff;display:flex;align-items:center;gap:3px;"><svg class="mini-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg> ${this.renamedFrom}</span>` : ''}
           ${this.viewMode !== 'management' ? html`
           <button class="fav-btn ${this._isFavorite ? 'active' : ''}"
@@ -378,8 +390,6 @@ class RepoCard extends LitElement {
           <div class="desc">${desc || t('noDesc')}</div>
           <div class="meta">
             <div class="tags">
-              <span class="tag">${category}</span>
-              ${r.is_custom ? html`<span class="custom-tag">${t('customBadge')}</span>` : ''}
               ${r.topics && r.topics.length ? r.topics.slice(0, 3).map(t => html`<span class="topic-tag">${t}</span>`) : ''}
             </div>
             <span class="stars">

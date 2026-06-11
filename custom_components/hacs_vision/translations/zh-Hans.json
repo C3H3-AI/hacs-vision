@@ -11,6 +11,14 @@
       "hacs_not_found": "需要 HACS 集成但未找到。"
     }
   },
+  "options": {
+    "step": {
+      "init": {
+        "title": "HACS Vision",
+        "description": "当前版本：{version}\n\n此集成无需额外配置。"
+      }
+    }
+  },
   "services": {
     "refresh": {
       "name": "刷新",

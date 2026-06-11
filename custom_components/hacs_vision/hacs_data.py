@@ -214,11 +214,39 @@ class HACSData:
         return await self.write_storage("settings", {"data": settings})
 
     async def get_config_entries_map(self) -> list[dict]:
-        """Get all config entries with domain and entry_id for installed HA integrations."""
+        """Get all config entries with subentry_type info for subentry flow support."""
         result = []
         for entry in self.hass.config_entries.async_entries():
             if entry.domain:
-                result.append({"domain": entry.domain, "entry_id": entry.entry_id})
+                entry_state = None
+                try:
+                    entry_state = str(entry.state) if hasattr(entry, 'state') else None
+                except Exception:
+                    pass
+                subentry_types = None
+                try:
+                    if hasattr(entry, 'supported_subentry_types'):
+                        st = entry.supported_subentry_types
+                        if st:
+                            subentry_types = list(st.keys())
+                except Exception:
+                    pass
+                supports_options = None
+                try:
+                    if hasattr(entry, 'supports_options'):
+                        supports_options = entry.supports_options
+                except Exception:
+                    pass
+                result.append({
+                    "domain": entry.domain,
+                    "entry_id": entry.entry_id,
+                    "title": entry.title,
+                    "source": entry.source,
+                    "state": entry_state or "loaded",
+                    "disabled_by": entry.disabled_by,
+                    "supports_options": supports_options,
+                    "supported_subentry_types": subentry_types,
+                })
         return result
 
     async def send_persistent_notification(self, title: str, message: str) -> None:

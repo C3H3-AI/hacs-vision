@@ -4,8 +4,10 @@
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://github.com/hacs/integration)
 [![GitHub Release](https://img.shields.io/github/v/release/C3H3-AI/hacs-vision)](https://github.com/C3H3-AI/hacs-vision/releases)
 
-> **当前版本**: v2.1.2 | **最低 HA 版本**: 2024.1.0
-> **Current version**: v2.1.2 | **Minimum HA**: 2024.1.0
+> **当前版本**: v2.2.0 | **最低 HA 版本**: 2024.1.0
+> **Current version**: v2.2.0 | **Minimum HA**: 2024.1.0
+
+[![Downloads](https://img.shields.io/github/downloads/C3H3-AI/hacs-vision/total)](https://github.com/C3H3-AI/hacs-vision/releases)
 
 > **⚠️ 前置条件 / Prerequisite**: 必须先安装并配置好 [HACS](https://hacs.xyz) / [HACS](https://hacs.xyz) must be installed and configured.
 

@@ -155,6 +155,12 @@ class HACSEnhancedAPI {
   startOptionsFlow(entryId) { return this.post('config_flow/options/start', { handler: entryId }); }
   stepOptionsFlow(flowId, data) { return this.post(`config_flow/options/step/${flowId}`, data); }
 
+  /* Subentry Flow — for integrations with supported_subentry_types */
+  startSubentryFlow(entryId, subentryType, opts) { return this.post('config_flow/subentry/start', { handler: [entryId, subentryType], ...opts }); }
+  stepSubentryFlow(flowId, data) { return this.post(`config_flow/subentry/step/${flowId}`, data); }
+  cancelSubentryFlow(flowId) { return this.request('DELETE', `config_flow/subentry/flow/${flowId}`); }
+  getSubentries(entryId) { return this.request('GET', `config_entries/subentries/${entryId}`); }
+
   /* Translations — read custom component translation files */
   getTranslations(domain, lang) {
     const langParam = lang || 'zh-Hans';

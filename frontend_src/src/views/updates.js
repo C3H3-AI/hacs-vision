@@ -2,7 +2,7 @@ import { LitElement, html, css } from 'lit';
 import { api } from '../api.js';
 import { showToast } from '../hacs-vision-panel.js';
 import { t } from '../i18n.js';
-import { commonStyles } from '../shared/styles.js';
+import { getCommonStyles } from '../shared/styles.js';
 import { ConfirmDialog } from '../shared/confirm-dialog.js';
 import { getCategoryColor } from '../shared/constants.js';
 
@@ -41,7 +41,7 @@ class UpdatesView extends LitElement {
   }
 
   static styles = [
-    commonStyles,
+    getCommonStyles(),
     css`
       :host { display: block; touch-action: manipulation; background: var(--primary-background-color); }
 
@@ -495,15 +495,6 @@ class UpdatesView extends LitElement {
     try { localStorage.setItem('hacs_vision_view_mode', mode); } catch {}
   }
 
-  _getCategoryColor(cat) {
-    const colors = {
-      integration: '#1565c0', plugin: '#7b1fa2', theme: '#2e7d32',
-      python_script: '#f9a825', template: '#6a1b9a', appdaemon: '#e65100',
-      netdaemon: '#00838f', dashboard: '#f57f17',
-    };
-    return colors[cat] || '#78909c';
-  }
-
   _renderListTable(filtered) {
     return html`
       <table class="list-table">
@@ -529,7 +520,7 @@ class UpdatesView extends LitElement {
     const isInstalling = !!this._installingIds?.[repoId];
     const isChecked = !!this._selectedIds[repoId];
     const name = r.manifest_name || r.name || r.full_name || '?';
-    const catColor = this._getCategoryColor(r.category);
+    const catColor = getCategoryColor(r.category);
     const domain = r.domain;
 
     return html`
@@ -598,7 +589,18 @@ class UpdatesView extends LitElement {
       </div>
 
       ${this.loading ? html`
-        <div class="loading"><div class="spinner"></div><div>${t('checkingUpdates')}</div></div>
+        <div class="skeleton-grid">
+          ${[1,2,3,4].map(() => html`
+            <div class="skeleton-card">
+              <div class="skeleton-card-img"></div>
+              <div class="skeleton-card-body">
+                <div class="skeleton-line wide"></div>
+                <div class="skeleton-line medium"></div>
+                <div class="skeleton-line" style="width:50%"></div>
+              </div>
+            </div>
+          `)}
+        </div>
       ` : this.updates.length === 0 ? html`
         <div class="empty">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">

@@ -4,6 +4,8 @@ import { api } from '../api.js';
 import { t } from '../i18n.js';
 import { showToast } from '../hacs-vision-panel.js';
 import { ConfirmDialog } from '../shared/confirm-dialog.js';
+import { getCategoryColor } from '../shared/constants.js';
+import { getCommonStyles } from '../shared/styles.js';
 import '../components/repo-card.js';
 
 export class ManagementView extends LitElement {
@@ -57,7 +59,7 @@ export class ManagementView extends LitElement {
     };
   }
 
-  static styles = css`
+  static styles = [getCommonStyles(), css`
     :host { display: block; touch-action: manipulation; background: var(--primary-background-color); }
 
     /* ===== Section Base ===== */
@@ -273,11 +275,6 @@ export class ManagementView extends LitElement {
       cursor: pointer; font-size: 12px; transition: all 0.2s;
       touch-action: manipulation; display: inline-flex; align-items: center; gap: 8px; font-family: inherit;
     }
-    .btn:hover { border-color: var(--primary-color); color: var(--primary-color); }
-    .btn.primary { background: var(--primary-color); border-color: var(--primary-color); color: #fff; }
-    .btn.primary:hover { opacity: 0.9; }
-    .btn.danger { color: #f44336; border-color: #f44336; }
-    .btn.danger:hover { background: #f44336; color: #fff; }
     .btn.sm { padding: 4px 10px; font-size: 11px; }
     .btn-icon {
       width: 32px; height: 32px; padding: 0; display: inline-flex;
@@ -352,7 +349,7 @@ export class ManagementView extends LitElement {
       .section-badge { font-size: 10px; padding: 1px 8px; }
       .category-badge { font-size: 9px; padding: 1px 6px; }
     }
-  `;
+  `];
 
   async connectedCallback() {
     super.connectedCallback();
@@ -717,9 +714,16 @@ export class ManagementView extends LitElement {
 
     return html`
       ${loading ? html`
-        <div style="display:flex;flex-direction:column;align-items:center;gap:16px;padding:60px 16px;color:var(--secondary-text-color);">
-          <div class="spinner"></div>
-          <div>${t('loading')}</div>
+        <div class="skeleton-grid" style="margin-bottom:16px;">
+          ${[1,2,3].map(() => html`
+            <div class="skeleton-card">
+              <div class="skeleton-card-img"></div>
+              <div class="skeleton-card-body">
+                <div class="skeleton-line wide"></div>
+                <div class="skeleton-line" style="width:40%"></div>
+              </div>
+            </div>
+          `)}
         </div>
       ` : ''}
 

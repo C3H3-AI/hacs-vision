@@ -3,7 +3,7 @@ import '../components/repo-card.js';
 import { api } from '../api.js';
 import { showToast } from '../hacs-vision-panel.js';
 import { t } from '../i18n.js';
-import { commonStyles } from '../shared/styles.js';
+import { getCommonStyles } from '../shared/styles.js';
 import { getCategoryColor } from '../shared/constants.js';
 import { ConfirmDialog } from '../shared/confirm-dialog.js';
 
@@ -31,6 +31,7 @@ class BrowseView extends LitElement {
     loading: { type: Boolean },
     categoryCounts: { type: Object },
     statusCounts: { type: Object },
+    tagCounts: { type: Object },
     viewMode: { type: String },
     groupBy: { type: String },
     pageSize: { type: Number },
@@ -44,8 +45,10 @@ class BrowseView extends LitElement {
     _filterExpanded: { type: Boolean, state: true },
     _favorites: { type: Array, state: true },
     presetFilter: { type: String },
+    presetTag: { type: String },
     pendingRestart: { type: Number },
     _selectedRepos: { type: Array, state: true },
+    _tagFilters: { type: Array, state: true },
   };
 
   constructor() {
@@ -64,6 +67,7 @@ class BrowseView extends LitElement {
     this.pageSize = this.limit;
     this.categoryCounts = {};
     this.statusCounts = {};
+    this.tagCounts = {};
     this._installingIds = {};
     this._searchTimer = undefined;
     this._searchText = saved.search || '';
@@ -77,15 +81,13 @@ class BrowseView extends LitElement {
     this._filterExpanded = false;
     this._favorites = [];
     this._selectedRepos = [];
+    this._tagFilters = [];
 
     this.statusOptions = [
       { value: '', label: t('statusAll') },
       { value: 'installed', label: t('statusInstalled') },
       { value: 'not_installed', label: t('statusNotInstalled') },
       { value: 'update_available', label: t('statusPendingUpgrade') },
-      { value: 'favorites', label: t('statusFavorites') },
-      { value: 'new', label: t('statusNew') },
-      { value: 'custom', label: t('statusCustom') },
       { value: 'pending_restart', label: t('statusPendingRestart') },
     ];
 
@@ -94,9 +96,6 @@ class BrowseView extends LitElement {
       { value: 'integration', label: t('typeIntegration') },
       { value: 'plugin', label: t('typePlugin') },
       { value: 'theme', label: t('typeTheme') },
-      { value: 'appdaemon', label: t('typeAppDaemon') },
-      { value: 'netdaemon', label: t('typeNetDaemon') },
-      { value: 'python_script', label: t('typePython') },
       { value: 'template', label: t('typeTemplate') },
     ];
 
@@ -120,7 +119,7 @@ class BrowseView extends LitElement {
   }
 
   static styles = css`
-    ${commonStyles}
+    ${getCommonStyles()}
 
     :host { display: block; touch-action: manipulation; background: var(--primary-background-color); }
 
@@ -420,19 +419,41 @@ class BrowseView extends LitElement {
     // Card 'detail' events bubble directly to hacs-vision-panel (composed:true)
     this.addEventListener('configure', (e) => this._handleConfigure(e.detail.repo));
     this.addEventListener('add-integration', (e) => this._handleAddIntegration(e.detail.repo));
-    this.addEventListener('favorite', async () => { await this._loadFavorites(); this._syncFavoriteCount(); });
+    this.addEventListener('favorite', (e) => {
+      // Update local favorites list from card's toggle result (no extra API call)
+      const { isFavorite, repo } = e.detail;
+      const repoId = repo?.id || repo?.full_name;
+      if (repoId) {
+        if (isFavorite && !this._favorites.includes(repoId)) {
+          this._favorites = [...this._favorites, repoId];
+        } else if (!isFavorite) {
+          this._favorites = this._favorites.filter(id => id !== repoId);
+        }
+      }
+      this._syncFavoriteCount();
+    });
   }
 
   willUpdate(changedProps) {
     if (changedProps.has('presetFilter')) {
       const filter = this.presetFilter;
       const old = changedProps.get('presetFilter');
-      // Skip initial mount (old undefined → empty string)
       if (old === undefined && filter === '') return;
       this.presetFilter = '';
       this.statusFilter = filter;
       this.page = 1;
       this._persistState();
+      this._load();
+    }
+    if (changedProps.has('presetTag') && this.presetTag) {
+      const tag = this.presetTag;
+      this.presetTag = '';
+      if (this._tagFilters.includes(tag)) {
+        this._tagFilters = this._tagFilters.filter(t => t !== tag);
+      } else {
+        this._tagFilters = [...this._tagFilters, tag];
+      }
+      this.page = 1;
       this._load();
     }
   }
@@ -447,7 +468,6 @@ class BrowseView extends LitElement {
   }
 
   _syncFavoriteCount() {
-    this.statusCounts = { ...this.statusCounts, favorites: this._favorites.length };
     this.requestUpdate();
   }
 
@@ -540,8 +560,9 @@ class BrowseView extends LitElement {
       this.total = result.total || 0;
       this.categoryCounts = result.category_counts || {};
       this.statusCounts = result.status_counts || {};
-      // Compute favorites count from server
-      this.statusCounts = { ...this.statusCounts, favorites: this._favorites.length };
+      this.tagCounts = result.tag_counts || {};
+      // Compute favorites count from client
+      this.tagCounts = { ...this.tagCounts, favorites: this._favorites.length };
     } catch(e) {
       console.error('Browse load error', e);
       this.repos = []; this.total = 0;
@@ -565,6 +586,15 @@ class BrowseView extends LitElement {
 
   _onStatusFilter(value) { this.statusFilter = value; this.page = 1; this._persistState(); this._load(); }
   _onTypeFilter(value) { this.category = value; this.page = 1; this._persistState(); this._load(); }
+  _onTagFilter(value) {
+    if (this._tagFilters.includes(value)) {
+      this._tagFilters = this._tagFilters.filter(t => t !== value);
+    } else {
+      this._tagFilters = [...this._tagFilters, value];
+    }
+    this.page = 1;
+    this._load();
+  }
 
   _onSortColumn(key) {
     if (this.sort === key) {
@@ -614,11 +644,9 @@ class BrowseView extends LitElement {
     return null;
   }
   _getRepoStatus(repo) {
-    const repoId = repo.id || repo.full_name;
     if (repo.pending_restart) return 'pending_restart';
     if (repo.installed && (repo.has_update || (repo.installed_version && repo.latest_version && repo.installed_version !== repo.latest_version))) return 'pending-upgrade';
     if (repo.installed) return 'installed';
-    if (repo.new || repo.status === 'new') return 'new';
     return 'default';
   }
 
@@ -627,7 +655,6 @@ class BrowseView extends LitElement {
       'installed': { label: t('statusInstalled'), cls: 'installed' },
       'pending-upgrade': { label: t('statusPendingUpgrade'), cls: 'pending-upgrade' },
       'pending-restart': { label: t('statusPendingRestart'), cls: 'pending-restart' },
-      'new': { label: t('statusNew'), cls: 'new' },
       'default': { label: t('statusDefault'), cls: 'default' },
     };
     const info = map[status] || { label: status, cls: 'default' };
@@ -637,16 +664,23 @@ class BrowseView extends LitElement {
   _getStatusLabel(status) {
     const map = {
       installed: t('statusInstalled'), not_installed: t('statusDefault'),
-      update_available: t('statusPendingUpgrade'), favorites: t('statusFavorites'),
-      new: t('statusNew'), custom: t('statusCustom'), pending_restart: t('statusPendingRestart'),
+      update_available: t('statusPendingUpgrade'), pending_restart: t('statusPendingRestart'),
     };
     return map[status] || status;
   }
 
   _applyFilters(repos) {
-    // Status filtering is now done server-side, only handle favorites client-side
-    if (this.statusFilter === 'favorites') {
-      return repos.filter(r => this._favorites.includes(r.id || r.full_name));
+    // Status filtering is done server-side.
+    // Tag filters (favorites/new/custom) are client-side and can combine.
+    if (this._tagFilters.length > 0) {
+      return repos.filter(r => {
+        for (const tag of this._tagFilters) {
+          if (tag === 'favorites' && !this._favorites.includes(r.id || r.full_name)) return false;
+          if (tag === 'new' && !(r.new || r.status === 'new')) return false;
+          if (tag === 'custom' && !r.is_custom) return false;
+        }
+        return true;
+      });
     }
     return repos;
   }
@@ -688,8 +722,8 @@ class BrowseView extends LitElement {
       if (!groups[key]) groups[key] = [];
       groups[key].push(repo);
     }
-    const statusOrder = ['pending-restart', 'pending-upgrade', 'installed', 'new', 'default'];
-    const typeOrder = ['integration', 'plugin', 'theme', 'appdaemon', 'netdaemon', 'python_script', 'template', 'other'];
+    const statusOrder = ['pending-restart', 'pending-upgrade', 'installed', 'default'];
+    const typeOrder = ['integration', 'plugin', 'theme', 'template', 'other'];
     const keys = Object.keys(groups);
     if (this.groupBy === 'status') keys.sort((a, b) => statusOrder.indexOf(a) - statusOrder.indexOf(b));
     else if (this.groupBy === 'type') keys.sort((a, b) => typeOrder.indexOf(a) - typeOrder.indexOf(b));
@@ -703,8 +737,7 @@ class BrowseView extends LitElement {
   _getCategoryLabel(cat) {
     const labels = {
       integration: t('catIntegration'), plugin: t('catPlugin'), theme: t('catTheme'),
-      appdaemon: t('catAppDaemon'), netdaemon: t('catNetDaemon'),
-      python_script: t('catPython'), template: t('catTemplate'), other: cat,
+      template: t('catTemplate'), other: cat,
     };
     return labels[cat] || cat;
   }
@@ -803,6 +836,7 @@ class BrowseView extends LitElement {
     }
     return html`<div class="grid">${repos.map(r => html`
       <repo-card .repo=${r} ._installing=${!!this._installingIds?.[r.id || r.full_name]}
+        .favorites=${this._favorites}
         ?showCheckbox=${true} ?selected=${this._selectedRepos.includes(r.full_name)}
         @check-change=${(e) => { if (e.detail?.fullName) this._toggleSelect(e.detail.fullName); }}>
       </repo-card>
@@ -923,8 +957,7 @@ class BrowseView extends LitElement {
             <input class="form-input" type="text" placeholder="${t('repoUrl')}" .value=${this._newRepoUrl} @input=${e => { this._newRepoUrl = e.target.value; }} @keydown=${e => { if (e.key === 'Enter') this._addRepo(); }}>
             <select class="form-select" .value=${this._newRepoCategory} @change=${e => { this._newRepoCategory = e.target.value; }}>
               <option value="integration">${t('catIntegration')}</option><option value="plugin">${t('catPlugin')}</option>
-              <option value="theme">${t('catTheme')}</option><option value="appdaemon">${t('catAppDaemon')}</option>
-              <option value="python_script">${t('catPython')}</option><option value="template">${t('catTemplate')}</option>
+              <option value="theme">${t('catTheme')}</option><option value="template">${t('catTemplate')}</option>
             </select>
           </div>
           <div class="form-actions">
@@ -936,7 +969,7 @@ class BrowseView extends LitElement {
 
       <!-- Filter Toggle (mobile: tap to expand) -->
       <button class="filter-toggle" @click=${() => { this._filterExpanded = !this._filterExpanded; }}>
-        <span>${t('filterStatus') || '筛选'} / ${t('filterType') || '类型'}</span>
+        <span>${t('filterStatus') || '状态'} / ${t('filterTags') || '标记'} / ${t('filterType') || '类型'}</span>
         <span class="active-filters">
           ${this.statusFilter ? html`<span class="active-filter-tag">${this._getStatusLabel(this.statusFilter)}</span>` : ''}
           ${this.category ? html`<span class="active-filter-tag">${this._getCategoryLabel(this.category)}</span>` : ''}
@@ -944,20 +977,38 @@ class BrowseView extends LitElement {
         <span class="toggle-arrow ${this._filterExpanded ? 'expanded' : ''}">▼</span>
       </button>
 
-      <!-- Filters: Status + Type in one row on desktop -->
+      <!-- Filters: Status + Tags + Type in one row on desktop -->
       <div class="filter-row ${this._filterExpanded ? 'expanded' : ''}">
         <div class="filter-group">
           <div class="filter-label">${t('filterStatus')}</div>
           <div class="filter-chips">
-            ${this.statusOptions.map(opt => html`
+            ${this.statusOptions
+              .filter(opt => opt.value === '' || (this.statusCounts[opt.value] ?? 0) > 0)
+              .map(opt => html`
               <button class="filter-chip ${this.statusFilter === opt.value ? 'active' : ''}" @click=${() => this._onStatusFilter(opt.value)}>${opt.label}${this.statusCounts[opt.value] !== undefined ? html`<span class="chip-count">${this.statusCounts[opt.value]}</span>` : ''}</button>
             `)}
           </div>
         </div>
         <div class="filter-group">
+          <div class="filter-label">${t('filterTags')}</div>
+          <div class="filter-chips">
+            <button class="filter-chip tag-chip ${this._tagFilters.includes('favorites') ? 'active' : ''}" @click=${() => this._onTagFilter('favorites')}>
+              ${t('tagFavorites')}<span class="chip-count">${this.tagCounts?.favorites ?? 0}</span>
+            </button>
+            <button class="filter-chip tag-chip ${this._tagFilters.includes('new') ? 'active' : ''}" @click=${() => this._onTagFilter('new')}>
+              ${t('tagNew')}<span class="chip-count">${this.tagCounts?.new ?? 0}</span>
+            </button>
+            <button class="filter-chip tag-chip ${this._tagFilters.includes('custom') ? 'active' : ''}" @click=${() => this._onTagFilter('custom')}>
+              ${t('tagCustom')}<span class="chip-count">${this.tagCounts?.custom ?? 0}</span>
+            </button>
+          </div>
+        </div>
+        <div class="filter-group">
           <div class="filter-label">${t('filterType')}</div>
           <div class="filter-chips">
-            ${this.typeOptions.map(opt => html`
+            ${this.typeOptions
+              .filter(opt => opt.value === '' || (this.categoryCounts[opt.value] ?? 0) > 0)
+              .map(opt => html`
               <button class="filter-chip ${this.category === opt.value ? 'active' : ''}" @click=${() => this._onTypeFilter(opt.value)}>
                 ${opt.label}${this.categoryCounts[opt.value] !== undefined ? html`<span class="chip-count">${this.categoryCounts[opt.value]}</span>` : ''}
               </button>
@@ -1018,7 +1069,18 @@ class BrowseView extends LitElement {
 
       <!-- Content -->
       ${this.loading ? html`
-        <div class="loading"><div class="spinner"></div><div>${t('loading')}</div></div>
+        <div class="skeleton-grid">
+          ${[1,2,3,4,5,6].map(() => html`
+            <div class="skeleton-card">
+              <div class="skeleton-card-img"></div>
+              <div class="skeleton-card-body">
+                <div class="skeleton-line wide"></div>
+                <div class="skeleton-line medium"></div>
+                <div class="skeleton-line" style="width:40%"></div>
+              </div>
+            </div>
+          `)}
+        </div>
       ` : displayRepos.length === 0 ? html`
         <div class="empty">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
