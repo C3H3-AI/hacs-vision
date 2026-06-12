@@ -531,7 +531,7 @@ class HACSEnhancedAPI(HomeAssistantView):
         # Tag counts — orthogonal markers (new / custom / favorites)
         tag_counts = {
             "new": sum(1 for r in repos if r.get("new") or r.get("status") == "new"),
-            "custom": sum(1 for r in repos if r.get("custom")),
+            "custom": sum(1 for r in repos if r.get("custom") or r.get("is_custom")),
         }
         # favorites is client-side, tag_counts.favorites is set on frontend
 
@@ -620,7 +620,7 @@ class HACSEnhancedAPI(HomeAssistantView):
         updates_count = sum(1 for r in repos if r.get("has_update"))
         new_count = sum(1 for r in repos if r.get("new") or r.get("status") == "new")
         pending_restart_count = sum(1 for r in repos if r.get("pending_restart"))
-        custom_count = sum(1 for r in repos if r.get("custom"))
+        custom_count = sum(1 for r in repos if r.get("custom") or r.get("is_custom"))
         # Cross-reference config entries for load_failed count
         entry_domains = {}
         for entry in self.hass.config_entries.async_entries():
@@ -655,7 +655,7 @@ class HACSEnhancedAPI(HomeAssistantView):
 
     async def _get_custom_repos(self) -> web.Response:
         repos = await self.operator.get_all_repos_from_hacs()
-        custom = [r for r in repos if r.get("custom")]
+        custom = [r for r in repos if r.get("custom") or r.get("is_custom")]
         return web.json_response({"custom_repositories": custom})
 
     async def _export_backup(self) -> web.Response:

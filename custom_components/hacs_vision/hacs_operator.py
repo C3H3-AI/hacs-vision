@@ -452,6 +452,7 @@ class HACSOperator:
                         "new": getattr(repo.data, 'new', False),
                         "topics": getattr(repo.data, 'topics', []) or [],
                         "custom": is_custom,
+                        "is_custom": is_custom,
                         "domain": getattr(repo.data, 'domain', None),
                         "releases": getattr(repo.data, 'releases', None),
                         "config_entry_id": await self._find_config_entry_id(getattr(repo.data, 'domain', None)),
