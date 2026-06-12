@@ -376,7 +376,7 @@ class HACSOperator:
             for i, repo in enumerate(repo_list):
                 try:
                     installed_ver = repo.data.installed_version
-                    latest_ver = repo.display_available_version or getattr(repo.data, 'available_version', None)
+                    latest_ver = repo.display_available_version or getattr(repo.data, 'available_version', None) or getattr(repo.data, 'last_version', None)
                     has_update = bool(installed_ver and latest_ver and installed_ver != latest_ver)
 
                     display_installed = (
@@ -467,21 +467,19 @@ class HACSOperator:
         return result
 
     async def get_repo_releases(self, repo_id_or_name: str) -> list[dict]:
-        """Get available releases for a repository."""
+        """Get available releases for a repository — falls back to GitHub API if HACS cache is thin."""
         if not self.available:
             return []
         repo = self._find_repo(repo_id_or_name)
         if not repo:
             return []
+        releases = []
         try:
-            releases = []
             # Try HACS internal releases first
             if hasattr(repo, 'releases') and repo.releases:
-                # RepositoryReleases may or may not be iterable
                 try:
                     releases_iter = iter(repo.releases)
                 except TypeError:
-                    _LOGGER.debug("Repo %s: releases object not iterable", repo_id_or_name)
                     releases_iter = []
                 for release in releases_iter:
                     releases.append({
@@ -490,9 +488,24 @@ class HACSOperator:
                         "prerelease": getattr(release, 'prerelease', False),
                         "published_at": getattr(release, 'published_at', ''),
                     })
-            # If no releases from HACS, try fetching from repo.data
+
+            # If HACS cache is thin (< 3 releases), fetch from GitHub API directly
+            full_name = getattr(repo.data, 'full_name', repo_id_or_name)
+            if len(releases) < 3 and '/' in full_name:
+                try:
+                    gh_releases = await self._fetch_github_releases(full_name)
+                    # Merge: prefer API data, deduplicate by tag_name
+                    seen_tags = {r["tag_name"] for r in releases}
+                    for r in gh_releases:
+                        if r["tag_name"] not in seen_tags:
+                            releases.append(r)
+                            seen_tags.add(r["tag_name"])
+                    releases.sort(key=lambda r: r.get("published_at", ""), reverse=True)
+                except Exception as e:
+                    _LOGGER.debug("GitHub API fetch for %s failed: %s", full_name, e)
+
+            # Last resort: at least show last_version
             if not releases and hasattr(repo.data, 'last_version') and repo.data.last_version:
-                # At least show the latest version
                 releases.append({
                     "tag_name": repo.data.last_version,
                     "name": repo.data.last_version,
@@ -503,6 +516,41 @@ class HACSOperator:
         except Exception as e:
             _LOGGER.error("get_repo_releases error: %s", e)
             return []
+
+    async def _fetch_github_releases(self, full_name: str) -> list[dict]:
+        """Fetch releases from GitHub API."""
+        try:
+            import aiohttp
+            headers = {"Accept": "application/vnd.github.v3+json"}
+            token = self._get_github_token()
+            if token:
+                headers["Authorization"] = f"token {token}"
+            url = f"https://api.github.com/repos/{full_name}/releases?per_page=20"
+            async with aiohttp.ClientSession() as session:
+                async with session.get(url, headers=headers, timeout=aiohttp.ClientTimeout(total=15)) as resp:
+                    if resp.status == 200:
+                        data = await resp.json()
+                        return [{
+                            "tag_name": r.get("tag_name", ""),
+                            "name": r.get("name", ""),
+                            "prerelease": r.get("prerelease", False),
+                            "published_at": r.get("published_at", ""),
+                        } for r in data]
+                    _LOGGER.debug("GitHub API returned %d for %s", resp.status, full_name)
+        except Exception as e:
+            _LOGGER.debug("_fetch_github_releases error: %s", e)
+        return []
+
+    def _get_github_token(self) -> str | None:
+        """Get GitHub token from HACS config entry."""
+        try:
+            for entry in self.hass.config_entries.async_entries("hacs"):
+                token = entry.data.get("token")
+                if token:
+                    return token
+        except Exception:
+            pass
+        return None
 
     async def install_repository_version(self, repo_id_or_name: str, version: str | None = None) -> dict:
         """Install a specific version of a repository."""
@@ -542,36 +590,50 @@ class HACSOperator:
         }
 
     async def refresh_repositories(self) -> dict:
-        """Refresh HACS repository data with fallback methods."""
+        """Refresh HACS repository data — concurrent update with rate-limit awareness."""
         if not self.available:
             return {"success": False, "error": "HACS not available"}
 
-        # Call HACS's internal refresh methods
-        refresh_ok = False
-        methods = [
-            lambda: self._hacs.async_update_downloaded_custom_repositories(),
-            lambda: self._hacs.data.async_update_downloaded_custom_repositories(),
-        ]
-        for method in methods:
-            try:
-                await method()
-                refresh_ok = True
-                break
-            except AttributeError:
-                continue
-            except (ConnectionError, TimeoutError, OSError) as e:
-                _LOGGER.warning("Refresh network error: %s", e, exc_info=True)
-                continue
-            except Exception as e:
-                _LOGGER.warning("Refresh method failed: %s", e, exc_info=True)
-                continue
-
-        # Step 4: Re-register hacs-vision after HACS refresh (HACS may have cleared it)
         await self._ensure_custom_repos_registered()
 
+        repos = list(self._hacs.repositories.list_downloaded)
+        if not repos:
+            self.invalidate_index()
+            return {"success": True, "updated": 0, "errors": []}
+
+        updated = 0
+        errors = []
+        rate_limited = False
+
+        # Limit concurrency to 5 to avoid hammering GitHub API
+        sem = asyncio.Semaphore(5)
+
+        async def _update_one(repo):
+            nonlocal updated, rate_limited
+            async with sem:
+                try:
+                    await repo.update_repository(ignore_issues=True)
+                    updated += 1
+                except (ConnectionError, TimeoutError, OSError) as e:
+                    errors.append(f"{repo.data.full_name}: network error: {e}")
+                except Exception as e:
+                    err_str = str(e)
+                    if "403" in err_str or "rate limit" in err_str.lower():
+                        rate_limited = True
+                    errors.append(f"{repo.data.full_name}: {type(e).__name__}: {e[:120]}")
+
+        await asyncio.gather(*[_update_one(r) for r in repos])
         self.invalidate_index()
 
-        return {"success": refresh_ok, "error": None if refresh_ok else "All refresh methods failed"}
+        _LOGGER.info("Refresh: updated %d/%d repos, %d errors, rate_limited=%s",
+                     updated, len(repos), len(errors), rate_limited)
+        return {
+            "success": not rate_limited,
+            "updated": updated,
+            "total": len(repos),
+            "errors": errors[:5],
+            "rate_limited": rate_limited,
+        }
 
     async def add_custom_repository(self, full_name: str, category: str) -> dict:
         """Add a custom repository to HACS."""

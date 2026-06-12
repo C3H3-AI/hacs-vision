@@ -14,6 +14,7 @@ from .hacs_data import HACSData
 from .hacs_operator import HACSOperator
 from .backup import BackupManager
 from .dependency_checker import DependencyChecker
+from .entity_ref_finder import EntityRefFinder
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -78,12 +79,10 @@ class HACSEnhancedAPI(HomeAssistantView):
     def __init__(self, hass, data: HACSData | None = None, operator: HACSOperator | None = None,
                  backup: BackupManager | None = None, checker: DependencyChecker | None = None) -> None:
         self.hass = hass
-        # N3: Accept shared instances from __init__.py
         self.data = data or HACSData(hass)
         self.operator = operator or HACSOperator(hass, shared_data=self.data)
         self.backup = backup or BackupManager(hass, shared_data=self.data, operator=self.operator)
         self.checker = checker or DependencyChecker(hass, shared_data=self.data)
-        # Shared aiohttp session for GitHub API calls (reuse TCP connections)
         self._session: aiohttp.ClientSession | None = None
         self._github_token: str | None = None
 
@@ -143,6 +142,9 @@ class HACSEnhancedAPI(HomeAssistantView):
             return await self._get_favorites()
         if path in ("settings", "settings/"):
             return await self._get_settings()
+        if path.startswith("devices/"):
+            entry_id = path.split("/", 1)[1]
+            return await self._get_devices(entry_id)
         if path in ("config_entries", "config_entries/"):
             return await self._get_config_entries()
         if path == "config_flow/handlers":
@@ -156,6 +158,8 @@ class HACSEnhancedAPI(HomeAssistantView):
         if path.startswith("config_entries/subentries/"):
             entry_id = path.split("/")[-1]
             return await self._get_subentries(request, entry_id)
+        if path == "entity_refs/find":
+            return await self._entity_refs_find(query)
 
         return web.json_response({"error": "not_found"}, status=404)
 
@@ -202,6 +206,10 @@ class HACSEnhancedAPI(HomeAssistantView):
             return await self._batch_remove(body)
         if path in ("check_updates", "check_updates/"):
             return await self._check_updates_with_notification()
+        if path in ("entity_refs/replace", "entity_refs/replace/"):
+            return await self._entity_refs_replace(body)
+        if path in ("entity_refs/reload", "entity_refs/reload/"):
+            return await self._entity_refs_reload()
         # ── Config Flow proxy ──
         if path == "config_flow/start":
             return await self._config_flow_start(request, body)
@@ -795,13 +803,13 @@ class HACSEnhancedAPI(HomeAssistantView):
         if not repo_id:
             return web.json_response({"error": "id required"}, status=400)
         releases = await self.operator.get_repo_releases(repo_id)
-        # If HACS internal has no releases, try GitHub API
-        if not releases:
+        # Supplement from GitHub API if operator returned too few
+        if len(releases) < 3:
             repo = self.operator._find_repo(repo_id)
             if repo and repo.data.full_name:
                 try:
                     session = await self._get_session()
-                    url = f"https://api.github.com/repos/{repo.data.full_name}/releases?per_page=10"
+                    url = f"https://api.github.com/repos/{repo.data.full_name}/releases?per_page=20"
                     gh_headers = {"Accept": "application/vnd.github.v3+json"}
                     token = self._get_github_token()
                     if token:
@@ -809,13 +817,18 @@ class HACSEnhancedAPI(HomeAssistantView):
                     async with session.get(url, headers=gh_headers) as resp:
                         if resp.status == 200:
                             data = await resp.json()
+                            seen_tags = {r["tag_name"] for r in releases}
                             for release in data:
-                                releases.append({
-                                    "tag_name": release.get("tag_name", ""),
-                                    "name": release.get("name", ""),
-                                    "prerelease": release.get("prerelease", False),
-                                    "published_at": release.get("published_at", ""),
-                                })
+                                tag = release.get("tag_name", "")
+                                if tag not in seen_tags:
+                                    releases.append({
+                                        "tag_name": tag,
+                                        "name": release.get("name", ""),
+                                        "prerelease": release.get("prerelease", False),
+                                        "published_at": release.get("published_at", ""),
+                                    })
+                                    seen_tags.add(tag)
+                            releases.sort(key=lambda r: r.get("published_at", ""), reverse=True)
                 except Exception as e:
                     _LOGGER.warning("GitHub releases fetch failed for %s: %s", repo.data.full_name, e)
         return web.json_response({"releases": releases})
@@ -1055,6 +1068,73 @@ class HACSEnhancedAPI(HomeAssistantView):
         ok = await self.data.set_settings(body)
         return web.json_response({"success": ok})
 
+    async def _get_devices(self, entry_id: str) -> web.Response:
+        """Get devices & entities for a config entry, grouped by area."""
+        try:
+            from homeassistant.helpers import device_registry as dr, entity_registry as er
+            import json
+
+            device_reg = dr.async_get(self.hass)
+            entity_reg = er.async_get(self.hass)
+
+            # Get all devices for this config entry
+            devices = []
+            for device in device_reg.devices.values():
+                if entry_id not in device.config_entries:
+                    continue
+                # Get entities for this device
+                entities = []
+                for entity_entry in entity_reg.entities.values():
+                    if entity_entry.device_id != device.id:
+                        continue
+                    state = self.hass.states.get(entity_entry.entity_id)
+                    entities.append({
+                        "entity_id": entity_entry.entity_id,
+                        "name": entity_entry.name or entity_entry.original_name,
+                        "state": state.state if state else None,
+                        "icon": entity_entry.icon or entity_entry.original_icon,
+                        "unit": entity_entry.unit_of_measurement,
+                        "domain": entity_entry.domain,
+                        "disabled": entity_entry.disabled_by is not None,
+                    })
+                entities.sort(key=lambda e: (e["disabled"], e["entity_id"]))
+
+                area_name = None
+                if device.area_id:
+                    try:
+                        from homeassistant.helpers import area_registry as ar
+                        area_reg = ar.async_get(self.hass)
+                        area = area_reg.async_get_area(device.area_id)
+                        if area:
+                            area_name = area.name
+                    except Exception:
+                        pass
+
+                devices.append({
+                    "id": device.id,
+                    "name": device.name_by_user or device.name,
+                    "model": device.model,
+                    "manufacturer": device.manufacturer,
+                    "area": area_name,
+                    "entities": entities,
+                })
+
+            # Group by area
+            groups = {}
+            for dev in devices:
+                area = dev.pop("area") or "其他"
+                groups.setdefault(area, []).append(dev)
+
+            # Sort: named areas first, "其他" last
+            sorted_groups = sorted(groups.items(), key=lambda x: (x[0] == "其他", x[0] or ""))
+
+            return web.json_response({
+                "groups": [{"area": area, "devices": devs} for area, devs in sorted_groups]
+            })
+        except Exception as e:
+            _LOGGER.error("Failed to get devices: %s", e, exc_info=True)
+            return web.json_response({"error": str(e)}, status=500)
+
     async def _get_config_entries(self) -> web.Response:
         """Get HA config entries map for installed integrations."""
         mapping = await self.data.get_config_entries_map()
@@ -1166,6 +1246,60 @@ class HACSEnhancedAPI(HomeAssistantView):
             _LOGGER.error("Check updates+notify failed: %s", e, exc_info=True)
             return web.json_response({"success": False, "error": str(e)}, status=500)
 
+    # ── Entity Reference Finder ─────────────────────────
+
+    async def _entity_refs_find(self, query) -> web.Response:
+        """Find all references to an entity_id."""
+        entity_id = query.get("q", "")
+        if not entity_id:
+            return web.json_response({"error": "q (entity_id) required"}, status=400)
+        try:
+            finder = EntityRefFinder(self.hass)
+            refs = await finder.find(entity_id)
+            # Group by source_type
+            by_type: dict[str, list] = {}
+            for r in refs:
+                by_type.setdefault(r["source_type"], []).append(r)
+            return web.json_response({
+                "entity_id": entity_id,
+                "total": len(refs),
+                "affected_sources": len({(r["source_type"], r["source_id"]) for r in refs}),
+                "by_type": by_type,
+                "references": refs,
+            })
+        except Exception as e:
+            _LOGGER.error("Entity refs find failed: %s", e, exc_info=True)
+            return web.json_response({"success": False, "error": str(e)}, status=500)
+
+    async def _entity_refs_replace(self, body: dict) -> web.Response:
+        """Replace entity_id references (preview or execute)."""
+        old_id = body.get("old_id", "")
+        new_id = body.get("new_id", "")
+        preview = body.get("preview", True)
+        if not old_id or not new_id:
+            return web.json_response({"error": "old_id and new_id required"}, status=400)
+        try:
+            finder = EntityRefFinder(self.hass)
+            result = await finder.replace(old_id, new_id, preview=preview)
+            if not preview and result.get("total_updated", 0) > 0:
+                # Auto-reload affected components
+                reload_result = await finder.reload_affected()
+                result["reload"] = reload_result
+            return web.json_response(result)
+        except Exception as e:
+            _LOGGER.error("Entity refs replace failed: %s", e, exc_info=True)
+            return web.json_response({"success": False, "error": str(e)}, status=500)
+
+    async def _entity_refs_reload(self) -> web.Response:
+        """Reload automations/scripts/scenes after manual changes."""
+        try:
+            finder = EntityRefFinder(self.hass)
+            result = await finder.reload_affected()
+            return web.json_response(result)
+        except Exception as e:
+            _LOGGER.error("Entity refs reload failed: %s", e, exc_info=True)
+            return web.json_response({"success": False, "error": str(e)}, status=500)
+
     async def _restart(self) -> web.Response:
         """Restart Home Assistant via homeassistant.restart service."""
         try:
@@ -1174,3 +1308,28 @@ class HACSEnhancedAPI(HomeAssistantView):
         except Exception as e:
             _LOGGER.error("Restart failed: %s", e, exc_info=True)
             return web.json_response({"success": False, "error": str(e)}, status=500)
+
+
+class HACSBrandIconView(HomeAssistantView):
+    """Serve custom component brand icons (no auth - for <img> tags)."""
+
+    url = "/api/hacs_vision_brand/{domain:.*}"
+    name = "api:hacs_vision_brand"
+    requires_auth = False
+
+    def __init__(self, hass):
+        self.hass = hass
+
+    async def get(self, request, domain):
+        import os
+        safe_domain = domain.replace("..", "").replace("/", "").replace("\\", "")
+        if not safe_domain or safe_domain != domain:
+            return web.Response(status=404)
+        base = self.hass.config.path("custom_components", safe_domain, "brand")
+        for ext in ("png", "svg"):
+            path = os.path.join(base, f"icon.{ext}")
+            if os.path.isfile(path):
+                content_type = "image/svg+xml" if ext == "svg" else "image/png"
+                with open(path, "rb") as f:
+                    return web.Response(body=f.read(), content_type=content_type)
+        return web.Response(status=404)

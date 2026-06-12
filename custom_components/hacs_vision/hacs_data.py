@@ -214,8 +214,91 @@ class HACSData:
         return await self.write_storage("settings", {"data": settings})
 
     async def get_config_entries_map(self) -> list[dict]:
-        """Get all config entries with subentry_type info for subentry flow support."""
+        """Get all config entries with subentry_type info and translated names."""
         result = []
+        domains = set()
+        for entry in self.hass.config_entries.async_entries():
+            if entry.domain:
+                domains.add(entry.domain)
+
+        # Load translations for all domains at once
+        translations = {}
+        try:
+            from homeassistant.helpers.translation import async_get_translations
+            lang = self.hass.config.language
+            _LOGGER.debug("Loading translations for %d domains (lang=%s)", len(domains), lang)
+
+            # Method 1: Config flow titles from HA translation system
+            trans_data = await async_get_translations(
+                self.hass, lang, "config", list(domains)
+            )
+            for domain in domains:
+                name = trans_data.get(f"component.{domain}.config.title")
+                if name:
+                    translations[domain] = name
+
+            # Method 2: Read translation file directly for root-level title
+            import json, os
+            for domain in domains:
+                if domain in translations:
+                    continue
+                # Try custom_components translations first
+                trans_path = self.hass.config.path(
+                    "custom_components", domain, "translations", f"{lang}.json"
+                )
+                # Try built-in component translations
+                if not os.path.isfile(trans_path):
+                    try:
+                        import homeassistant.components as ha_comp
+                        comp_base = os.path.dirname(
+                            ha_comp.__file__
+                        ) if hasattr(ha_comp, '__file__') and ha_comp.__file__ else None
+                        # Fallback: components folder is relative to homeassistant package
+                        if not comp_base or not os.path.isdir(comp_base):
+                            import homeassistant
+                            comp_base = os.path.join(
+                                os.path.dirname(homeassistant.__file__), "components"
+                            )
+                        if comp_base and os.path.isdir(comp_base):
+                            trans_path = os.path.join(
+                                comp_base, domain, "translations", f"{lang}.json"
+                            )
+                    except Exception:
+                        pass
+
+                if trans_path and os.path.isfile(trans_path):
+                    try:
+                        with open(trans_path) as f:
+                            root = json.load(f)
+                        title = root.get("title") or root.get("name")
+                        if title:
+                            translations[domain] = title
+                    except Exception:
+                        pass
+
+            # Method 3: Fallback to manifest.json name (works for custom integrations)
+            for domain in domains:
+                if domain in translations:
+                    continue
+                # Try custom_components manifest
+                manifest_path = self.hass.config.path(
+                    "custom_components", domain, "manifest.json"
+                )
+                if os.path.isfile(manifest_path):
+                    try:
+                        with open(manifest_path) as f:
+                            manifest = json.load(f)
+                        name = manifest.get("name", "")
+                        if name:
+                            translations[domain] = name
+                    except Exception:
+                        pass
+
+            _LOGGER.debug("Translations loaded: %d/%d domains",
+                          len(translations), len(domains))
+        except Exception as exc:
+            _LOGGER.warning("Failed to load translations: %s", exc)
+
         for entry in self.hass.config_entries.async_entries():
             if entry.domain:
                 entry_state = None
@@ -237,10 +320,13 @@ class HACSData:
                         supports_options = entry.supports_options
                 except Exception:
                     pass
+                if entry_state and "NOT_LOADED" in entry_state:
+                    continue
                 result.append({
                     "domain": entry.domain,
                     "entry_id": entry.entry_id,
                     "title": entry.title,
+                    "translated_name": translations.get(entry.domain),
                     "source": entry.source,
                     "state": entry_state or "loaded",
                     "disabled_by": entry.disabled_by,

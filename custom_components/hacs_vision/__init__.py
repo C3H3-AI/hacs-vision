@@ -23,7 +23,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigType) -> bool:
     """Set up HACS Vision from a config entry."""
-    from .api import HACSEnhancedAPI, HACSEnhancedStaticView
+    from .api import HACSEnhancedAPI, HACSEnhancedStaticView, HACSBrandIconView
     from .hacs_data import HACSData
     from .hacs_operator import HACSOperator
     from .backup import BackupManager
@@ -37,6 +37,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigType) -> bool:
 
     hass.http.register_view(HACSEnhancedStaticView(hass))
     hass.http.register_view(HACSEnhancedAPI(hass, data=shared_data, operator=operator, backup=backup, checker=checker))
+    hass.http.register_view(HACSBrandIconView(hass))
     await _register_panel(hass)
     hass.data.setdefault(DOMAIN, {})["entry"] = entry
 
@@ -147,6 +148,8 @@ async def _register_panel(hass: HomeAssistant) -> None:
 
 def _register_services(hass: HomeAssistant, operator) -> None:
     """Register HA services for HACS Vision."""
+    from .entity_ref_finder import EntityRefFinder
+
     async def handle_refresh(call: ServiceCall) -> None:
         """Handle refresh service call."""
         if operator.available:
@@ -170,12 +173,97 @@ def _register_services(hass: HomeAssistant, operator) -> None:
             except Exception as e:
                 _LOGGER.error("Install service error: %s", e, exc_info=True)
 
+    async def handle_find_entity_refs(call: ServiceCall) -> None:
+        """Handle find_entity_refs service call."""
+        entity_id = call.data.get("entity_id", "")
+        if not entity_id:
+            _LOGGER.error("find_entity_refs: 'entity_id' is required")
+            return
+        try:
+            finder = EntityRefFinder(hass)
+            refs = await finder.find(entity_id)
+            # Send result as persistent notification
+            by_type = {}
+            for r in refs:
+                by_type.setdefault(r["source_type"], []).append(r["source_id"])
+            lines = [f"🔍 {entity_id} 的引用结果：", f"共 {len(refs)} 处引用，涉及 {len({(r['source_type'], r['source_id']) for r in refs})} 个来源\n"]
+            for stype, sids in by_type.items():
+                unique_ids = list(set(sids))
+                lines.append(f"  **{stype}** ({len(unique_ids)} 个)：{', '.join(unique_ids[:5])}")
+                if len(unique_ids) > 5:
+                    lines[-1] += f" …及 {len(unique_ids) - 5} 个其他"
+            await hass.services.async_call(
+                "persistent_notification", "create",
+                {"title": f"HACS Vision - 实体引用查找", "message": "\n".join(lines)},
+                blocking=False,
+            )
+        except Exception as e:
+            _LOGGER.error("find_entity_refs error: %s", e, exc_info=True)
+
+    async def handle_replace_entity_refs(call: ServiceCall) -> None:
+        """Handle replace_entity_refs service call."""
+        old_id = call.data.get("old_id", "")
+        new_id = call.data.get("new_id", "")
+        preview = call.data.get("preview", True)
+        if not old_id or not new_id:
+            _LOGGER.error("replace_entity_refs: 'old_id' and 'new_id' are required")
+            return
+        try:
+            finder = EntityRefFinder(hass)
+            result = await finder.replace(old_id, new_id, preview=preview)
+            if not preview and result.get("total_updated", 0) > 0:
+                reload_result = await finder.reload_affected()
+                result["reload"] = reload_result
+            # Send result as persistent notification
+            if preview:
+                msg = (
+                    f"📋 **预览**：替换 {old_id} → {new_id}\n"
+                    f"共 {result['total_refs']} 处引用，{result['affected_count']} 个来源受影响\n\n"
+                    f"发送 `preview: false` 以执行替换"
+                )
+            else:
+                updated = result.get("updated", {})
+                total = result.get("total_updated", 0)
+                reload = result.get("reload", {})
+                msg = (
+                    f"✅ **已执行替换** {old_id} → {new_id}\n"
+                    f"共更新 {total} 处\n"
+                    f"自动化: {len(updated.get('automations', []))} 个\n"
+                    f"脚本: {len(updated.get('scripts', []))} 个\n"
+                    f"场景: {len(updated.get('scenes', []))} 个\n"
+                    f"仪表盘: {len(updated.get('dashboards', []))} 个\n"
+                    f"重载状态: 自动化{'✅' if reload.get('automations') else '❌'} "
+                    f"脚本{'✅' if reload.get('scripts') else '❌'} "
+                    f"场景{'✅' if reload.get('scenes') else '❌'}"
+                )
+            await hass.services.async_call(
+                "persistent_notification", "create",
+                {"title": f"HACS Vision - 实体引用替换", "message": msg},
+                blocking=False,
+            )
+        except Exception as e:
+            _LOGGER.error("replace_entity_refs error: %s", e, exc_info=True)
+
     hass.services.async_register(DOMAIN, "refresh", handle_refresh)
     hass.services.async_register(
         DOMAIN, "install_repository", handle_install_repository,
         schema=vol.Schema({
             vol.Required("repository"): cv.string,
             vol.Optional("category", default="integration"): cv.string,
+        }),
+    )
+    hass.services.async_register(
+        DOMAIN, "find_entity_refs", handle_find_entity_refs,
+        schema=vol.Schema({
+            vol.Required("entity_id"): cv.string,
+        }),
+    )
+    hass.services.async_register(
+        DOMAIN, "replace_entity_refs", handle_replace_entity_refs,
+        schema=vol.Schema({
+            vol.Required("old_id"): cv.string,
+            vol.Required("new_id"): cv.string,
+            vol.Optional("preview", default=True): cv.boolean,
         }),
     )
 
@@ -216,6 +304,8 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigType) -> bool:
     # 4. Remove all services
     hass.services.async_remove(DOMAIN, "refresh")
     hass.services.async_remove(DOMAIN, "install_repository")
+    hass.services.async_remove(DOMAIN, "find_entity_refs")
+    hass.services.async_remove(DOMAIN, "replace_entity_refs")
 
     # 5. Clean up data
     try:
