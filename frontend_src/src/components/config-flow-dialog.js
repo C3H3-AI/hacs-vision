@@ -1122,10 +1122,12 @@ class ConfigFlowDialog extends LitElement {
           </div>
         `;
       }
+      const isChecked = defaultValue === true || defaultValue === 'true'
+        || defaultValue === 1 || defaultValue === '1';
       return html`
         <div class="form-field">
           <label class="checkbox-label">
-            <input type="checkbox" name=${name} ?checked=${defaultValue === true || defaultValue === 'true'}>
+            <input type="checkbox" name=${name} ?checked=${isChecked}>
             <span>${label !== schema.name.replace(/_/g, ' ') ? label : (fieldDesc || label)}</span>
           </label>
           ${error ? html`<div class="form-error">${error}</div>` : ''}
@@ -1136,8 +1138,8 @@ class ConfigFlowDialog extends LitElement {
     // Number / integer — also handles selector.number / selector.integer
     if (type === 'integer' || type === 'number' || selectorType === 'number' || selectorType === 'integer') {
       const step = selector.number?.step || (type === 'integer' ? 1 : 'any');
-      const min = selector.number?.min;
-      const max = selector.number?.max;
+      const min = selector.number?.min ?? schema.valueMin ?? schema.minimum ?? '';
+      const max = selector.number?.max ?? schema.valueMax ?? schema.maximum ?? '';
       return html`
         <div class="form-field">
           <label>${label}${required ? ' *' : ''}</label>
