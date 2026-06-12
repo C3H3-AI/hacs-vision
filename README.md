@@ -4,8 +4,8 @@
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://github.com/hacs/integration)
 [![GitHub Release](https://img.shields.io/github/v/release/C3H3-AI/hacs-vision)](https://github.com/C3H3-AI/hacs-vision/releases)
 
-> **当前版本**: v2.3.1 | **最低 HA 版本**: 2024.1.0
-> **Current version**: v2.3.1 | **Minimum HA**: 2024.1.0
+> **当前版本**: v2.3.2 | **最低 HA 版本**: 2024.1.0
+> **Current version**: v2.3.2 | **Minimum HA**: 2024.1.0
 
 [![Downloads](https://img.shields.io/github/downloads/C3H3-AI/hacs-vision/total)](https://github.com/C3H3-AI/hacs-vision/releases)
 
@@ -164,6 +164,10 @@ Configure panel behavior, check version info, restart HA, or add new HA integrat
 ---
 
 ## 更新日志 / Changelog
+
+### v2.3.2 (2026-06-12)
+- **Fix**: 自定义仓库筛选无效 — 后端返回字段 `"custom"` 与前端读取 `is_custom` 不一致，现已对齐（双字段兼容）
+- **Chore**: 同步版本号 v2.3.2
 
 ### v2.3.1 (2026-06-12)
 - **Fix**: 补回 v2.3.0 release 缺失的 `entity_ref_finder.py`，修复集成加载 `ModuleNotFoundError`
