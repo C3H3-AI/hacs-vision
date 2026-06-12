@@ -177,7 +177,7 @@ class EntityRefFinder:
                     await self._save_auto_config(r.source_id, config)
                     updated["automations"].append(r.source_id)
             except Exception as e:
-                _LOGGER.error("Failed to update automation %s: %s", r.source_id, e)
+                _LOGGER.error("Failed to update automation %s: %s", r.source_id, e, exc_info=True)
 
         # Update scripts
         for r in script_refs:
@@ -187,7 +187,7 @@ class EntityRefFinder:
                     await self._save_script_config(r.source_id, config)
                     updated["scripts"].append(r.source_id)
             except Exception as e:
-                _LOGGER.error("Failed to update script %s: %s", r.source_id, e)
+                _LOGGER.error("Failed to update script %s: %s", r.source_id, e, exc_info=True)
 
         # Update scenes
         for r in scene_refs:
@@ -197,7 +197,7 @@ class EntityRefFinder:
                     await self._save_scene_config(r.source_id, config)
                     updated["scenes"].append(r.source_id)
             except Exception as e:
-                _LOGGER.error("Failed to update scene %s: %s", r.source_id, e)
+                _LOGGER.error("Failed to update scene %s: %s", r.source_id, e, exc_info=True)
 
         # Update dashboards
         updated_dashboards = await self._update_dashboards(dash_refs, old_id, new_id)
@@ -218,17 +218,17 @@ class EntityRefFinder:
             await self.hass.services.async_call("automation", "reload", blocking=True)
             result["automations"] = True
         except Exception as e:
-            _LOGGER.error("Failed to reload automations: %s", e)
+            _LOGGER.error("Failed to reload automations: %s", e, exc_info=True)
         try:
             await self.hass.services.async_call("script", "reload", blocking=True)
             result["scripts"] = True
         except Exception as e:
-            _LOGGER.error("Failed to reload scripts: %s", e)
+            _LOGGER.error("Failed to reload scripts: %s", e, exc_info=True)
         try:
             await self.hass.services.async_call("scene", "reload", blocking=True)
             result["scenes"] = True
         except Exception as e:
-            _LOGGER.error("Failed to reload scenes: %s", e)
+            _LOGGER.error("Failed to reload scenes: %s", e, exc_info=True)
         return result
 
     # ── Scan implementations ─────────────────────────────
@@ -484,32 +484,52 @@ class EntityRefFinder:
 
     # ── HA Config API helpers ────────────────────────────
 
+    def _read_storage_file(self, filename: str) -> dict | None:
+        """Read a .storage JSON file directly."""
+        try:
+            path = self.hass.config.path(".storage", filename)
+            with open(path, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception:
+            return None
+
     async def _get_auto_config(self, entity_id: str) -> dict | None:
         """Get automation config via HA API."""
+        # Method 1: state.attributes["config"] (HA <2025.7)
         try:
             state = self.hass.states.get(entity_id)
             if state and "config" in state.attributes:
                 return dict(state.attributes["config"])
         except Exception:
             pass
+        # Method 2: hass.data automation_config (HA internal)
         try:
-            # Fallback: try REST API
             config = self.hass.data.get("automation_config", {})
             if entity_id in config:
                 return dict(config[entity_id])
+        except Exception:
+            pass
+        # Method 3: read .storage file directly (HA 2025.7+)
+        try:
+            auto_id = entity_id.split(".", 1)[1] if "." in entity_id else entity_id
+            storage_data = self._read_storage_file(f"automation.{auto_id}")
+            if storage_data and "config" in storage_data:
+                return dict(storage_data["config"])
         except Exception:
             pass
         return None
 
     async def _save_auto_config(self, entity_id: str, config: dict) -> bool:
         """Save automation config via HA API."""
+        auto_id = entity_id.split(".", 1)[1] if "." in entity_id else entity_id
         try:
-            # Use config/automation/config/{id} endpoint
-            auto_id = entity_id.split(".", 1)[1] if "." in entity_id else entity_id
             await self.hass.services.async_call(
                 "automation", "turn_off", {"entity_id": entity_id}, blocking=False
             )
-            # Save config via WebSocket API
+        except Exception:
+            pass
+        # Method 1: internal API (HA <2025.9)
+        try:
             from homeassistant.components.automation.config import (
                 async_set_automation_config,
             )
@@ -517,8 +537,22 @@ class EntityRefFinder:
                 self.hass, auto_id, config, source="storage"
             )
             return True
+        except Exception:
+            pass
+        # Method 2: REST API fallback (HA 2025.9+)
+        try:
+            import requests as req
+            token = self.hass.data.get("hacs_vision_token", "")
+            headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+            api_config = dict(config)
+            api_config["id"] = auto_id
+            resp = req.post(
+                f"http://localhost:8123/api/config/automation/config/{auto_id}",
+                json=config, headers=headers, timeout=10
+            )
+            return resp.status_code == 200
         except Exception as e:
-            _LOGGER.error("Save auto config failed: %s", e)
+            _LOGGER.error("Save auto config failed: %s", e, exc_info=True)
             return False
 
     async def _get_script_config(self, entity_id: str) -> dict | None:
@@ -529,12 +563,19 @@ class EntityRefFinder:
                 return dict(state.attributes["config"])
         except Exception:
             pass
+        try:
+            script_id = entity_id.split(".", 1)[1] if "." in entity_id else entity_id
+            storage_data = self._read_storage_file(f"script.{script_id}")
+            if storage_data and "config" in storage_data:
+                return dict(storage_data["config"])
+        except Exception:
+            pass
         return None
 
     async def _save_script_config(self, entity_id: str, config: dict) -> bool:
         """Save script config via HA API."""
+        script_id = entity_id.split(".", 1)[1] if "." in entity_id else entity_id
         try:
-            script_id = entity_id.split(".", 1)[1] if "." in entity_id else entity_id
             from homeassistant.components.script.config import (
                 async_set_script_config,
             )
@@ -543,7 +584,7 @@ class EntityRefFinder:
             )
             return True
         except Exception as e:
-            _LOGGER.error("Save script config failed: %s", e)
+            _LOGGER.error("Save script config failed: %s", e, exc_info=True)
             return False
 
     async def _get_scene_config(self, entity_id: str) -> dict | None:
@@ -554,12 +595,19 @@ class EntityRefFinder:
                 return dict(state.attributes["config"])
         except Exception:
             pass
+        try:
+            scene_id = entity_id.split(".", 1)[1] if "." in entity_id else entity_id
+            storage_data = self._read_storage_file(f"scene.{scene_id}")
+            if storage_data and "config" in storage_data:
+                return dict(storage_data["config"])
+        except Exception:
+            pass
         return None
 
     async def _save_scene_config(self, entity_id: str, config: dict) -> bool:
         """Save scene config via HA API."""
+        scene_id = entity_id.split(".", 1)[1] if "." in entity_id else entity_id
         try:
-            scene_id = entity_id.split(".", 1)[1] if "." in entity_id else entity_id
             from homeassistant.components.scene.config import (
                 async_set_scene_config,
             )
@@ -568,7 +616,7 @@ class EntityRefFinder:
             )
             return True
         except Exception as e:
-            _LOGGER.error("Save scene config failed: %s", e)
+            _LOGGER.error("Save scene config failed: %s", e, exc_info=True)
             return False
 
     async def _get_dash_config(self, url_path: str | None) -> dict | None:
@@ -617,6 +665,6 @@ class EntityRefFinder:
                         await store.async_save({"config": raw_config})
                         updated.append(url_path)
             except Exception as e:
-                _LOGGER.error("Update dashboard %s failed: %s", url_path, e)
+                _LOGGER.error("Update dashboard %s failed: %s", url_path, e, exc_info=True)
 
         return updated
