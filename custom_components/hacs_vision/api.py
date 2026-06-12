@@ -1311,7 +1311,13 @@ class HACSEnhancedAPI(HomeAssistantView):
 
 
 class HACSBrandIconView(HomeAssistantView):
-    """Serve custom component brand icons (no auth - for <img> tags)."""
+    """Serve custom component brand icons (no auth - for <img> tags).
+
+    Supports:
+      /api/hacs_vision_brand/{domain}        -> icon.png / icon.svg
+      /api/hacs_vision_brand/{domain}/icon   -> icon.png / icon.svg
+      /api/hacs_vision_brand/{domain}/logo   -> logo.png / logo.svg
+    """
 
     url = "/api/hacs_vision_brand/{domain:.*}"
     name = "api:hacs_vision_brand"
@@ -1325,9 +1331,15 @@ class HACSBrandIconView(HomeAssistantView):
         safe_domain = domain.replace("..", "").replace("/", "").replace("\\", "")
         if not safe_domain or safe_domain != domain:
             return web.Response(status=404)
-        base = self.hass.config.path("custom_components", safe_domain, "brand")
+
+        # Parse path: could be "cn_im_hub" or "cn_im_hub/icon" or "cn_im_hub/logo"
+        parts = safe_domain.split("/")
+        actual_domain = parts[0]
+        asset_type = parts[1] if len(parts) > 1 else "icon"
+
+        base = self.hass.config.path("custom_components", actual_domain, "brand")
         for ext in ("png", "svg"):
-            path = os.path.join(base, f"icon.{ext}")
+            path = os.path.join(base, f"{asset_type}.{ext}")
             if os.path.isfile(path):
                 content_type = "image/svg+xml" if ext == "svg" else "image/png"
                 with open(path, "rb") as f:

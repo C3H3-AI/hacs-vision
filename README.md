@@ -4,8 +4,8 @@
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://github.com/hacs/integration)
 [![GitHub Release](https://img.shields.io/github/v/release/C3H3-AI/hacs-vision)](https://github.com/C3H3-AI/hacs-vision/releases)
 
-> **当前版本**: v2.2.0 | **最低 HA 版本**: 2024.1.0
-> **Current version**: v2.2.0 | **Minimum HA**: 2024.1.0
+> **当前版本**: v2.3.1 | **最低 HA 版本**: 2024.1.0
+> **Current version**: v2.3.1 | **Minimum HA**: 2024.1.0
 
 [![Downloads](https://img.shields.io/github/downloads/C3H3-AI/hacs-vision/total)](https://github.com/C3H3-AI/hacs-vision/releases)
 
@@ -34,6 +34,12 @@
 - **📊 状态统计** — 实时展示已安装/可更新/收藏数量
 - **🔔 通知系统** — 有新更新时自动通知，缓存策略优化
 - **📱 响应式设计** — 桌面端和移动端均优化，触控目标 44px 规范
+- **🧩 集成管理视图** — 卡片网格展示所有已安装集成（含 HACS 安装的仓库），中文搜索、状态筛选、集成类型分组
+- **🔍 设备与实体下钻** — 集成卡片点击展开 → 按区域分组的设备列表 → 实体实时状态与属性
+- **🎮 实体一键控制** — 开关、灯、锁、窗帘、风扇等常见域直接在面板中控制
+- **🏷️ 中文名翻译** — HA 官方 + 自定义集成自动显示中文名称（从 brands 或 manifest 读取）
+- **🎨 品牌图标** — CDN → 本地自定义图标 → 首字母 fallback 三级加载
+- **🔗 EntityRefFinder** — 查找 HA 中所有对指定 entity_id 的引用（自动化、脚本、场景、面板），支持一键替换
 
 <!-- en -->
 - **🛒 Store Browsing** — Search, category filter, multi-dimensional sorting, favorites. Card/list dual views
@@ -44,6 +50,12 @@
 - **📊 Stats** — Real-time installed/updateable/favorite counts
 - **🔔 Notifications** — Auto-notify on available updates with optimized caching
 - **📱 Responsive** — Desktop and mobile optimized, 44px touch targets
+- **🧩 Integration Management View** — Card grid of all installed integrations with Chinese search, status filter, category grouping
+- **🔍 Device & Entity Drill-down** — Click integration card → device list grouped by area → entity real-time state & attributes
+- **🎮 One-Click Entity Control** — Toggle switches, lights, locks, covers, fans directly from panel
+- **🏷️ Chinese Name Translation** — Auto-display Chinese names for official & custom integrations (from brands or manifest)
+- **🎨 Brand Icons** — CDN → local custom icon → first-letter fallback, three-level loading
+- **🔗 EntityRefFinder** — Find all references to an entity_id across HA (automations, scripts, scenes, dashboards), with one-click replace
 
 ---
 
@@ -153,6 +165,22 @@ Configure panel behavior, check version info, restart HA, or add new HA integrat
 
 ## 更新日志 / Changelog
 
+### v2.3.1 (2026-06-12)
+- **Fix**: 补回 v2.3.0 release 缺失的 `entity_ref_finder.py`，修复集成加载 `ModuleNotFoundError`
+- **Chore**: 同步版本号 v2.3.1，更新 README
+
+### v2.3.0 (2026-06-12)
+- **New**: 🧩 集成管理视图 — 卡片网格展示所有已安装集成，中文搜索、状态筛选、集成类型分组
+- **New**: 🔍 设备与实体下钻 — 集成卡片点击展开 → 按区域分组的设备列表 → 实体实时状态
+- **New**: 🎮 实体一键控制 — 开关、灯、锁、窗帘、风扇等常见域直接在面板中控制
+- **New**: 🏷️ 中文名翻译 — HA 官方 + 自定义集成自动显示中文名称（从 brands / manifest 读取）
+- **New**: 🎨 品牌图标 — 三级加载：CDN → 本地自定义图标（`custom_components/{domain}/brand/`） → 首字母 fallback
+- **New**: 🔗 EntityRefFinder — `EntityRefFinder` 类，扫描 HA 中所有对指定 entity_id 的引用（自动化/脚本/场景/面板），支持 preview 替换模式和一键替换
+- **Enhance**: HACSBrandIconView 支持 `/icon`、`/logo` 子路径解析，修复域名带 `_` 时的路径提取
+- **Enhance**: `get_all_repos_from_hacs()` 返回字段增加 `default_branch`
+- **Fix**: `api.py` 品牌图标静态资源路径优化，使用 `actual_domain` 而非原始 `safe_domain`
+- **Chore**: 更新 `const.py` version → 2.3.0，同步 `manifest.json`
+
 ### v2.1.2 (2026-06-11)
 - **New**: 集成配置弹窗自动加载中文本地化翻译 — 通过后端 API 读取 `custom_components/{domain}/translations/zh-Hans.json`，支持 config flow 和 options flow 的所有翻译点（字段标签、描述、占位符、菜单选项、步骤标题）
 - **Fix**: `_handleDetail` 无限递归导致 `Maximum call stack size exceeded` 崩溃
@@ -206,6 +234,7 @@ hacs-vision/
 │   ├── config_flow.py                 # HA 配置流
 │   ├── backup.py                      # 备份/恢复
 │   ├── dependency_checker.py          # 依赖检查
+│   ├── entity_ref_finder.py           # Entity ID 引用查找替换
 │   ├── const.py                       # 常量（VERSION、存储路径等）
 │   ├── frontend/                      # 前端构建产物
 │   │   ├── panel.js                   # IIFE 打包的单文件
@@ -226,6 +255,7 @@ hacs-vision/
 │   │   │   ├── browse.js
 │   │   │   ├── updates.js
 │   │   │   ├── management.js
+│   │   │   ├── integrations-list.js   # 集成管理视图（v2.3.0）
 │   │   │   └── config-view.js
 │   │   └── shared/                    # 共享工具
 │   ├── package.json

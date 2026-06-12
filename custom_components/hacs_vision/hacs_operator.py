@@ -455,6 +455,7 @@ class HACSOperator:
                         "domain": getattr(repo.data, 'domain', None),
                         "releases": getattr(repo.data, 'releases', None),
                         "config_entry_id": await self._find_config_entry_id(getattr(repo.data, 'domain', None)),
+                        "default_branch": getattr(repo.data, 'default_branch', None) or "main",
                     })
                 except Exception as inner_e:
                     if len(errors) < 5:
