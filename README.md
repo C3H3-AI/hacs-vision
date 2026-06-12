@@ -4,8 +4,8 @@
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://github.com/hacs/integration)
 [![GitHub Release](https://img.shields.io/github/v/release/C3H3-AI/hacs-vision)](https://github.com/C3H3-AI/hacs-vision/releases)
 
-> **当前版本**: v2.3.2 | **最低 HA 版本**: 2024.1.0
-> **Current version**: v2.3.2 | **Minimum HA**: 2024.1.0
+> **当前版本**: v2.3.3 | **最低 HA 版本**: 2024.1.0
+> **Current version**: v2.3.3 | **Minimum HA**: 2024.1.0
 
 [![Downloads](https://img.shields.io/github/downloads/C3H3-AI/hacs-vision/total)](https://github.com/C3H3-AI/hacs-vision/releases)
 
@@ -164,6 +164,16 @@ Configure panel behavior, check version info, restart HA, or add new HA integrat
 ---
 
 ## 更新日志 / Changelog
+
+### v2.3.3 (2026-06-13)
+- **New**: `multi_select` 渲染为勾选框（原多选下拉框），默认值预勾选
+- **New**: tag/custom/new 筛选移至后端 API，分页正常
+- **New**: `entity_ref_finder` 三层兜底读取配置：`state.attributes` → `hass.data` → 直接读 `.storage` 文件，兼容 HA 2025.7+
+- **Fix**: `hacs_operator.py` 增加 `is_custom` 字段对齐前端读取
+- **Fix**: number 字段 `valueMin/valueMax` 兜底支持
+- **Fix**: boolean 兼容 `true`/`1`/`"1"`
+- **Fix**: 所有 `_LOGGER.error` 补全 `exc_info=True`
+- **Chore**: 同步版本号 v2.3.3
 
 ### v2.3.2 (2026-06-12)
 - **Fix**: 自定义仓库筛选无效 — 后端返回字段 `"custom"` 与前端读取 `is_custom` 不一致，现已对齐（双字段兼容）
