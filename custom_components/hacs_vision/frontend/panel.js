@@ -3392,6 +3392,7 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
         <div class="modal ${i?"two-col":""}" @pointerdown=${this._modalPointerDown}>
           <div class="modal-header">
             <div class="modal-header-left">
+              ${this._renderAvatar(e)}
               <div>
                 <div class="modal-title">${this._translateDomain(e)}</div>
                 <div class="modal-subtitle">
@@ -3755,6 +3756,7 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
       padding: 18px 20px; border-bottom: 1px solid var(--divider-color, #e0e0e0);
       flex-shrink: 0;
     }
+    .modal-header-left { display: flex; align-items: center; gap: 12px; }
     .modal-title { font-size: 16px; font-weight: 600; color: var(--primary-text-color); }
     .modal-subtitle { font-size: 12px; color: var(--secondary-text-color); margin-top: 2px; }
     .modal-close {
@@ -3883,6 +3885,11 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
             <div class="dv-back" @click=${()=>this.dispatchEvent(new CustomEvent("back",{bubbles:!0,composed:!0}))}>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><polyline points="15 18 9 12 15 6"/></svg>
             </div>
+            <div class="dv-header-icon">
+              <img class="dv-header-img" src="https://brands.home-assistant.io/${this.domain}/icon.png" alt=""
+                @error=${function(){this.style.display="none";const e=this.parentElement.querySelector(".dv-header-letter");e&&(e.style.display="flex")}}>
+              <span class="dv-header-letter" style="display:none">${(this.domain||"").charAt(0).toUpperCase()}</span>
+            </div>
             <div>
               <div class="dv-title">${this.entryTitle||this.domain}</div>
               <div class="dv-subtitle">${ge("deviceAndService")||"设备与服务"}</div>
@@ -3974,6 +3981,13 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
     .dv-back:hover { background: rgba(var(--rgb-primary-color, 3,169,244), 0.08); }
     .dv-title { font-size: 16px; font-weight: 600; color: var(--primary-text-color); }
     .dv-subtitle { font-size: 11px; color: var(--secondary-text-color); margin-top: 1px; }
+    .dv-header-icon {
+      width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      background: var(--primary-color, #03a9f4); overflow: hidden;
+    }
+    .dv-header-img { width: 100%; height: 100%; object-fit: cover; }
+    .dv-header-letter { font-size: 15px; font-weight: 700; color: #fff; }
     .dv-close {
       width: 32px; height: 32px; border: none; border-radius: 50%;
       background: var(--divider-color, #e0e0e0); color: var(--secondary-text-color);
