@@ -3466,7 +3466,7 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
       </div>
     `}_renderAddDialog(){if(!this._showAddDialog)return"";const e=this._filteredHandlers;return H`
       <div class="detail-overlay" role="dialog" aria-modal="true" aria-label="${ge("addHAIntegration")}" @click=${e=>{e.target===e.currentTarget&&this._closeAddDialog()}}>
-        <div class="modal add-modal">
+        <div class="modal add-modal" @pointerdown=${this._modalPointerDown}>
           <div class="modal-header">
             <span class="modal-title">${ge("addHAIntegration")}</span>
             <button class="modal-close" aria-label="${ge("close")||"关闭"}" @click=${this._closeAddDialog}>
