@@ -102,6 +102,32 @@ class ConfigFlowDialog extends LitElement {
     // Don't auto-start here — updated() handles it
   }
 
+  _dialogPointerDown(e) {
+    const header = e.target.closest('.header');
+    if (!header || e.target.closest('button')) return;
+    if (e.button !== undefined && e.button !== 0) return;
+    const dialog = e.currentTarget;
+    let offsetX = 0, offsetY = 0, startX = e.clientX, startY = e.clientY;
+    dialog.style.transition = 'none';
+    dialog.style.cursor = 'grabbing';
+    dialog.setPointerCapture(e.pointerId);
+    const onMove = (ev) => {
+      offsetX = ev.clientX - startX;
+      offsetY = ev.clientY - startY;
+      dialog.style.transform = `translate(${offsetX}px, ${offsetY}px)`;
+    };
+    const onUp = () => {
+      dialog.style.cursor = '';
+      dialog.removeEventListener('pointermove', onMove);
+      dialog.removeEventListener('pointerup', onUp);
+      dialog.removeEventListener('pointercancel', onUp);
+      try { dialog.releasePointerCapture(e.pointerId); } catch(er) {}
+    };
+    dialog.addEventListener('pointermove', onMove);
+    dialog.addEventListener('pointerup', onUp);
+    dialog.addEventListener('pointercancel', onUp);
+  }
+
   updated(changed) {
     if (changed.has('open') && this.open) {
       if (this.entryId) {
@@ -524,6 +550,9 @@ class ConfigFlowDialog extends LitElement {
   }
 
   _cancelFlow() {
+    // Reset transform for next open
+    const dialog = this.shadowRoot?.querySelector('.dialog');
+    if (dialog) dialog.style.transform = '';
     if (this._flowId) {
       if (this._isSubentry) {
         api.cancelSubentryFlow(this._flowId).catch(() => {});
@@ -576,11 +605,15 @@ class ConfigFlowDialog extends LitElement {
       color: var(--primary-text-color, #212121);
       border-radius: 16px;
       box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-      width: 90%; max-width: 520px;
-      max-height: 80vh;
+      width: 90%; max-width: 580px;
+      max-height: 85vh;
       overflow-y: auto;
       padding: 24px;
       animation: slideUp 0.25s ease;
+    }
+    @media (min-width: 1024px) {
+      .overlay { padding: 40px; }
+      .dialog { max-width: 680px; max-height: 80vh; }
     }
     @keyframes slideUp { from { transform: translateY(30px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
     .header {
@@ -592,11 +625,12 @@ class ConfigFlowDialog extends LitElement {
       width: 32px; height: 32px; border: none; border-radius: 50%;
       background: var(--divider-color, #e0e0e0);
       color: var(--secondary-text-color, #727272);
-      cursor: pointer; font-size: 18px;
+      cursor: pointer; font-size: 16px;
       display: flex; align-items: center; justify-content: center;
-      transition: all 0.2s;
+      transition: all 0.2s; flex-shrink: 0;
     }
     .close-btn:hover { background: var(--primary-color, #03a9f4); color: #fff; }
+    .close-btn svg { width: 16px; height: 16px; }
 
     .spinner {
       width: 36px; height: 36px;
@@ -686,6 +720,9 @@ class ConfigFlowDialog extends LitElement {
       cursor: pointer; font-size: 14px; font-family: inherit;
       transition: all 0.2s;
     }
+    .btn.primary {
+      background: var(--primary-color, #03a9f4); color: #fff; border-color: var(--primary-color);
+    }
     .btn.primary:hover { opacity: 0.9; color: #fff; }
     .btn.external {
       background: #2196f3; border-color: #2196f3; color: #fff;
@@ -695,6 +732,7 @@ class ConfigFlowDialog extends LitElement {
 
     @media (max-width: 600px) {
       .overlay { padding: 12px; }
+      .dialog { padding: 16px; }
       .dialog { max-width: 100%; max-height: 92vh; border-radius: 16px; padding-bottom: 24px; }
     }
   `];
@@ -709,11 +747,13 @@ class ConfigFlowDialog extends LitElement {
       : (this._step?.title || this._localizeTitle() || this._step?.handler || this.domain || t('flowTitle'));
 
     return html`
-      <div class="overlay" role="dialog" aria-modal="true" aria-label="${this._flowTitle || t('flowTitle')}" @click=${(e) => { if (e.target === e.currentTarget) this._cancelFlow(); }}>
-        <div class="dialog">
+      <div class="overlay" role="dialog" aria-modal="true" aria-label="${this._flowTitle || t('flowTitle')}" @keydown=${(e) => { if (e.key === 'Escape') this._cancelFlow(); }} @click=${(e) => { if (e.target === e.currentTarget) this._cancelFlow(); }}>
+        <div class="dialog" @pointerdown=${this._dialogPointerDown}>
           <div class="header">
             <span class="title">${title}</span>
-            <button class="close-btn" aria-label="${t('close')}" @click=${this._cancelFlow}>&times;</button>
+            <button class="close-btn" aria-label="${t('close')}" @click=${this._cancelFlow}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
           </div>
 
           ${this._loading ? html`

@@ -4,8 +4,8 @@
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://github.com/hacs/integration)
 [![GitHub Release](https://img.shields.io/github/v/release/C3H3-AI/hacs-vision)](https://github.com/C3H3-AI/hacs-vision/releases)
 
-> **当前版本**: v2.3.3 | **最低 HA 版本**: 2024.1.0
-> **Current version**: v2.3.3 | **Minimum HA**: 2024.1.0
+> **当前版本**: v3.0.0 | **最低 HA 版本**: 2024.1.0
+> **Current version**: v3.0.0 | **Minimum HA**: 2024.1.0
 
 [![Downloads](https://img.shields.io/github/downloads/C3H3-AI/hacs-vision/total)](https://github.com/C3H3-AI/hacs-vision/releases)
 
@@ -26,9 +26,9 @@
 ## 功能特性 / Features
 
 <!-- zh-CN -->
-- **🛒 商店浏览** — 搜索、分类筛选、多维度排序、收藏仓库。支持卡片/列表双视图
-- **🔄 更新管理** — 一览所有待更新仓库，支持单个或批量更新，带进度追踪
-- **📦 仓库管理** — 管理已安装仓库、查看版本历史、重新安装或移除
+- **🛒 商店浏览** — 搜索、分类筛选、多维度排序、收藏仓库。支持卡片/列表双视图，**筛选+排序合并为一行**，提升空间利用率
+- **🔄 更新管理** — 一览所有待更新仓库，支持单个或批量更新，带进度追踪。支持**忽略**不需要更新的仓库
+- **📦 仓库管理** — 管理已安装仓库、查看版本历史、重新下载（修复安装）或移除（删除下载文件，**不影响**已添加的 HA 配置条目）。支持**状态/类型/仓库**三维筛选+排序
 - **⚙️ 集成配置** — 直接在面板中配置任意 HA 已安装集成的 Options Flow（如 xiaomi_home、xiaomi_miot、haier 等），自动加载中文本地化翻译
 - **🔌 添加集成** — 从面板直接发起 HA 集成的新建 Config Flow
 - **📊 状态统计** — 实时展示已安装/可更新/收藏数量
@@ -40,11 +40,13 @@
 - **🏷️ 中文名翻译** — HA 官方 + 自定义集成自动显示中文名称（从 brands 或 manifest 读取）
 - **🎨 品牌图标** — CDN → 本地自定义图标 → 首字母 fallback 三级加载
 - **🔗 EntityRefFinder** — 查找 HA 中所有对指定 entity_id 的引用（自动化、脚本、场景、面板），支持一键替换
+- **🔄 重新下载** — 已安装仓库支持一键重新下载（先卸载再重装），用于修复损坏的安装
+- **⛔ 忽略仓库** — 将仓库加入忽略列表，不再出现在搜索结果和更新提醒中
 
 <!-- en -->
-- **🛒 Store Browsing** — Search, category filter, multi-dimensional sorting, favorites. Card/list dual views
-- **🔄 Update Management** — View all pending updates with progress tracking, batch or single update
-- **📦 Repo Management** — Manage installed repos, version history, reinstall, remove
+- **🛒 Store Browsing** — Search, category filter, multi-dimensional sorting, favorites. Card/list dual views, **merged filter+sort row** for better space utilization
+- **🔄 Update Management** — View all pending updates with progress tracking, batch or single update. **Ignore** repos you don't want to see
+- **📦 Repo Management** — Manage installed repos, version history, **redownload** (fix broken installs), or remove. **Status/type/repo** triple filter + sort
 - **⚙️ Integration Config** — Configure any installed HA integration's Options Flow directly in-panel (e.g. xiaomi_home, xiaomi_miot, haier, etc.), with automatic Chinese localization
 - **🔌 Add Integration** — Start HA integration Config Flow directly from the panel
 - **📊 Stats** — Real-time installed/updateable/favorite counts
@@ -56,6 +58,8 @@
 - **🏷️ Chinese Name Translation** — Auto-display Chinese names for official & custom integrations (from brands or manifest)
 - **🎨 Brand Icons** — CDN → local custom icon → first-letter fallback, three-level loading
 - **🔗 EntityRefFinder** — Find all references to an entity_id across HA (automations, scripts, scenes, dashboards), with one-click replace
+- **🔄 Redownload** — One-click redownload for installed repos (uninstall + reinstall), useful for fixing broken installations
+- **⛔ Ignore Repo** — Add repos to ignore list, hide from search results and update notifications
 
 ---
 
@@ -124,26 +128,26 @@
 ### 🛒 商店 / Store
 
 <!-- zh-CN -->
-浏览所有可用的 HACS 仓库。使用搜索栏和分类标签筛选，支持按星数、下载量、更新时间排序。点击爱心图标收藏。卡片视图和列表视图可切换。
+浏览所有可用的 HACS 仓库。使用搜索栏和筛选标签（状态/标签/类型/排序合并为一行）快速定位。点击爱心图标收藏。支持重新下载和忽略操作，卡片视图和列表视图可切换。
 
 <!-- en -->
-Browse all available HACS repositories. Filter with search bar and category chips. Sort by stars, downloads, or update time. Click heart to favorite. Toggle between card and list views.
+Browse all available HACS repositories. Filter with search bar and merged filter chips (status/tags/type/sort in one row). Click heart to favorite. Redownload and ignore operations available. Toggle between card and list views.
 
 ### 🔄 更新 / Updates
 
 <!-- zh-CN -->
-查看所有可更新的仓库。使用**批量操作栏**全部更新，或逐个更新。
+查看所有可更新的仓库。使用**全部更新**一键升级，或勾选特定仓库后**更新已选**。支持批量移除操作。
 
 <!-- en -->
-View all repositories with pending updates. Use **batch bar** to update all, or update individually.
+View all repositories with pending updates. Use **Update All** to upgrade everything, or **Update Selected** for specific repos. Batch removal supported.
 
 ### 📦 仓库管理 / Management
 
 <!-- zh-CN -->
-管理已安装的仓库。查看版本历史、重新安装或移除。
+管理已安装的仓库。支持**状态**（已安装/可更新/未安装）、**类型**（集成/插件/主题）、**仓库**（全部/已归档/重命名/已忽略）三维筛选+排序。支持批量操作（批量移除）。已归档和重命名仓库使用卡片展示，操作按钮在卡片底部。
 
 <!-- en -->
-Manage installed repos. View version history, reinstall, or remove.
+Manage installed repos with **status** (installed/updatable/not installed), **type** (integration/plugin/theme), and **repo** (all/archived/renamed/ignored) triple filters + sort. Batch operations supported. Archived and renamed repos shown as cards with action buttons at bottom.
 
 ### ⚙️ 集成配置 / Integration Config
 
@@ -165,14 +169,75 @@ Configure panel behavior, check version info, restart HA, or add new HA integrat
 
 ## 更新日志 / Changelog
 
+### v3.0.0 (2026-06-13) — 正式版
+- **New**: 🖼️ **集成实体/设备概览** — 集成详情弹窗顶部显示「N 个设备 · M 个实体」汇总统计
+- **New**: 🔗 **仓库依赖检查** — 仓库管理视图新增「检查依赖」按钮，可视化显示缺失的依赖包
+- **New**: 🔍 **搜索历史记录** — 商店搜索框自动记录最近 10 条搜索记录，支持点击回填和逐条删除
+- **New**: 🏷️ **记住上次 Tab** — 刷新页面自动恢复上次打开的 Tab（商店/集成管理/更新/仓库管理/设置）
+- **New**: 📦 **仓库管理筛选持久化** — 筛选/排序状态刷新后保留
+- **New**: 🎨 **弹窗全面升级** — 所有弹窗支持拖拽移动、Escape 关闭、slideUp 动画、统一关闭按钮
+- **New**: 🚀 **插件/主题静默重载** — 安装后自动重新加载配置，无需弹窗确认
+- **New**: 💬 **集成安装智能提示** — 安装完成后弹窗提示 [重启] [稍后]，重启后才能配置
+- **UI**: 🎯 **四视图布局完全统一** — 商店/仓库管理/更新/集成管理的搜索框、按钮、间距、字号全部对齐
+- **UI**: 🪟 **配置页三列布局** — 电脑端设置/维护/数据管理三列，手机单列
+- **UI**: 🔘 **品牌图标三级加载** — CDN → GitHub raw(brand目录) → 本地 → 组织头像 → 首字母
+- **UI**: 🏷️ **筛选标签蓝色高亮** — 筛选区标签使用 primary-color，分隔线间距加大
+- **UI**: 🖼️ **卡片列表视图** — 集成管理新增卡片/列表切换模式
+- **UI**: 🖼️ **设备视图设备折叠** — 每个设备头部可折叠/展开下方实体列表
+- **UI**: 🔢 **字号全面提升** — 去掉所有 8-9px 字号，最小统一为 10px
+- **UI**: 🌐 **中英文翻译全面补全** — 新增 25+ 翻译键，修复所有缺失翻译
+- **Fix**: 🐛 构造函数 `this._loadSearchHistory()` 未定义导致商店空白
+- **Fix**: 🐛 `makeDraggable` 被 Rollup tree-shake 导致弹窗拖拽失效
+- **Fix**: 🐛 子项弹窗 CSS 选择器写错导致手机端布局错误
+- **Fix**: 🐛 集成管理 host padding 导致标签栏到搜索框间距不一致
+- **Chore**: 版本号升级至 v3.0.0
+
 ### v2.3.3 (2026-06-13)
-- **New**: `multi_select` 渲染为勾选框（原多选下拉框），默认值预勾选
-- **New**: tag/custom/new 筛选移至后端 API，分页正常
-- **New**: `entity_ref_finder` 三层兜底读取配置：`state.attributes` → `hass.data` → 直接读 `.storage` 文件，兼容 HA 2025.7+
-- **Fix**: `hacs_operator.py` 增加 `is_custom` 字段对齐前端读取
+- **New**: 🔄 **重新下载** — 已安装仓库一键重新下载（卸载+重装），修复损坏安装。支持 `POST /redownload` API
+- **New**: ⛔ **忽略仓库** — 将仓库加入忽略列表，不再出现在搜索结果和更新提醒。支持 `POST /ignore` API
+- **New**: 🗣️ **提示信息全面优化** — 所有确认对话框增加操作后果描述（卸载、删除、移除、忽略等），让用户清楚知道每个操作的影响范围
+- **New**: 🎨 **UI 全面重构** — 商店/仓库管理/集成管理/更新四视图布局统一
+- **New**: 🔗 **筛选+排序合并** — 所有视图的筛选和排序合并为一行，去掉冗余标签文字
+- **New**: 🏷️ **筛选标注** — 每组筛选 chips 前加蓝色高亮标签（状态/标签/类型/排序/仓库）
+- **New**: 📦 **仓库管理状态+类型筛选** — 新增按安装状态和分类筛选仓库
+- **New**: 🗑️ **仓库管理批量操作** — 全选 checkbox + 批量移除，与商店一致
+- **New**: 🔢 **统计信息** — 仓库管理显示"共 N 个仓库"
+- **New**: 🔄 **刷新按钮** — 仓库管理新增刷新按钮
+- **New**: ▲/▼ **排序方向指示** — 所有排序芯片添加方向箭头
+- **New**: 🖼️ **空状态图标** — 仓库管理四个空状态全部加 SVG 图标
+- **New**: 🔁 **重新加载** — 配置页新增重新加载按钮（调用 `homeassistant.reload_core_config`），插件/主题装完无需重启
+- **New**: 💾 **备份/恢复** — 配置页新增导出/导入 HACS 配置备份
+- **New**: 🟠 **待加载标记** — 安装插件/主题后选"稍后" → 卡片显示🟠待加载标签，调用重新加载后自动清除
+- **New**: 💬 **安装/更新后智能提示** — 集成→建议重启，插件/主题→建议重新加载，1.5 秒后弹窗
+- **New**: 🎨 **品牌图标三级加载** — CDN → GitHub raw(brand目录) → 本地 → 组织头像 → 首字母
+- **New**: 🃏 **集成管理列表视图** — 新增卡片/列表切换，列表模式显示域名字段
+- **New**: 🏷️ **中英文翻译全面补全** — 新增 20+ 翻译键，修复 `catPython`/`flowStartFailed`/`statusDisabled`/`delete` 等缺失翻译
+- **UI**: 🎯 **全部按钮高度统一为 36px** — 刷新/切换/添加仓库/添加集成按钮高度完全一致
+- **UI**: 🔍 **搜索框统一** — 商店/管理/更新/集成管理搜索框全部使用共享样式（40px 高度，flex 自适应宽度）
+- **UI**: 📐 **间距统一** — 修复集成管理 `:host padding` 导致的标签栏到搜索框间距不一致
+- **UI**: 🖼️ **背景统一** — 商店内容区使用 card-background-color 包裹，消除"断层"感
+- **UI**: 🎨 **avatar 背景色去除** — 图标不再被分类色背景覆盖，仅 initials 显示背景色
+- **UI**: 🔲 **配置页三列布局** — 电脑端设置/维护/数据管理三列，手机单列
+- **Fix**: 📖 README 和⛔忽略按钮从商店卡片移除，仅在仓库管理显示
+- **Fix**: 🗑️ 更新页面去掉批量选择（无实际意义）
+- **Fix**: 🧩 集成管理搜索框前的蓝色数字 badge 已移除
+- **Fix**: 🐛 `_handleIgnore` 误用"确定要卸载"作为忽略确认文字 → 改为正确的 `confirmIgnore` 翻译
+- **Fix**: 🐛 更新确认文案混乱 — 全部更新和更新已选使用不同的确认文案模板
+- **Fix**: 🐛 集成删除确认缺少集成名称 → 新增 `{domain}` 模板参数
+- **Fix**: `multi_select` 字段渲染为勾选框而非多选下拉框（如 xiaomi_home 配置）
+- **Fix**: `is_custom` 字段前后端不一致导致自定义仓库筛选不可用
+- **Fix**: tag 筛选移至后端 API，分页正常
+- **Fix**: `entity_ref_finder` 三层兜底：`state.attributes` → `hass.data` → `.storage` 文件，兼容 HA 2025.7+
+- **Fix**: 重命名标签与右侧标签重叠（融入 `right-tags` 容器）
+- **Fix**: 仓库卡片移除按钮从右上角移至底部操作栏
+- **Fix**: 管理模式下隐藏重复的"自定义"标签（全是自定义）
+- **Fix**: 骨架屏统一为 6 个卡片
 - **Fix**: number 字段 `valueMin/valueMax` 兜底支持
 - **Fix**: boolean 兼容 `true`/`1`/`"1"`
 - **Fix**: 所有 `_LOGGER.error` 补全 `exc_info=True`
+- **Chore**: 术语对齐 HACS 官方翻译，`remove` 从"卸载"改为"移除"
+- **Chore**: 新增 `delete` 系列 key，集成管理操作用"删除"
+- **Chore**: 集成管理去掉重复的"集成管理"页面标题
 - **Chore**: 同步版本号 v2.3.3
 
 ### v2.3.2 (2026-06-12)

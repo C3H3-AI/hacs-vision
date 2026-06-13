@@ -18,6 +18,31 @@ function _saveBrowseState(state) {
   try { localStorage.setItem(BROWSE_STATE_KEY, JSON.stringify(state)); } catch {}
 }
 
+const SEARCH_HISTORY_KEY = 'hacs_vision_search_history';
+const MAX_HISTORY = 10;
+
+function _loadSearchHistory() {
+  try { return JSON.parse(localStorage.getItem(SEARCH_HISTORY_KEY) || '[]'); } catch { return []; }
+}
+
+function _addSearchHistory(term) {
+  if (!term || !term.trim()) return;
+  term = term.trim();
+  let history = _loadSearchHistory();
+  // Remove duplicate if exists
+  history = history.filter(h => h !== term);
+  // Add to front
+  history.unshift(term);
+  // Trim to max
+  if (history.length > MAX_HISTORY) history = history.slice(0, MAX_HISTORY);
+  try { localStorage.setItem(SEARCH_HISTORY_KEY, JSON.stringify(history)); } catch {}
+}
+
+function _removeSearchHistory(term) {
+  let history = _loadSearchHistory().filter(h => h !== term);
+  try { localStorage.setItem(SEARCH_HISTORY_KEY, JSON.stringify(history)); } catch {}
+}
+
 class BrowseView extends LitElement {
   static properties = {
     repos: { type: Array },
@@ -44,6 +69,7 @@ class BrowseView extends LitElement {
     _collapsedGroups: { type: Object, state: true },
     _filterExpanded: { type: Boolean, state: true },
     _favorites: { type: Array, state: true },
+    _searchHistory: { type: Array, state: true },
     presetFilter: { type: String },
     presetTag: { type: String },
     pendingRestart: { type: Number },
@@ -82,6 +108,8 @@ class BrowseView extends LitElement {
     this._favorites = [];
     this._selectedRepos = [];
     this._tagFilters = [];
+    this._searchHistory = _loadSearchHistory();
+    this._showSearchHistory = false;
 
     this.statusOptions = [
       { value: '', label: t('statusAll') },
@@ -123,6 +151,33 @@ class BrowseView extends LitElement {
 
     :host { display: block; touch-action: manipulation; background: var(--primary-background-color); }
 
+    .search-history {
+      position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 100;
+      background: var(--card-background-color, #fff);
+      border: 1px solid var(--divider-color, #e0e0e0);
+      border-radius: 10px; box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+      max-height: 260px; overflow-y: auto;
+    }
+    .search-history-item {
+      display: flex; align-items: center; gap: 8px; padding: 8px 12px;
+      cursor: pointer; transition: background 0.1s;
+    }
+    .search-history-item:hover { background: var(--secondary-background-color, #f5f5f5); }
+    .history-text { flex: 1; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .history-remove {
+      width: 20px; height: 20px; border-radius: 50%; border: none;
+      background: transparent; color: var(--secondary-text-color); cursor: pointer;
+      font-size: 10px; display: flex; align-items: center; justify-content: center;
+      opacity: 0; transition: all 0.15s;
+    }
+    .search-history-item:hover .history-remove { opacity: 1; }
+    .history-remove:hover { background: rgba(244,67,54,0.1); color: #f44336; }
+
+    .content-section {
+      background: var(--card-background-color, #fff);
+      border-radius: 0; padding: 14px;
+    }
+
     /* ===== Controls Bar ===== */
     .controls {
       display: flex; align-items: center; gap: 10px;
@@ -132,10 +187,10 @@ class BrowseView extends LitElement {
       display: flex; align-items: center; gap: 6px; flex-shrink: 0;
     }
     .search input {
-      padding: 9px 14px 9px 36px; border: 1px solid var(--divider-color);
-      border-radius: 10px; font-size: 14px; background: var(--card-background-color);
-      color: var(--primary-text-color); outline: none; width: 180px;
-      box-sizing: border-box; transition: border-color 0.2s;
+      box-sizing: border-box;
+      border: 1px solid var(--divider-color); border-radius: 10px;
+      font-size: 14px; background: var(--card-background-color);
+      color: var(--primary-text-color); outline: none; transition: border-color 0.2s;
     }
     .search input:focus { border-color: var(--primary-color); }
     .refresh-btn {
@@ -151,8 +206,7 @@ class BrowseView extends LitElement {
     /* ===== Sort Bar (both card and list mode) ===== */
     .sort-bar {
       display: flex; align-items: center;
-      margin-bottom: 10px; padding: 6px 14px;
-      background: var(--secondary-background-color, #f0f0f0);
+      margin-bottom: 10px; padding: 6px 14px; background: transparent;
       border-radius: 8px; flex-wrap: wrap; gap: 4px;
     }
     .sort-chips {
@@ -191,12 +245,37 @@ class BrowseView extends LitElement {
       font-size: 12px; cursor: pointer; outline: none; flex-shrink: 0;
     }
 
-    /* ===== Filter Row ===== */
-    .filter-row {
-      display: flex; gap: 16px; margin-bottom: 10px; align-items: flex-start;
+    /* ===== Filter-Sort Row (compact, merged) ===== */
+    .filter-sort-row {
+      display: flex; align-items: center; gap: 6px;
+      margin-bottom: 10px; padding: 8px 12px;
+      background: var(--secondary-background-color, #f5f5f5);
+      border-radius: 10px; flex-wrap: wrap;
     }
-    .filter-row .filter-group { margin-bottom: 0; flex: 1; min-width: 0; }
+    .fs-chips {
+      display: flex; align-items: center; gap: 4px; flex-wrap: wrap; flex: 1; min-width: 0;
+    }
+    .fs-divider {
+      display: inline-block; width: 1px; height: 22px;
+      background: var(--divider-color, #e0e0e0); margin: 0 10px; flex-shrink: 0;
+    }
+    .fs-label {
+      font-size: 11px; font-weight: 700; color: var(--primary-color, #03a9f4);
+      text-transform: uppercase; letter-spacing: 0.5px; padding: 0 6px;
+      user-select: none; flex-shrink: 0;
+    }
+    .filter-toggle-sm {
+      display: none; width: 32px; height: 32px; flex-shrink: 0;
+      border: 1px solid var(--divider-color); border-radius: 8px;
+      background: var(--card-background-color); color: var(--secondary-text-color);
+      cursor: pointer; align-items: center; justify-content: center; padding: 0;
+      touch-action: manipulation;
+    }
+    .sort-inline { opacity: 0.85; }
+    .sort-inline.active { opacity: 1; }
+    .sort-inline .sort-dir { font-size: 9px; margin-left: 2px; }
 
+    /* ===== Search box responsive ===== */
     /* ===== Filter Groups ===== */
     .filter-group { margin-bottom: 10px; }
     .filter-label {
@@ -361,11 +440,14 @@ class BrowseView extends LitElement {
     /* ===== Responsive ===== */
     @media (max-width: 768px) {
       .controls { gap: 4px; margin-bottom: 6px; flex-wrap: wrap; }
+      .search { flex: 1; min-width: 0; }
       .search input { padding: 7px 10px 7px 34px; font-size: 13px; border-radius: 8px; }
       .controls-right { flex-wrap: wrap; }
-      .sort-bar { padding: 6px 10px; font-size: 12px; gap: 4px; }
-      .sort-chip { padding: 4px 8px; font-size: 11px; }
-      .filter-toggle { display: flex; }
+      .filter-sort-row { padding: 6px 10px; flex-wrap: nowrap; overflow: hidden; }
+      .filter-sort-row .fs-chips { display: none; }
+      .filter-sort-row.expanded .fs-chips { display: flex; }
+      .filter-sort-row.expanded { flex-wrap: wrap; }
+      .filter-toggle-sm { display: flex; }
       .filter-row:not(.expanded) { display: none; }
       .filter-row.expanded { display: flex; }
       .filter-row { flex-direction: column; gap: 8px; }
@@ -423,6 +505,8 @@ class BrowseView extends LitElement {
     this.addEventListener('install', (e) => this._handleInstall(e.detail.repo));
     this.addEventListener('update', (e) => this._handleUpdate(e.detail.repo));
     this.addEventListener('uninstall', (e) => this._handleUninstall(e.detail.repo));
+    this.addEventListener('redownload', (e) => this._handleRedownload(e.detail.repo));
+    this.addEventListener('ignore', (e) => this._handleIgnore(e.detail.repo));
     // Card 'detail' events bubble directly to hacs-vision-panel (composed:true)
     this.addEventListener('configure', (e) => this._handleConfigure(e.detail.repo));
     this.addEventListener('add-integration', (e) => this._handleAddIntegration(e.detail.repo));
@@ -494,11 +578,50 @@ class BrowseView extends LitElement {
       showToast(`${t('installComplete')}: ${repo.full_name || repo.name}`, 'success');
       this.dispatchEvent(new CustomEvent('refresh-stats', { bubbles: true, composed: true }));
       this._load();
+      // Show restart/reload prompt based on category
+      this._showPostInstallPrompt(repo);
     } catch(e) {
       showToast(`${t('installFailed')}: ${e.message}`, 'error');
     }
     delete this._installingIds[repoId];
     this._installingIds = { ...this._installingIds };
+  }
+
+  async _showPostInstallPrompt(repo) {
+    const category = repo.category || 'integration';
+    const needsRestart = category === 'integration';
+    // Wait a moment for toast to show first
+    await new Promise(r => setTimeout(r, 1500));
+    const { ConfirmDialog } = await import('../shared/confirm-dialog.js');
+    if (needsRestart) {
+      // Integrations: must restart first, then configure
+      const ok = await ConfirmDialog.show(this, {
+        message: `${repo.manifest_name || repo.name} ${t('postInstallRestartMsg')}`,
+        confirmText: t('restartHA'),
+        cancelText: t('later'),
+        danger: true,
+      });
+      if (!ok) return;
+      try {
+        await api.restartHA();
+        showToast(t('haRestarting'), 'info');
+      } catch(e) {
+        showToast(`${t('restartFailed')}: ${e.message}`, 'error');
+      }
+    } else {
+      // Plugins/themes: auto-reload directly, no prompt needed
+      showToast(t('reloadingHA'), 'info');
+      try {
+        const result = await api.reloadHA();
+        if (result.success) {
+          showToast(t('reloadSuccess'), 'success');
+        } else {
+          showToast(`${t('coreReloadFailed')}: ${result.error}`, 'error');
+        }
+      } catch(e) {
+        showToast(`${t('coreReloadFailed')}: ${e.message}`, 'error');
+      }
+    }
   }
 
   async _handleUpdate(repo) {
@@ -511,15 +634,47 @@ class BrowseView extends LitElement {
       }
       this.dispatchEvent(new CustomEvent('refresh-stats', { bubbles: true, composed: true }));
       this._load();
+      // Show restart/reload prompt after update too
+      this._showPostInstallPrompt(repo);
     } catch(e) {
       console.error('Update failed', e);
       showToast(`${t('updateFailed')}: ${e.message}`, 'error');
     }
   }
 
+  async _handleRedownload(repo) {
+    try {
+      const result = await api.redownload(repo.id || repo.full_name, repo.category);
+      if (result?.success) {
+        showToast(`${t('redownload')}: ${repo.full_name || repo.name}`, 'success');
+      } else {
+        showToast(`${t('updateFailed')}: ${result?.error || repo.full_name}`, 'error');
+      }
+      this.dispatchEvent(new CustomEvent('refresh-stats', { bubbles: true, composed: true }));
+      this._load();
+    } catch(e) {
+      showToast(`${t('updateFailed')}: ${e.message}`, 'error');
+    }
+  }
+
+  async _handleIgnore(repo) {
+    const ok = await ConfirmDialog.show(this, {
+      message: t('confirmIgnore', { repo: repo.full_name || repo.name }),
+      confirmText: t('ignore'), danger: false,
+    });
+    if (!ok) return;
+    try {
+      await api.ignoreRepo(repo.id || repo.full_name);
+      showToast(`${t('ignore')}: ${repo.full_name || repo.name}`, 'success');
+      this._load();
+    } catch(e) {
+      showToast(`${t('updateFailed')}: ${e.message}`, 'error');
+    }
+  }
+
   async _handleUninstall(repo) {
     const ok = await ConfirmDialog.show(this, {
-      message: `${t('confirmRemove')} ${repo.full_name || repo.name}?`,
+      message: t('confirmRemove', { repo: repo.full_name || repo.name }),
       confirmText: t('remove'), danger: true,
     });
     if (!ok) return;
@@ -557,16 +712,13 @@ class BrowseView extends LitElement {
           serverSearch = match[1].replace(/\.git$/, '');
         }
       }
-      const hasTagFilters = this._tagFilters.length > 0;
-      // When tag filters are active, fetch enough data so client-side
-      // filtering doesn't scatter results across multiple pages
-      const effectiveLimit = hasTagFilters ? 500 : this.limit;
-      const effectivePage = hasTagFilters ? 1 : this.page;
+      // Determine active tag filter — only one tag filter at a time
+      const activeTag = this._tagFilters.length === 1 ? this._tagFilters[0] : '';
       const result = await api.listRepositories({
         search: serverSearch,
         category: this.category, sort: this.sort,
-        sortDir: this.sortDir, page: effectivePage, limit: effectiveLimit,
-        status: this.statusFilter,
+        sortDir: this.sortDir, page: this.page, limit: this.limit,
+        status: this.statusFilter, tag: activeTag,
       });
       this.repos = result.repositories || [];
       this.total = result.total || 0;
@@ -584,15 +736,40 @@ class BrowseView extends LitElement {
 
   _onSearch(e) {
     this._searchText = e.target.value;
+    this._showSearchHistory = false;
     clearTimeout(this._searchTimer);
     this._searchTimer = setTimeout(() => {
       this.search = this._searchText; this.page = 1;
       this._persistState(); this._load();
+      if (this._searchText) _addSearchHistory(this._searchText);
     }, 300);
+  }
+
+  _onSearchFocus() {
+    const history = _loadSearchHistory();
+    if (history.length > 0) {
+      this._searchHistory = history;
+      this._showSearchHistory = true;
+    }
+  }
+
+  _onSearchHistoryClick(term) {
+    this._showSearchHistory = false;
+    this._searchText = term;
+    this.search = term; this.page = 1;
+    this._persistState(); this._load();
+  }
+
+  _clearSearchHistory(e, term) {
+    e.stopPropagation();
+    _removeSearchHistory(term);
+    this._searchHistory = _loadSearchHistory();
+    if (this._searchHistory.length === 0) this._showSearchHistory = false;
   }
 
   _clearSearch() {
     this._searchText = ''; this.search = ''; this.page = 1;
+    this._showSearchHistory = false;
     this._persistState(); this._load();
   }
 
@@ -682,17 +859,10 @@ class BrowseView extends LitElement {
   }
 
   _applyFilters(repos) {
-    // Status filtering is done server-side.
-    // Tag filters (favorites/new/custom) are client-side and can combine.
-    if (this._tagFilters.length > 0) {
-      return repos.filter(r => {
-        for (const tag of this._tagFilters) {
-          if (tag === 'favorites' && !this._favorites.includes(r.id || r.full_name)) return false;
-          if (tag === 'new' && !(r.new || r.status === 'new')) return false;
-          if (tag === 'custom' && !r.is_custom) return false;
-        }
-        return true;
-      });
+    // Status and tag filtering is done server-side.
+    // Only favorites filter is client-side (no server-side equivalent).
+    if (this._tagFilters.includes('favorites')) {
+      return repos.filter(r => this._favorites.includes(r.id || r.full_name));
     }
     return repos;
   }
@@ -942,23 +1112,31 @@ class BrowseView extends LitElement {
           <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
           </svg>
-          <input type="text" placeholder="${t('searchPlaceholder')}" .value=${this._searchText} @input=${this._onSearch} />
+          <input type="text" placeholder="${t('searchPlaceholder')}" .value=${this._searchText} @input=${this._onSearch} @focus=${this._onSearchFocus} @blur=${() => setTimeout(() => this._showSearchHistory = false, 200)} />
           ${this.search ? html`<button class="search-clear" @click=${this._clearSearch}>✕</button>` : ''}
+          ${this._showSearchHistory && this._searchHistory.length > 0 ? html`
+            <div class="search-history">
+              ${this._searchHistory.map(h => html`
+                <div class="search-history-item" @mousedown=${() => this._onSearchHistoryClick(h)}>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;flex-shrink:0;"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                  <span class="history-text">${h}</span>
+                  <button class="history-remove" @mousedown=${e => this._clearSearchHistory(e, h)}>✕</button>
+                </div>
+              `)}
+            </div>
+          ` : ''}
         </div>
         <div class="controls-right">
           <div class="view-toggle">
             <button class="view-toggle-btn ${this.viewMode === 'card' ? 'active' : ''}" @click=${() => this._onViewModeChange('card')} title="${t('viewCard')}">${t('viewCard')}</button>
             <button class="view-toggle-btn ${this.viewMode === 'list' ? 'active' : ''}" @click=${() => this._onViewModeChange('list')} title="${t('viewList')}">${t('viewList')}</button>
           </div>
-          <select class="group-select" @change=${this._onGroupChange} .value=${this.groupBy}>
-            ${this.groupOptions.map(opt => html`<option value=${opt.value}>${t('groupBy')}: ${opt.label}</option>`)}
-          </select>
-          <button class="refresh-btn" @click=${this._refresh} title="${t('refreshTitle')}">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <button class="refresh-btn" @click=${this._refresh} title="${t('refreshTitle')}" style="width:36px;height:36px;padding:8px;border:1px solid var(--divider-color);border-radius:10px;background:var(--card-background-color);color:var(--primary-text-color);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;">
               <path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/>
             </svg>
           </button>
-          <button class="btn primary" style="padding:6px 12px;font-size:12px;min-height:44px;" @click=${() => { this._showAddRepo = !this._showAddRepo; }}>${t('addCustomRepo')}</button>
+          <button class="btn primary" style="padding:6px 12px;font-size:12px;min-height:36px;" @click=${() => { this._showAddRepo = !this._showAddRepo; }}>+ ${t('addRepo')}</button>
         </div>
       </div>
 
@@ -979,89 +1157,46 @@ class BrowseView extends LitElement {
         </div>
       ` : ''}
 
-      <!-- Filter Toggle (mobile: tap to expand) -->
-      <button class="filter-toggle" @click=${() => { this._filterExpanded = !this._filterExpanded; }}>
-        <span>${t('filterStatus') || '状态'} / ${t('filterTags') || '标记'} / ${t('filterType') || '类型'}</span>
-        <span class="active-filters">
-          ${this.statusFilter ? html`<span class="active-filter-tag">${this._getStatusLabel(this.statusFilter)}</span>` : ''}
-          ${this.category ? html`<span class="active-filter-tag">${this._getCategoryLabel(this.category)}</span>` : ''}
-        </span>
-        <span class="toggle-arrow ${this._filterExpanded ? 'expanded' : ''}">▼</span>
-      </button>
-
-      <!-- Filters: Status + Tags + Type in one row on desktop -->
-      <div class="filter-row ${this._filterExpanded ? 'expanded' : ''}">
-        <div class="filter-group">
-          <div class="filter-label">${t('filterStatus')}</div>
-          <div class="filter-chips">
-            ${this.statusOptions
-              .filter(opt => opt.value === '' || (this.statusCounts[opt.value] ?? 0) > 0)
-              .map(opt => html`
-              <button class="filter-chip ${this.statusFilter === opt.value ? 'active' : ''}" @click=${() => this._onStatusFilter(opt.value)}>${opt.label}${this.statusCounts[opt.value] !== undefined ? html`<span class="chip-count">${this.statusCounts[opt.value]}</span>` : ''}</button>
-            `)}
-          </div>
-        </div>
-        <div class="filter-group">
-          <div class="filter-label">${t('filterTags')}</div>
-          <div class="filter-chips">
-            <button class="filter-chip tag-chip ${this._tagFilters.includes('favorites') ? 'active' : ''}" @click=${() => this._onTagFilter('favorites')}>
-              ${t('tagFavorites')}<span class="chip-count">${this.tagCounts?.favorites ?? 0}</span>
-            </button>
-            <button class="filter-chip tag-chip ${this._tagFilters.includes('new') ? 'active' : ''}" @click=${() => this._onTagFilter('new')}>
-              ${t('tagNew')}<span class="chip-count">${this.tagCounts?.new ?? 0}</span>
-            </button>
-            <button class="filter-chip tag-chip ${this._tagFilters.includes('custom') ? 'active' : ''}" @click=${() => this._onTagFilter('custom')}>
-              ${t('tagCustom')}<span class="chip-count">${this.tagCounts?.custom ?? 0}</span>
-            </button>
-          </div>
-        </div>
-        <div class="filter-group">
-          <div class="filter-label">${t('filterType')}</div>
-          <div class="filter-chips">
-            ${this.typeOptions
-              .filter(opt => opt.value === '' || (this.categoryCounts[opt.value] ?? 0) > 0)
-              .map(opt => html`
-              <button class="filter-chip ${this.category === opt.value ? 'active' : ''}" @click=${() => this._onTypeFilter(opt.value)}>
-                ${opt.label}${this.categoryCounts[opt.value] !== undefined ? html`<span class="chip-count">${this.categoryCounts[opt.value]}</span>` : ''}
-              </button>
-            `)}
-          </div>
-        </div>
-      </div>
-
-      <!-- Restart Bar — between filters and batch bar -->
-      ${(this.pendingRestart ?? 0) > 0 ? html`
-      <div class="restart-bar">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21.5 2v6h-6M2.5 22v-6h6"/><path d="M3.67 10.5a8 8 0 0114.7-2.17L21.5 8M2.5 16l3.13 3.67a8 8 0 0014.7-2.17"/></svg>
-        <span>${t('statusPendingRestart')}: ${this.pendingRestart}</span>
-        <button class="batch-bar-btn" @click=${() => this._restartHA()}>${t('restartHA')}</button>
-        <button class="batch-bar-btn" style="background:transparent;border-color:#f44336;color:#f44336;" @click=${() => this._onStatusFilter('pending_restart')}>${t('viewDetail')}</button>
-      </div>
-      ` : ''}
-
-      <!-- Batch Action Bar -->
-      ${this._selectedRepos.length > 0 ? html`
-        <div class="batch-bar">
-          <span>${t('batchSelected', { n: this._selectedRepos.length })}</span>
-          <button class="batch-bar-btn" @click=${() => this._batchDo('update')}
-            ?disabled=${!this._selectedRepos.some(n => { const r = this.repos.find(x => x.full_name === n); return r?.installed; })}>
-            ${t('batchUpdate')}
+      <!-- Filters + Sort: compact row with prominent labels -->
+      <div class="filter-sort-row ${this._filterExpanded ? 'expanded' : ''}">
+        <div class="fs-chips">
+          <span class="fs-label">${t('filterStatus')}</span>
+          ${this.statusOptions
+            .filter(opt => opt.value === '' || (this.statusCounts[opt.value] ?? 0) > 0)
+            .map(opt => html`
+            <button class="filter-chip ${this.statusFilter === opt.value ? 'active' : ''}" @click=${() => this._onStatusFilter(opt.value)}>${opt.label}${opt.value === '' ? html`<span class="chip-count">${this.total ?? 0}</span>` : ''}</button>
+          `)}
+          <span class="fs-divider"></span>
+          <span class="fs-label">${t('filterTags')}</span>
+          <button class="filter-chip ${this._tagFilters.includes('favorites') ? 'active' : ''}" @click=${() => this._onTagFilter('favorites')}>
+            ${t('tagFavorites')}
           </button>
-          <button class="batch-bar-btn" @click=${() => this._batchDo('install')}>${t('batchInstall')}</button>
-          <button class="batch-bar-btn danger" @click=${() => this._batchDo('remove')}>${t('batchRemove')}</button>
-          <button class="batch-bar-btn" @click=${() => { this._selectedRepos = []; }}>${t('cancel')}</button>
-        </div>
-      ` : ''}
-
-      <!-- Sort Bar (always visible, both card and list mode) -->
-      <div class="sort-bar">
-        <div class="sort-chips">
+          <button class="filter-chip ${this._tagFilters.includes('new') ? 'active' : ''}" @click=${() => this._onTagFilter('new')}>
+            ${t('tagNew') || '新'}
+          </button>
+          <button class="filter-chip ${this._tagFilters.includes('custom') ? 'active' : ''}" @click=${() => this._onTagFilter('custom')}>
+            ${t('tagCustom')}
+          </button>
+          <span class="fs-divider"></span>
+          <span class="fs-label">${t('filterType')}</span>
+          ${this.typeOptions
+            .filter(opt => opt.value === '' || (this.categoryCounts[opt.value] ?? 0) > 0)
+            .map(opt => html`
+            <button class="filter-chip ${this.category === opt.value ? 'active' : ''}" @click=${() => this._onTypeFilter(opt.value)}>
+              ${opt.label}
+            </button>
+          `)}
+          <span class="fs-divider"></span>
+          <span class="fs-label">${t('sort') || '排序'}</span>
           ${this.sortColumns.map(col => html`
-            <button class="sort-chip ${this.sort === col.key ? 'active' : ''}" @click=${() => this._onSortColumn(col.key)}>
+            <button class="filter-chip sort-inline ${this.sort === col.key ? 'active' : ''}" @click=${() => this._onSortColumn(col.key)}>
               ${col.label}${this.sort === col.key ? html`<span class="sort-dir">${this.sortDir === 'desc' ? '▼' : '▲'}</span>` : ''}
             </button>
           `)}
         </div>
+        <button class="filter-toggle-sm" @click=${() => { this._filterExpanded = !this._filterExpanded; }} title="${t('filterMore') || '筛选/排序'}">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;"><line x1="4" y1="6" x2="20" y2="6"/><line x1="8" y1="12" x2="20" y2="12"/><line x1="12" y1="18" x2="20" y2="18"/></svg>
+        </button>
       </div>
 
       <!-- Select All + Results Count -->
@@ -1074,12 +1209,13 @@ class BrowseView extends LitElement {
           ${t('selectAll') || '全选'}
         </label>
         <span style="font-size:13px;color:var(--secondary-text-color);">
-          共 <strong>${displayRepos.length}</strong> 个
-          ${this._selectedRepos.length > 0 ? html`| <strong>${this._selectedRepos.length}</strong> 已选` : ''}
+          ${t('totalPrefix')} <strong>${displayRepos.length}</strong> ${t('totalRepos')}
+          ${this._selectedRepos.length > 0 ? html`| <strong>${this._selectedRepos.length}</strong> ${t('selected')}` : ''}
         </span>
       </div>
 
       <!-- Content -->
+      <div class="content-section">
       ${this.loading ? html`
         <div class="skeleton-grid">
           ${[1,2,3,4,5,6].map(() => html`
@@ -1110,7 +1246,7 @@ class BrowseView extends LitElement {
           `)}
         ` : html`${this._renderRepoList(displayRepos)}`}
 
-        ${!this._tagFilters.length && totalPages > 1 ? html`
+        ${totalPages > 1 ? html`
           <div class="pagination">
             <button class="page-btn" ?disabled=${this.page <= 1} @click=${() => this._goPage(this.page - 1)}>${t('prevPage')}</button>
             <span class="page-info">${t('page')} ${this.page} / ${totalPages}</span>
@@ -1123,6 +1259,7 @@ class BrowseView extends LitElement {
             </select>
           </div>
         ` : ''}
+      </div>
       `}
     `;
   }

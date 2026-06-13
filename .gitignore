@@ -59,3 +59,17 @@ pytest.ini
 
 # Old review
 REVIEW.md
+
+# Dev temporary scripts
+diff_*.py
+fix_*.py
+verify_*.py
+
+# Build artifacts
+*.zip
+
+# Internal reports
+HACS_VISION_*.md
+UI_AUDIT_REPORT.md
+overview.md
+diff_report.md

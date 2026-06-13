@@ -160,6 +160,9 @@ class HACSEnhancedAPI(HomeAssistantView):
             return await self._get_subentries(request, entry_id)
         if path == "entity_refs/find":
             return await self._entity_refs_find(query)
+        if path.startswith("device_counts/"):
+            domain = path.split("/", 1)[1]
+            return await self._get_device_counts(domain)
 
         return web.json_response({"error": "not_found"}, status=404)
 
@@ -186,6 +189,10 @@ class HACSEnhancedAPI(HomeAssistantView):
             return await self._import_backup(body)
         if path in ("refresh", "refresh/"):
             return await self._refresh()
+        if path in ("redownload", "redownload/"):
+            return await self._redownload(body)
+        if path in ("ignore", "ignore/"):
+            return await self._ignore_repo(body)
         if path == "repos/install_version":
             return await self._install_repo_version(body)
         if path in ("favorites", "favorites/"):
@@ -198,6 +205,8 @@ class HACSEnhancedAPI(HomeAssistantView):
             return await self._remove_renamed_entry(body)
         if path in ("restart", "restart/"):
             return await self._restart()
+        if path in ("reload", "reload/"):
+            return await self._reload_core()
         if path in ("settings", "settings/"):
             return await self._update_settings(body)
         if path in ("batch/install", "batch/install/"):
@@ -490,6 +499,7 @@ class HACSEnhancedAPI(HomeAssistantView):
         search = query.get("search", "").lower()
         category = query.get("category", "")
         status = query.get("status", "")
+        tag = query.get("tag", "")
         sort = query.get("sort", "stars")
         sort_dir = query.get("sortDir", "desc")
         page = int(query.get("page", 1))
@@ -549,6 +559,12 @@ class HACSEnhancedAPI(HomeAssistantView):
                 repos = [r for r in repos if r.get("has_update")]
             elif status == "pending_restart":
                 repos = [r for r in repos if r.get("pending_restart")]
+
+        # Apply tag filter (custom / new) — moved from client-side to server-side
+        if tag == "custom":
+            repos = [r for r in repos if r.get("custom") or r.get("is_custom")]
+        elif tag == "new":
+            repos = [r for r in repos if r.get("new") or r.get("status") == "new"]
 
         reverse = sort_dir == "desc"
         if sort == "stars" or sort == "stargazers_count":
@@ -783,6 +799,36 @@ class HACSEnhancedAPI(HomeAssistantView):
             await self.data.remove_install_time(full_name)
         return web.json_response(result)
 
+    async def _redownload(self, body: dict) -> web.Response:
+        """Reinstall a repository: uninstall then install."""
+        repo = body.get("repository", "")
+        category = body.get("category", "integration")
+        # Step 1: Remove
+        remove_result = await self.operator.remove_repository(repo)
+        if not remove_result.get("success"):
+            return web.json_response(remove_result)
+        full_name = remove_result.get("repository") or repo
+        await self.data.remove_install_time(full_name)
+        # Step 2: Install
+        install_result = await self.operator.install_repository(full_name, category)
+        if install_result.get("success"):
+            from datetime import datetime, timezone
+            await self.data.set_install_time(full_name, datetime.now(timezone.utc).isoformat())
+        return web.json_response(install_result)
+
+    async def _ignore_repo(self, body: dict) -> web.Response:
+        """Add a repository to the ignored list."""
+        repo = body.get("repository", "")
+        if not repo:
+            return web.json_response({"error": "repository required"}, status=400)
+        config = await self.data.get_config()
+        ignored = config.get("ignored_repositories", [])
+        if repo not in ignored:
+            ignored.append(repo)
+            config["ignored_repositories"] = ignored
+            await self.data.update_config(config)
+        return web.json_response({"success": True, "repository": repo})
+
     async def _update_config(self, body: dict) -> web.Response:
         result = await self.data.update_config(body)
         return web.json_response({"success": result})
@@ -879,7 +925,7 @@ class HACSEnhancedAPI(HomeAssistantView):
         if not repo_name:
             return web.json_response({"error": "repository required"}, status=400)
 
-        # 1. Remove from archived_repositories in HACS config
+        # 1. Remove from archived_repositories in HACS config (.storage/hacs.hacs)
         config = await self.data.get_config()
         archived = config.get("archived_repositories", [])
         if repo_name in archived:
@@ -887,7 +933,21 @@ class HACSEnhancedAPI(HomeAssistantView):
             config["archived_repositories"] = archived
             await self.data.update_config(config)
 
-        # 2. Purge from hacs.repositories (the master repo data dict)
+        # 2. Also update HACS in-memory state to prevent it from reverting our change
+        if self.operator and self.operator.available:
+            try:
+                hacs_config = self.operator._hacs.configuration
+                if hasattr(hacs_config, 'archived_repositories'):
+                    hacs_archived = list(hacs_config.archived_repositories or [])
+                    if repo_name in hacs_archived:
+                        hacs_archived.remove(repo_name)
+                        hacs_config.archived_repositories = hacs_archived
+                # Trigger HACS to persist its in-memory state to disk
+                await self.operator._hacs.data.async_write()
+            except Exception as e:
+                _LOGGER.warning("Failed to update HACS memory state: %s", e, exc_info=True)
+
+        # 3. Purge from hacs.repositories (the master repo data dict)
         repos_data = await self.data.read_storage("repositories")
         purged_ids = []
         if repos_data and "data" in repos_data:
@@ -901,7 +961,7 @@ class HACSEnhancedAPI(HomeAssistantView):
             if to_delete:
                 await self.data.write_storage("repositories", repos_data)
 
-        # 3. Purge from hacs.data installed-repo lists
+        # 4. Purge from hacs.data installed-repo lists
         hacs_data = await self.data.read_storage("data")
         if hacs_data and "data" in hacs_data:
             cat_dict = hacs_data["data"].get("repositories", {})
@@ -1140,6 +1200,43 @@ class HACSEnhancedAPI(HomeAssistantView):
         mapping = await self.data.get_config_entries_map()
         return web.json_response({"entries": mapping})
 
+    async def _get_device_counts(self, domain: str) -> web.Response:
+        """Get device and entity counts for a given domain."""
+        from homeassistant.helpers import device_registry as dr, entity_registry as er
+        safe = domain.replace("..", "").replace("/", "").replace("\\", "")
+        if not safe or safe != domain:
+            return web.json_response({"error": "invalid_domain"}, status=400)
+        try:
+            dev_reg = dr.async_get(self.hass)
+            ent_reg = er.async_get(self.hass)
+            devices = []
+            for device in dev_reg.devices.values():
+                if safe in device.identifiers or any(
+                    entry.domain == safe for entry in dev_reg.async_entries_for_device(device.id)
+                ):
+                    # Also check via config entries
+                    pass
+            # Simpler: count devices connected to config entries of this domain
+            device_ids = set()
+            entity_count = 0
+            for entry in self.hass.config_entries.async_entries():
+                if entry.domain != safe:
+                    continue
+                # Devices linked to this config entry
+                entry_devices = dev_reg.async_entries_for_config_entry(entry.entry_id)
+                for d in entry_devices:
+                    device_ids.add(d.id)
+                    entities = ent_reg.async_entries_for_device(d.id)
+                    entity_count += len([e for e in entities if not e.disabled_by])
+            return web.json_response({
+                "domain": safe,
+                "devices": len(device_ids),
+                "entities": entity_count,
+            })
+        except Exception as e:
+            _LOGGER.error("Failed to get device counts for %s: %s", safe, e, exc_info=True)
+            return web.json_response({"error": str(e)}, status=500)
+
     async def _get_translations(self, domain: str, lang: str) -> web.Response:
         """Read translations from a custom component's translations directory.
 
@@ -1307,6 +1404,15 @@ class HACSEnhancedAPI(HomeAssistantView):
             return web.json_response({"success": True})
         except Exception as e:
             _LOGGER.error("Restart failed: %s", e, exc_info=True)
+            return web.json_response({"success": False, "error": str(e)}, status=500)
+
+    async def _reload_core(self) -> web.Response:
+        """Reload core config without full restart (faster for plugins/themes)."""
+        try:
+            await self.hass.services.async_call("homeassistant", "reload_core_config", blocking=True)
+            return web.json_response({"success": True})
+        except Exception as e:
+            _LOGGER.error("Core reload failed: %s", e, exc_info=True)
             return web.json_response({"success": False, "error": str(e)}, status=500)
 
 
