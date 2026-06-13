@@ -14,7 +14,7 @@
    * Copyright 2017 Google LLC
    * SPDX-License-Identifier: BSD-3-Clause
    */
-const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{createHTML:e=>e}):void 0,z="$lit$",C=`lit$${Math.random().toFixed(9).slice(2)}$`,R="?"+C,A=`<${R}>`,T=document,E=()=>T.createComment(""),D=e=>null===e||"object"!=typeof e&&"function"!=typeof e,F=Array.isArray,I="[ \t\n\f\r]",L=/<(?:(!--|\/[^a-zA-Z])|(\/?[a-zA-Z][^>\s]*)|(\/?$))/g,M=/-->/g,O=/>/g,N=RegExp(`>|${I}(?:([^\\s"'>=/]+)(${I}*=${I}*(?:[^ \t\n\f\r"'\`<>=]|("|')|))|$)`,"g"),B=/'/g,P=/"/g,U=/^(?:script|style|textarea|title)$/i,H=(e=>(t,...o)=>({_$litType$:e,strings:t,values:o}))(1),j=Symbol.for("lit-noChange"),V=Symbol.for("lit-nothing"),q=new WeakMap,G=T.createTreeWalker(T,129);function Y(e,t){if(!F(e)||!e.hasOwnProperty("raw"))throw Error("invalid template strings array");return void 0!==S?S.createHTML(t):t}const W=(e,t)=>{const o=e.length-1,i=[];let r,s=2===t?"<svg>":3===t?"<math>":"",a=L;for(let t=0;t<o;t++){const o=e[t];let n,l,c=-1,d=0;for(;d<o.length&&(a.lastIndex=d,l=a.exec(o),null!==l);)d=a.lastIndex,a===L?"!--"===l[1]?a=M:void 0!==l[1]?a=O:void 0!==l[2]?(U.test(l[2])&&(r=RegExp("</"+l[2],"g")),a=N):void 0!==l[3]&&(a=N):a===N?">"===l[0]?(a=r??L,c=-1):void 0===l[1]?c=-2:(c=a.lastIndex-l[2].length,n=l[1],a=void 0===l[3]?N:'"'===l[3]?P:B):a===P||a===B?a=N:a===M||a===O?a=L:(a=N,r=void 0);const p=a===N&&e[t+1].startsWith("/>")?" ":"";s+=a===L?o+A:c>=0?(i.push(n),o.slice(0,c)+z+o.slice(c)+C+p):o+C+(-2===c?t:p)}return[Y(e,s+(e[o]||"<?>")+(2===t?"</svg>":3===t?"</math>":"")),i]};class X{constructor({strings:e,_$litType$:t},o){let i;this.parts=[];let r=0,s=0;const a=e.length-1,n=this.parts,[l,c]=W(e,t);if(this.el=X.createElement(l,o),G.currentNode=this.el.content,2===t||3===t){const e=this.el.content.firstChild;e.replaceWith(...e.childNodes)}for(;null!==(i=G.nextNode())&&n.length<a;){if(1===i.nodeType){if(i.hasAttributes())for(const e of i.getAttributeNames())if(e.endsWith(z)){const t=c[s++],o=i.getAttribute(e).split(C),a=/([.?@])?(.*)/.exec(t);n.push({type:1,index:r,name:a[2],strings:o,ctor:"."===a[1]?ee:"?"===a[1]?te:"@"===a[1]?oe:Q}),i.removeAttribute(e)}else e.startsWith(C)&&(n.push({type:6,index:r}),i.removeAttribute(e));if(U.test(i.tagName)){const e=i.textContent.split(C),t=e.length-1;if(t>0){i.textContent=k?k.emptyScript:"";for(let o=0;o<t;o++)i.append(e[o],E()),G.nextNode(),n.push({type:2,index:++r});i.append(e[t],E())}}}else if(8===i.nodeType)if(i.data===R)n.push({type:2,index:r});else{let e=-1;for(;-1!==(e=i.data.indexOf(C,e+1));)n.push({type:7,index:r}),e+=C.length-1}r++}}static createElement(e,t){const o=T.createElement("template");return o.innerHTML=e,o}}function J(e,t,o=e,i){if(t===j)return t;let r=void 0!==i?o._$Co?.[i]:o._$Cl;const s=D(t)?void 0:t._$litDirective$;return r?.constructor!==s&&(r?._$AO?.(!1),void 0===s?r=void 0:(r=new s(e),r._$AT(e,o,i)),void 0!==i?(o._$Co??=[])[i]=r:o._$Cl=r),void 0!==r&&(t=J(e,r._$AS(e,t.values),r,i)),t}class K{constructor(e,t){this._$AV=[],this._$AN=void 0,this._$AD=e,this._$AM=t}get parentNode(){return this._$AM.parentNode}get _$AU(){return this._$AM._$AU}u(e){const{el:{content:t},parts:o}=this._$AD,i=(e?.creationScope??T).importNode(t,!0);G.currentNode=i;let r=G.nextNode(),s=0,a=0,n=o[0];for(;void 0!==n;){if(s===n.index){let t;2===n.type?t=new Z(r,r.nextSibling,this,e):1===n.type?t=new n.ctor(r,n.name,n.strings,this,e):6===n.type&&(t=new ie(r,this,e)),this._$AV.push(t),n=o[++a]}s!==n?.index&&(r=G.nextNode(),s++)}return G.currentNode=T,i}p(e){let t=0;for(const o of this._$AV)void 0!==o&&(void 0!==o.strings?(o._$AI(e,o,t),t+=o.strings.length-2):o._$AI(e[t])),t++}}class Z{get _$AU(){return this._$AM?._$AU??this._$Cv}constructor(e,t,o,i){this.type=2,this._$AH=V,this._$AN=void 0,this._$AA=e,this._$AB=t,this._$AM=o,this.options=i,this._$Cv=i?.isConnected??!0}get parentNode(){let e=this._$AA.parentNode;const t=this._$AM;return void 0!==t&&11===e?.nodeType&&(e=t.parentNode),e}get startNode(){return this._$AA}get endNode(){return this._$AB}_$AI(e,t=this){e=J(this,e,t),D(e)?e===V||null==e||""===e?(this._$AH!==V&&this._$AR(),this._$AH=V):e!==this._$AH&&e!==j&&this._(e):void 0!==e._$litType$?this.$(e):void 0!==e.nodeType?this.T(e):(e=>F(e)||"function"==typeof e?.[Symbol.iterator])(e)?this.k(e):this._(e)}O(e){return this._$AA.parentNode.insertBefore(e,this._$AB)}T(e){this._$AH!==e&&(this._$AR(),this._$AH=this.O(e))}_(e){this._$AH!==V&&D(this._$AH)?this._$AA.nextSibling.data=e:this.T(T.createTextNode(e)),this._$AH=e}$(e){const{values:t,_$litType$:o}=e,i="number"==typeof o?this._$AC(e):(void 0===o.el&&(o.el=X.createElement(Y(o.h,o.h[0]),this.options)),o);if(this._$AH?._$AD===i)this._$AH.p(t);else{const e=new K(i,this),o=e.u(this.options);e.p(t),this.T(o),this._$AH=e}}_$AC(e){let t=q.get(e.strings);return void 0===t&&q.set(e.strings,t=new X(e)),t}k(e){F(this._$AH)||(this._$AH=[],this._$AR());const t=this._$AH;let o,i=0;for(const r of e)i===t.length?t.push(o=new Z(this.O(E()),this.O(E()),this,this.options)):o=t[i],o._$AI(r),i++;i<t.length&&(this._$AR(o&&o._$AB.nextSibling,i),t.length=i)}_$AR(e=this._$AA.nextSibling,t){for(this._$AP?.(!1,!0,t);e!==this._$AB;){const t=$(e).nextSibling;$(e).remove(),e=t}}setConnected(e){void 0===this._$AM&&(this._$Cv=e,this._$AP?.(e))}}class Q{get tagName(){return this.element.tagName}get _$AU(){return this._$AM._$AU}constructor(e,t,o,i,r){this.type=1,this._$AH=V,this._$AN=void 0,this.element=e,this.name=t,this._$AM=i,this.options=r,o.length>2||""!==o[0]||""!==o[1]?(this._$AH=Array(o.length-1).fill(new String),this.strings=o):this._$AH=V}_$AI(e,t=this,o,i){const r=this.strings;let s=!1;if(void 0===r)e=J(this,e,t,0),s=!D(e)||e!==this._$AH&&e!==j,s&&(this._$AH=e);else{const i=e;let a,n;for(e=r[0],a=0;a<r.length-1;a++)n=J(this,i[o+a],t,a),n===j&&(n=this._$AH[a]),s||=!D(n)||n!==this._$AH[a],n===V?e=V:e!==V&&(e+=(n??"")+r[a+1]),this._$AH[a]=n}s&&!i&&this.j(e)}j(e){e===V?this.element.removeAttribute(this.name):this.element.setAttribute(this.name,e??"")}}class ee extends Q{constructor(){super(...arguments),this.type=3}j(e){this.element[this.name]=e===V?void 0:e}}class te extends Q{constructor(){super(...arguments),this.type=4}j(e){this.element.toggleAttribute(this.name,!!e&&e!==V)}}class oe extends Q{constructor(e,t,o,i,r){super(e,t,o,i,r),this.type=5}_$AI(e,t=this){if((e=J(this,e,t,0)??V)===j)return;const o=this._$AH,i=e===V&&o!==V||e.capture!==o.capture||e.once!==o.once||e.passive!==o.passive,r=e!==V&&(o===V||i);i&&this.element.removeEventListener(this.name,this,o),r&&this.element.addEventListener(this.name,this,e),this._$AH=e}handleEvent(e){"function"==typeof this._$AH?this._$AH.call(this.options?.host??this.element,e):this._$AH.handleEvent(e)}}class ie{constructor(e,t,o){this.element=e,this.type=6,this._$AN=void 0,this._$AM=t,this.options=o}get _$AU(){return this._$AM._$AU}_$AI(e){J(this,e)}}const re=w.litHtmlPolyfillSupport;re?.(X,Z),(w.litHtmlVersions??=[]).push("3.3.3");const se=globalThis;
+const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{createHTML:e=>e}):void 0,z="$lit$",C=`lit$${Math.random().toFixed(9).slice(2)}$`,R="?"+C,A=`<${R}>`,T=document,E=()=>T.createComment(""),D=e=>null===e||"object"!=typeof e&&"function"!=typeof e,F=Array.isArray,I="[ \t\n\f\r]",L=/<(?:(!--|\/[^a-zA-Z])|(\/?[a-zA-Z][^>\s]*)|(\/?$))/g,M=/-->/g,O=/>/g,N=RegExp(`>|${I}(?:([^\\s"'>=/]+)(${I}*=${I}*(?:[^ \t\n\f\r"'\`<>=]|("|')|))|$)`,"g"),B=/'/g,H=/"/g,P=/^(?:script|style|textarea|title)$/i,U=(e=>(t,...o)=>({_$litType$:e,strings:t,values:o}))(1),j=Symbol.for("lit-noChange"),V=Symbol.for("lit-nothing"),q=new WeakMap,G=T.createTreeWalker(T,129);function Y(e,t){if(!F(e)||!e.hasOwnProperty("raw"))throw Error("invalid template strings array");return void 0!==S?S.createHTML(t):t}const W=(e,t)=>{const o=e.length-1,i=[];let r,s=2===t?"<svg>":3===t?"<math>":"",a=L;for(let t=0;t<o;t++){const o=e[t];let n,l,c=-1,d=0;for(;d<o.length&&(a.lastIndex=d,l=a.exec(o),null!==l);)d=a.lastIndex,a===L?"!--"===l[1]?a=M:void 0!==l[1]?a=O:void 0!==l[2]?(P.test(l[2])&&(r=RegExp("</"+l[2],"g")),a=N):void 0!==l[3]&&(a=N):a===N?">"===l[0]?(a=r??L,c=-1):void 0===l[1]?c=-2:(c=a.lastIndex-l[2].length,n=l[1],a=void 0===l[3]?N:'"'===l[3]?H:B):a===H||a===B?a=N:a===M||a===O?a=L:(a=N,r=void 0);const p=a===N&&e[t+1].startsWith("/>")?" ":"";s+=a===L?o+A:c>=0?(i.push(n),o.slice(0,c)+z+o.slice(c)+C+p):o+C+(-2===c?t:p)}return[Y(e,s+(e[o]||"<?>")+(2===t?"</svg>":3===t?"</math>":"")),i]};class X{constructor({strings:e,_$litType$:t},o){let i;this.parts=[];let r=0,s=0;const a=e.length-1,n=this.parts,[l,c]=W(e,t);if(this.el=X.createElement(l,o),G.currentNode=this.el.content,2===t||3===t){const e=this.el.content.firstChild;e.replaceWith(...e.childNodes)}for(;null!==(i=G.nextNode())&&n.length<a;){if(1===i.nodeType){if(i.hasAttributes())for(const e of i.getAttributeNames())if(e.endsWith(z)){const t=c[s++],o=i.getAttribute(e).split(C),a=/([.?@])?(.*)/.exec(t);n.push({type:1,index:r,name:a[2],strings:o,ctor:"."===a[1]?ee:"?"===a[1]?te:"@"===a[1]?oe:Q}),i.removeAttribute(e)}else e.startsWith(C)&&(n.push({type:6,index:r}),i.removeAttribute(e));if(P.test(i.tagName)){const e=i.textContent.split(C),t=e.length-1;if(t>0){i.textContent=k?k.emptyScript:"";for(let o=0;o<t;o++)i.append(e[o],E()),G.nextNode(),n.push({type:2,index:++r});i.append(e[t],E())}}}else if(8===i.nodeType)if(i.data===R)n.push({type:2,index:r});else{let e=-1;for(;-1!==(e=i.data.indexOf(C,e+1));)n.push({type:7,index:r}),e+=C.length-1}r++}}static createElement(e,t){const o=T.createElement("template");return o.innerHTML=e,o}}function J(e,t,o=e,i){if(t===j)return t;let r=void 0!==i?o._$Co?.[i]:o._$Cl;const s=D(t)?void 0:t._$litDirective$;return r?.constructor!==s&&(r?._$AO?.(!1),void 0===s?r=void 0:(r=new s(e),r._$AT(e,o,i)),void 0!==i?(o._$Co??=[])[i]=r:o._$Cl=r),void 0!==r&&(t=J(e,r._$AS(e,t.values),r,i)),t}class K{constructor(e,t){this._$AV=[],this._$AN=void 0,this._$AD=e,this._$AM=t}get parentNode(){return this._$AM.parentNode}get _$AU(){return this._$AM._$AU}u(e){const{el:{content:t},parts:o}=this._$AD,i=(e?.creationScope??T).importNode(t,!0);G.currentNode=i;let r=G.nextNode(),s=0,a=0,n=o[0];for(;void 0!==n;){if(s===n.index){let t;2===n.type?t=new Z(r,r.nextSibling,this,e):1===n.type?t=new n.ctor(r,n.name,n.strings,this,e):6===n.type&&(t=new ie(r,this,e)),this._$AV.push(t),n=o[++a]}s!==n?.index&&(r=G.nextNode(),s++)}return G.currentNode=T,i}p(e){let t=0;for(const o of this._$AV)void 0!==o&&(void 0!==o.strings?(o._$AI(e,o,t),t+=o.strings.length-2):o._$AI(e[t])),t++}}class Z{get _$AU(){return this._$AM?._$AU??this._$Cv}constructor(e,t,o,i){this.type=2,this._$AH=V,this._$AN=void 0,this._$AA=e,this._$AB=t,this._$AM=o,this.options=i,this._$Cv=i?.isConnected??!0}get parentNode(){let e=this._$AA.parentNode;const t=this._$AM;return void 0!==t&&11===e?.nodeType&&(e=t.parentNode),e}get startNode(){return this._$AA}get endNode(){return this._$AB}_$AI(e,t=this){e=J(this,e,t),D(e)?e===V||null==e||""===e?(this._$AH!==V&&this._$AR(),this._$AH=V):e!==this._$AH&&e!==j&&this._(e):void 0!==e._$litType$?this.$(e):void 0!==e.nodeType?this.T(e):(e=>F(e)||"function"==typeof e?.[Symbol.iterator])(e)?this.k(e):this._(e)}O(e){return this._$AA.parentNode.insertBefore(e,this._$AB)}T(e){this._$AH!==e&&(this._$AR(),this._$AH=this.O(e))}_(e){this._$AH!==V&&D(this._$AH)?this._$AA.nextSibling.data=e:this.T(T.createTextNode(e)),this._$AH=e}$(e){const{values:t,_$litType$:o}=e,i="number"==typeof o?this._$AC(e):(void 0===o.el&&(o.el=X.createElement(Y(o.h,o.h[0]),this.options)),o);if(this._$AH?._$AD===i)this._$AH.p(t);else{const e=new K(i,this),o=e.u(this.options);e.p(t),this.T(o),this._$AH=e}}_$AC(e){let t=q.get(e.strings);return void 0===t&&q.set(e.strings,t=new X(e)),t}k(e){F(this._$AH)||(this._$AH=[],this._$AR());const t=this._$AH;let o,i=0;for(const r of e)i===t.length?t.push(o=new Z(this.O(E()),this.O(E()),this,this.options)):o=t[i],o._$AI(r),i++;i<t.length&&(this._$AR(o&&o._$AB.nextSibling,i),t.length=i)}_$AR(e=this._$AA.nextSibling,t){for(this._$AP?.(!1,!0,t);e!==this._$AB;){const t=$(e).nextSibling;$(e).remove(),e=t}}setConnected(e){void 0===this._$AM&&(this._$Cv=e,this._$AP?.(e))}}class Q{get tagName(){return this.element.tagName}get _$AU(){return this._$AM._$AU}constructor(e,t,o,i,r){this.type=1,this._$AH=V,this._$AN=void 0,this.element=e,this.name=t,this._$AM=i,this.options=r,o.length>2||""!==o[0]||""!==o[1]?(this._$AH=Array(o.length-1).fill(new String),this.strings=o):this._$AH=V}_$AI(e,t=this,o,i){const r=this.strings;let s=!1;if(void 0===r)e=J(this,e,t,0),s=!D(e)||e!==this._$AH&&e!==j,s&&(this._$AH=e);else{const i=e;let a,n;for(e=r[0],a=0;a<r.length-1;a++)n=J(this,i[o+a],t,a),n===j&&(n=this._$AH[a]),s||=!D(n)||n!==this._$AH[a],n===V?e=V:e!==V&&(e+=(n??"")+r[a+1]),this._$AH[a]=n}s&&!i&&this.j(e)}j(e){e===V?this.element.removeAttribute(this.name):this.element.setAttribute(this.name,e??"")}}class ee extends Q{constructor(){super(...arguments),this.type=3}j(e){this.element[this.name]=e===V?void 0:e}}class te extends Q{constructor(){super(...arguments),this.type=4}j(e){this.element.toggleAttribute(this.name,!!e&&e!==V)}}class oe extends Q{constructor(e,t,o,i,r){super(e,t,o,i,r),this.type=5}_$AI(e,t=this){if((e=J(this,e,t,0)??V)===j)return;const o=this._$AH,i=e===V&&o!==V||e.capture!==o.capture||e.once!==o.once||e.passive!==o.passive,r=e!==V&&(o===V||i);i&&this.element.removeEventListener(this.name,this,o),r&&this.element.addEventListener(this.name,this,e),this._$AH=e}handleEvent(e){"function"==typeof this._$AH?this._$AH.call(this.options?.host??this.element,e):this._$AH.handleEvent(e)}}class ie{constructor(e,t,o){this.element=e,this.type=6,this._$AN=void 0,this._$AM=t,this.options=o}get _$AU(){return this._$AM._$AU}_$AI(e){J(this,e)}}const re=w.litHtmlPolyfillSupport;re?.(X,Z),(w.litHtmlVersions??=[]).push("3.3.3");const se=globalThis;
 /**
    * @license
    * Copyright 2017 Google LLC
@@ -170,7 +170,7 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
     100% { background-position: -200% 0; }
   }
 `}
-/*! @license DOMPurify 3.4.8 | (c) Cure53 and other contributors | Released under the Apache license 2.0 and Mozilla Public License 2.0 | github.com/cure53/DOMPurify/blob/3.4.8/LICENSE */function ve(e,t){(null==t||t>e.length)&&(t=e.length);for(var o=0,i=Array(t);o<t;o++)i[o]=e[o];return i}function be(e,t){return function(e){if(Array.isArray(e))return e}(e)||function(e,t){var o=null==e?null:"undefined"!=typeof Symbol&&e[Symbol.iterator]||e["@@iterator"];if(null!=o){var i,r,s,a,n=[],l=!0,c=!1;try{if(s=(o=o.call(e)).next,0===t);else for(;!(l=(i=s.call(o)).done)&&(n.push(i.value),n.length!==t);l=!0);}catch(e){c=!0,r=e}finally{try{if(!l&&null!=o.return&&(a=o.return(),Object(a)!==a))return}finally{if(c)throw r}}return n}}(e,t)||function(e,t){if(e){if("string"==typeof e)return ve(e,t);var o={}.toString.call(e).slice(8,-1);return"Object"===o&&e.constructor&&(o=e.constructor.name),"Map"===o||"Set"===o?Array.from(e):"Arguments"===o||/^(?:Ui|I)nt(?:8|16|32)(?:Clamped)?Array$/.test(o)?ve(e,t):void 0}}(e,t)||function(){throw new TypeError("Invalid attempt to destructure non-iterable instance.\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method.")}()}const xe=Object.entries,ye=Object.setPrototypeOf,_e=Object.isFrozen,we=Object.getPrototypeOf,$e=Object.getOwnPropertyDescriptor;let ke=Object.freeze,Se=Object.seal,ze=Object.create,Ce="undefined"!=typeof Reflect&&Reflect,Re=Ce.apply,Ae=Ce.construct;ke||(ke=function(e){return e}),Se||(Se=function(e){return e}),Re||(Re=function(e,t){for(var o=arguments.length,i=new Array(o>2?o-2:0),r=2;r<o;r++)i[r-2]=arguments[r];return e.apply(t,i)}),Ae||(Ae=function(e){for(var t=arguments.length,o=new Array(t>1?t-1:0),i=1;i<t;i++)o[i-1]=arguments[i];return new e(...o)});const Te=Ke(Array.prototype.forEach),Ee=Ke(Array.prototype.lastIndexOf),De=Ke(Array.prototype.pop),Fe=Ke(Array.prototype.push),Ie=Ke(Array.prototype.splice),Le=Array.isArray,Me=Ke(String.prototype.toLowerCase),Oe=Ke(String.prototype.toString),Ne=Ke(String.prototype.match),Be=Ke(String.prototype.replace),Pe=Ke(String.prototype.indexOf),Ue=Ke(String.prototype.trim),He=Ke(Number.prototype.toString),je=Ke(Boolean.prototype.toString),Ve="undefined"==typeof BigInt?null:Ke(BigInt.prototype.toString),qe="undefined"==typeof Symbol?null:Ke(Symbol.prototype.toString),Ge=Ke(Object.prototype.hasOwnProperty),Ye=Ke(Object.prototype.toString),We=Ke(RegExp.prototype.test),Xe=(Je=TypeError,function(){for(var e=arguments.length,t=new Array(e),o=0;o<e;o++)t[o]=arguments[o];return Ae(Je,t)});var Je;function Ke(e){return function(t){t instanceof RegExp&&(t.lastIndex=0);for(var o=arguments.length,i=new Array(o>1?o-1:0),r=1;r<o;r++)i[r-1]=arguments[r];return Re(e,t,i)}}function Ze(e,t){let o=arguments.length>2&&void 0!==arguments[2]?arguments[2]:Me;if(ye&&ye(e,null),!Le(t))return e;let i=t.length;for(;i--;){let r=t[i];if("string"==typeof r){const e=o(r);e!==r&&(_e(t)||(t[i]=e),r=e)}e[r]=!0}return e}function Qe(e){for(let t=0;t<e.length;t++){Ge(e,t)||(e[t]=null)}return e}function et(e){const t=ze(null);for(const i of xe(e)){var o=be(i,2);const r=o[0],s=o[1];Ge(e,r)&&(Le(s)?t[r]=Qe(s):s&&"object"==typeof s&&s.constructor===Object?t[r]=et(s):t[r]=s)}return t}function tt(e,t){for(;null!==e;){const o=$e(e,t);if(o){if(o.get)return Ke(o.get);if("function"==typeof o.value)return Ke(o.value)}e=we(e)}return function(){return null}}const ot=ke(["a","abbr","acronym","address","area","article","aside","audio","b","bdi","bdo","big","blink","blockquote","body","br","button","canvas","caption","center","cite","code","col","colgroup","content","data","datalist","dd","decorator","del","details","dfn","dialog","dir","div","dl","dt","element","em","fieldset","figcaption","figure","font","footer","form","h1","h2","h3","h4","h5","h6","head","header","hgroup","hr","html","i","img","input","ins","kbd","label","legend","li","main","map","mark","marquee","menu","menuitem","meter","nav","nobr","ol","optgroup","option","output","p","picture","pre","progress","q","rp","rt","ruby","s","samp","search","section","select","shadow","slot","small","source","spacer","span","strike","strong","style","sub","summary","sup","table","tbody","td","template","textarea","tfoot","th","thead","time","tr","track","tt","u","ul","var","video","wbr"]),it=ke(["svg","a","altglyph","altglyphdef","altglyphitem","animatecolor","animatemotion","animatetransform","circle","clippath","defs","desc","ellipse","enterkeyhint","exportparts","filter","font","g","glyph","glyphref","hkern","image","inputmode","line","lineargradient","marker","mask","metadata","mpath","part","path","pattern","polygon","polyline","radialgradient","rect","stop","style","switch","symbol","text","textpath","title","tref","tspan","view","vkern"]),rt=ke(["feBlend","feColorMatrix","feComponentTransfer","feComposite","feConvolveMatrix","feDiffuseLighting","feDisplacementMap","feDistantLight","feDropShadow","feFlood","feFuncA","feFuncB","feFuncG","feFuncR","feGaussianBlur","feImage","feMerge","feMergeNode","feMorphology","feOffset","fePointLight","feSpecularLighting","feSpotLight","feTile","feTurbulence"]),st=ke(["animate","color-profile","cursor","discard","font-face","font-face-format","font-face-name","font-face-src","font-face-uri","foreignobject","hatch","hatchpath","mesh","meshgradient","meshpatch","meshrow","missing-glyph","script","set","solidcolor","unknown","use"]),at=ke(["math","menclose","merror","mfenced","mfrac","mglyph","mi","mlabeledtr","mmultiscripts","mn","mo","mover","mpadded","mphantom","mroot","mrow","ms","mspace","msqrt","mstyle","msub","msup","msubsup","mtable","mtd","mtext","mtr","munder","munderover","mprescripts"]),nt=ke(["maction","maligngroup","malignmark","mlongdiv","mscarries","mscarry","msgroup","mstack","msline","msrow","semantics","annotation","annotation-xml","mprescripts","none"]),lt=ke(["#text"]),ct=ke(["accept","action","align","alt","autocapitalize","autocomplete","autopictureinpicture","autoplay","background","bgcolor","border","capture","cellpadding","cellspacing","checked","cite","class","clear","color","cols","colspan","command","commandfor","controls","controlslist","coords","crossorigin","datetime","decoding","default","dir","disabled","disablepictureinpicture","disableremoteplayback","download","draggable","enctype","enterkeyhint","exportparts","face","for","headers","height","hidden","high","href","hreflang","id","inert","inputmode","integrity","ismap","kind","label","lang","list","loading","loop","low","max","maxlength","media","method","min","minlength","multiple","muted","name","nonce","noshade","novalidate","nowrap","open","optimum","part","pattern","placeholder","playsinline","popover","popovertarget","popovertargetaction","poster","preload","pubdate","radiogroup","readonly","rel","required","rev","reversed","role","rows","rowspan","spellcheck","scope","selected","shape","size","sizes","slot","span","srclang","start","src","srcset","step","style","summary","tabindex","title","translate","type","usemap","valign","value","width","wrap","xmlns"]),dt=ke(["accent-height","accumulate","additive","alignment-baseline","amplitude","ascent","attributename","attributetype","azimuth","basefrequency","baseline-shift","begin","bias","by","class","clip","clippathunits","clip-path","clip-rule","color","color-interpolation","color-interpolation-filters","color-profile","color-rendering","cx","cy","d","dx","dy","diffuseconstant","direction","display","divisor","dur","edgemode","elevation","end","exponent","fill","fill-opacity","fill-rule","filter","filterunits","flood-color","flood-opacity","font-family","font-size","font-size-adjust","font-stretch","font-style","font-variant","font-weight","fx","fy","g1","g2","glyph-name","glyphref","gradientunits","gradienttransform","height","href","id","image-rendering","in","in2","intercept","k","k1","k2","k3","k4","kerning","keypoints","keysplines","keytimes","lang","lengthadjust","letter-spacing","kernelmatrix","kernelunitlength","lighting-color","local","marker-end","marker-mid","marker-start","markerheight","markerunits","markerwidth","maskcontentunits","maskunits","max","mask","mask-type","media","method","mode","min","name","numoctaves","offset","operator","opacity","order","orient","orientation","origin","overflow","paint-order","path","pathlength","patterncontentunits","patterntransform","patternunits","points","preservealpha","preserveaspectratio","primitiveunits","r","rx","ry","radius","refx","refy","repeatcount","repeatdur","restart","result","rotate","scale","seed","shape-rendering","slope","specularconstant","specularexponent","spreadmethod","startoffset","stddeviation","stitchtiles","stop-color","stop-opacity","stroke-dasharray","stroke-dashoffset","stroke-linecap","stroke-linejoin","stroke-miterlimit","stroke-opacity","stroke","stroke-width","style","surfacescale","systemlanguage","tabindex","tablevalues","targetx","targety","transform","transform-origin","text-anchor","text-decoration","text-rendering","textlength","type","u1","u2","unicode","values","viewbox","visibility","version","vert-adv-y","vert-origin-x","vert-origin-y","width","word-spacing","wrap","writing-mode","xchannelselector","ychannelselector","x","x1","x2","xmlns","y","y1","y2","z","zoomandpan"]),pt=ke(["accent","accentunder","align","bevelled","close","columnalign","columnlines","columnspacing","columnspan","denomalign","depth","dir","display","displaystyle","encoding","fence","frame","height","href","id","largeop","length","linethickness","lquote","lspace","mathbackground","mathcolor","mathsize","mathvariant","maxsize","minsize","movablelimits","notation","numalign","open","rowalign","rowlines","rowspacing","rowspan","rspace","rquote","scriptlevel","scriptminsize","scriptsizemultiplier","selection","separator","separators","stretchy","subscriptshift","supscriptshift","symmetric","voffset","width","xmlns"]),ht=ke(["xlink:href","xml:id","xlink:title","xml:space","xmlns:xlink"]),gt=Se(/{{[\w\W]*|^[\w\W]*}}/g),ut=Se(/<%[\w\W]*|^[\w\W]*%>/g),ft=Se(/\${[\w\W]*/g),mt=Se(/^data-[\-\w.\u00B7-\uFFFF]+$/),vt=Se(/^aria-[\-\w]+$/),bt=Se(/^(?:(?:(?:f|ht)tps?|mailto|tel|callto|sms|cid|xmpp|matrix):|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i),xt=Se(/^(?:\w+script|data):/i),yt=Se(/[\u0000-\u0020\u00A0\u1680\u180E\u2000-\u2029\u205F\u3000]/g),_t=Se(/^html$/i),wt=Se(/^[a-z][.\w]*(-[.\w]+)+$/i),$t=1,kt=3,St=7,zt=8,Ct=9,Rt=11,At=function(){return"undefined"==typeof window?null:window};var Tt=function e(){let t=arguments.length>0&&void 0!==arguments[0]?arguments[0]:At();const o=t=>e(t);if(o.version="3.4.8",o.removed=[],!t||!t.document||t.document.nodeType!==Ct||!t.Element)return o.isSupported=!1,o;let i=t.document;const r=i,s=r.currentScript;t.DocumentFragment;const a=t.HTMLTemplateElement,n=t.Node,l=t.Element,c=t.NodeFilter,d=t.NamedNodeMap;void 0===d&&(t.NamedNodeMap||t.MozNamedAttrMap),t.HTMLFormElement;const p=t.DOMParser,h=t.trustedTypes,g=l.prototype,u=tt(g,"cloneNode"),f=tt(g,"remove"),m=tt(g,"nextSibling"),v=tt(g,"childNodes"),b=tt(g,"parentNode"),x=tt(g,"shadowRoot"),y=tt(g,"attributes"),_=n&&n.prototype?tt(n.prototype,"nodeType"):null,w=n&&n.prototype?tt(n.prototype,"nodeName"):null;if("function"==typeof a){const e=i.createElement("template");e.content&&e.content.ownerDocument&&(i=e.content.ownerDocument)}let $,k="",S=0;const z=function(e){if(S>0)throw Xe('The configured TRUSTED_TYPES_POLICY.createHTML must not call DOMPurify.sanitize, as that causes infinite recursion. Do not pass a policy whose createHTML wraps DOMPurify as TRUSTED_TYPES_POLICY; see the "DOMPurify and Trusted Types" section of the README.');S++;try{return $.createHTML(e)}finally{S--}},C=i,R=C.implementation,A=C.createNodeIterator,T=C.createDocumentFragment,E=C.getElementsByTagName,D=r.importNode;let F={afterSanitizeAttributes:[],afterSanitizeElements:[],afterSanitizeShadowDOM:[],beforeSanitizeAttributes:[],beforeSanitizeElements:[],beforeSanitizeShadowDOM:[],uponSanitizeAttribute:[],uponSanitizeElement:[],uponSanitizeShadowNode:[]};o.isSupported="function"==typeof xe&&"function"==typeof b&&R&&void 0!==R.createHTMLDocument;const I=gt,L=ut,M=ft,O=mt,N=vt,B=xt,P=yt,U=wt;let H=bt,j=null;const V=Ze({},[...ot,...it,...rt,...at,...lt]);let q=null;const G=Ze({},[...ct,...dt,...pt,...ht]);let Y=Object.seal(ze(null,{tagNameCheck:{writable:!0,configurable:!1,enumerable:!0,value:null},attributeNameCheck:{writable:!0,configurable:!1,enumerable:!0,value:null},allowCustomizedBuiltInElements:{writable:!0,configurable:!1,enumerable:!0,value:!1}})),W=null,X=null;const J=Object.seal(ze(null,{tagCheck:{writable:!0,configurable:!1,enumerable:!0,value:null},attributeCheck:{writable:!0,configurable:!1,enumerable:!0,value:null}}));let K=!0,Z=!0,Q=!1,ee=!0,te=!1,oe=!0,ie=!1,re=!1,se=!1,ae=!1,ne=!1,le=!1,ce=!0,de=!1;const pe="user-content-";let he=!0,ge=!1,ue={},fe=null;const me=Ze({},["annotation-xml","audio","colgroup","desc","foreignobject","head","iframe","math","mi","mn","mo","ms","mtext","noembed","noframes","noscript","plaintext","script","style","svg","template","thead","title","video","xmp"]);let ve=null;const be=Ze({},["audio","video","img","source","image","track"]);let ye=null;const _e=Ze({},["alt","class","for","id","label","name","pattern","placeholder","role","summary","title","value","style","xmlns"]),we="http://www.w3.org/1998/Math/MathML",$e="http://www.w3.org/2000/svg",Se="http://www.w3.org/1999/xhtml";let Ce=Se,Re=!1,Ae=null;const Je=Ze({},[we,$e,Se],Oe);let Ke=Ze({},["mi","mo","mn","ms","mtext"]),Qe=Ze({},["annotation-xml"]);const Tt=Ze({},["title","style","font","a","script"]);let Et=null;const Dt=["application/xhtml+xml","text/html"];let Ft=null,It=null;const Lt=i.createElement("form"),Mt=function(e){return e instanceof RegExp||e instanceof Function},Ot=function(){let e=arguments.length>0&&void 0!==arguments[0]?arguments[0]:{};if(It&&It===e)return;e&&"object"==typeof e||(e={}),e=et(e),Et=-1===Dt.indexOf(e.PARSER_MEDIA_TYPE)?"text/html":e.PARSER_MEDIA_TYPE,Ft="application/xhtml+xml"===Et?Oe:Me,j=Ge(e,"ALLOWED_TAGS")&&Le(e.ALLOWED_TAGS)?Ze({},e.ALLOWED_TAGS,Ft):V,q=Ge(e,"ALLOWED_ATTR")&&Le(e.ALLOWED_ATTR)?Ze({},e.ALLOWED_ATTR,Ft):G,Ae=Ge(e,"ALLOWED_NAMESPACES")&&Le(e.ALLOWED_NAMESPACES)?Ze({},e.ALLOWED_NAMESPACES,Oe):Je,ye=Ge(e,"ADD_URI_SAFE_ATTR")&&Le(e.ADD_URI_SAFE_ATTR)?Ze(et(_e),e.ADD_URI_SAFE_ATTR,Ft):_e,ve=Ge(e,"ADD_DATA_URI_TAGS")&&Le(e.ADD_DATA_URI_TAGS)?Ze(et(be),e.ADD_DATA_URI_TAGS,Ft):be,fe=Ge(e,"FORBID_CONTENTS")&&Le(e.FORBID_CONTENTS)?Ze({},e.FORBID_CONTENTS,Ft):me,W=Ge(e,"FORBID_TAGS")&&Le(e.FORBID_TAGS)?Ze({},e.FORBID_TAGS,Ft):et({}),X=Ge(e,"FORBID_ATTR")&&Le(e.FORBID_ATTR)?Ze({},e.FORBID_ATTR,Ft):et({}),ue=!!Ge(e,"USE_PROFILES")&&(e.USE_PROFILES&&"object"==typeof e.USE_PROFILES?et(e.USE_PROFILES):e.USE_PROFILES),K=!1!==e.ALLOW_ARIA_ATTR,Z=!1!==e.ALLOW_DATA_ATTR,Q=e.ALLOW_UNKNOWN_PROTOCOLS||!1,ee=!1!==e.ALLOW_SELF_CLOSE_IN_ATTR,te=e.SAFE_FOR_TEMPLATES||!1,oe=!1!==e.SAFE_FOR_XML,ie=e.WHOLE_DOCUMENT||!1,ae=e.RETURN_DOM||!1,ne=e.RETURN_DOM_FRAGMENT||!1,le=e.RETURN_TRUSTED_TYPE||!1,se=e.FORCE_BODY||!1,ce=!1!==e.SANITIZE_DOM,de=e.SANITIZE_NAMED_PROPS||!1,he=!1!==e.KEEP_CONTENT,ge=e.IN_PLACE||!1,H=function(e){try{return We(e,""),!0}catch(e){return!1}}(e.ALLOWED_URI_REGEXP)?e.ALLOWED_URI_REGEXP:bt,Ce="string"==typeof e.NAMESPACE?e.NAMESPACE:Se,Ke=Ge(e,"MATHML_TEXT_INTEGRATION_POINTS")&&e.MATHML_TEXT_INTEGRATION_POINTS&&"object"==typeof e.MATHML_TEXT_INTEGRATION_POINTS?et(e.MATHML_TEXT_INTEGRATION_POINTS):Ze({},["mi","mo","mn","ms","mtext"]),Qe=Ge(e,"HTML_INTEGRATION_POINTS")&&e.HTML_INTEGRATION_POINTS&&"object"==typeof e.HTML_INTEGRATION_POINTS?et(e.HTML_INTEGRATION_POINTS):Ze({},["annotation-xml"]);const t=Ge(e,"CUSTOM_ELEMENT_HANDLING")&&e.CUSTOM_ELEMENT_HANDLING&&"object"==typeof e.CUSTOM_ELEMENT_HANDLING?et(e.CUSTOM_ELEMENT_HANDLING):ze(null);if(Y=ze(null),Ge(t,"tagNameCheck")&&Mt(t.tagNameCheck)&&(Y.tagNameCheck=t.tagNameCheck),Ge(t,"attributeNameCheck")&&Mt(t.attributeNameCheck)&&(Y.attributeNameCheck=t.attributeNameCheck),Ge(t,"allowCustomizedBuiltInElements")&&"boolean"==typeof t.allowCustomizedBuiltInElements&&(Y.allowCustomizedBuiltInElements=t.allowCustomizedBuiltInElements),te&&(Z=!1),ne&&(ae=!0),ue&&(j=Ze({},lt),q=ze(null),!0===ue.html&&(Ze(j,ot),Ze(q,ct)),!0===ue.svg&&(Ze(j,it),Ze(q,dt),Ze(q,ht)),!0===ue.svgFilters&&(Ze(j,rt),Ze(q,dt),Ze(q,ht)),!0===ue.mathMl&&(Ze(j,at),Ze(q,pt),Ze(q,ht))),J.tagCheck=null,J.attributeCheck=null,Ge(e,"ADD_TAGS")&&("function"==typeof e.ADD_TAGS?J.tagCheck=e.ADD_TAGS:Le(e.ADD_TAGS)&&(j===V&&(j=et(j)),Ze(j,e.ADD_TAGS,Ft))),Ge(e,"ADD_ATTR")&&("function"==typeof e.ADD_ATTR?J.attributeCheck=e.ADD_ATTR:Le(e.ADD_ATTR)&&(q===G&&(q=et(q)),Ze(q,e.ADD_ATTR,Ft))),Ge(e,"ADD_URI_SAFE_ATTR")&&Le(e.ADD_URI_SAFE_ATTR)&&Ze(ye,e.ADD_URI_SAFE_ATTR,Ft),Ge(e,"FORBID_CONTENTS")&&Le(e.FORBID_CONTENTS)&&(fe===me&&(fe=et(fe)),Ze(fe,e.FORBID_CONTENTS,Ft)),Ge(e,"ADD_FORBID_CONTENTS")&&Le(e.ADD_FORBID_CONTENTS)&&(fe===me&&(fe=et(fe)),Ze(fe,e.ADD_FORBID_CONTENTS,Ft)),he&&(j["#text"]=!0),ie&&Ze(j,["html","head","body"]),j.table&&(Ze(j,["tbody"]),delete W.tbody),e.TRUSTED_TYPES_POLICY){if("function"!=typeof e.TRUSTED_TYPES_POLICY.createHTML)throw Xe('TRUSTED_TYPES_POLICY configuration option must provide a "createHTML" hook.');if("function"!=typeof e.TRUSTED_TYPES_POLICY.createScriptURL)throw Xe('TRUSTED_TYPES_POLICY configuration option must provide a "createScriptURL" hook.');const t=$;$=e.TRUSTED_TYPES_POLICY;try{k=z("")}catch(e){throw $=t,e}}else void 0===$&&null!==e.TRUSTED_TYPES_POLICY&&($=function(e,t){if("object"!=typeof e||"function"!=typeof e.createPolicy)return null;let o=null;const i="data-tt-policy-suffix";t&&t.hasAttribute(i)&&(o=t.getAttribute(i));const r="dompurify"+(o?"#"+o:"");try{return e.createPolicy(r,{createHTML:e=>e,createScriptURL:e=>e})}catch(e){return console.warn("TrustedTypes policy "+r+" could not be created."),null}}(h,s)),$&&"string"==typeof k&&(k=z(""));(F.uponSanitizeElement.length>0||F.uponSanitizeAttribute.length>0)&&j===V&&(j=et(j)),F.uponSanitizeAttribute.length>0&&q===G&&(q=et(q)),ke&&ke(e),It=e},Nt=Ze({},[...it,...rt,...st]),Bt=Ze({},[...at,...nt]),Pt=function(e){Fe(o.removed,{element:e});try{b(e).removeChild(e)}catch(t){f(e)}},Ut=function(e,t){try{Fe(o.removed,{attribute:t.getAttributeNode(e),from:t})}catch(e){Fe(o.removed,{attribute:null,from:t})}if(t.removeAttribute(e),"is"===e)if(ae||ne)try{Pt(t)}catch(e){}else try{t.setAttribute(e,"")}catch(e){}},Ht=function(e){let t=null,o=null;if(se)e="<remove></remove>"+e;else{const t=Ne(e,/^[\r\n\t ]+/);o=t&&t[0]}"application/xhtml+xml"===Et&&Ce===Se&&(e='<html xmlns="http://www.w3.org/1999/xhtml"><head></head><body>'+e+"</body></html>");const r=$?z(e):e;if(Ce===Se)try{t=(new p).parseFromString(r,Et)}catch(e){}if(!t||!t.documentElement){t=R.createDocument(Ce,"template",null);try{t.documentElement.innerHTML=Re?k:r}catch(e){}}const s=t.body||t.documentElement;return e&&o&&s.insertBefore(i.createTextNode(o),s.childNodes[0]||null),Ce===Se?E.call(t,ie?"html":"body")[0]:ie?t.documentElement:s},jt=function(e){return A.call(e.ownerDocument||e,e,c.SHOW_ELEMENT|c.SHOW_COMMENT|c.SHOW_TEXT|c.SHOW_PROCESSING_INSTRUCTION|c.SHOW_CDATA_SECTION,null)},Vt=function(e){var t,o;e.normalize();const i=A.call(e.ownerDocument||e,e,c.SHOW_TEXT|c.SHOW_COMMENT|c.SHOW_CDATA_SECTION|c.SHOW_PROCESSING_INSTRUCTION,null);let r=i.nextNode();for(;r;){let e=r.data;Te([I,L,M],t=>{e=Be(e,t," ")}),r.data=e,r=i.nextNode()}const s=null!==(t=null===(o=e.querySelectorAll)||void 0===o?void 0:o.call(e,"template"))&&void 0!==t?t:[];Te(Array.from(s),e=>{Gt(e.content)&&Vt(e.content)})},qt=function(e){const t=w?w(e):null;return"string"==typeof t&&("form"===Ft(t)&&("string"!=typeof e.nodeName||"string"!=typeof e.textContent||"function"!=typeof e.removeChild||e.attributes!==y(e)||"function"!=typeof e.removeAttribute||"function"!=typeof e.setAttribute||"string"!=typeof e.namespaceURI||"function"!=typeof e.insertBefore||"function"!=typeof e.hasChildNodes||e.nodeType!==_(e)||e.childNodes!==v(e)))},Gt=function(e){if(!_||"object"!=typeof e||null===e)return!1;try{return _(e)===Rt}catch(e){return!1}},Yt=function(e){if(!_||"object"!=typeof e||null===e)return!1;try{return"number"==typeof _(e)}catch(e){return!1}};function Wt(e,t,i){Te(e,e=>{e.call(o,t,i,It)})}const Xt=function(e){let t=null;if(Wt(F.beforeSanitizeElements,e,null),qt(e))return Pt(e),!0;const i=Ft(w?w(e):e.nodeName);if(Wt(F.uponSanitizeElement,e,{tagName:i,allowedTags:j}),oe&&e.hasChildNodes()&&!Yt(e.firstElementChild)&&We(/<[/\w!]/g,e.innerHTML)&&We(/<[/\w!]/g,e.textContent))return Pt(e),!0;if(oe&&e.namespaceURI===Se&&"style"===i&&Yt(e.firstElementChild))return Pt(e),!0;if(e.nodeType===St)return Pt(e),!0;if(oe&&e.nodeType===zt&&We(/<[/\w]/g,e.data))return Pt(e),!0;if(W[i]||!(J.tagCheck instanceof Function&&J.tagCheck(i))&&!j[i]){if(!W[i]&&Zt(i)){if(Y.tagNameCheck instanceof RegExp&&We(Y.tagNameCheck,i))return!1;if(Y.tagNameCheck instanceof Function&&Y.tagNameCheck(i))return!1}if(he&&!fe[i]){const t=b(e),o=v(e);if(o&&t){for(let i=o.length-1;i>=0;--i){const r=u(o[i],!0);t.insertBefore(r,m(e))}}}return Pt(e),!0}return((_?_(e):e.nodeType)!==$t||function(e){let t=b(e);t&&t.tagName||(t={namespaceURI:Ce,tagName:"template"});const o=Me(e.tagName),i=Me(t.tagName);return!!Ae[e.namespaceURI]&&(e.namespaceURI===$e?t.namespaceURI===Se?"svg"===o:t.namespaceURI===we?"svg"===o&&("annotation-xml"===i||Ke[i]):Boolean(Nt[o]):e.namespaceURI===we?t.namespaceURI===Se?"math"===o:t.namespaceURI===$e?"math"===o&&Qe[i]:Boolean(Bt[o]):e.namespaceURI===Se?!(t.namespaceURI===$e&&!Qe[i])&&!(t.namespaceURI===we&&!Ke[i])&&!Bt[o]&&(Tt[o]||!Nt[o]):!("application/xhtml+xml"!==Et||!Ae[e.namespaceURI]))}(e))&&("noscript"!==i&&"noembed"!==i&&"noframes"!==i||!We(/<\/no(script|embed|frames)/i,e.innerHTML))?(te&&e.nodeType===kt&&(t=e.textContent,Te([I,L,M],e=>{t=Be(t,e," ")}),e.textContent!==t&&(Fe(o.removed,{element:e.cloneNode()}),e.textContent=t)),Wt(F.afterSanitizeElements,e,null),!1):(Pt(e),!0)},Jt=function(e,t,o){if(X[t])return!1;if(ce&&("id"===t||"name"===t)&&(o in i||o in Lt))return!1;const r=q[t]||J.attributeCheck instanceof Function&&J.attributeCheck(t,e);if(Z&&!X[t]&&We(O,t));else if(K&&We(N,t));else if(!r||X[t]){if(!(Zt(e)&&(Y.tagNameCheck instanceof RegExp&&We(Y.tagNameCheck,e)||Y.tagNameCheck instanceof Function&&Y.tagNameCheck(e))&&(Y.attributeNameCheck instanceof RegExp&&We(Y.attributeNameCheck,t)||Y.attributeNameCheck instanceof Function&&Y.attributeNameCheck(t,e))||"is"===t&&Y.allowCustomizedBuiltInElements&&(Y.tagNameCheck instanceof RegExp&&We(Y.tagNameCheck,o)||Y.tagNameCheck instanceof Function&&Y.tagNameCheck(o))))return!1}else if(ye[t]);else if(We(H,Be(o,P,"")));else if("src"!==t&&"xlink:href"!==t&&"href"!==t||"script"===e||0!==Pe(o,"data:")||!ve[e]){if(Q&&!We(B,Be(o,P,"")));else if(o)return!1}else;return!0},Kt=Ze({},["annotation-xml","color-profile","font-face","font-face-format","font-face-name","font-face-src","font-face-uri","missing-glyph"]),Zt=function(e){return!Kt[Me(e)]&&We(U,e)},Qt=function(e){Wt(F.beforeSanitizeAttributes,e,null);const t=e.attributes;if(!t||qt(e))return;const i={attrName:"",attrValue:"",keepAttr:!0,allowedAttributes:q,forceKeepAttr:void 0};let r=t.length;for(;r--;){const s=t[r],a=s.name,n=s.namespaceURI,l=s.value,c=Ft(a),d=l;let p="value"===a?d:Ue(d);if(i.attrName=c,i.attrValue=p,i.keepAttr=!0,i.forceKeepAttr=void 0,Wt(F.uponSanitizeAttribute,e,i),p=i.attrValue,!de||"id"!==c&&"name"!==c||0===Pe(p,pe)||(Ut(a,e),p=pe+p),oe&&We(/((--!?|])>)|<\/(style|script|title|xmp|textarea|noscript|iframe|noembed|noframes)/i,p)){Ut(a,e);continue}if("attributename"===c&&Ne(p,"href")){Ut(a,e);continue}if(i.forceKeepAttr)continue;if(!i.keepAttr){Ut(a,e);continue}if(!ee&&We(/\/>/i,p)){Ut(a,e);continue}te&&Te([I,L,M],e=>{p=Be(p,e," ")});const g=Ft(e.nodeName);if(Jt(g,c,p)){if($&&"object"==typeof h&&"function"==typeof h.getAttributeType)if(n);else switch(h.getAttributeType(g,c)){case"TrustedHTML":p=z(p);break;case"TrustedScriptURL":p=$.createScriptURL(p)}if(p!==d)try{n?e.setAttributeNS(n,a,p):e.setAttribute(a,p),qt(e)?Pt(e):De(o.removed)}catch(t){Ut(a,e)}}else Ut(a,e)}Wt(F.afterSanitizeAttributes,e,null)},eo=function(e){let t=null;const o=jt(e);for(Wt(F.beforeSanitizeShadowDOM,e,null);t=o.nextNode();){Wt(F.uponSanitizeShadowNode,t,null),Xt(t),Qt(t),Gt(t.content)&&eo(t.content);if((_?_(t):t.nodeType)===$t){const e=x?x(t):t.shadowRoot;Gt(e)&&(to(e),eo(e))}}Wt(F.afterSanitizeShadowDOM,e,null)},to=function(e){const t=_?_(e):e.nodeType;if(t===$t){const t=x?x(e):e.shadowRoot;Gt(t)&&(to(t),eo(t))}const o=v?v(e):e.childNodes;if(!o)return;const i=[];Te(o,e=>{Fe(i,e)});for(const e of i)to(e);if(t===$t){const t=w?w(e):null;if("string"==typeof t&&"template"===Ft(t)){const t=e.content;Gt(t)&&to(t)}}};return o.sanitize=function(e){let t=arguments.length>1&&void 0!==arguments[1]?arguments[1]:{},i=null,s=null,a=null,n=null;if(Re=!e,Re&&(e="\x3c!--\x3e"),"string"!=typeof e&&!Yt(e)&&"string"!=typeof(e=function(e){switch(typeof e){case"string":return e;case"number":return He(e);case"boolean":return je(e);case"bigint":return Ve?Ve(e):"0";case"symbol":return qe?qe(e):"Symbol()";case"undefined":default:return Ye(e);case"function":case"object":{if(null===e)return Ye(e);const t=e,o=tt(t,"toString");if("function"==typeof o){const e=o(t);return"string"==typeof e?e:Ye(e)}return Ye(e)}}}(e)))throw Xe("dirty is not a string, aborting");if(!o.isSupported)return e;if(re||Ot(t),o.removed=[],"string"==typeof e&&(ge=!1),ge){const t=w?w(e):e.nodeName;if("string"==typeof t){const e=Ft(t);if(!j[e]||W[e])throw Xe("root node is forbidden and cannot be sanitized in-place")}if(qt(e))throw Xe("root node is clobbered and cannot be sanitized in-place");to(e)}else if(Yt(e))i=Ht("\x3c!----\x3e"),s=i.ownerDocument.importNode(e,!0),s.nodeType===$t&&"BODY"===s.nodeName||"HTML"===s.nodeName?i=s:i.appendChild(s),to(s);else{if(!ae&&!te&&!ie&&-1===e.indexOf("<"))return $&&le?z(e):e;if(i=Ht(e),!i)return ae?null:le?k:""}i&&se&&Pt(i.firstChild);const l=jt(ge?e:i);for(;a=l.nextNode();)Xt(a),Qt(a),Gt(a.content)&&eo(a.content);if(ge)return te&&Vt(e),e;if(ae){if(te&&Vt(i),ne)for(n=T.call(i.ownerDocument);i.firstChild;)n.appendChild(i.firstChild);else n=i;return(q.shadowroot||q.shadowrootmode)&&(n=D.call(r,n,!0)),n}let c=ie?i.outerHTML:i.innerHTML;return ie&&j["!doctype"]&&i.ownerDocument&&i.ownerDocument.doctype&&i.ownerDocument.doctype.name&&We(_t,i.ownerDocument.doctype.name)&&(c="<!DOCTYPE "+i.ownerDocument.doctype.name+">\n"+c),te&&Te([I,L,M],e=>{c=Be(c,e," ")}),$&&le?z(c):c},o.setConfig=function(){Ot(arguments.length>0&&void 0!==arguments[0]?arguments[0]:{}),re=!0},o.clearConfig=function(){It=null,re=!1},o.isValidAttribute=function(e,t,o){It||Ot({});const i=Ft(e),r=Ft(t);return Jt(i,r,o)},o.addHook=function(e,t){"function"==typeof t&&Fe(F[e],t)},o.removeHook=function(e,t){if(void 0!==t){const o=Ee(F[e],t);return-1===o?void 0:Ie(F[e],o,1)[0]}return De(F[e])},o.removeHooks=function(e){F[e]=[]},o.removeAllHooks=function(){F={afterSanitizeAttributes:[],afterSanitizeElements:[],afterSanitizeShadowDOM:[],beforeSanitizeAttributes:[],beforeSanitizeElements:[],beforeSanitizeShadowDOM:[],uponSanitizeAttribute:[],uponSanitizeElement:[],uponSanitizeShadowNode:[]}},o}();class Et extends(de(ae)){static properties={currentView:{type:String},stats:{type:Object},hass:{type:Object},narrow:{type:Boolean},_apiReady:{type:Boolean,state:!0},_error:{type:String,state:!0},_detailRepo:{type:Object,state:!0},_showDetail:{type:Boolean,state:!0},_favoriteCount:{type:Number,state:!0},_readmeHtml:{type:String,state:!0},_readmeLoading:{type:Boolean,state:!0},_viewTransition:{type:Boolean,state:!0},_networkStatus:{type:String,state:!0},_detailExpanded:{type:Boolean,state:!0},_showVersionSelector:{type:Boolean,state:!0},_releases:{type:Array,state:!0},_releasesLoading:{type:Boolean,state:!0},_installingVersion:{type:Boolean,state:!0},_changelogData:{type:Object,state:!0},_changelogLoading:{type:Boolean,state:!0},_presetFilter:{type:String,state:!0},_presetTag:{type:String,state:!0},_configFlowDomain:{type:String,state:!0},_configFlowEntryId:{type:String,state:!0},_showConfigFlow:{type:Boolean,state:!0},_configEntries:{type:Object,state:!0},_showEntrySelector:{type:Boolean,state:!0},_entrySelectorDomain:{type:String,state:!0},_entrySelectorEntries:{type:Array,state:!0},_entrySelectorCurrentId:{type:String,state:!0}};constructor(){super(),this.currentView=localStorage.getItem("hacs_vision_tab")||"browse",this.stats={pendingRestart:0},this.narrow=window.innerWidth<768,this._apiReady=!1,this._error="",this._detailRepo=null,this._showDetail=!1,this._favoriteCount=0,this._readmeHtml=null,this._readmeLoading=!1,this._viewTransition=!1,this._networkStatus="online",this._detailExpanded=!1,this._showVersionSelector=!1,this._releases=[],this._releasesLoading=!1,this._installingVersion=!1,this._changelogData=null,this._changelogLoading=!1,this._presetFilter="",this._presetTag="",this._configFlowDomain="",this._configFlowEntryId=null,this._showConfigFlow=!1,this._configEntries=null,this._showEntrySelector=!1,this._entrySelectorDomain="",this._entrySelectorEntries=[],this._entrySelectorCurrentId=null,Ft(this),window.addEventListener("resize",()=>{this.narrow=window.innerWidth<768}),window.addEventListener("online",()=>{this._networkStatus="online"}),window.addEventListener("offline",()=>{this._networkStatus="offline"})}async _updateFavoriteCount(){try{const e=await ce.getFavorites(),t=Array.isArray(e)?e:e.favorites||[];this._favoriteCount=t.length}catch{this._favoriteCount=0}}willUpdate(e){var t;e.has("hass")&&this.hass&&(t=this.hass,t?.language&&(pe=0===t.language.indexOf("zh")?"zh":"en"),ce.setHass(this.hass),this._apiReady||(this._apiReady=!0,this._loadStats(),this._loadConfigEntries(),ce._onNetworkStatus=e=>{this._networkStatus=e}))}static styles=[me(),s`
+/*! @license DOMPurify 3.4.8 | (c) Cure53 and other contributors | Released under the Apache license 2.0 and Mozilla Public License 2.0 | github.com/cure53/DOMPurify/blob/3.4.8/LICENSE */function ve(e,t){(null==t||t>e.length)&&(t=e.length);for(var o=0,i=Array(t);o<t;o++)i[o]=e[o];return i}function be(e,t){return function(e){if(Array.isArray(e))return e}(e)||function(e,t){var o=null==e?null:"undefined"!=typeof Symbol&&e[Symbol.iterator]||e["@@iterator"];if(null!=o){var i,r,s,a,n=[],l=!0,c=!1;try{if(s=(o=o.call(e)).next,0===t);else for(;!(l=(i=s.call(o)).done)&&(n.push(i.value),n.length!==t);l=!0);}catch(e){c=!0,r=e}finally{try{if(!l&&null!=o.return&&(a=o.return(),Object(a)!==a))return}finally{if(c)throw r}}return n}}(e,t)||function(e,t){if(e){if("string"==typeof e)return ve(e,t);var o={}.toString.call(e).slice(8,-1);return"Object"===o&&e.constructor&&(o=e.constructor.name),"Map"===o||"Set"===o?Array.from(e):"Arguments"===o||/^(?:Ui|I)nt(?:8|16|32)(?:Clamped)?Array$/.test(o)?ve(e,t):void 0}}(e,t)||function(){throw new TypeError("Invalid attempt to destructure non-iterable instance.\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method.")}()}const xe=Object.entries,ye=Object.setPrototypeOf,_e=Object.isFrozen,we=Object.getPrototypeOf,$e=Object.getOwnPropertyDescriptor;let ke=Object.freeze,Se=Object.seal,ze=Object.create,Ce="undefined"!=typeof Reflect&&Reflect,Re=Ce.apply,Ae=Ce.construct;ke||(ke=function(e){return e}),Se||(Se=function(e){return e}),Re||(Re=function(e,t){for(var o=arguments.length,i=new Array(o>2?o-2:0),r=2;r<o;r++)i[r-2]=arguments[r];return e.apply(t,i)}),Ae||(Ae=function(e){for(var t=arguments.length,o=new Array(t>1?t-1:0),i=1;i<t;i++)o[i-1]=arguments[i];return new e(...o)});const Te=Ke(Array.prototype.forEach),Ee=Ke(Array.prototype.lastIndexOf),De=Ke(Array.prototype.pop),Fe=Ke(Array.prototype.push),Ie=Ke(Array.prototype.splice),Le=Array.isArray,Me=Ke(String.prototype.toLowerCase),Oe=Ke(String.prototype.toString),Ne=Ke(String.prototype.match),Be=Ke(String.prototype.replace),He=Ke(String.prototype.indexOf),Pe=Ke(String.prototype.trim),Ue=Ke(Number.prototype.toString),je=Ke(Boolean.prototype.toString),Ve="undefined"==typeof BigInt?null:Ke(BigInt.prototype.toString),qe="undefined"==typeof Symbol?null:Ke(Symbol.prototype.toString),Ge=Ke(Object.prototype.hasOwnProperty),Ye=Ke(Object.prototype.toString),We=Ke(RegExp.prototype.test),Xe=(Je=TypeError,function(){for(var e=arguments.length,t=new Array(e),o=0;o<e;o++)t[o]=arguments[o];return Ae(Je,t)});var Je;function Ke(e){return function(t){t instanceof RegExp&&(t.lastIndex=0);for(var o=arguments.length,i=new Array(o>1?o-1:0),r=1;r<o;r++)i[r-1]=arguments[r];return Re(e,t,i)}}function Ze(e,t){let o=arguments.length>2&&void 0!==arguments[2]?arguments[2]:Me;if(ye&&ye(e,null),!Le(t))return e;let i=t.length;for(;i--;){let r=t[i];if("string"==typeof r){const e=o(r);e!==r&&(_e(t)||(t[i]=e),r=e)}e[r]=!0}return e}function Qe(e){for(let t=0;t<e.length;t++){Ge(e,t)||(e[t]=null)}return e}function et(e){const t=ze(null);for(const i of xe(e)){var o=be(i,2);const r=o[0],s=o[1];Ge(e,r)&&(Le(s)?t[r]=Qe(s):s&&"object"==typeof s&&s.constructor===Object?t[r]=et(s):t[r]=s)}return t}function tt(e,t){for(;null!==e;){const o=$e(e,t);if(o){if(o.get)return Ke(o.get);if("function"==typeof o.value)return Ke(o.value)}e=we(e)}return function(){return null}}const ot=ke(["a","abbr","acronym","address","area","article","aside","audio","b","bdi","bdo","big","blink","blockquote","body","br","button","canvas","caption","center","cite","code","col","colgroup","content","data","datalist","dd","decorator","del","details","dfn","dialog","dir","div","dl","dt","element","em","fieldset","figcaption","figure","font","footer","form","h1","h2","h3","h4","h5","h6","head","header","hgroup","hr","html","i","img","input","ins","kbd","label","legend","li","main","map","mark","marquee","menu","menuitem","meter","nav","nobr","ol","optgroup","option","output","p","picture","pre","progress","q","rp","rt","ruby","s","samp","search","section","select","shadow","slot","small","source","spacer","span","strike","strong","style","sub","summary","sup","table","tbody","td","template","textarea","tfoot","th","thead","time","tr","track","tt","u","ul","var","video","wbr"]),it=ke(["svg","a","altglyph","altglyphdef","altglyphitem","animatecolor","animatemotion","animatetransform","circle","clippath","defs","desc","ellipse","enterkeyhint","exportparts","filter","font","g","glyph","glyphref","hkern","image","inputmode","line","lineargradient","marker","mask","metadata","mpath","part","path","pattern","polygon","polyline","radialgradient","rect","stop","style","switch","symbol","text","textpath","title","tref","tspan","view","vkern"]),rt=ke(["feBlend","feColorMatrix","feComponentTransfer","feComposite","feConvolveMatrix","feDiffuseLighting","feDisplacementMap","feDistantLight","feDropShadow","feFlood","feFuncA","feFuncB","feFuncG","feFuncR","feGaussianBlur","feImage","feMerge","feMergeNode","feMorphology","feOffset","fePointLight","feSpecularLighting","feSpotLight","feTile","feTurbulence"]),st=ke(["animate","color-profile","cursor","discard","font-face","font-face-format","font-face-name","font-face-src","font-face-uri","foreignobject","hatch","hatchpath","mesh","meshgradient","meshpatch","meshrow","missing-glyph","script","set","solidcolor","unknown","use"]),at=ke(["math","menclose","merror","mfenced","mfrac","mglyph","mi","mlabeledtr","mmultiscripts","mn","mo","mover","mpadded","mphantom","mroot","mrow","ms","mspace","msqrt","mstyle","msub","msup","msubsup","mtable","mtd","mtext","mtr","munder","munderover","mprescripts"]),nt=ke(["maction","maligngroup","malignmark","mlongdiv","mscarries","mscarry","msgroup","mstack","msline","msrow","semantics","annotation","annotation-xml","mprescripts","none"]),lt=ke(["#text"]),ct=ke(["accept","action","align","alt","autocapitalize","autocomplete","autopictureinpicture","autoplay","background","bgcolor","border","capture","cellpadding","cellspacing","checked","cite","class","clear","color","cols","colspan","command","commandfor","controls","controlslist","coords","crossorigin","datetime","decoding","default","dir","disabled","disablepictureinpicture","disableremoteplayback","download","draggable","enctype","enterkeyhint","exportparts","face","for","headers","height","hidden","high","href","hreflang","id","inert","inputmode","integrity","ismap","kind","label","lang","list","loading","loop","low","max","maxlength","media","method","min","minlength","multiple","muted","name","nonce","noshade","novalidate","nowrap","open","optimum","part","pattern","placeholder","playsinline","popover","popovertarget","popovertargetaction","poster","preload","pubdate","radiogroup","readonly","rel","required","rev","reversed","role","rows","rowspan","spellcheck","scope","selected","shape","size","sizes","slot","span","srclang","start","src","srcset","step","style","summary","tabindex","title","translate","type","usemap","valign","value","width","wrap","xmlns"]),dt=ke(["accent-height","accumulate","additive","alignment-baseline","amplitude","ascent","attributename","attributetype","azimuth","basefrequency","baseline-shift","begin","bias","by","class","clip","clippathunits","clip-path","clip-rule","color","color-interpolation","color-interpolation-filters","color-profile","color-rendering","cx","cy","d","dx","dy","diffuseconstant","direction","display","divisor","dur","edgemode","elevation","end","exponent","fill","fill-opacity","fill-rule","filter","filterunits","flood-color","flood-opacity","font-family","font-size","font-size-adjust","font-stretch","font-style","font-variant","font-weight","fx","fy","g1","g2","glyph-name","glyphref","gradientunits","gradienttransform","height","href","id","image-rendering","in","in2","intercept","k","k1","k2","k3","k4","kerning","keypoints","keysplines","keytimes","lang","lengthadjust","letter-spacing","kernelmatrix","kernelunitlength","lighting-color","local","marker-end","marker-mid","marker-start","markerheight","markerunits","markerwidth","maskcontentunits","maskunits","max","mask","mask-type","media","method","mode","min","name","numoctaves","offset","operator","opacity","order","orient","orientation","origin","overflow","paint-order","path","pathlength","patterncontentunits","patterntransform","patternunits","points","preservealpha","preserveaspectratio","primitiveunits","r","rx","ry","radius","refx","refy","repeatcount","repeatdur","restart","result","rotate","scale","seed","shape-rendering","slope","specularconstant","specularexponent","spreadmethod","startoffset","stddeviation","stitchtiles","stop-color","stop-opacity","stroke-dasharray","stroke-dashoffset","stroke-linecap","stroke-linejoin","stroke-miterlimit","stroke-opacity","stroke","stroke-width","style","surfacescale","systemlanguage","tabindex","tablevalues","targetx","targety","transform","transform-origin","text-anchor","text-decoration","text-rendering","textlength","type","u1","u2","unicode","values","viewbox","visibility","version","vert-adv-y","vert-origin-x","vert-origin-y","width","word-spacing","wrap","writing-mode","xchannelselector","ychannelselector","x","x1","x2","xmlns","y","y1","y2","z","zoomandpan"]),pt=ke(["accent","accentunder","align","bevelled","close","columnalign","columnlines","columnspacing","columnspan","denomalign","depth","dir","display","displaystyle","encoding","fence","frame","height","href","id","largeop","length","linethickness","lquote","lspace","mathbackground","mathcolor","mathsize","mathvariant","maxsize","minsize","movablelimits","notation","numalign","open","rowalign","rowlines","rowspacing","rowspan","rspace","rquote","scriptlevel","scriptminsize","scriptsizemultiplier","selection","separator","separators","stretchy","subscriptshift","supscriptshift","symmetric","voffset","width","xmlns"]),ht=ke(["xlink:href","xml:id","xlink:title","xml:space","xmlns:xlink"]),gt=Se(/{{[\w\W]*|^[\w\W]*}}/g),ut=Se(/<%[\w\W]*|^[\w\W]*%>/g),ft=Se(/\${[\w\W]*/g),mt=Se(/^data-[\-\w.\u00B7-\uFFFF]+$/),vt=Se(/^aria-[\-\w]+$/),bt=Se(/^(?:(?:(?:f|ht)tps?|mailto|tel|callto|sms|cid|xmpp|matrix):|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i),xt=Se(/^(?:\w+script|data):/i),yt=Se(/[\u0000-\u0020\u00A0\u1680\u180E\u2000-\u2029\u205F\u3000]/g),_t=Se(/^html$/i),wt=Se(/^[a-z][.\w]*(-[.\w]+)+$/i),$t=1,kt=3,St=7,zt=8,Ct=9,Rt=11,At=function(){return"undefined"==typeof window?null:window};var Tt=function e(){let t=arguments.length>0&&void 0!==arguments[0]?arguments[0]:At();const o=t=>e(t);if(o.version="3.4.8",o.removed=[],!t||!t.document||t.document.nodeType!==Ct||!t.Element)return o.isSupported=!1,o;let i=t.document;const r=i,s=r.currentScript;t.DocumentFragment;const a=t.HTMLTemplateElement,n=t.Node,l=t.Element,c=t.NodeFilter,d=t.NamedNodeMap;void 0===d&&(t.NamedNodeMap||t.MozNamedAttrMap),t.HTMLFormElement;const p=t.DOMParser,h=t.trustedTypes,g=l.prototype,u=tt(g,"cloneNode"),f=tt(g,"remove"),m=tt(g,"nextSibling"),v=tt(g,"childNodes"),b=tt(g,"parentNode"),x=tt(g,"shadowRoot"),y=tt(g,"attributes"),_=n&&n.prototype?tt(n.prototype,"nodeType"):null,w=n&&n.prototype?tt(n.prototype,"nodeName"):null;if("function"==typeof a){const e=i.createElement("template");e.content&&e.content.ownerDocument&&(i=e.content.ownerDocument)}let $,k="",S=0;const z=function(e){if(S>0)throw Xe('The configured TRUSTED_TYPES_POLICY.createHTML must not call DOMPurify.sanitize, as that causes infinite recursion. Do not pass a policy whose createHTML wraps DOMPurify as TRUSTED_TYPES_POLICY; see the "DOMPurify and Trusted Types" section of the README.');S++;try{return $.createHTML(e)}finally{S--}},C=i,R=C.implementation,A=C.createNodeIterator,T=C.createDocumentFragment,E=C.getElementsByTagName,D=r.importNode;let F={afterSanitizeAttributes:[],afterSanitizeElements:[],afterSanitizeShadowDOM:[],beforeSanitizeAttributes:[],beforeSanitizeElements:[],beforeSanitizeShadowDOM:[],uponSanitizeAttribute:[],uponSanitizeElement:[],uponSanitizeShadowNode:[]};o.isSupported="function"==typeof xe&&"function"==typeof b&&R&&void 0!==R.createHTMLDocument;const I=gt,L=ut,M=ft,O=mt,N=vt,B=xt,H=yt,P=wt;let U=bt,j=null;const V=Ze({},[...ot,...it,...rt,...at,...lt]);let q=null;const G=Ze({},[...ct,...dt,...pt,...ht]);let Y=Object.seal(ze(null,{tagNameCheck:{writable:!0,configurable:!1,enumerable:!0,value:null},attributeNameCheck:{writable:!0,configurable:!1,enumerable:!0,value:null},allowCustomizedBuiltInElements:{writable:!0,configurable:!1,enumerable:!0,value:!1}})),W=null,X=null;const J=Object.seal(ze(null,{tagCheck:{writable:!0,configurable:!1,enumerable:!0,value:null},attributeCheck:{writable:!0,configurable:!1,enumerable:!0,value:null}}));let K=!0,Z=!0,Q=!1,ee=!0,te=!1,oe=!0,ie=!1,re=!1,se=!1,ae=!1,ne=!1,le=!1,ce=!0,de=!1;const pe="user-content-";let he=!0,ge=!1,ue={},fe=null;const me=Ze({},["annotation-xml","audio","colgroup","desc","foreignobject","head","iframe","math","mi","mn","mo","ms","mtext","noembed","noframes","noscript","plaintext","script","style","svg","template","thead","title","video","xmp"]);let ve=null;const be=Ze({},["audio","video","img","source","image","track"]);let ye=null;const _e=Ze({},["alt","class","for","id","label","name","pattern","placeholder","role","summary","title","value","style","xmlns"]),we="http://www.w3.org/1998/Math/MathML",$e="http://www.w3.org/2000/svg",Se="http://www.w3.org/1999/xhtml";let Ce=Se,Re=!1,Ae=null;const Je=Ze({},[we,$e,Se],Oe);let Ke=Ze({},["mi","mo","mn","ms","mtext"]),Qe=Ze({},["annotation-xml"]);const Tt=Ze({},["title","style","font","a","script"]);let Et=null;const Dt=["application/xhtml+xml","text/html"];let Ft=null,It=null;const Lt=i.createElement("form"),Mt=function(e){return e instanceof RegExp||e instanceof Function},Ot=function(){let e=arguments.length>0&&void 0!==arguments[0]?arguments[0]:{};if(It&&It===e)return;e&&"object"==typeof e||(e={}),e=et(e),Et=-1===Dt.indexOf(e.PARSER_MEDIA_TYPE)?"text/html":e.PARSER_MEDIA_TYPE,Ft="application/xhtml+xml"===Et?Oe:Me,j=Ge(e,"ALLOWED_TAGS")&&Le(e.ALLOWED_TAGS)?Ze({},e.ALLOWED_TAGS,Ft):V,q=Ge(e,"ALLOWED_ATTR")&&Le(e.ALLOWED_ATTR)?Ze({},e.ALLOWED_ATTR,Ft):G,Ae=Ge(e,"ALLOWED_NAMESPACES")&&Le(e.ALLOWED_NAMESPACES)?Ze({},e.ALLOWED_NAMESPACES,Oe):Je,ye=Ge(e,"ADD_URI_SAFE_ATTR")&&Le(e.ADD_URI_SAFE_ATTR)?Ze(et(_e),e.ADD_URI_SAFE_ATTR,Ft):_e,ve=Ge(e,"ADD_DATA_URI_TAGS")&&Le(e.ADD_DATA_URI_TAGS)?Ze(et(be),e.ADD_DATA_URI_TAGS,Ft):be,fe=Ge(e,"FORBID_CONTENTS")&&Le(e.FORBID_CONTENTS)?Ze({},e.FORBID_CONTENTS,Ft):me,W=Ge(e,"FORBID_TAGS")&&Le(e.FORBID_TAGS)?Ze({},e.FORBID_TAGS,Ft):et({}),X=Ge(e,"FORBID_ATTR")&&Le(e.FORBID_ATTR)?Ze({},e.FORBID_ATTR,Ft):et({}),ue=!!Ge(e,"USE_PROFILES")&&(e.USE_PROFILES&&"object"==typeof e.USE_PROFILES?et(e.USE_PROFILES):e.USE_PROFILES),K=!1!==e.ALLOW_ARIA_ATTR,Z=!1!==e.ALLOW_DATA_ATTR,Q=e.ALLOW_UNKNOWN_PROTOCOLS||!1,ee=!1!==e.ALLOW_SELF_CLOSE_IN_ATTR,te=e.SAFE_FOR_TEMPLATES||!1,oe=!1!==e.SAFE_FOR_XML,ie=e.WHOLE_DOCUMENT||!1,ae=e.RETURN_DOM||!1,ne=e.RETURN_DOM_FRAGMENT||!1,le=e.RETURN_TRUSTED_TYPE||!1,se=e.FORCE_BODY||!1,ce=!1!==e.SANITIZE_DOM,de=e.SANITIZE_NAMED_PROPS||!1,he=!1!==e.KEEP_CONTENT,ge=e.IN_PLACE||!1,U=function(e){try{return We(e,""),!0}catch(e){return!1}}(e.ALLOWED_URI_REGEXP)?e.ALLOWED_URI_REGEXP:bt,Ce="string"==typeof e.NAMESPACE?e.NAMESPACE:Se,Ke=Ge(e,"MATHML_TEXT_INTEGRATION_POINTS")&&e.MATHML_TEXT_INTEGRATION_POINTS&&"object"==typeof e.MATHML_TEXT_INTEGRATION_POINTS?et(e.MATHML_TEXT_INTEGRATION_POINTS):Ze({},["mi","mo","mn","ms","mtext"]),Qe=Ge(e,"HTML_INTEGRATION_POINTS")&&e.HTML_INTEGRATION_POINTS&&"object"==typeof e.HTML_INTEGRATION_POINTS?et(e.HTML_INTEGRATION_POINTS):Ze({},["annotation-xml"]);const t=Ge(e,"CUSTOM_ELEMENT_HANDLING")&&e.CUSTOM_ELEMENT_HANDLING&&"object"==typeof e.CUSTOM_ELEMENT_HANDLING?et(e.CUSTOM_ELEMENT_HANDLING):ze(null);if(Y=ze(null),Ge(t,"tagNameCheck")&&Mt(t.tagNameCheck)&&(Y.tagNameCheck=t.tagNameCheck),Ge(t,"attributeNameCheck")&&Mt(t.attributeNameCheck)&&(Y.attributeNameCheck=t.attributeNameCheck),Ge(t,"allowCustomizedBuiltInElements")&&"boolean"==typeof t.allowCustomizedBuiltInElements&&(Y.allowCustomizedBuiltInElements=t.allowCustomizedBuiltInElements),te&&(Z=!1),ne&&(ae=!0),ue&&(j=Ze({},lt),q=ze(null),!0===ue.html&&(Ze(j,ot),Ze(q,ct)),!0===ue.svg&&(Ze(j,it),Ze(q,dt),Ze(q,ht)),!0===ue.svgFilters&&(Ze(j,rt),Ze(q,dt),Ze(q,ht)),!0===ue.mathMl&&(Ze(j,at),Ze(q,pt),Ze(q,ht))),J.tagCheck=null,J.attributeCheck=null,Ge(e,"ADD_TAGS")&&("function"==typeof e.ADD_TAGS?J.tagCheck=e.ADD_TAGS:Le(e.ADD_TAGS)&&(j===V&&(j=et(j)),Ze(j,e.ADD_TAGS,Ft))),Ge(e,"ADD_ATTR")&&("function"==typeof e.ADD_ATTR?J.attributeCheck=e.ADD_ATTR:Le(e.ADD_ATTR)&&(q===G&&(q=et(q)),Ze(q,e.ADD_ATTR,Ft))),Ge(e,"ADD_URI_SAFE_ATTR")&&Le(e.ADD_URI_SAFE_ATTR)&&Ze(ye,e.ADD_URI_SAFE_ATTR,Ft),Ge(e,"FORBID_CONTENTS")&&Le(e.FORBID_CONTENTS)&&(fe===me&&(fe=et(fe)),Ze(fe,e.FORBID_CONTENTS,Ft)),Ge(e,"ADD_FORBID_CONTENTS")&&Le(e.ADD_FORBID_CONTENTS)&&(fe===me&&(fe=et(fe)),Ze(fe,e.ADD_FORBID_CONTENTS,Ft)),he&&(j["#text"]=!0),ie&&Ze(j,["html","head","body"]),j.table&&(Ze(j,["tbody"]),delete W.tbody),e.TRUSTED_TYPES_POLICY){if("function"!=typeof e.TRUSTED_TYPES_POLICY.createHTML)throw Xe('TRUSTED_TYPES_POLICY configuration option must provide a "createHTML" hook.');if("function"!=typeof e.TRUSTED_TYPES_POLICY.createScriptURL)throw Xe('TRUSTED_TYPES_POLICY configuration option must provide a "createScriptURL" hook.');const t=$;$=e.TRUSTED_TYPES_POLICY;try{k=z("")}catch(e){throw $=t,e}}else void 0===$&&null!==e.TRUSTED_TYPES_POLICY&&($=function(e,t){if("object"!=typeof e||"function"!=typeof e.createPolicy)return null;let o=null;const i="data-tt-policy-suffix";t&&t.hasAttribute(i)&&(o=t.getAttribute(i));const r="dompurify"+(o?"#"+o:"");try{return e.createPolicy(r,{createHTML:e=>e,createScriptURL:e=>e})}catch(e){return console.warn("TrustedTypes policy "+r+" could not be created."),null}}(h,s)),$&&"string"==typeof k&&(k=z(""));(F.uponSanitizeElement.length>0||F.uponSanitizeAttribute.length>0)&&j===V&&(j=et(j)),F.uponSanitizeAttribute.length>0&&q===G&&(q=et(q)),ke&&ke(e),It=e},Nt=Ze({},[...it,...rt,...st]),Bt=Ze({},[...at,...nt]),Ht=function(e){Fe(o.removed,{element:e});try{b(e).removeChild(e)}catch(t){f(e)}},Pt=function(e,t){try{Fe(o.removed,{attribute:t.getAttributeNode(e),from:t})}catch(e){Fe(o.removed,{attribute:null,from:t})}if(t.removeAttribute(e),"is"===e)if(ae||ne)try{Ht(t)}catch(e){}else try{t.setAttribute(e,"")}catch(e){}},Ut=function(e){let t=null,o=null;if(se)e="<remove></remove>"+e;else{const t=Ne(e,/^[\r\n\t ]+/);o=t&&t[0]}"application/xhtml+xml"===Et&&Ce===Se&&(e='<html xmlns="http://www.w3.org/1999/xhtml"><head></head><body>'+e+"</body></html>");const r=$?z(e):e;if(Ce===Se)try{t=(new p).parseFromString(r,Et)}catch(e){}if(!t||!t.documentElement){t=R.createDocument(Ce,"template",null);try{t.documentElement.innerHTML=Re?k:r}catch(e){}}const s=t.body||t.documentElement;return e&&o&&s.insertBefore(i.createTextNode(o),s.childNodes[0]||null),Ce===Se?E.call(t,ie?"html":"body")[0]:ie?t.documentElement:s},jt=function(e){return A.call(e.ownerDocument||e,e,c.SHOW_ELEMENT|c.SHOW_COMMENT|c.SHOW_TEXT|c.SHOW_PROCESSING_INSTRUCTION|c.SHOW_CDATA_SECTION,null)},Vt=function(e){var t,o;e.normalize();const i=A.call(e.ownerDocument||e,e,c.SHOW_TEXT|c.SHOW_COMMENT|c.SHOW_CDATA_SECTION|c.SHOW_PROCESSING_INSTRUCTION,null);let r=i.nextNode();for(;r;){let e=r.data;Te([I,L,M],t=>{e=Be(e,t," ")}),r.data=e,r=i.nextNode()}const s=null!==(t=null===(o=e.querySelectorAll)||void 0===o?void 0:o.call(e,"template"))&&void 0!==t?t:[];Te(Array.from(s),e=>{Gt(e.content)&&Vt(e.content)})},qt=function(e){const t=w?w(e):null;return"string"==typeof t&&("form"===Ft(t)&&("string"!=typeof e.nodeName||"string"!=typeof e.textContent||"function"!=typeof e.removeChild||e.attributes!==y(e)||"function"!=typeof e.removeAttribute||"function"!=typeof e.setAttribute||"string"!=typeof e.namespaceURI||"function"!=typeof e.insertBefore||"function"!=typeof e.hasChildNodes||e.nodeType!==_(e)||e.childNodes!==v(e)))},Gt=function(e){if(!_||"object"!=typeof e||null===e)return!1;try{return _(e)===Rt}catch(e){return!1}},Yt=function(e){if(!_||"object"!=typeof e||null===e)return!1;try{return"number"==typeof _(e)}catch(e){return!1}};function Wt(e,t,i){Te(e,e=>{e.call(o,t,i,It)})}const Xt=function(e){let t=null;if(Wt(F.beforeSanitizeElements,e,null),qt(e))return Ht(e),!0;const i=Ft(w?w(e):e.nodeName);if(Wt(F.uponSanitizeElement,e,{tagName:i,allowedTags:j}),oe&&e.hasChildNodes()&&!Yt(e.firstElementChild)&&We(/<[/\w!]/g,e.innerHTML)&&We(/<[/\w!]/g,e.textContent))return Ht(e),!0;if(oe&&e.namespaceURI===Se&&"style"===i&&Yt(e.firstElementChild))return Ht(e),!0;if(e.nodeType===St)return Ht(e),!0;if(oe&&e.nodeType===zt&&We(/<[/\w]/g,e.data))return Ht(e),!0;if(W[i]||!(J.tagCheck instanceof Function&&J.tagCheck(i))&&!j[i]){if(!W[i]&&Zt(i)){if(Y.tagNameCheck instanceof RegExp&&We(Y.tagNameCheck,i))return!1;if(Y.tagNameCheck instanceof Function&&Y.tagNameCheck(i))return!1}if(he&&!fe[i]){const t=b(e),o=v(e);if(o&&t){for(let i=o.length-1;i>=0;--i){const r=u(o[i],!0);t.insertBefore(r,m(e))}}}return Ht(e),!0}return((_?_(e):e.nodeType)!==$t||function(e){let t=b(e);t&&t.tagName||(t={namespaceURI:Ce,tagName:"template"});const o=Me(e.tagName),i=Me(t.tagName);return!!Ae[e.namespaceURI]&&(e.namespaceURI===$e?t.namespaceURI===Se?"svg"===o:t.namespaceURI===we?"svg"===o&&("annotation-xml"===i||Ke[i]):Boolean(Nt[o]):e.namespaceURI===we?t.namespaceURI===Se?"math"===o:t.namespaceURI===$e?"math"===o&&Qe[i]:Boolean(Bt[o]):e.namespaceURI===Se?!(t.namespaceURI===$e&&!Qe[i])&&!(t.namespaceURI===we&&!Ke[i])&&!Bt[o]&&(Tt[o]||!Nt[o]):!("application/xhtml+xml"!==Et||!Ae[e.namespaceURI]))}(e))&&("noscript"!==i&&"noembed"!==i&&"noframes"!==i||!We(/<\/no(script|embed|frames)/i,e.innerHTML))?(te&&e.nodeType===kt&&(t=e.textContent,Te([I,L,M],e=>{t=Be(t,e," ")}),e.textContent!==t&&(Fe(o.removed,{element:e.cloneNode()}),e.textContent=t)),Wt(F.afterSanitizeElements,e,null),!1):(Ht(e),!0)},Jt=function(e,t,o){if(X[t])return!1;if(ce&&("id"===t||"name"===t)&&(o in i||o in Lt))return!1;const r=q[t]||J.attributeCheck instanceof Function&&J.attributeCheck(t,e);if(Z&&!X[t]&&We(O,t));else if(K&&We(N,t));else if(!r||X[t]){if(!(Zt(e)&&(Y.tagNameCheck instanceof RegExp&&We(Y.tagNameCheck,e)||Y.tagNameCheck instanceof Function&&Y.tagNameCheck(e))&&(Y.attributeNameCheck instanceof RegExp&&We(Y.attributeNameCheck,t)||Y.attributeNameCheck instanceof Function&&Y.attributeNameCheck(t,e))||"is"===t&&Y.allowCustomizedBuiltInElements&&(Y.tagNameCheck instanceof RegExp&&We(Y.tagNameCheck,o)||Y.tagNameCheck instanceof Function&&Y.tagNameCheck(o))))return!1}else if(ye[t]);else if(We(U,Be(o,H,"")));else if("src"!==t&&"xlink:href"!==t&&"href"!==t||"script"===e||0!==He(o,"data:")||!ve[e]){if(Q&&!We(B,Be(o,H,"")));else if(o)return!1}else;return!0},Kt=Ze({},["annotation-xml","color-profile","font-face","font-face-format","font-face-name","font-face-src","font-face-uri","missing-glyph"]),Zt=function(e){return!Kt[Me(e)]&&We(P,e)},Qt=function(e){Wt(F.beforeSanitizeAttributes,e,null);const t=e.attributes;if(!t||qt(e))return;const i={attrName:"",attrValue:"",keepAttr:!0,allowedAttributes:q,forceKeepAttr:void 0};let r=t.length;for(;r--;){const s=t[r],a=s.name,n=s.namespaceURI,l=s.value,c=Ft(a),d=l;let p="value"===a?d:Pe(d);if(i.attrName=c,i.attrValue=p,i.keepAttr=!0,i.forceKeepAttr=void 0,Wt(F.uponSanitizeAttribute,e,i),p=i.attrValue,!de||"id"!==c&&"name"!==c||0===He(p,pe)||(Pt(a,e),p=pe+p),oe&&We(/((--!?|])>)|<\/(style|script|title|xmp|textarea|noscript|iframe|noembed|noframes)/i,p)){Pt(a,e);continue}if("attributename"===c&&Ne(p,"href")){Pt(a,e);continue}if(i.forceKeepAttr)continue;if(!i.keepAttr){Pt(a,e);continue}if(!ee&&We(/\/>/i,p)){Pt(a,e);continue}te&&Te([I,L,M],e=>{p=Be(p,e," ")});const g=Ft(e.nodeName);if(Jt(g,c,p)){if($&&"object"==typeof h&&"function"==typeof h.getAttributeType)if(n);else switch(h.getAttributeType(g,c)){case"TrustedHTML":p=z(p);break;case"TrustedScriptURL":p=$.createScriptURL(p)}if(p!==d)try{n?e.setAttributeNS(n,a,p):e.setAttribute(a,p),qt(e)?Ht(e):De(o.removed)}catch(t){Pt(a,e)}}else Pt(a,e)}Wt(F.afterSanitizeAttributes,e,null)},eo=function(e){let t=null;const o=jt(e);for(Wt(F.beforeSanitizeShadowDOM,e,null);t=o.nextNode();){Wt(F.uponSanitizeShadowNode,t,null),Xt(t),Qt(t),Gt(t.content)&&eo(t.content);if((_?_(t):t.nodeType)===$t){const e=x?x(t):t.shadowRoot;Gt(e)&&(to(e),eo(e))}}Wt(F.afterSanitizeShadowDOM,e,null)},to=function(e){const t=_?_(e):e.nodeType;if(t===$t){const t=x?x(e):e.shadowRoot;Gt(t)&&(to(t),eo(t))}const o=v?v(e):e.childNodes;if(!o)return;const i=[];Te(o,e=>{Fe(i,e)});for(const e of i)to(e);if(t===$t){const t=w?w(e):null;if("string"==typeof t&&"template"===Ft(t)){const t=e.content;Gt(t)&&to(t)}}};return o.sanitize=function(e){let t=arguments.length>1&&void 0!==arguments[1]?arguments[1]:{},i=null,s=null,a=null,n=null;if(Re=!e,Re&&(e="\x3c!--\x3e"),"string"!=typeof e&&!Yt(e)&&"string"!=typeof(e=function(e){switch(typeof e){case"string":return e;case"number":return Ue(e);case"boolean":return je(e);case"bigint":return Ve?Ve(e):"0";case"symbol":return qe?qe(e):"Symbol()";case"undefined":default:return Ye(e);case"function":case"object":{if(null===e)return Ye(e);const t=e,o=tt(t,"toString");if("function"==typeof o){const e=o(t);return"string"==typeof e?e:Ye(e)}return Ye(e)}}}(e)))throw Xe("dirty is not a string, aborting");if(!o.isSupported)return e;if(re||Ot(t),o.removed=[],"string"==typeof e&&(ge=!1),ge){const t=w?w(e):e.nodeName;if("string"==typeof t){const e=Ft(t);if(!j[e]||W[e])throw Xe("root node is forbidden and cannot be sanitized in-place")}if(qt(e))throw Xe("root node is clobbered and cannot be sanitized in-place");to(e)}else if(Yt(e))i=Ut("\x3c!----\x3e"),s=i.ownerDocument.importNode(e,!0),s.nodeType===$t&&"BODY"===s.nodeName||"HTML"===s.nodeName?i=s:i.appendChild(s),to(s);else{if(!ae&&!te&&!ie&&-1===e.indexOf("<"))return $&&le?z(e):e;if(i=Ut(e),!i)return ae?null:le?k:""}i&&se&&Ht(i.firstChild);const l=jt(ge?e:i);for(;a=l.nextNode();)Xt(a),Qt(a),Gt(a.content)&&eo(a.content);if(ge)return te&&Vt(e),e;if(ae){if(te&&Vt(i),ne)for(n=T.call(i.ownerDocument);i.firstChild;)n.appendChild(i.firstChild);else n=i;return(q.shadowroot||q.shadowrootmode)&&(n=D.call(r,n,!0)),n}let c=ie?i.outerHTML:i.innerHTML;return ie&&j["!doctype"]&&i.ownerDocument&&i.ownerDocument.doctype&&i.ownerDocument.doctype.name&&We(_t,i.ownerDocument.doctype.name)&&(c="<!DOCTYPE "+i.ownerDocument.doctype.name+">\n"+c),te&&Te([I,L,M],e=>{c=Be(c,e," ")}),$&&le?z(c):c},o.setConfig=function(){Ot(arguments.length>0&&void 0!==arguments[0]?arguments[0]:{}),re=!0},o.clearConfig=function(){It=null,re=!1},o.isValidAttribute=function(e,t,o){It||Ot({});const i=Ft(e),r=Ft(t);return Jt(i,r,o)},o.addHook=function(e,t){"function"==typeof t&&Fe(F[e],t)},o.removeHook=function(e,t){if(void 0!==t){const o=Ee(F[e],t);return-1===o?void 0:Ie(F[e],o,1)[0]}return De(F[e])},o.removeHooks=function(e){F[e]=[]},o.removeAllHooks=function(){F={afterSanitizeAttributes:[],afterSanitizeElements:[],afterSanitizeShadowDOM:[],beforeSanitizeAttributes:[],beforeSanitizeElements:[],beforeSanitizeShadowDOM:[],uponSanitizeAttribute:[],uponSanitizeElement:[],uponSanitizeShadowNode:[]}},o}();class Et extends(de(ae)){static properties={currentView:{type:String},stats:{type:Object},hass:{type:Object},narrow:{type:Boolean},_apiReady:{type:Boolean,state:!0},_error:{type:String,state:!0},_detailRepo:{type:Object,state:!0},_showDetail:{type:Boolean,state:!0},_favoriteCount:{type:Number,state:!0},_readmeHtml:{type:String,state:!0},_readmeLoading:{type:Boolean,state:!0},_viewTransition:{type:Boolean,state:!0},_networkStatus:{type:String,state:!0},_detailExpanded:{type:Boolean,state:!0},_showVersionSelector:{type:Boolean,state:!0},_releases:{type:Array,state:!0},_releasesLoading:{type:Boolean,state:!0},_installingVersion:{type:Boolean,state:!0},_changelogData:{type:Object,state:!0},_changelogLoading:{type:Boolean,state:!0},_presetFilter:{type:String,state:!0},_presetTag:{type:String,state:!0},_configFlowDomain:{type:String,state:!0},_configFlowEntryId:{type:String,state:!0},_showConfigFlow:{type:Boolean,state:!0},_configEntries:{type:Object,state:!0},_showEntrySelector:{type:Boolean,state:!0},_entrySelectorDomain:{type:String,state:!0},_entrySelectorEntries:{type:Array,state:!0},_entrySelectorCurrentId:{type:String,state:!0}};constructor(){super(),this.currentView=(()=>{try{return localStorage.getItem("hacs_vision_tab")}catch{return null}})()||"browse",this.stats={pendingRestart:0},this.narrow=window.innerWidth<768,this._apiReady=!1,this._error="",this._detailRepo=null,this._showDetail=!1,this._favoriteCount=0,this._readmeHtml=null,this._readmeLoading=!1,this._viewTransition=!1,this._networkStatus="online",this._detailExpanded=!1,this._showVersionSelector=!1,this._releases=[],this._releasesLoading=!1,this._installingVersion=!1,this._changelogData=null,this._changelogLoading=!1,this._presetFilter="",this._presetTag="",this._configFlowDomain="",this._configFlowEntryId=null,this._showConfigFlow=!1,this._configEntries=null,this._showEntrySelector=!1,this._entrySelectorDomain="",this._entrySelectorEntries=[],this._entrySelectorCurrentId=null,Ft(this),this._resizeHandler=()=>{this.narrow=window.innerWidth<768},window.addEventListener("resize",this._resizeHandler),this._onlineHandler=()=>{this._networkStatus="online"},window.addEventListener("online",this._onlineHandler),this._offlineHandler=()=>{this._networkStatus="offline"},window.addEventListener("offline",this._offlineHandler)}async _updateFavoriteCount(){try{const e=await ce.getFavorites(),t=Array.isArray(e)?e:e.favorites||[];this._favoriteCount=t.length}catch{this._favoriteCount=0}}willUpdate(e){var t;e.has("hass")&&this.hass&&(t=this.hass,t?.language&&(pe=0===t.language.indexOf("zh")?"zh":"en"),ce.setHass(this.hass),this._apiReady||(this._apiReady=!0,this._loadStats(),this._loadConfigEntries(),ce._onNetworkStatus=e=>{this._networkStatus=e}))}static styles=[me(),s`
     :host {
       display: block;
     }
@@ -653,24 +653,24 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
       cursor: pointer; border-radius: 10px;
     }
     .entry-cancel:hover { background: rgba(0,0,0,0.04); }
-  `];async connectedCallback(){super.connectedCallback(),this.addEventListener("refresh-stats",()=>this._loadStats()),this.addEventListener("detail",e=>this._openDetail(e.detail.repo)),this.addEventListener("favorite",()=>this._loadStats()),this.addEventListener("open-flow",e=>{const t=e.detail?.domain;t&&this._openConfigFlow(t)}),this.addEventListener("open-options-flow",e=>{const{entryId:t,domain:o}=e.detail||{};t&&this._openOptionsFlow(t,o)}),this._keydownHandler=e=>{if("Escape"===e.key&&this._showDetail)return e.preventDefault(),void this._closeDetail();if((e.ctrlKey||e.metaKey)&&"k"===e.key){e.preventDefault();const t=this.renderRoot?.querySelector(".search input");return void(t&&(t.focus(),t.select()))}},window.addEventListener("keydown",this._keydownHandler)}disconnectedCallback(){super.disconnectedCallback(),window.removeEventListener("keydown",this._keydownHandler)}async _loadStats(){try{this._error="",this.stats=await ce.getStats();const e=await ce.getFavorites(),t=Array.isArray(e)?e:e.favorites||[];this._favoriteCount=t.length}catch(e){console.error("Stats error:",e),this.stats={},this._error=`API: ${e.message}`}}async _restartHA(){const{ConfirmDialog:e}=await Promise.resolve().then(function(){return Ut});if(await e.show(this,{message:ge("restartConfirm"),confirmText:ge("restartHA"),danger:!0}))try{await ce.restartHA(),Mt(ge("haRestarting"),"info")}catch(e){Mt(`${ge("restartFailed")}: ${e.message}`,"error")}}switchView(e){if(this.currentView!==e){this._viewTransition=!0,this.currentView=e;try{localStorage.setItem("hacs_vision_tab",e)}catch(e){}this.dispatchEvent(new CustomEvent("view-changed",{detail:{view:e},bubbles:!0,composed:!0})),setTimeout(()=>{this._viewTransition=!1},150)}}_openDetail(e){this._detailRepo=e,this._showDetail=!0,this._readmeHtml=null,this._readmeLoading=!0,this._showVersionSelector=!1,this._releases=[],this._releasesLoading=!1,this._changelogData=null,this._changelogLoading=!0,this._loadReadme(e),this._loadChangelog(e),requestAnimationFrame(()=>this._installFocusTrap())}async _loadReadme(e){if(e?.full_name){try{const t=await ce.getReadme(e.full_name);this._readmeHtml=t?Tt.sanitize(t):null}catch(e){this._readmeHtml=null}this._readmeLoading=!1}else this._readmeLoading=!1}async _loadChangelog(e){if(e?.full_name){try{const t=await ce.getChangelog(e.full_name);this._changelogData=t?.body?t:null}catch(e){this._changelogData=null}this._changelogLoading=!1}else this._changelogLoading=!1}_applyFilter(e){this._presetFilter=e,this.switchView("browse"),setTimeout(()=>{this._presetFilter=""},100)}_applyTag(e){this._presetTag=e,this.switchView("browse"),setTimeout(()=>{this._presetTag=""},100)}_closeDetail(){this._showDetail=!1,this._detailRepo=null,this._readmeHtml=null,this._readmeLoading=!1,this._detailExpanded=!1,this._showVersionSelector=!1,this._releases=[],this._releasesLoading=!1,this._removeFocusTrap(),this._detailDrag={offsetX:0,offsetY:0,startX:0,startY:0,dragging:!1};const e=this.renderRoot?.querySelector(".modal");e&&(e.style.transform="")}_storeModalPointerDown(e){const t=e.target.closest(".modal-header");if(!t||e.target.closest("button, input, select, textarea, a"))return;if(void 0!==e.button&&0!==e.button)return;const o=this._detailDrag||(this._detailDrag={offsetX:0,offsetY:0,startX:0,startY:0,dragging:!1}),i=e.currentTarget;if(this._detailExpanded)return;o.dragging=!0,o.startX=e.clientX-o.offsetX,o.startY=e.clientY-o.offsetY,i.style.transition="none",i.style.cursor="grabbing",t.style.userSelect="none",i.setPointerCapture(e.pointerId);const r=e=>{o.dragging&&(o.offsetX=e.clientX-o.startX,o.offsetY=e.clientY-o.startY,i.style.transform=`translate(${o.offsetX}px, ${o.offsetY}px)`)},s=e=>{o.dragging=!1,i.style.cursor="",t.style.userSelect="",i.removeEventListener("pointermove",r),i.removeEventListener("pointerup",s),i.removeEventListener("pointercancel",s);try{i.releasePointerCapture(e.pointerId)}catch(e){}};i.addEventListener("pointermove",r),i.addEventListener("pointerup",s),i.addEventListener("pointercancel",s)}_installFocusTrap(){this._removeFocusTrap();const e=this.renderRoot?.querySelector(".modal-overlay");if(!e)return;this._focusTrapHandler=t=>{if("Tab"!==t.key)return;const o=e.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');if(0===o.length)return;const i=o[0],r=o[o.length-1];t.shiftKey?document.activeElement!==i&&e.contains(document.activeElement)||(t.preventDefault(),r.focus()):document.activeElement!==r&&e.contains(document.activeElement)||(t.preventDefault(),i.focus())};const t=e.querySelector(".modal-close");t&&t.focus(),window.addEventListener("keydown",this._focusTrapHandler)}_removeFocusTrap(){this._focusTrapHandler&&(window.removeEventListener("keydown",this._focusTrapHandler),this._focusTrapHandler=null)}_openConfigFlow(e){this._configFlowDomain=e,this._configFlowEntryId=null,this._showConfigFlow=!0}_openOptionsFlow(e,t){if(this._configFlowDomain=t||"",this._configFlowEntryId=null,t&&this._configEntries&&this._configEntries[t]&&this._configEntries[t].length>1)return this._entrySelectorDomain=t,this._entrySelectorEntries=this._configEntries[t],this._entrySelectorCurrentId=e,void(this._showEntrySelector=!0);this._configFlowEntryId=e,this._showConfigFlow=!0}_selectConfigEntry(e){if(this._showEntrySelector=!1,this._configFlowEntryId=e,this._configEntries)for(const t of Object.values(this._configEntries)){const o=t.find(t=>t.entry_id===e);if(o){this._configFlowDomain=o.domain||"";break}}this._showConfigFlow=!0}async _loadConfigEntries(){try{const e=await ce.getConfigEntries(),t=e?.entries||[],o={};if(Array.isArray(t))for(const e of t){const t=e.domain||e.handler||"?";o[t]||(o[t]=[]),o[t].push(e)}this._configEntries=o}catch{this._configEntries=null}}async _checkUpdates(){try{const e=await ce.checkUpdatesWithNotify();e.success&&(e.updates_found>0?Mt(ge("updatesChecked",{n:e.updates_found}),"success"):Mt(ge("noUpdatesFound"),"info"),e.notified&&Mt(ge("notifySent"),"success"),this._loadStats())}catch(e){Mt(`Update check failed: ${e.message}`,"error")}}_onConfigureIntegration(e){const{domain:t,entry_id:o}=e.detail;this._configFlowDomain=t,this._configFlowEntryId=o,this._showConfigFlow=!0}_onAddIntegration(e){const{domain:t}=e.detail;this._configFlowDomain=t,this._configFlowEntryId=null,this._showConfigFlow=!0}_onMoreInfo(e){const{entityId:t}=e.detail;this.hass&&t&&this.dispatchEvent(new CustomEvent("hass-more-info",{bubbles:!0,composed:!0,detail:{entityId:t}}))}_onFlowClose(){this._showConfigFlow=!1,this._configFlowDomain="",this._configFlowEntryId=null,this._showEntrySelector=!1}_toggleDetailExpand(){this._detailExpanded=!this._detailExpanded}async _toggleVersionSelector(){if(this._showVersionSelector=!this._showVersionSelector,this._showVersionSelector&&0===this._releases.length){this._releasesLoading=!0;try{const e=this._detailRepo?.id||this._detailRepo?.full_name;if(e){const t=await ce.getRepoReleases(e);this._releases=Array.isArray(t)?t:t.releases||[]}}catch(e){console.error("Failed to load releases:",e),this._releases=[]}this._releasesLoading=!1}}async _installVersion(e){const t=this._detailRepo?.id||this._detailRepo?.full_name;if(t&&e){this._installingVersion=!0;try{await ce.installVersion(t,e),Mt(`${ge("installComplete")}: ${e}`,"success"),this.dispatchEvent(new CustomEvent("refresh-stats",{bubbles:!0,composed:!0})),this._closeDetail()}catch(e){Mt(`${ge("installFailed")}: ${e.message}`,"error")}this._installingVersion=!1}}_getCategoryLabel(e){return{integration:ge("catIntegration"),plugin:ge("catPlugin"),theme:ge("catTheme"),appdaemon:ge("catAppDaemon"),netdaemon:ge("catNetDaemon"),python_script:ge("catPythonScript"),template:ge("catTemplate"),dashboard:ge("catDashboard")}[e]||e}async _modalAction(e){const t=this._detailRepo;if(t)try{if("install"===e)await ce.install(t.id||t.full_name,t.category),Mt(ge("installComplete"),"success");else if("update"===e)await ce.update([t.id||t.full_name]),Mt(ge("updateStarted"),"success");else if("uninstall"===e){const{ConfirmDialog:e}=await Promise.resolve().then(function(){return Ut});if(!await e.show(this,{message:ge("confirmRemove",{repo:t.full_name||t.name}),confirmText:ge("remove"),danger:!0}))return;await ce.remove(t.id||t.full_name),Mt(ge("removed"),"success")}else if("github"===e){const e=t.html_url||`https://github.com/${t.full_name}`;return void window.open(e,"_blank")}this.dispatchEvent(new CustomEvent("refresh-stats",{bubbles:!0,composed:!0})),this._closeDetail()}catch(e){Mt(`${ge("updateFailed")}: ${e.message}`,"error")}}_checkTabsScrollable(){const e=this.renderRoot?.querySelector(".tabs-wrapper"),t=e?.querySelector(".tabs");e&&t&&e.classList.toggle("scrollable",t.scrollWidth>t.clientWidth)}async updated(e){super.updated(e),e.has("narrow")&&requestAnimationFrame(()=>this._checkTabsScrollable())}firstUpdated(){requestAnimationFrame(()=>this._checkTabsScrollable())}render(){const e=[{view:"browse",label:ge("tabBrowse"),icon:"",count:null},{view:"integrations",label:ge("tabIntegrations")||"集成管理",icon:"",count:null},{view:"updates",label:ge("tabUpdates"),icon:"",count:this.stats.available_updates},{view:"management",label:ge("tabManagement"),icon:"",count:null},{view:"settings",label:ge("tabSettings"),icon:"",count:null}],t=this._detailRepo,o=t?.installed||!1,i=o&&(t?.has_update||t?.installed_version&&t?.latest_version&&t.installed_version!==t.latest_version),r=t?fe(t.category):"#03a9f4";return H`
+  `];async connectedCallback(){super.connectedCallback(),this._refreshStatsHandler=()=>this._loadStats(),this.addEventListener("refresh-stats",this._refreshStatsHandler),this._detailHandler=e=>this._openDetail(e.detail.repo),this.addEventListener("detail",this._detailHandler),this._favoriteHandler=()=>this._loadStats(),this.addEventListener("favorite",this._favoriteHandler),this._openFlowHandler=e=>{const t=e.detail?.domain;t&&this._openConfigFlow(t)},this.addEventListener("open-flow",this._openFlowHandler),this._openOptionsFlowHandler=e=>{const{entryId:t,domain:o}=e.detail||{};t&&this._openOptionsFlow(t,o)},this.addEventListener("open-options-flow",this._openOptionsFlowHandler),this._keydownHandler=e=>{if("Escape"===e.key&&this._showDetail)return e.preventDefault(),void this._closeDetail();if((e.ctrlKey||e.metaKey)&&"k"===e.key){e.preventDefault();const t=this.renderRoot?.querySelector(".search input");return void(t&&(t.focus(),t.select()))}},window.addEventListener("keydown",this._keydownHandler)}disconnectedCallback(){super.disconnectedCallback(),window.removeEventListener("keydown",this._keydownHandler),window.removeEventListener("resize",this._resizeHandler),window.removeEventListener("online",this._onlineHandler),window.removeEventListener("offline",this._offlineHandler),this.removeEventListener("refresh-stats",this._refreshStatsHandler),this.removeEventListener("detail",this._detailHandler),this.removeEventListener("favorite",this._favoriteHandler),this.removeEventListener("open-flow",this._openFlowHandler),this.removeEventListener("open-options-flow",this._openOptionsFlowHandler)}async _loadStats(){try{this._error="",this.stats=await ce.getStats();const e=await ce.getFavorites(),t=Array.isArray(e)?e:e.favorites||[];this._favoriteCount=t.length}catch(e){console.error("Stats error:",e),this.stats={},this._error=`API: ${e.message}`}}async _restartHA(){const{ConfirmDialog:e}=await Promise.resolve().then(function(){return Pt});if(await e.show(this,{message:ge("restartConfirm"),confirmText:ge("restartHA"),danger:!0}))try{await ce.restartHA(),Mt(ge("haRestarting"),"info")}catch(e){Mt(`${ge("restartFailed")}: ${e.message}`,"error")}}switchView(e){if(this.currentView!==e){this._viewTransition=!0,this.currentView=e;try{localStorage.setItem("hacs_vision_tab",e)}catch(e){}this.dispatchEvent(new CustomEvent("view-changed",{detail:{view:e},bubbles:!0,composed:!0})),setTimeout(()=>{this._viewTransition=!1},150)}}_openDetail(e){this._detailRepo=e,this._showDetail=!0,this._readmeHtml=null,this._readmeLoading=!0,this._showVersionSelector=!1,this._releases=[],this._releasesLoading=!1,this._changelogData=null,this._changelogLoading=!0,this._loadReadme(e),this._loadChangelog(e),requestAnimationFrame(()=>this._installFocusTrap())}async _loadReadme(e){if(e?.full_name){try{const t=await ce.getReadme(e.full_name);this._readmeHtml=t?Tt.sanitize(t):null}catch(e){this._readmeHtml=null}this._readmeLoading=!1}else this._readmeLoading=!1}async _loadChangelog(e){if(e?.full_name){try{const t=await ce.getChangelog(e.full_name);this._changelogData=t?.body?t:null}catch(e){this._changelogData=null}this._changelogLoading=!1}else this._changelogLoading=!1}_applyFilter(e){this._presetFilter=e,this.switchView("browse"),setTimeout(()=>{this._presetFilter=""},100)}_applyTag(e){this._presetTag=e,this.switchView("browse"),setTimeout(()=>{this._presetTag=""},100)}_closeDetail(){this._showDetail=!1,this._detailRepo=null,this._readmeHtml=null,this._readmeLoading=!1,this._detailExpanded=!1,this._showVersionSelector=!1,this._releases=[],this._releasesLoading=!1,this._removeFocusTrap(),this._detailDrag={offsetX:0,offsetY:0,startX:0,startY:0,dragging:!1};const e=this.renderRoot?.querySelector(".modal");e&&(e.style.transform="")}_storeModalPointerDown(e){const t=e.target.closest(".modal-header");if(!t||e.target.closest("button, input, select, textarea, a"))return;if(void 0!==e.button&&0!==e.button)return;const o=this._detailDrag||(this._detailDrag={offsetX:0,offsetY:0,startX:0,startY:0,dragging:!1}),i=e.currentTarget;if(this._detailExpanded)return;o.dragging=!0,o.startX=e.clientX-o.offsetX,o.startY=e.clientY-o.offsetY,i.style.transition="none",i.style.cursor="grabbing",t.style.userSelect="none",i.setPointerCapture(e.pointerId);const r=e=>{o.dragging&&(o.offsetX=e.clientX-o.startX,o.offsetY=e.clientY-o.startY,i.style.transform=`translate(${o.offsetX}px, ${o.offsetY}px)`)},s=e=>{o.dragging=!1,i.style.cursor="",t.style.userSelect="",i.removeEventListener("pointermove",r),i.removeEventListener("pointerup",s),i.removeEventListener("pointercancel",s);try{i.releasePointerCapture(e.pointerId)}catch(e){}};i.addEventListener("pointermove",r),i.addEventListener("pointerup",s),i.addEventListener("pointercancel",s)}_installFocusTrap(){this._removeFocusTrap();const e=this.renderRoot?.querySelector(".modal-overlay");if(!e)return;this._focusTrapHandler=t=>{if("Tab"!==t.key)return;const o=e.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');if(0===o.length)return;const i=o[0],r=o[o.length-1];t.shiftKey?document.activeElement!==i&&e.contains(document.activeElement)||(t.preventDefault(),r.focus()):document.activeElement!==r&&e.contains(document.activeElement)||(t.preventDefault(),i.focus())};const t=e.querySelector(".modal-close");t&&t.focus(),window.addEventListener("keydown",this._focusTrapHandler)}_removeFocusTrap(){this._focusTrapHandler&&(window.removeEventListener("keydown",this._focusTrapHandler),this._focusTrapHandler=null)}_openConfigFlow(e){this._configFlowDomain=e,this._configFlowEntryId=null,this._showConfigFlow=!0}_openOptionsFlow(e,t){if(this._configFlowDomain=t||"",this._configFlowEntryId=null,t&&this._configEntries&&this._configEntries[t]&&this._configEntries[t].length>1)return this._entrySelectorDomain=t,this._entrySelectorEntries=this._configEntries[t],this._entrySelectorCurrentId=e,void(this._showEntrySelector=!0);this._configFlowEntryId=e,this._showConfigFlow=!0}_selectConfigEntry(e){if(this._showEntrySelector=!1,this._configFlowEntryId=e,this._configEntries)for(const t of Object.values(this._configEntries)){const o=t.find(t=>t.entry_id===e);if(o){this._configFlowDomain=o.domain||"";break}}this._showConfigFlow=!0}async _loadConfigEntries(){try{const e=await ce.getConfigEntries(),t=e?.entries||[],o={};if(Array.isArray(t))for(const e of t){const t=e.domain||e.handler||"?";o[t]||(o[t]=[]),o[t].push(e)}this._configEntries=o}catch{this._configEntries=null}}async _checkUpdates(){try{const e=await ce.checkUpdatesWithNotify();e.success&&(e.updates_found>0?Mt(ge("updatesChecked",{n:e.updates_found}),"success"):Mt(ge("noUpdatesFound"),"info"),e.notified&&Mt(ge("notifySent"),"success"),this._loadStats())}catch(e){Mt(`Update check failed: ${e.message}`,"error")}}_onConfigureIntegration(e){const{domain:t,entry_id:o}=e.detail;this._configFlowDomain=t,this._configFlowEntryId=o,this._showConfigFlow=!0}_onAddIntegration(e){const{domain:t}=e.detail;this._configFlowDomain=t,this._configFlowEntryId=null,this._showConfigFlow=!0}_onMoreInfo(e){const{entityId:t}=e.detail;this.hass&&t&&this.dispatchEvent(new CustomEvent("hass-more-info",{bubbles:!0,composed:!0,detail:{entityId:t}}))}_onFlowClose(){this._showConfigFlow=!1,this._configFlowDomain="",this._configFlowEntryId=null,this._showEntrySelector=!1}_toggleDetailExpand(){this._detailExpanded=!this._detailExpanded}async _toggleVersionSelector(){if(this._showVersionSelector=!this._showVersionSelector,this._showVersionSelector&&0===this._releases.length){this._releasesLoading=!0;try{const e=this._detailRepo?.id||this._detailRepo?.full_name;if(e){const t=await ce.getRepoReleases(e);this._releases=Array.isArray(t)?t:t.releases||[]}}catch(e){console.error("Failed to load releases:",e),this._releases=[]}this._releasesLoading=!1}}async _installVersion(e){const t=this._detailRepo?.id||this._detailRepo?.full_name;if(t&&e){this._installingVersion=!0;try{await ce.installVersion(t,e),Mt(`${ge("installComplete")}: ${e}`,"success"),this.dispatchEvent(new CustomEvent("refresh-stats",{bubbles:!0,composed:!0})),this._closeDetail()}catch(e){Mt(`${ge("installFailed")}: ${e.message}`,"error")}this._installingVersion=!1}}_getCategoryLabel(e){return{integration:ge("catIntegration"),plugin:ge("catPlugin"),theme:ge("catTheme"),appdaemon:ge("catAppDaemon"),netdaemon:ge("catNetDaemon"),python_script:ge("catPythonScript"),template:ge("catTemplate"),dashboard:ge("catDashboard")}[e]||e}async _modalAction(e){const t=this._detailRepo;if(t)try{if("install"===e)await ce.install(t.id||t.full_name,t.category),Mt(ge("installComplete"),"success");else if("update"===e)await ce.update([t.id||t.full_name]),Mt(ge("updateStarted"),"success");else if("uninstall"===e){const{ConfirmDialog:e}=await Promise.resolve().then(function(){return Pt});if(!await e.show(this,{message:ge("confirmRemove",{repo:t.full_name||t.name}),confirmText:ge("remove"),danger:!0}))return;await ce.remove(t.id||t.full_name),Mt(ge("removed"),"success")}else if("github"===e){const e=t.html_url||`https://github.com/${t.full_name}`;return void window.open(e,"_blank")}this.dispatchEvent(new CustomEvent("refresh-stats",{bubbles:!0,composed:!0})),this._closeDetail()}catch(e){Mt(`${ge("updateFailed")}: ${e.message}`,"error")}}_checkTabsScrollable(){const e=this.renderRoot?.querySelector(".tabs-wrapper"),t=e?.querySelector(".tabs");e&&t&&e.classList.toggle("scrollable",t.scrollWidth>t.clientWidth)}async updated(e){super.updated(e),e.has("narrow")&&requestAnimationFrame(()=>this._checkTabsScrollable())}firstUpdated(){requestAnimationFrame(()=>this._checkTabsScrollable())}render(){const e=[{view:"browse",label:ge("tabBrowse"),icon:"",count:null},{view:"integrations",label:ge("tabIntegrations")||"集成管理",icon:"",count:null},{view:"updates",label:ge("tabUpdates"),icon:"",count:this.stats.available_updates},{view:"management",label:ge("tabManagement"),icon:"",count:null},{view:"settings",label:ge("tabSettings"),icon:"",count:null}],t=this._detailRepo,o=t?.installed||!1,i=o&&(t?.has_update||t?.installed_version&&t?.latest_version&&t.installed_version!==t.latest_version),r=t?fe(t.category):"#03a9f4";return U`
       <div class="store">
-        ${this._error?H`
+        ${this._error?U`
           <div class="error-banner error">
             <svg class="mini-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> ${ge("connectFailed")}: <code>${this._error}</code>
           </div>
         `:""}
-        ${this._apiReady?"":H`
+        ${this._apiReady?"":U`
           <div class="error-banner">
             ${ge("waitingHA")}
           </div>
         `}
 
-        ${"offline"===this._networkStatus?H`
+        ${"offline"===this._networkStatus?U`
           <div class="network-banner offline">${ge("networkOffline")}</div>
-        `:"rate_limited"===this._networkStatus?H`
+        `:"rate_limited"===this._networkStatus?U`
           <div class="network-banner warning">${ge("rateLimited")}</div>
-        `:"server_error"===this._networkStatus?H`
+        `:"server_error"===this._networkStatus?U`
           <div class="network-banner warning">${ge("haRestarting")}</div>
         `:""}
 
@@ -697,7 +697,7 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
               <div class="stat-num">${this.stats.available_updates??0}</div>
               <div class="stat-label">${ge("statUpdates")}</div>
             </div>
-            ${(this.stats.pending_restart??0)>0?H`
+            ${(this.stats.pending_restart??0)>0?U`
             <div class="stat" style="color:#f44336;" @click=${()=>this._applyFilter("pending_restart")}>
               <div class="stat-num">${this.stats.pending_restart}</div>
               <div class="stat-label">${ge("statusPendingRestart")}</div>
@@ -722,13 +722,13 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
         <div class="sticky-header">
           <div class="tabs-wrapper">
             <div class="tabs" role="tablist">
-              ${e.map(e=>H`
+              ${e.map(e=>U`
                 <button class="tab ${this.currentView===e.view?"active":""}"
                         role="tab" aria-selected=${this.currentView===e.view}
                         aria-label=${e.label}
                         @click=${()=>this.switchView(e.view)}>
-                  ${e.icon?H`${e.icon} `:""}${e.label}
-                  ${void 0!==e.count&&null!==e.count?H`<span class="badge" aria-label="${e.count}">${e.count}</span>`:""}
+                  ${e.icon?U`${e.icon} `:""}${e.label}
+                  ${void 0!==e.count&&null!==e.count?U`<span class="badge" aria-label="${e.count}">${e.count}</span>`:""}
                 </button>
               `)}
             </div>
@@ -746,10 +746,10 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
       </div>
 
       <!-- Detail Modal -->
-      ${this._showDetail&&t?H`
+      ${this._showDetail&&t?U`
         <div class="modal-overlay" role="dialog" aria-modal="true" aria-label="${t.manifest_name||t.full_name||ge("detail")}" @click=${e=>{e.target===e.currentTarget&&this._closeDetail()}}>
           <div class="modal ${this._detailExpanded?"expanded":""}" @dblclick=${this._toggleDetailExpand} @pointerdown=${this._storeModalPointerDown}>
-            ${this._detailExpanded?"":H`<div class="modal-expand-hint">${ge("dblZoomHint")||"双击放大"}</div>`}
+            ${this._detailExpanded?"":U`<div class="modal-expand-hint">${ge("dblZoomHint")||"双击放大"}</div>`}
             <div class="modal-header">
               <div class="modal-title">${t.manifest_name||t.repository_manifest?.name||t.full_name||t.name||"unknown"}</div>
               <button class="modal-close" aria-label="${ge("close")||"关闭"}" @click=${this._closeDetail}>
@@ -763,10 +763,10 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
 
               <div class="detail-desc">${t.description||ge("noDesc")}</div>
 
-              ${t.authors&&t.authors.length?H`
+              ${t.authors&&t.authors.length?U`
                 <div class="detail-authors">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-                  ${t.authors.filter(e=>e&&"@user"!==e).map(e=>H`
+                  ${t.authors.filter(e=>e&&"@user"!==e).map(e=>U`
                     <a class="detail-author-link" href="https://github.com/${e.replace(/^@/,"")}" target="_blank" rel="noopener">@${e.replace(/^@/,"")}</a>
                   `)}
                 </div>
@@ -777,7 +777,7 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
                   <svg viewBox="0 0 20 20" fill="#ff9800"><path d="M10 1l2.39 4.84L17.6 6.7l-3.8 3.71.9 5.26L10 13.27l-4.7 2.46.9-5.26L2.4 6.7l5.2-.86L10 1z"/></svg>
                   <span class="val">${(t.stars||t.stargazers_count||0).toLocaleString()}</span> ${ge("stars")}
                 </div>
-                ${t.downloads?H`
+                ${t.downloads?U`
                   <div class="detail-stat">
                     <svg viewBox="0 0 20 20" fill="currentColor"><path d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z"/></svg>
                     <span class="val">${t.downloads.toLocaleString()}</span> ${ge("downloads")}
@@ -789,27 +789,27 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
                 </div>
               </div>
 
-              ${t.topics&&t.topics.length?H`
+              ${t.topics&&t.topics.length?U`
                 <div class="detail-topics">
-                  ${t.topics.map(e=>H`
+                  ${t.topics.map(e=>U`
                     <span class="detail-topic-tag">${e}</span>
                   `)}
                 </div>
               `:""}
 
-              ${o?H`
+              ${o?U`
                 <div class="detail-version">
                   <div class="detail-version-row">
                     <span class="detail-version-label">${ge("currentVersion")}</span>
                     <span class="detail-version-value">${t.installed_version||ge("unknown")}</span>
                   </div>
-                  ${i?H`
+                  ${i?U`
                     <div class="detail-version-row" style="margin-top:8px;">
                       <span class="detail-version-label">${ge("availableVersion")}</span>
                       <span class="detail-version-value" style="color:var(--success-color, #0f9d58);">${t.latest_version||ge("unknown")}</span>
                     </div>
                   `:""}
-                  ${t.installed_at?H`
+                  ${t.installed_at?U`
                     <div class="detail-version-row" style="margin-top:8px;">
                       <span class="detail-version-label">${ge("installedAt")}</span>
                       <span class="detail-version-value">${new Date(t.installed_at).toLocaleString()}</span>
@@ -824,23 +824,23 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
                   ${ge("selectVersion")}
                   <span class="version-selector-arrow ${this._showVersionSelector?"open":""}">▼</span>
                 </div>
-                ${this._showVersionSelector?H`
+                ${this._showVersionSelector?U`
                   <div class="version-selector-body">
-                    ${this._releasesLoading?H`
+                    ${this._releasesLoading?U`
                       <div class="releases-loading">
                         <div class="spinner-sm"></div>
                         ${ge("loading")}
                       </div>
-                    `:0===this._releases.length?H`
+                    `:0===this._releases.length?U`
                       <div class="releases-empty">${ge("noReleases")}</div>
-                    `:this._releases.map(e=>H`
+                    `:this._releases.map(e=>U`
                       <div class="release-item">
                         <div class="release-info">
                           <div class="release-tag">
                             ${e.tag_name||e.tag||"?"}
-                            ${e.prerelease?H`<span class="prerelease-badge">${ge("prerelease")}</span>`:""}
+                            ${e.prerelease?U`<span class="prerelease-badge">${ge("prerelease")}</span>`:""}
                           </div>
-                          ${e.published_at||e.created_at?H`
+                          ${e.published_at||e.created_at?U`
                             <div class="release-date">${ge("publishedAt")} ${new Date(e.published_at||e.created_at).toLocaleDateString()}</div>
                           `:""}
                         </div>
@@ -856,31 +856,31 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
               </div>
 
               <!-- Changelog (What's New) — shown when update is available -->
-              ${i?H`
+              ${i?U`
                 <div class="detail-changelog">
                   <div class="detail-changelog-title">${ge("changelogTitle")||"更新内容"}</div>
-                  ${this._changelogLoading?H`
+                  ${this._changelogLoading?U`
                     <div class="readme-loading">
                       <div class="spinner-sm"></div>
                       ${ge("loading")||"加载中..."}
                     </div>
-                  `:this._changelogData?H`
+                  `:this._changelogData?U`
                     <div class="changelog-body">${this._changelogData.body}</div>
-                    ${this._changelogData.tag?H`
+                    ${this._changelogData.tag?U`
                       <div class="changelog-tag">${this._changelogData.tag}</div>
                     `:""}
-                    ${this._changelogData.url?H`
+                    ${this._changelogData.url?U`
                       <a class="changelog-link" href="${this._changelogData.url}" target="_blank" rel="noopener">${ge("viewFullChangelog")||"查看完整更新日志"} →</a>
                     `:""}
-                  `:H`
+                  `:U`
                     <div class="changelog-empty">${ge("noChangelog")||"暂无更新日志"}</div>
                   `}
                 </div>
               `:""}
 
               <div class="modal-actions">
-                ${o?H`
-                  ${i?H`
+                ${o?U`
+                  ${i?U`
                     <button class="modal-btn primary" @click=${()=>this._modalAction("update")}>
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
                       ${ge("update")}
@@ -890,7 +890,7 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
                     ${ge("remove")}
                   </button>
-                `:H`
+                `:U`
                   <button class="modal-btn primary" @click=${()=>this._modalAction("install")}>
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                     ${ge("install")}
@@ -905,14 +905,14 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
               <!-- README Section — no max-height, single scroll via modal-body -->
               <div class="detail-readme">
                 <div class="detail-readme-title">${ge("readmeTitle")}</div>
-                ${this._readmeLoading?H`
+                ${this._readmeLoading?U`
                   <div class="readme-loading">
                     <div class="spinner-sm"></div>
                     ${ge("loadingReadme")}
                   </div>
-                `:this._readmeHtml?H`
+                `:this._readmeHtml?U`
                   <div class="readme-content" .innerHTML=${this._readmeHtml}></div>
-                `:H`
+                `:U`
                   <div class="readme-error">${ge("readmeLoadFailed")}</div>
                 `}
               </div>
@@ -925,13 +925,13 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
       <div class="toast-container" id="toast-container" aria-live="polite" aria-atomic="true"></div>
 
       <!-- Entry Selector (multiple config entries for same domain) -->
-      ${this._showEntrySelector?H`
+      ${this._showEntrySelector?U`
         <div class="entry-overlay" role="dialog" aria-modal="true" aria-label="${ge("selectEntryTitle")}" @click=${()=>{this._showEntrySelector=!1}}>
           <div class="entry-dialog" @click=${e=>e.stopPropagation()}>
             <div class="entry-title">${ge("selectEntryTitle")}</div>
             <div class="entry-subtitle">${ge("selectEntrySubtitle")||"请选择要配置的集成实例"}</div>
             <div class="entry-list">
-              ${this._entrySelectorEntries.map(e=>H`
+              ${this._entrySelectorEntries.map(e=>U`
                 <button class="entry-btn" @click=${()=>this._selectConfigEntry(e.entry_id)}>
                   <div class="entry-btn-icon">⚙️</div>
                   <div class="entry-btn-text">
@@ -1174,37 +1174,37 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
     .mini-icon { width: 14px; height: 14px; vertical-align: -2px; display: inline; flex-shrink: 0; }
     .mini-icon.spin { animation: spin 1s linear infinite; }
     @keyframes spin { 100% { transform: rotate(360deg); } }
-  `;_getInitials(e){if(!e)return"?";const t=e.split("/");return(t[t.length-1]||e).charAt(0).toUpperCase()}_getIconUrls(e){const t=e.domain,o=e.full_name||e.repository_manifest?.full_name||"",i=o.split("/")[0],r=o.split("/")[1]||"",s=e.default_branch||"main",a=e.custom||e.is_custom||i&&"home-assistant"!==i;if(!t||"integration"!==e.category)return[];const n=[];return n.push(`https://brands.home-assistant.io/${t}/icon.png`),a&&(i&&r&&n.push(`https://raw.githubusercontent.com/${i}/${r}/${s}/custom_components/${t}/brand/icon.png`),n.push(`/api/hacs_vision_brand/${t}`),i&&n.push(`https://github.com/${i}.png`)),n}_getStatusBadge(e){if(e.pending_restart)return{label:ge("statusPendingRestart"),cls:"pending-restart"};const t=ce.getPendingReloads();return e.installed&&t.length>0&&e.full_name&&t.includes(e.full_name)?{label:ge("statusPendingReload"),cls:"pending-reload"}:e.installed&&(e.has_update||e.installed_version&&e.latest_version&&e.installed_version!==e.latest_version)?{label:ge("statusPendingUpgrade"),cls:"update-available"}:e.installed?{label:ge("installed"),cls:"installed"}:null}_getCategoryLabel(e){return{integration:ge("catIntegration"),plugin:ge("catPlugin"),theme:ge("catTheme"),template:ge("catTemplate"),dashboard:ge("catDashboard")}[e]||e}_handleAction(e,t){e.stopPropagation(),this.dispatchEvent(new CustomEvent(t,{detail:{repo:this.repo},bubbles:!0,composed:!0}))}async _handleFavorite(e){e.stopPropagation();const t=this.repo.id||this.repo.full_name,o=[...this.favorites],i=o.indexOf(t);i>=0?(o.splice(i,1),this._isFavorite=!1):(o.push(t),this._isFavorite=!0);try{await ce.setFavorites(o),this.favorites=o}catch(e){this._isFavorite=!this._isFavorite}this.dispatchEvent(new CustomEvent("favorite",{detail:{repo:this.repo,isFavorite:this._isFavorite},bubbles:!0,composed:!0}))}_handleCardClick(){this.dispatchEvent(new CustomEvent("detail",{detail:{repo:this.repo},bubbles:!0,composed:!0}))}render(){const e=this.repo,t=e.manifest_name||e.repository_manifest?.name||e.full_name||e.name||"unknown",o=e.description||"",i=e.category||"integration",r=e.stars||e.stargazers_count||0,s=e.downloads||0,a=e.installed||!1,n=a&&(e.has_update||e.installed_version&&e.latest_version&&e.installed_version!==e.latest_version),l=fe(i),c=this._getIconUrls(e);return H`
+  `;_getInitials(e){if(!e)return"?";const t=e.split("/");return(t[t.length-1]||e).charAt(0).toUpperCase()}_getIconUrls(e){const t=e.domain,o=e.full_name||e.repository_manifest?.full_name||"",i=o.split("/")[0],r=o.split("/")[1]||"",s=e.default_branch||"main",a=e.custom||e.is_custom||i&&"home-assistant"!==i;if(!t||"integration"!==e.category)return[];const n=[];return n.push(`https://brands.home-assistant.io/${t}/icon.png`),a&&(i&&r&&n.push(`https://raw.githubusercontent.com/${i}/${r}/${s}/custom_components/${t}/brand/icon.png`),n.push(`/api/hacs_vision_brand/${t}`),i&&n.push(`https://github.com/${i}.png`)),n}_getStatusBadge(e){if(e.pending_restart)return{label:ge("statusPendingRestart"),cls:"pending-restart"};const t=ce.getPendingReloads();return e.installed&&t.length>0&&e.full_name&&t.includes(e.full_name)?{label:ge("statusPendingReload"),cls:"pending-reload"}:e.installed&&(e.has_update||e.installed_version&&e.latest_version&&e.installed_version!==e.latest_version)?{label:ge("statusPendingUpgrade"),cls:"update-available"}:e.installed?{label:ge("installed"),cls:"installed"}:null}_getCategoryLabel(e){return{integration:ge("catIntegration"),plugin:ge("catPlugin"),theme:ge("catTheme"),template:ge("catTemplate"),dashboard:ge("catDashboard")}[e]||e}_handleAction(e,t){e.stopPropagation(),this.dispatchEvent(new CustomEvent(t,{detail:{repo:this.repo},bubbles:!0,composed:!0}))}async _handleFavorite(e){e.stopPropagation();const t=this.repo.id||this.repo.full_name,o=[...this.favorites],i=o.indexOf(t);i>=0?(o.splice(i,1),this._isFavorite=!1):(o.push(t),this._isFavorite=!0);try{await ce.setFavorites(o),this.favorites=o}catch(e){this._isFavorite=!this._isFavorite}this.dispatchEvent(new CustomEvent("favorite",{detail:{repo:this.repo,isFavorite:this._isFavorite},bubbles:!0,composed:!0}))}_handleCardClick(){this.dispatchEvent(new CustomEvent("detail",{detail:{repo:this.repo},bubbles:!0,composed:!0}))}render(){const e=this.repo,t=e.manifest_name||e.repository_manifest?.name||e.full_name||e.name||"unknown",o=e.description||"",i=e.category||"integration",r=e.stars||e.stargazers_count||0,s=e.downloads||0,a=e.installed||!1,n=a&&(e.has_update||e.installed_version&&e.latest_version&&e.installed_version!==e.latest_version),l=fe(i),c=this._getIconUrls(e);return U`
       <div class="card${e.is_custom?" custom-repo":""}" @click=${this._handleCardClick}>
         <div class="img-container">
-          ${this.showCheckbox?H`
+          ${this.showCheckbox?U`
             <div class="top-bar">
               <input type="checkbox" class="checkbox" ?checked=${this.selected}
                      @click=${e=>e.stopPropagation()}
                      @change=${()=>this.dispatchEvent(new CustomEvent("check-change",{detail:{fullName:this.repo?.full_name},bubbles:!0,composed:!0}))}>
               <span class="badge ${i}">${this._getCategoryLabel(i)}</span>
             </div>
-          `:H`<span class="badge ${i}" style="position:absolute;top:10px;left:10px;">${this._getCategoryLabel(i)}</span>`}
+          `:U`<span class="badge ${i}" style="position:absolute;top:10px;left:10px;">${this._getCategoryLabel(i)}</span>`}
           <div class="avatar">
-            ${c.length>0?H`
+            ${c.length>0?U`
               <img class="repo-icon" src="${c[0]}"
                 data-fallback-chain="${c.slice(1).join(",")}"
                 data-fb-idx="0"
                 @error=${e=>{const t=(e.target.dataset.fallbackChain||"").split(",");let o=parseInt(e.target.dataset.fbIdx||"0");if(o++,o<t.length&&t[o])e.target.dataset.fbIdx=String(o),e.target.src=t[o];else{e.target.style.display="none";const t=e.target.parentElement.querySelector(".initials");t&&(t.style.display="flex",t.style.background="${categoryColor}")}}} alt="">
               <span class="initials" style="display:none">${this._getInitials(t)}</span>
-            `:H`
+            `:U`
               <span class="initials" style="display:flex;background:${l}">${this._getInitials(t)}</span>
             `}
           </div>
-          ${this._getStatusBadge(e)?H`<span class="status-badge ${this._getStatusBadge(e).cls}">${this._getStatusBadge(e).label}</span>`:""}
+          ${this._getStatusBadge(e)?U`<span class="status-badge ${this._getStatusBadge(e).cls}">${this._getStatusBadge(e).label}</span>`:""}
           <!-- Right-side badges (symmetrical with status-badge) -->
           <div class="right-tags">
-            ${e.config_entry_id?H`<span class="tag configured">${ge("badgeConfigured")}</span>`:""}
-            ${e.load_failed?H`<span class="tag load-failed">${ge("badgeLoadFailed")}</span>`:""}
-            ${e.is_custom&&"management"!==this.viewMode?H`<span class="tag custom-tag">${ge("customBadge")}</span>`:""}
-            ${this.renamedFrom?H`<span class="tag" style="background:#ff9800;color:#fff;font-weight:600;display:flex;align-items:center;gap:2px;"><svg class="mini-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:10px;height:10px;"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg> ${this.renamedFrom}</span>`:""}
+            ${e.config_entry_id?U`<span class="tag configured">${ge("badgeConfigured")}</span>`:""}
+            ${e.load_failed?U`<span class="tag load-failed">${ge("badgeLoadFailed")}</span>`:""}
+            ${e.is_custom&&"management"!==this.viewMode?U`<span class="tag custom-tag">${ge("customBadge")}</span>`:""}
+            ${this.renamedFrom?U`<span class="tag" style="background:#ff9800;color:#fff;font-weight:600;display:flex;align-items:center;gap:2px;"><svg class="mini-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:10px;height:10px;"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg> ${this.renamedFrom}</span>`:""}
           </div>
-          ${"management"!==this.viewMode?H`
+          ${"management"!==this.viewMode?U`
           <button class="fav-btn ${this._isFavorite?"active":""}"
                   @click=${this._handleFavorite}
                   title=${this._isFavorite?ge("favOn"):ge("favOff")}>
@@ -1221,50 +1221,50 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
           <div class="desc">${o||ge("noDesc")}</div>
           <div class="meta">
             <div class="tags">
-              ${e.topics&&e.topics.length?e.topics.slice(0,3).map(e=>H`<span class="topic-tag">${e}</span>`):""}
+              ${e.topics&&e.topics.length?e.topics.slice(0,3).map(e=>U`<span class="topic-tag">${e}</span>`):""}
             </div>
             <span class="stars">
               <svg viewBox="0 0 20 20"><path d="M10 1l2.39 4.84L17.6 6.7l-3.8 3.71.9 5.26L10 13.27l-4.7 2.46.9-5.26L2.4 6.7l5.2-.86L10 1z"/></svg>
               ${"number"==typeof r?r.toLocaleString():r}
             </span>
-            ${s?H`
+            ${s?U`
               <span class="stars">
                 <svg viewBox="0 0 20 20" fill="currentColor"><path d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z"/></svg>
                 ${s.toLocaleString()}
               </span>
             `:""}
-            ${"store"!==this.viewMode?H`
+            ${"store"!==this.viewMode?U`
               <span style="font-size:10px;color:var(--secondary-text-color);display:flex;align-items:center;gap:3px;">
                 <svg class="mini-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
-                ${n?H`${e.installed_version||"?"} → <span style="color:var(--primary-color);font-weight:600;">${e.latest_version||"?"}</span>`:e.installed_version||ge("installed")}
+                ${n?U`${e.installed_version||"?"} → <span style="color:var(--primary-color);font-weight:600;">${e.latest_version||"?"}</span>`:e.installed_version||ge("installed")}
               </span>
             `:""}
           </div>
         </div>
 
-        ${"management"===this.viewMode?H`
+        ${"management"===this.viewMode?U`
         <div class="actions">
-          ${this.showRemoveBtn?H`
+          ${this.showRemoveBtn?U`
             <button class="action-btn ${this._removing?"installing":""}"
               @click=${e=>{this._removing=!0,this._handleAction(e,"remove-repo")}} ?disabled=${this._removing}
               style="color:#f44336;border-color:#f44336;flex:1;">
-              ${this._removing?H`<svg class="mini-icon spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>`:H`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>`}
+              ${this._removing?U`<svg class="mini-icon spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>`:U`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>`}
               <span class="label">${this._removing?ge("removing")||"移除中…":"management"===this.viewMode?ge("removeRepo"):ge("remove")}</span>
             </button>
           `:""}
         </div>
-        `:H`
+        `:U`
         <div class="actions">
-          ${"management"===this.viewMode?H`
+          ${"management"===this.viewMode?U`
           <button class="action-btn readme-btn" @click=${e=>this._handleAction(e,"readme")} title="README">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
           </button>
           `:""}
-          ${a?H`
-            ${n?H`
+          ${a?U`
+            ${n?U`
               <button class="action-btn primary ${this._updating?"installing":""}"
                 @click=${e=>{this._updating=!0,this._handleAction(e,"update")}} ?disabled=${this._updating}>
-                ${this._updating?H`<svg class="mini-icon spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>`:H`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>`}
+                ${this._updating?U`<svg class="mini-icon spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>`:U`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>`}
                 <span class="label">${this._updating?ge("updatingProgress"):ge("update")}</span>
               </button>
             `:""}
@@ -1274,7 +1274,7 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
               <span class="label">${ge("redownload")}</span>
             </button>
-            ${"integration"===i?H`
+            ${"integration"===i?U`
               <button class="action-btn" @click=${t=>this._handleAction(t,e.config_entry_id?"configure":"add-integration")}>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
                 <span class="label">${e.config_entry_id?ge("addIntegration"):ge("addIntegrationHint")}</span>
@@ -1283,25 +1283,25 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
             <button class="action-btn ${this._removing?"installing":""}"
               @click=${e=>{this._removing=!0,this._handleAction(e,"uninstall")}} ?disabled=${this._removing}
               style="color:#f44336;border-color:#f44336;">
-              ${this._removing?H`<svg class="mini-icon spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>`:H`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>`}
+              ${this._removing?U`<svg class="mini-icon spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>`:U`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>`}
               <span class="label">${this._removing?ge("removing")||"卸载中…":"management"===this.viewMode?ge("removeRepo"):ge("remove")}</span>
             </button>
-            ${"management"===this.viewMode?H`
+            ${"management"===this.viewMode?U`
             <button class="action-btn" @click=${e=>this._handleAction(e,"ignore")} title="${ge("ignore")}"
               style="flex:0 0 auto;padding:8px 10px;">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
             </button>
             `:""}
-          `:H`
+          `:U`
             <button class="action-btn primary ${this._installing?"installing":""}"
                     @click=${e=>this._handleAction(e,"install")} ?disabled=${this._installing}>
-              ${this._installing?H`<svg class="mini-icon spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> ${ge("installing")}`:H`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg><span class="label">${ge("install")}</span>`}
+              ${this._installing?U`<svg class="mini-icon spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> ${ge("installing")}`:U`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg><span class="label">${ge("install")}</span>`}
             </button>
           `}
         </div>
         `}
       </div>
-    `}}customElements.define("repo-card",Bt);class Pt extends ae{static properties={_title:{type:String,state:!0},_message:{type:String,state:!0},_confirmText:{type:String,state:!0},_cancelText:{type:String,state:!0},_thirdText:{type:String,state:!0},_danger:{type:Boolean,state:!0},_type:{type:String,state:!0},_visible:{type:Boolean,state:!0}};constructor(){super(),this._title="",this._message="",this._confirmText=ge("confirm"),this._cancelText=ge("cancel"),this._thirdText="",this._danger=!1,this._type="info",this._visible=!1,this._resolve=null}disconnectedCallback(){super.disconnectedCallback()}static styles=s`
+    `}}customElements.define("repo-card",Bt);class Ht extends ae{static properties={_title:{type:String,state:!0},_message:{type:String,state:!0},_confirmText:{type:String,state:!0},_cancelText:{type:String,state:!0},_thirdText:{type:String,state:!0},_danger:{type:Boolean,state:!0},_type:{type:String,state:!0},_visible:{type:Boolean,state:!0}};constructor(){super(),this._title="",this._message="",this._confirmText=ge("confirm"),this._cancelText=ge("cancel"),this._thirdText="",this._danger=!1,this._type="info",this._visible=!1,this._resolve=null}disconnectedCallback(){super.disconnectedCallback()}static styles=s`
     :host { display: contents; }
     .overlay {
       position: fixed; top: 0; left: 0; width: 100%; height: 100%;
@@ -1376,10 +1376,10 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
       .actions { flex-direction: column-reverse; }
       .btn { width: 100%; text-align: center; min-height: 44px; }
     }
-  `;static show(e,{title:t,message:o,confirmText:i,cancelText:r,thirdText:s,danger:a,type:n}={}){let l=e.shadowRoot?.querySelector("confirm-dialog");return l||(l=document.createElement("confirm-dialog"),e.shadowRoot.appendChild(l)),new Promise(e=>{l._resolve=e,l._title=t||"",l._message=o||"Are you sure?",l._confirmText=i||ge("confirm"),l._cancelText=r||ge("cancel"),l._thirdText=s||"",l._danger=!!a,l._type=n||(a?"danger":"info"),l._visible=!0,setTimeout(()=>{const e=l.shadowRoot?.querySelector(".btn-confirm");e&&e.focus()},100)})}_getIcon(e){return"danger"===e?H`<svg class="title-icon danger" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>`:"warning"===e?H`<svg class="title-icon warning" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`:H`<svg class="title-icon info" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>`}_onKeyDown(e){"Escape"===e.key&&(e.stopPropagation(),this._onCancel()),"Enter"===e.key&&(e.stopPropagation(),this._onConfirm())}_onConfirm(){this._visible=!1;const e=this.shadowRoot?.querySelector(".dialog");e&&(e.style.transform=""),this._resolve&&this._resolve(!0)}_onCancel(){this._visible=!1;const e=this.shadowRoot?.querySelector(".dialog");e&&(e.style.transform=""),this._resolve&&this._resolve(!1)}_onThird(){this._visible=!1;const e=this.shadowRoot?.querySelector(".dialog");e&&(e.style.transform=""),this._resolve&&this._resolve("third")}_onOverlayClick(e){e.target===e.currentTarget&&this._onCancel()}_dialogPointerDown(e){if(!e.target.closest(".title-bar")||e.target.closest("button"))return;if(void 0!==e.button&&0!==e.button)return;const t=e.currentTarget;let o=0,i=0,r=e.clientX,s=e.clientY;t.style.transition="none",t.style.cursor="grabbing",t.setPointerCapture(e.pointerId);const a=e=>{o=e.clientX-r,i=e.clientY-s,t.style.transform=`translate(${o}px, ${i}px)`},n=()=>{t.style.cursor="",t.removeEventListener("pointermove",a),t.removeEventListener("pointerup",n),t.removeEventListener("pointercancel",n);try{t.releasePointerCapture(e.pointerId)}catch(e){}};t.addEventListener("pointermove",a),t.addEventListener("pointerup",n),t.addEventListener("pointercancel",n)}render(){return this._visible?H`
+  `;static show(e,{title:t,message:o,confirmText:i,cancelText:r,thirdText:s,danger:a,type:n}={}){let l=e.shadowRoot?.querySelector("confirm-dialog");return l||(l=document.createElement("confirm-dialog"),e.shadowRoot.appendChild(l)),new Promise(e=>{l._resolve=e,l._title=t||"",l._message=o||"Are you sure?",l._confirmText=i||ge("confirm"),l._cancelText=r||ge("cancel"),l._thirdText=s||"",l._danger=!!a,l._type=n||(a?"danger":"info"),l._visible=!0,setTimeout(()=>{const e=l.shadowRoot?.querySelector(".btn-confirm");e&&e.focus()},100)})}_getIcon(e){return"danger"===e?U`<svg class="title-icon danger" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>`:"warning"===e?U`<svg class="title-icon warning" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`:U`<svg class="title-icon info" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>`}_onKeyDown(e){"Escape"===e.key&&(e.stopPropagation(),this._onCancel()),"Enter"===e.key&&(e.stopPropagation(),this._onConfirm())}_onConfirm(){this._visible=!1;const e=this.shadowRoot?.querySelector(".dialog");e&&(e.style.transform=""),this._resolve&&this._resolve(!0)}_onCancel(){this._visible=!1;const e=this.shadowRoot?.querySelector(".dialog");e&&(e.style.transform=""),this._resolve&&this._resolve(!1)}_onThird(){this._visible=!1;const e=this.shadowRoot?.querySelector(".dialog");e&&(e.style.transform=""),this._resolve&&this._resolve("third")}_onOverlayClick(e){e.target===e.currentTarget&&this._onCancel()}_dialogPointerDown(e){if(!e.target.closest(".title-bar")||e.target.closest("button"))return;if(void 0!==e.button&&0!==e.button)return;const t=e.currentTarget;let o=0,i=0,r=e.clientX,s=e.clientY;t.style.transition="none",t.style.cursor="grabbing",t.setPointerCapture(e.pointerId);const a=e=>{o=e.clientX-r,i=e.clientY-s,t.style.transform=`translate(${o}px, ${i}px)`},n=()=>{t.style.cursor="",t.removeEventListener("pointermove",a),t.removeEventListener("pointerup",n),t.removeEventListener("pointercancel",n);try{t.releasePointerCapture(e.pointerId)}catch(e){}};t.addEventListener("pointermove",a),t.addEventListener("pointerup",n),t.addEventListener("pointercancel",n)}render(){return this._visible?U`
       <div class="overlay" @click=${this._onOverlayClick} @keydown=${this._onKeyDown}>
         <div class="dialog" role="alertdialog" aria-modal="true" @pointerdown=${this._dialogPointerDown}>
-          ${this._title?H`
+          ${this._title?U`
             <div class="title-bar">
               ${this._getIcon(this._type)}
               <span class="title-text">${this._title}</span>
@@ -1388,14 +1388,14 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
           <div class="message">${this._message}</div>
           <div class="actions">
             <button class="btn" @click=${this._onCancel}>${this._cancelText}</button>
-            ${this._thirdText?H`
+            ${this._thirdText?U`
               <button class="btn" style="border:1px solid var(--primary-color, #03a9f4);color:var(--primary-color, #03a9f4);" @click=${this._onThird}>${this._thirdText}</button>
             `:""}
             <button class="btn btn-confirm ${this._danger?"danger":"warning"===this._type?"warning":""}" @click=${this._onConfirm}>${this._confirmText}</button>
           </div>
         </div>
       </div>
-    `:H``}}customElements.define("confirm-dialog",Pt);var Ut=Object.freeze({__proto__:null,ConfirmDialog:Pt});const Ht="hacs_vision_browse_state",jt="hacs_vision_view_mode";const Vt="hacs_vision_search_history";function qt(){try{return JSON.parse(localStorage.getItem(Vt)||"[]")}catch{return[]}}class Gt extends ae{static properties={repos:{type:Array},total:{type:Number},search:{type:String},category:{type:String},statusFilter:{type:String},sort:{type:String},sortDir:{type:String},page:{type:Number},loading:{type:Boolean},categoryCounts:{type:Object},statusCounts:{type:Object},tagCounts:{type:Object},viewMode:{type:String},groupBy:{type:String},pageSize:{type:Number},_installingIds:{type:Object,state:!0},_searchText:{type:String,state:!0},_showAddRepo:{type:Boolean,state:!0},_newRepoUrl:{type:String,state:!0},_newRepoCategory:{type:String,state:!0},_addRepoInstalling:{type:Boolean,state:!0},_collapsedGroups:{type:Object,state:!0},_filterExpanded:{type:Boolean,state:!0},_favorites:{type:Array,state:!0},_searchHistory:{type:Array,state:!0},presetFilter:{type:String},presetTag:{type:String},pendingRestart:{type:Number},_selectedRepos:{type:Array,state:!0},_tagFilters:{type:Array,state:!0}};constructor(){super();const e=function(){try{return JSON.parse(localStorage.getItem(Ht)||"{}")}catch{return{}}}();this.repos=[],this.total=0,this.search=e.search||"",this.category=e.category||"",this.statusFilter=e.statusFilter||"",this.sort=e.sort||"stars",this.sortDir=e.sortDir||"desc",this.page=e.page||1,this.loading=!1,this.limit=e.pageSize||50,this.pageSize=this.limit,this.categoryCounts={},this.statusCounts={},this.tagCounts={},this._installingIds={},this._searchTimer=void 0,this._searchText=e.search||"",this.viewMode=localStorage.getItem(jt)||"card",this.groupBy=e.groupBy||"none",this._showAddRepo=!1,this._newRepoUrl="",this._newRepoCategory="integration",this._addRepoInstalling=!1,this._collapsedGroups={},this._filterExpanded=!1,this._favorites=[],this._selectedRepos=[],this._tagFilters=[],this._searchHistory=qt(),this._showSearchHistory=!1,this.statusOptions=[{value:"",label:ge("statusAll")},{value:"installed",label:ge("statusInstalled")},{value:"not_installed",label:ge("statusNotInstalled")},{value:"update_available",label:ge("statusPendingUpgrade")},{value:"pending_restart",label:ge("statusPendingRestart")}],this.typeOptions=[{value:"",label:ge("typeAll")},{value:"integration",label:ge("typeIntegration")},{value:"plugin",label:ge("typePlugin")},{value:"theme",label:ge("typeTheme")},{value:"template",label:ge("typeTemplate")}],this.groupOptions=[{value:"none",label:ge("groupNone")},{value:"status",label:ge("groupStatus")},{value:"type",label:ge("groupType")}],this.sortColumns=[{key:"name",label:ge("colName")||"名称",sortable:!0},{key:"downloads",label:ge("colDownloads")||"下载",sortable:!0},{key:"stars",label:ge("colStars")||"星数",sortable:!0},{key:"last_updated",label:ge("colLastUpdated")||"更新时间",sortable:!0},{key:"installed_version",label:ge("colInstalledVer")||"已安装",sortable:!0},{key:"latest_version",label:ge("colAvailableVer")||"可用",sortable:!0},{key:"installed_at",label:ge("colInstalledAt")||"安装时间",sortable:!0},{key:"status",label:ge("colStatus")||"状态",sortable:!0}]}static styles=s`
+    `:U``}}customElements.define("confirm-dialog",Ht);var Pt=Object.freeze({__proto__:null,ConfirmDialog:Ht});const Ut="hacs_vision_browse_state",jt="hacs_vision_view_mode";const Vt="hacs_vision_search_history";function qt(){try{return JSON.parse(localStorage.getItem(Vt)||"[]")}catch{return[]}}class Gt extends ae{static properties={repos:{type:Array},total:{type:Number},search:{type:String},category:{type:String},statusFilter:{type:String},sort:{type:String},sortDir:{type:String},page:{type:Number},loading:{type:Boolean},categoryCounts:{type:Object},statusCounts:{type:Object},tagCounts:{type:Object},viewMode:{type:String},groupBy:{type:String},pageSize:{type:Number},_installingIds:{type:Object,state:!0},_searchText:{type:String,state:!0},_showAddRepo:{type:Boolean,state:!0},_newRepoUrl:{type:String,state:!0},_newRepoCategory:{type:String,state:!0},_addRepoInstalling:{type:Boolean,state:!0},_collapsedGroups:{type:Object,state:!0},_filterExpanded:{type:Boolean,state:!0},_favorites:{type:Array,state:!0},_searchHistory:{type:Array,state:!0},presetFilter:{type:String},presetTag:{type:String},pendingRestart:{type:Number},_selectedRepos:{type:Array,state:!0},_tagFilters:{type:Array,state:!0}};constructor(){super();const e=function(){try{return JSON.parse(localStorage.getItem(Ut)||"{}")}catch{return{}}}();this.repos=[],this.total=0,this.search=e.search||"",this.category=e.category||"",this.statusFilter=e.statusFilter||"",this.sort=e.sort||"stars",this.sortDir=e.sortDir||"desc",this.page=e.page||1,this.loading=!1,this.limit=e.pageSize||50,this.pageSize=this.limit,this.categoryCounts={},this.statusCounts={},this.tagCounts={},this._installingIds={},this._searchTimer=void 0,this._searchText=e.search||"",this.viewMode=(()=>{try{return localStorage.getItem(jt)}catch{return null}})()||"card",this.groupBy=e.groupBy||"none",this._showAddRepo=!1,this._newRepoUrl="",this._newRepoCategory="integration",this._addRepoInstalling=!1,this._collapsedGroups={},this._filterExpanded=!1,this._favorites=[],this._selectedRepos=[],this._tagFilters=[],this._searchHistory=qt(),this._showSearchHistory=!1,this.statusOptions=[{value:"",label:ge("statusAll")},{value:"installed",label:ge("statusInstalled")},{value:"not_installed",label:ge("statusNotInstalled")},{value:"update_available",label:ge("statusPendingUpgrade")},{value:"pending_restart",label:ge("statusPendingRestart")}],this.typeOptions=[{value:"",label:ge("typeAll")},{value:"integration",label:ge("typeIntegration")},{value:"plugin",label:ge("typePlugin")},{value:"theme",label:ge("typeTheme")},{value:"template",label:ge("typeTemplate")}],this.groupOptions=[{value:"none",label:ge("groupNone")},{value:"status",label:ge("groupStatus")},{value:"type",label:ge("groupType")}],this.sortColumns=[{key:"name",label:ge("colName")||"名称",sortable:!0},{key:"downloads",label:ge("colDownloads")||"下载",sortable:!0},{key:"stars",label:ge("colStars")||"星数",sortable:!0},{key:"last_updated",label:ge("colLastUpdated")||"更新时间",sortable:!0},{key:"installed_version",label:ge("colInstalledVer")||"已安装",sortable:!0},{key:"latest_version",label:ge("colAvailableVer")||"可用",sortable:!0},{key:"installed_at",label:ge("colInstalledAt")||"安装时间",sortable:!0},{key:"status",label:ge("colStatus")||"状态",sortable:!0}]}static styles=s`
     ${me()}
 
     :host { display: block; touch-action: manipulation; background: var(--primary-background-color); }
@@ -1745,13 +1745,13 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
       border-radius: 8px; font-size: 13px; font-weight: 600; color: #f44336;
     }
     .restart-bar .batch-bar-btn { background: #f44336; border-color: #f44336; color: #fff; }
-  `;async connectedCallback(){super.connectedCallback(),await this._loadFavorites(),await this._load(),this.addEventListener("install",e=>this._handleInstall(e.detail.repo)),this.addEventListener("update",e=>this._handleUpdate(e.detail.repo)),this.addEventListener("uninstall",e=>this._handleUninstall(e.detail.repo)),this.addEventListener("redownload",e=>this._handleRedownload(e.detail.repo)),this.addEventListener("ignore",e=>this._handleIgnore(e.detail.repo)),this.addEventListener("configure",e=>this._handleConfigure(e.detail.repo)),this.addEventListener("add-integration",e=>this._handleAddIntegration(e.detail.repo)),this.addEventListener("favorite",e=>{const{isFavorite:t,repo:o}=e.detail,i=o?.id||o?.full_name;i&&(t&&!this._favorites.includes(i)?this._favorites=[...this._favorites,i]:t||(this._favorites=this._favorites.filter(e=>e!==i))),this._syncFavoriteCount()})}willUpdate(e){if(e.has("presetFilter")){const t=this.presetFilter;if(void 0===e.get("presetFilter")&&""===t)return;this.presetFilter="",this.statusFilter=t,this.page=1,this._persistState(),this._load()}if(e.has("presetTag")&&this.presetTag){const e=this.presetTag;this.presetTag="",this._tagFilters.includes(e)?this._tagFilters=this._tagFilters.filter(t=>t!==e):this._tagFilters=[...this._tagFilters,e],this.page=1,this._load()}}async _loadFavorites(){try{const e=await ce.getFavorites();this._favorites=Array.isArray(e)?e:e.favorites||[]}catch(e){this._favorites=[]}}_syncFavoriteCount(){this.requestUpdate()}_persistState(){!function(e){try{localStorage.setItem(Ht,JSON.stringify(e))}catch{}}({search:this.search,category:this.category,statusFilter:this.statusFilter,sort:this.sort,sortDir:this.sortDir,page:this.page,groupBy:this.groupBy,pageSize:this.pageSize})}async _handleInstall(e){const t=e.id||e.full_name;this._installingIds={...this._installingIds,[t]:!0};try{await ce.install(t,e.category),Mt(`${ge("installComplete")}: ${e.full_name||e.name}`,"success"),this.dispatchEvent(new CustomEvent("refresh-stats",{bubbles:!0,composed:!0})),this._load(),this._showPostInstallPrompt(e)}catch(e){Mt(`${ge("installFailed")}: ${e.message}`,"error")}delete this._installingIds[t],this._installingIds={...this._installingIds}}async _showPostInstallPrompt(e){const t="integration"===(e.category||"integration");await new Promise(e=>setTimeout(e,1500));const{ConfirmDialog:o}=await Promise.resolve().then(function(){return Ut});if(t){if(!await o.show(this,{message:`${e.manifest_name||e.name} ${ge("postInstallRestartMsg")}`,confirmText:ge("restartHA"),cancelText:ge("later"),danger:!0}))return;try{await ce.restartHA(),Mt(ge("haRestarting"),"info")}catch(e){Mt(`${ge("restartFailed")}: ${e.message}`,"error")}}else{Mt(ge("reloadingHA"),"info");try{const e=await ce.reloadHA();e.success?Mt(ge("reloadSuccess"),"success"):Mt(`${ge("coreReloadFailed")}: ${e.error}`,"error")}catch(e){Mt(`${ge("coreReloadFailed")}: ${e.message}`,"error")}}}async _handleUpdate(e){try{const t=await ce.update([e.id||e.full_name]);t?.success?.length>0?Mt(`${ge("updateComplete")}: ${e.full_name||e.name}`,"success"):Mt(`${ge("updateFailed")}: ${e.full_name||e.name}`,"error"),this.dispatchEvent(new CustomEvent("refresh-stats",{bubbles:!0,composed:!0})),this._load(),this._showPostInstallPrompt(e)}catch(e){console.error("Update failed",e),Mt(`${ge("updateFailed")}: ${e.message}`,"error")}}async _handleRedownload(e){try{const t=await ce.redownload(e.id||e.full_name,e.category);t?.success?Mt(`${ge("redownload")}: ${e.full_name||e.name}`,"success"):Mt(`${ge("updateFailed")}: ${t?.error||e.full_name}`,"error"),this.dispatchEvent(new CustomEvent("refresh-stats",{bubbles:!0,composed:!0})),this._load()}catch(e){Mt(`${ge("updateFailed")}: ${e.message}`,"error")}}async _handleIgnore(e){if(await Pt.show(this,{message:ge("confirmIgnore",{repo:e.full_name||e.name}),confirmText:ge("ignore"),danger:!1}))try{await ce.ignoreRepo(e.id||e.full_name),Mt(`${ge("ignore")}: ${e.full_name||e.name}`,"success"),this._load()}catch(e){Mt(`${ge("updateFailed")}: ${e.message}`,"error")}}async _handleUninstall(e){if(await Pt.show(this,{message:ge("confirmRemove",{repo:e.full_name||e.name}),confirmText:ge("remove"),danger:!0}))try{await ce.remove(e.id||e.full_name),this.dispatchEvent(new CustomEvent("refresh-stats",{bubbles:!0,composed:!0})),this._load()}catch(e){console.error("Uninstall failed",e)}}_handleConfigure(e){const t=e.domain||(e.full_name||"").split("/")[1]||"";this.dispatchEvent(new CustomEvent("open-options-flow",{detail:{entryId:e.config_entry_id,domain:t},bubbles:!0,composed:!0}))}_handleAddIntegration(e){const t=e.domain||(e.full_name||"").split("/")[1]||"";this.dispatchEvent(new CustomEvent("open-flow",{detail:{domain:t},bubbles:!0,composed:!0}))}async _load(){this.loading=!0;try{const e=!(!this.search||!this.search.match(/github\.com\/([^/]+\/[^/\s?#]+)/i)&&!this.search.match(/^[a-zA-Z0-9_-]+\/[a-zA-Z0-9_.-]+$/));let t=this.search;if(e){const e=this.search.match(/github\.com\/([^/]+\/[^/\s?#]+)/i);e&&(t=e[1].replace(/\.git$/,""))}const o=1===this._tagFilters.length?this._tagFilters[0]:"",i=await ce.listRepositories({search:t,category:this.category,sort:this.sort,sortDir:this.sortDir,page:this.page,limit:this.limit,status:this.statusFilter,tag:o});this.repos=i.repositories||[],this.total=i.total||0,this.categoryCounts=i.category_counts||{},this.statusCounts=i.status_counts||{},this.tagCounts=i.tag_counts||{},this.tagCounts={...this.tagCounts,favorites:this._favorites.length}}catch(e){console.error("Browse load error",e),this.repos=[],this.total=0}this.loading=!1}_onSearch(e){this._searchText=e.target.value,this._showSearchHistory=!1,clearTimeout(this._searchTimer),this._searchTimer=setTimeout(()=>{this.search=this._searchText,this.page=1,this._persistState(),this._load(),this._searchText&&function(e){if(!e||!e.trim())return;e=e.trim();let t=qt();t=t.filter(t=>t!==e),t.unshift(e),t.length>10&&(t=t.slice(0,10));try{localStorage.setItem(Vt,JSON.stringify(t))}catch{}}(this._searchText)},300)}_onSearchFocus(){const e=qt();e.length>0&&(this._searchHistory=e,this._showSearchHistory=!0)}_onSearchHistoryClick(e){this._showSearchHistory=!1,this._searchText=e,this.search=e,this.page=1,this._persistState(),this._load()}_clearSearchHistory(e,t){e.stopPropagation(),function(e){let t=qt().filter(t=>t!==e);try{localStorage.setItem(Vt,JSON.stringify(t))}catch{}}(t),this._searchHistory=qt(),0===this._searchHistory.length&&(this._showSearchHistory=!1)}_clearSearch(){this._searchText="",this.search="",this.page=1,this._showSearchHistory=!1,this._persistState(),this._load()}_onStatusFilter(e){this.statusFilter=e,this.page=1,this._persistState(),this._load()}_onTypeFilter(e){this.category=e,this.page=1,this._persistState(),this._load()}_onTagFilter(e){this._tagFilters.includes(e)?this._tagFilters=this._tagFilters.filter(t=>t!==e):this._tagFilters=[...this._tagFilters,e],this.page=1,this._load()}_onSortColumn(e){this.sort===e?this.sortDir="desc"===this.sortDir?"asc":"desc":(this.sort=e,this.sortDir="name"===e?"asc":"desc"),this.page=1,this._persistState(),this._load()}_onGroupChange(e){this.groupBy=e.target.value,this._persistState()}_onViewModeChange(e){this.viewMode=e;try{localStorage.setItem(jt,e)}catch{}}_toggleGroup(e){this._collapsedGroups={...this._collapsedGroups,[e]:!this._collapsedGroups[e]}}_goPage(e){this.page=e,this._persistState(),this._load()}_onPageSizeChange(e){this.pageSize=parseInt(e.target.value,10),this.limit=this.pageSize,this.page=1,this._persistState(),this._load()}_refresh(){this.page=1,this._persistState(),this._load()}async _addRepo(){const e=this._parseRepoUrl(this._newRepoUrl);if(e){this._addRepoInstalling=!0;try{const t=await ce.addCustomRepo(e,this._newRepoCategory);t.success?(Mt(`${ge("addSuccess")}: ${e}`,"success"),this._newRepoUrl="",this._showAddRepo=!1,this._load(),this.dispatchEvent(new CustomEvent("refresh-stats",{bubbles:!0,composed:!0}))):Mt(`${ge("addFailed")}: ${t.error}`,"error")}catch(e){Mt(`${ge("addFailed")}: ${e.message}`,"error")}this._addRepoInstalling=!1}else Mt(ge("invalidRepoUrl"),"error")}_parseRepoUrl(e){const t=e.match(/github\.com\/([^/]+\/[^/\s?#]+)/i);return t?t[1].replace(/\.git$/,""):/^[a-zA-Z0-9_-]+\/[a-zA-Z0-9_.-]+$/.test(e)?e:null}_getRepoStatus(e){return e.pending_restart?"pending_restart":e.installed&&(e.has_update||e.installed_version&&e.latest_version&&e.installed_version!==e.latest_version)?"pending-upgrade":e.installed?"installed":"default"}_getStatusBadge(e){const t={installed:{label:ge("statusInstalled"),cls:"installed"},"pending-upgrade":{label:ge("statusPendingUpgrade"),cls:"pending-upgrade"},"pending-restart":{label:ge("statusPendingRestart"),cls:"pending-restart"},default:{label:ge("statusDefault"),cls:"default"}}[e]||{label:e,cls:"default"};return H`<span class="status-badge ${t.cls}">${t.label}</span>`}_getStatusLabel(e){return{installed:ge("statusInstalled"),not_installed:ge("statusDefault"),update_available:ge("statusPendingUpgrade"),pending_restart:ge("statusPendingRestart")}[e]||e}_applyFilters(e){return this._tagFilters.includes("favorites")?e.filter(e=>this._favorites.includes(e.id||e.full_name)):e}_getFiltered(){let e=this._applyFilters(this.repos);if(!this.search)return e;const t=this.search.toLowerCase();let o=null;const i=t.match(/github\.com\/([^/]+\/[^/\s?#]+)/i);return i&&(o=i[1].replace(/\.git$/,"").toLowerCase()),e.filter(e=>{const i=(e.full_name||"").toLowerCase(),r=(e.name||"").toLowerCase(),s=(e.description||"").toLowerCase(),a=(e.authors||[]).join(",").toLowerCase(),n=(e.manifest_name||e.repository_manifest?.name||"").toLowerCase();return!!(i.includes(t)||r.includes(t)||s.includes(t)||a.includes(t))||(!(!o||i!==o&&!i.includes(o))||!!n.includes(t))})}_groupRepos(e){if("none"===this.groupBy)return null;const t={};for(const o of e){let e;e="status"===this.groupBy?this._getRepoStatus(o):"type"===this.groupBy&&o.category||"other",t[e]||(t[e]=[]),t[e].push(o)}const o=["pending-restart","pending-upgrade","installed","default"],i=["integration","plugin","theme","template","other"],r=Object.keys(t);return"status"===this.groupBy?r.sort((e,t)=>o.indexOf(e)-o.indexOf(t)):"type"===this.groupBy&&r.sort((e,t)=>i.indexOf(e)-i.indexOf(t)),r.map(e=>({key:e,label:"status"===this.groupBy?this._getStatusLabel(e):this._getCategoryLabel(e),repos:t[e]}))}_getCategoryLabel(e){return{integration:ge("catIntegration"),plugin:ge("catPlugin"),theme:ge("catTheme"),template:ge("catTemplate"),other:e}[e]||e}_formatDate(e){if(!e)return"";try{const t=new Date(e),o=new Date-t,i=Math.floor(o/864e5);return 0===i?ge("today")||"今天":1===i?ge("yesterday")||"昨天":i<30?`${i}d`:i<365?`${Math.floor(i/30)}mo`:`${Math.floor(i/365)}y`}catch{return""}}_toggleSelect(e){this._selectedRepos.includes(e)?this._selectedRepos=this._selectedRepos.filter(t=>t!==e):this._selectedRepos=[...this._selectedRepos,e]}_isAllSelected(){const e=this._getFiltered();return e.length>0&&this._selectedRepos.length===e.length}_toggleSelectAll(){const e=this._getFiltered();this._isAllSelected()?this._selectedRepos=[]:this._selectedRepos=e.map(e=>e.full_name).filter(Boolean)}async _batchDo(e){if(0===this._selectedRepos.length)return;const t=this._selectedRepos.map(e=>{const t=this.repos.find(t=>t.full_name===e);return{repository:e,category:t?.category||"integration"}});if("remove"===e){const{ConfirmDialog:e}=await Promise.resolve().then(function(){return Ut});if(!await e.show(this,{message:ge("batchRemoveConfirm",{n:t.length}),confirmText:ge("batchRemove"),danger:!0}))return}try{let o;Mt(ge("batchInProgress"),"info"),o="install"===e?await ce.batchInstall(t):"update"===e?await ce.update(t.map(e=>e.repository)):await ce.batchRemove(t.map(e=>e.repository)),Mt(ge("batchComplete"),"success"),this._selectedRepos=[],this._load()}catch(t){Mt(`${e} failed: ${t.message}`,"error")}}async _restartHA(){const{ConfirmDialog:e}=await Promise.resolve().then(function(){return Ut});if(await e.show(this,{message:this.t?.("restartConfirm"),confirmText:this.t?.("restartHA"),danger:!0}))try{await ce.restartHA(),Mt(this.t?.("haRestarting"),"info")}catch(e){Mt(`${this.t?.("restartFailed")}: ${e.message}`,"error")}}_renderRepoList(e){return"list"===this.viewMode?H`<div class="list-view">${this._renderListTable(e)}</div>`:H`<div class="grid">${e.map(e=>H`
+  `;async connectedCallback(){super.connectedCallback(),await this._loadFavorites(),await this._load(),this.addEventListener("install",e=>this._handleInstall(e.detail.repo)),this.addEventListener("update",e=>this._handleUpdate(e.detail.repo)),this.addEventListener("uninstall",e=>this._handleUninstall(e.detail.repo)),this.addEventListener("redownload",e=>this._handleRedownload(e.detail.repo)),this.addEventListener("ignore",e=>this._handleIgnore(e.detail.repo)),this.addEventListener("configure",e=>this._handleConfigure(e.detail.repo)),this.addEventListener("add-integration",e=>this._handleAddIntegration(e.detail.repo)),this.addEventListener("favorite",e=>{const{isFavorite:t,repo:o}=e.detail,i=o?.id||o?.full_name;i&&(t&&!this._favorites.includes(i)?this._favorites=[...this._favorites,i]:t||(this._favorites=this._favorites.filter(e=>e!==i))),this._syncFavoriteCount()})}willUpdate(e){if(e.has("presetFilter")){const t=this.presetFilter;if(void 0===e.get("presetFilter")&&""===t)return;this.presetFilter="",this.statusFilter=t,this.page=1,this._persistState(),this._load()}if(e.has("presetTag")&&this.presetTag){const e=this.presetTag;this.presetTag="",this._tagFilters.includes(e)?this._tagFilters=this._tagFilters.filter(t=>t!==e):this._tagFilters=[...this._tagFilters,e],this.page=1,this._load()}}async _loadFavorites(){try{const e=await ce.getFavorites();this._favorites=Array.isArray(e)?e:e.favorites||[]}catch(e){this._favorites=[]}}_syncFavoriteCount(){this.requestUpdate()}_persistState(){!function(e){try{localStorage.setItem(Ut,JSON.stringify(e))}catch{}}({search:this.search,category:this.category,statusFilter:this.statusFilter,sort:this.sort,sortDir:this.sortDir,page:this.page,groupBy:this.groupBy,pageSize:this.pageSize})}async _handleInstall(e){const t=e.id||e.full_name;this._installingIds={...this._installingIds,[t]:!0};try{await ce.install(t,e.category),Mt(`${ge("installComplete")}: ${e.full_name||e.name}`,"success"),this.dispatchEvent(new CustomEvent("refresh-stats",{bubbles:!0,composed:!0})),this._load(),this._showPostInstallPrompt(e)}catch(e){Mt(`${ge("installFailed")}: ${e.message}`,"error")}const o={...this._installingIds};delete o[t],this._installingIds=o}async _showPostInstallPrompt(e){const t="integration"===(e.category||"integration");await new Promise(e=>setTimeout(e,1500));const{ConfirmDialog:o}=await Promise.resolve().then(function(){return Pt});if(t){if(!await o.show(this,{message:`${e.manifest_name||e.name} ${ge("postInstallRestartMsg")}`,confirmText:ge("restartHA"),cancelText:ge("later"),danger:!0}))return;try{await ce.restartHA(),Mt(ge("haRestarting"),"info")}catch(e){Mt(`${ge("restartFailed")}: ${e.message}`,"error")}}else{Mt(ge("reloadingHA"),"info");try{const e=await ce.reloadHA();e.success?Mt(ge("reloadSuccess"),"success"):Mt(`${ge("coreReloadFailed")}: ${e.error}`,"error")}catch(e){Mt(`${ge("coreReloadFailed")}: ${e.message}`,"error")}}}async _handleUpdate(e){try{const t=await ce.update([e.id||e.full_name]);t?.success?.length>0?Mt(`${ge("updateComplete")}: ${e.full_name||e.name}`,"success"):Mt(`${ge("updateFailed")}: ${e.full_name||e.name}`,"error"),this.dispatchEvent(new CustomEvent("refresh-stats",{bubbles:!0,composed:!0})),this._load(),this._showPostInstallPrompt(e)}catch(e){console.error("Update failed",e),Mt(`${ge("updateFailed")}: ${e.message}`,"error")}}async _handleRedownload(e){try{const t=await ce.redownload(e.id||e.full_name,e.category);t?.success?Mt(`${ge("redownload")}: ${e.full_name||e.name}`,"success"):Mt(`${ge("updateFailed")}: ${t?.error||e.full_name}`,"error"),this.dispatchEvent(new CustomEvent("refresh-stats",{bubbles:!0,composed:!0})),this._load()}catch(e){Mt(`${ge("updateFailed")}: ${e.message}`,"error")}}async _handleIgnore(e){if(await Ht.show(this,{message:ge("confirmIgnore",{repo:e.full_name||e.name}),confirmText:ge("ignore"),danger:!1}))try{await ce.ignoreRepo(e.id||e.full_name),Mt(`${ge("ignore")}: ${e.full_name||e.name}`,"success"),this._load()}catch(e){Mt(`${ge("updateFailed")}: ${e.message}`,"error")}}async _handleUninstall(e){if(await Ht.show(this,{message:ge("confirmRemove",{repo:e.full_name||e.name}),confirmText:ge("remove"),danger:!0}))try{await ce.remove(e.id||e.full_name),this.dispatchEvent(new CustomEvent("refresh-stats",{bubbles:!0,composed:!0})),this._load()}catch(e){console.error("Uninstall failed",e),Mt(`${ge("updateFailed")}: ${e.message}`,"error")}}_handleConfigure(e){const t=e.domain||(e.full_name||"").split("/")[1]||"";this.dispatchEvent(new CustomEvent("open-options-flow",{detail:{entryId:e.config_entry_id,domain:t},bubbles:!0,composed:!0}))}_handleAddIntegration(e){const t=e.domain||(e.full_name||"").split("/")[1]||"";this.dispatchEvent(new CustomEvent("open-flow",{detail:{domain:t},bubbles:!0,composed:!0}))}async _load(){this.loading=!0;try{const e=!(!this.search||!this.search.match(/github\.com\/([^/]+\/[^/\s?#]+)/i)&&!this.search.match(/^[a-zA-Z0-9_-]+\/[a-zA-Z0-9_.-]+$/));let t=this.search;if(e){const e=this.search.match(/github\.com\/([^/]+\/[^/\s?#]+)/i);e&&(t=e[1].replace(/\.git$/,""))}const o=1===this._tagFilters.length?this._tagFilters[0]:"",i=await ce.listRepositories({search:t,category:this.category,sort:this.sort,sortDir:this.sortDir,page:this.page,limit:this.limit,status:this.statusFilter,tag:o});this.repos=i.repositories||[],this.total=i.total||0,this.categoryCounts=i.category_counts||{},this.statusCounts=i.status_counts||{},this.tagCounts=i.tag_counts||{},this.tagCounts={...this.tagCounts,favorites:this._favorites.length}}catch(e){console.error("Browse load error",e),this.repos=[],this.total=0}this.loading=!1}_onSearch(e){this._searchText=e.target.value,this._showSearchHistory=!1,clearTimeout(this._searchTimer),this._searchTimer=setTimeout(()=>{this.search=this._searchText,this.page=1,this._persistState(),this._load(),this._searchText&&function(e){if(!e||!e.trim())return;e=e.trim();let t=qt();t=t.filter(t=>t!==e),t.unshift(e),t.length>10&&(t=t.slice(0,10));try{localStorage.setItem(Vt,JSON.stringify(t))}catch{}}(this._searchText)},300)}_onSearchFocus(){const e=qt();e.length>0&&(this._searchHistory=e,this._showSearchHistory=!0)}_onSearchHistoryClick(e){this._showSearchHistory=!1,this._searchText=e,this.search=e,this.page=1,this._persistState(),this._load()}_clearSearchHistory(e,t){e.stopPropagation(),function(e){let t=qt().filter(t=>t!==e);try{localStorage.setItem(Vt,JSON.stringify(t))}catch{}}(t),this._searchHistory=qt(),0===this._searchHistory.length&&(this._showSearchHistory=!1)}_clearSearch(){this._searchText="",this.search="",this.page=1,this._showSearchHistory=!1,this._persistState(),this._load()}_onStatusFilter(e){this.statusFilter=e,this.page=1,this._persistState(),this._load()}_onTypeFilter(e){this.category=e,this.page=1,this._persistState(),this._load()}_onTagFilter(e){this._tagFilters.includes(e)?this._tagFilters=this._tagFilters.filter(t=>t!==e):this._tagFilters=[...this._tagFilters,e],this.page=1,this._load()}_onSortColumn(e){this.sort===e?this.sortDir="desc"===this.sortDir?"asc":"desc":(this.sort=e,this.sortDir="name"===e?"asc":"desc"),this.page=1,this._persistState(),this._load()}_onGroupChange(e){this.groupBy=e.target.value,this._persistState()}_onViewModeChange(e){this.viewMode=e;try{localStorage.setItem(jt,e)}catch{}}_toggleGroup(e){this._collapsedGroups={...this._collapsedGroups,[e]:!this._collapsedGroups[e]}}_goPage(e){this.page=e,this._persistState(),this._load()}_onPageSizeChange(e){this.pageSize=parseInt(e.target.value,10),this.limit=this.pageSize,this.page=1,this._persistState(),this._load()}_refresh(){this.page=1,this._persistState(),this._load()}async _addRepo(){const e=this._parseRepoUrl(this._newRepoUrl);if(e){this._addRepoInstalling=!0;try{const t=await ce.addCustomRepo(e,this._newRepoCategory);t.success?(Mt(`${ge("addSuccess")}: ${e}`,"success"),this._newRepoUrl="",this._showAddRepo=!1,this._load(),this.dispatchEvent(new CustomEvent("refresh-stats",{bubbles:!0,composed:!0}))):Mt(`${ge("addFailed")}: ${t.error}`,"error")}catch(e){Mt(`${ge("addFailed")}: ${e.message}`,"error")}this._addRepoInstalling=!1}else Mt(ge("invalidRepoUrl"),"error")}_parseRepoUrl(e){const t=e.match(/github\.com\/([^/]+\/[^/\s?#]+)/i);return t?t[1].replace(/\.git$/,""):/^[a-zA-Z0-9_-]+\/[a-zA-Z0-9_.-]+$/.test(e)?e:null}_getRepoStatus(e){return e.pending_restart?"pending_restart":e.installed&&(e.has_update||e.installed_version&&e.latest_version&&e.installed_version!==e.latest_version)?"pending-upgrade":e.installed?"installed":"default"}_getStatusBadge(e){const t={installed:{label:ge("statusInstalled"),cls:"installed"},"pending-upgrade":{label:ge("statusPendingUpgrade"),cls:"pending-upgrade"},"pending-restart":{label:ge("statusPendingRestart"),cls:"pending-restart"},default:{label:ge("statusDefault"),cls:"default"}}[e]||{label:e,cls:"default"};return U`<span class="status-badge ${t.cls}">${t.label}</span>`}_getStatusLabel(e){return{installed:ge("statusInstalled"),not_installed:ge("statusDefault"),update_available:ge("statusPendingUpgrade"),pending_restart:ge("statusPendingRestart")}[e]||e}_applyFilters(e){return this._tagFilters.includes("favorites")?e.filter(e=>this._favorites.includes(e.id||e.full_name)):e}_getFiltered(){let e=this._applyFilters(this.repos);if(!this.search)return e;const t=this.search.toLowerCase();let o=null;const i=t.match(/github\.com\/([^/]+\/[^/\s?#]+)/i);return i&&(o=i[1].replace(/\.git$/,"").toLowerCase()),e.filter(e=>{const i=(e.full_name||"").toLowerCase(),r=(e.name||"").toLowerCase(),s=(e.description||"").toLowerCase(),a=(e.authors||[]).join(",").toLowerCase(),n=(e.manifest_name||e.repository_manifest?.name||"").toLowerCase();return!!(i.includes(t)||r.includes(t)||s.includes(t)||a.includes(t))||(!(!o||i!==o&&!i.includes(o))||!!n.includes(t))})}_groupRepos(e){if("none"===this.groupBy)return null;const t={};for(const o of e){let e;e="status"===this.groupBy?this._getRepoStatus(o):"type"===this.groupBy&&o.category||"other",t[e]||(t[e]=[]),t[e].push(o)}const o=["pending-restart","pending-upgrade","installed","default"],i=["integration","plugin","theme","template","other"],r=Object.keys(t);return"status"===this.groupBy?r.sort((e,t)=>o.indexOf(e)-o.indexOf(t)):"type"===this.groupBy&&r.sort((e,t)=>i.indexOf(e)-i.indexOf(t)),r.map(e=>({key:e,label:"status"===this.groupBy?this._getStatusLabel(e):this._getCategoryLabel(e),repos:t[e]}))}_getCategoryLabel(e){return{integration:ge("catIntegration"),plugin:ge("catPlugin"),theme:ge("catTheme"),template:ge("catTemplate"),other:e}[e]||e}_formatDate(e){if(!e)return"";try{const t=new Date(e),o=new Date-t,i=Math.floor(o/864e5);return 0===i?ge("today")||"今天":1===i?ge("yesterday")||"昨天":i<30?`${i}d`:i<365?`${Math.floor(i/30)}mo`:`${Math.floor(i/365)}y`}catch{return""}}_toggleSelect(e){this._selectedRepos.includes(e)?this._selectedRepos=this._selectedRepos.filter(t=>t!==e):this._selectedRepos=[...this._selectedRepos,e]}_isAllSelected(){const e=this._getFiltered();return e.length>0&&this._selectedRepos.length===e.length}_toggleSelectAll(){const e=this._getFiltered();this._isAllSelected()?this._selectedRepos=[]:this._selectedRepos=e.map(e=>e.full_name).filter(Boolean)}async _batchDo(e){if(0===this._selectedRepos.length)return;const t=this._selectedRepos.map(e=>{const t=this.repos.find(t=>t.full_name===e);return{repository:e,category:t?.category||"integration"}});if("remove"===e){const{ConfirmDialog:e}=await Promise.resolve().then(function(){return Pt});if(!await e.show(this,{message:ge("batchRemoveConfirm",{n:t.length}),confirmText:ge("batchRemove"),danger:!0}))return}try{let o;Mt(ge("batchInProgress"),"info"),o="install"===e?await ce.batchInstall(t):"update"===e?await ce.update(t.map(e=>e.repository)):await ce.batchRemove(t.map(e=>e.repository)),Mt(ge("batchComplete"),"success"),this._selectedRepos=[],this._load()}catch(t){Mt(`${e} failed: ${t.message}`,"error")}}async _restartHA(){const{ConfirmDialog:e}=await Promise.resolve().then(function(){return Pt});if(await e.show(this,{message:this.t?.("restartConfirm"),confirmText:this.t?.("restartHA"),danger:!0}))try{await ce.restartHA(),Mt(this.t?.("haRestarting"),"info")}catch(e){Mt(`${this.t?.("restartFailed")}: ${e.message}`,"error")}}_renderRepoList(e){return"list"===this.viewMode?U`<div class="list-view">${this._renderListTable(e)}</div>`:U`<div class="grid">${e.map(e=>U`
       <repo-card .repo=${e} ._installing=${!!this._installingIds?.[e.id||e.full_name]}
         .favorites=${this._favorites}
         ?showCheckbox=${!0} ?selected=${this._selectedRepos.includes(e.full_name)}
         @check-change=${e=>{e.detail?.fullName&&this._toggleSelect(e.detail.fullName)}}>
       </repo-card>
-    `)}</div>`}_renderListTable(e){const t=e=>this.sort!==e?"":"desc"===this.sortDir?" ▼":" ▲",o=e=>"sortable "+(this.sort===e?"active-sort":"");return H`
+    `)}</div>`}_renderListTable(e){const t=e=>this.sort!==e?"":"desc"===this.sortDir?" ▼":" ▲",o=e=>"sortable "+(this.sort===e?"active-sort":"");return U`
       <table class="list-table">
         <thead>
           <tr>
@@ -1771,17 +1771,17 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
           ${e.map(e=>this._renderListRow(e))}
         </tbody>
       </table>
-    `}_renderListRow(e){const t=fe(e.category||"integration"),o=e.manifest_name||e.repository_manifest?.name||e.full_name||e.name||"?",i=e.stars||e.stargazers_count||0,r=e.downloads||0,s=this._getRepoStatus(e),a=e.installed||!1,n="pending-upgrade"===s,l=e.id||e.full_name,c=!!this._installingIds?.[l];return H`
+    `}_renderListRow(e){const t=fe(e.category||"integration"),o=e.manifest_name||e.repository_manifest?.name||e.full_name||e.name||"?",i=e.stars||e.stargazers_count||0,r=e.downloads||0,s=this._getRepoStatus(e),a=e.installed||!1,n="pending-upgrade"===s,l=e.id||e.full_name,c=!!this._installingIds?.[l];return U`
       <tr @click=${()=>this._handleDetail(e)}>
         <td class="col-icon"><div class="icon-cell" style="background:${t}">
-          ${e.domain&&"integration"===e.category?H`
+          ${e.domain&&"integration"===e.category?U`
               <img src="https://brands.home-assistant.io/${e.domain}/icon.png" style="width:100%;height:100%;object-fit:cover;" @error=${e=>{e.target.style.display="none",e.target.nextSibling.style.display="flex"}}>
               <span style="display:none">${o.charAt(0).toUpperCase()}</span>
             `:o.charAt(0).toUpperCase()}
         </div></td>
         <td class="name-cell">${o}<br><span class="desc-cell">${e.description||""}</span>
-          ${e.is_custom?H`<span class="custom-tag-list">${ge("customBadge")}</span>`:""}
-          ${e.topics&&e.topics.length?H`<br><span class="topic-chips">${e.topics.slice(0,4).map(e=>H`<span class="topic-chip">${e}</span>`)}</span>`:""}
+          ${e.is_custom?U`<span class="custom-tag-list">${ge("customBadge")}</span>`:""}
+          ${e.topics&&e.topics.length?U`<br><span class="topic-chips">${e.topics.slice(0,4).map(e=>U`<span class="topic-chip">${e}</span>`)}</span>`:""}
         </td>
         <td class="num-cell col-downloads">${r?r.toLocaleString():"-"}</td>
         <td class="num-cell col-stars"><svg viewBox="0 0 20 20" fill="#ff9800" width="14" height="14" style="vertical-align:middle;"><path d="M10 1l2.39 4.84L17.6 6.7l-3.8 3.71.9 5.26L10 13.27l-4.7 2.46.9-5.26L2.4 6.7l5.2-.86L10 1z"/></svg> ${"number"==typeof i?i.toLocaleString():i}</td>
@@ -1791,14 +1791,14 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
         <td class="ver-cell col-installed-at">${e.installed_at?this._formatDate(e.installed_at):"-"}</td>
         <td class="status-cell col-status">${this._getStatusBadge(s)}</td>
         <td class="actions-cell">
-          ${a?H`
-            ${n?H`<button class="action-sm primary" @click=${t=>{t.stopPropagation(),this._handleUpdate(e)}}>${ge("update")}</button>`:""}
-          `:H`
-            <button class="action-sm primary ${c?"installing":""}" @click=${t=>{t.stopPropagation(),this._handleInstall(e)}} ?disabled=${c}>${c?H`<svg class="mini-icon spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>`:ge("install")}</button>
+          ${a?U`
+            ${n?U`<button class="action-sm primary" @click=${t=>{t.stopPropagation(),this._handleUpdate(e)}}>${ge("update")}</button>`:""}
+          `:U`
+            <button class="action-sm primary ${c?"installing":""}" @click=${t=>{t.stopPropagation(),this._handleInstall(e)}} ?disabled=${c}>${c?U`<svg class="mini-icon spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>`:ge("install")}</button>
           `}
         </td>
       </tr>
-    `}render(){const e=Math.ceil(this.total/this.limit),t=this._getFiltered(),o=this._groupRepos(t);return H`
+    `}render(){const e=Math.ceil(this.total/this.limit),t=this._getFiltered(),o=this._groupRepos(t);return U`
       <!-- Controls: Search + Action Buttons -->
       <div class="controls">
         <div class="search">
@@ -1806,10 +1806,10 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
             <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
           </svg>
           <input type="text" placeholder="${ge("searchPlaceholder")}" .value=${this._searchText} @input=${this._onSearch} @focus=${this._onSearchFocus} @blur=${()=>setTimeout(()=>this._showSearchHistory=!1,200)} />
-          ${this.search?H`<button class="search-clear" @click=${this._clearSearch}>✕</button>`:""}
-          ${this._showSearchHistory&&this._searchHistory.length>0?H`
+          ${this.search?U`<button class="search-clear" @click=${this._clearSearch}>✕</button>`:""}
+          ${this._showSearchHistory&&this._searchHistory.length>0?U`
             <div class="search-history">
-              ${this._searchHistory.map(e=>H`
+              ${this._searchHistory.map(e=>U`
                 <div class="search-history-item" @mousedown=${()=>this._onSearchHistoryClick(e)}>
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;flex-shrink:0;"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
                   <span class="history-text">${e}</span>
@@ -1834,7 +1834,7 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
       </div>
 
       <!-- Add Custom Repo Form -->
-      ${this._showAddRepo?H`
+      ${this._showAddRepo?U`
         <div class="add-repo-form">
           <div class="form-row">
             <input class="form-input" type="text" placeholder="${ge("repoUrl")}" .value=${this._newRepoUrl} @input=${e=>{this._newRepoUrl=e.target.value}} @keydown=${e=>{"Enter"===e.key&&this._addRepo()}}>
@@ -1854,8 +1854,8 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
       <div class="filter-sort-row ${this._filterExpanded?"expanded":""}">
         <div class="fs-chips">
           <span class="fs-label">${ge("filterStatus")}</span>
-          ${this.statusOptions.filter(e=>""===e.value||(this.statusCounts[e.value]??0)>0).map(e=>H`
-            <button class="filter-chip ${this.statusFilter===e.value?"active":""}" @click=${()=>this._onStatusFilter(e.value)}>${e.label}${""===e.value?H`<span class="chip-count">${this.total??0}</span>`:""}</button>
+          ${this.statusOptions.filter(e=>""===e.value||(this.statusCounts[e.value]??0)>0).map(e=>U`
+            <button class="filter-chip ${this.statusFilter===e.value?"active":""}" @click=${()=>this._onStatusFilter(e.value)}>${e.label}${""===e.value?U`<span class="chip-count">${this.total??0}</span>`:""}</button>
           `)}
           <span class="fs-divider"></span>
           <span class="fs-label">${ge("filterTags")}</span>
@@ -1870,16 +1870,16 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
           </button>
           <span class="fs-divider"></span>
           <span class="fs-label">${ge("filterType")}</span>
-          ${this.typeOptions.filter(e=>""===e.value||(this.categoryCounts[e.value]??0)>0).map(e=>H`
+          ${this.typeOptions.filter(e=>""===e.value||(this.categoryCounts[e.value]??0)>0).map(e=>U`
             <button class="filter-chip ${this.category===e.value?"active":""}" @click=${()=>this._onTypeFilter(e.value)}>
               ${e.label}
             </button>
           `)}
           <span class="fs-divider"></span>
           <span class="fs-label">${ge("sort")||"排序"}</span>
-          ${this.sortColumns.map(e=>H`
+          ${this.sortColumns.map(e=>U`
             <button class="filter-chip sort-inline ${this.sort===e.key?"active":""}" @click=${()=>this._onSortColumn(e.key)}>
-              ${e.label}${this.sort===e.key?H`<span class="sort-dir">${"desc"===this.sortDir?"▼":"▲"}</span>`:""}
+              ${e.label}${this.sort===e.key?U`<span class="sort-dir">${"desc"===this.sortDir?"▼":"▲"}</span>`:""}
             </button>
           `)}
         </div>
@@ -1899,15 +1899,15 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
         </label>
         <span style="font-size:13px;color:var(--secondary-text-color);">
           ${ge("totalPrefix")} <strong>${t.length}</strong> ${ge("totalRepos")}
-          ${this._selectedRepos.length>0?H`| <strong>${this._selectedRepos.length}</strong> ${ge("selected")}`:""}
+          ${this._selectedRepos.length>0?U`| <strong>${this._selectedRepos.length}</strong> ${ge("selected")}`:""}
         </span>
       </div>
 
       <!-- Content -->
       <div class="content-section">
-      ${this.loading?H`
+      ${this.loading?U`
         <div class="skeleton-grid">
-          ${[1,2,3,4,5,6].map(()=>H`
+          ${[1,2,3,4,5,6].map(()=>U`
             <div class="skeleton-card">
               <div class="skeleton-card-img"></div>
               <div class="skeleton-card-body">
@@ -1918,24 +1918,24 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
             </div>
           `)}
         </div>
-      `:0===t.length?H`
+      `:0===t.length?U`
         <div class="empty">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
           <div>${this.search?ge("noMatch"):ge("noData")}</div>
         </div>
-      `:H`
+      `:U`
 
-        ${o?H`
-          ${o.map(e=>H`
+        ${o?U`
+          ${o.map(e=>U`
             <div class="group-header" @click=${()=>this._toggleGroup(e.key)}>
               <span class="group-arrow ${this._collapsedGroups[e.key]?"collapsed":""}">▼</span>
               ${e.label}<span class="group-count">(${e.repos.length})</span>
             </div>
             ${this._collapsedGroups[e.key]?"":this._renderRepoList(e.repos)}
           `)}
-        `:H`${this._renderRepoList(t)}`}
+        `:U`${this._renderRepoList(t)}`}
 
-        ${e>1?H`
+        ${e>1?U`
           <div class="pagination">
             <button class="page-btn" ?disabled=${this.page<=1} @click=${()=>this._goPage(this.page-1)}>${ge("prevPage")}</button>
             <span class="page-info">${ge("page")} ${this.page} / ${e}</span>
@@ -1950,7 +1950,7 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
         `:""}
       </div>
       `}
-    `}}customElements.define("browse-view",Gt);class Yt extends ae{static properties={updates:{type:Array},loading:{type:Boolean},updating:{type:Boolean},search:{type:String},_installingIds:{type:Object,state:!0},_changelogs:{type:Object,state:!0},_searchText:{type:String,state:!0},_selectedIds:{type:Object,state:!0},_selectedRepos:{type:Array,state:!0},_batchMode:{type:Boolean,state:!0},_viewMode:{type:String,state:!0}};constructor(){super(),this.updates=[],this.loading=!1,this.updating=!1,this.search="",this._searchTimer=null,this._installingIds={},this._changelogs={},this._changelogsLoading={},this._expandedChangelogs={},this._searchText="",this._selectedIds={},this._selectedRepos=[],this._batchMode=!1;const e=localStorage.getItem("hacs_vision_view_mode");this._viewMode=e||"card"}static styles=[me(),s`
+    `}}customElements.define("browse-view",Gt);class Yt extends ae{static properties={updates:{type:Array},loading:{type:Boolean},updating:{type:Boolean},search:{type:String},_installingIds:{type:Object,state:!0},_changelogs:{type:Object,state:!0},_searchText:{type:String,state:!0},_selectedIds:{type:Object,state:!0},_selectedRepos:{type:Array,state:!0},_batchMode:{type:Boolean,state:!0},_viewMode:{type:String,state:!0}};constructor(){super(),this.updates=[],this.loading=!1,this.updating=!1,this.search="",this._searchTimer=null,this._installingIds={},this._changelogs={},this._changelogsLoading={},this._expandedChangelogs={},this._searchText="",this._selectedIds={},this._selectedRepos=[],this._batchMode=!1;const e=(()=>{try{return localStorage.getItem("hacs_vision_view_mode")}catch{return null}})();this._viewMode=e||"card"}static styles=[me(),s`
       :host { display: block; touch-action: manipulation; background: var(--primary-background-color); }
 
       .search { min-width: 160px; }
@@ -2165,7 +2165,7 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
         display: inline-flex; align-items: center; margin-right: 4px; cursor: pointer;
       }
       .batch-checkbox input { width: 16px; height: 16px; cursor: pointer; }
-    `];async connectedCallback(){super.connectedCallback(),await this._load()}_lazyLoadChangelogs(){const e=this.updates.filter(e=>e.full_name&&!this._changelogs[e.full_name]);if(0===e.length)return;let t=0;const o=()=>{t>=e.length||(this._loadChangelog(e[t++].full_name),setTimeout(o,150))};setTimeout(o,300)}async _load(){this.loading=!0;try{ce.refresh().catch(()=>{});const e=await ce.getUpdates();this.updates=Array.isArray(e)?e:e.updates||[],this._lazyLoadChangelogs()}catch(e){console.error("Failed to load updates",e),this.updates=[]}this.loading=!1}async _loadChangelog(e){if(e&&!this._changelogs[e]&&!this._changelogsLoading[e]){this._changelogsLoading={...this._changelogsLoading,[e]:!0};try{const t=await ce.getChangelog(e);t?.body&&(this._changelogs={...this._changelogs,[e]:t})}catch{}this._changelogsLoading={...this._changelogsLoading,[e]:!1}}}_toggleChangelog(e){this._expandedChangelogs={...this._expandedChangelogs,[e]:!this._expandedChangelogs?.[e]}}async _loadChangelogs(){const e=this.updates.filter(e=>e.full_name);if(0===e.length)return;const t=await Promise.allSettled(e.map(e=>ce.getChangelog(e.full_name).then(t=>({fullName:e.full_name,data:t})))),o={};for(const e of t)"fulfilled"===e.status&&e.value.data?.body&&(o[e.value.fullName]=e.value.data);Object.keys(o).length>0&&(this._changelogs={...this._changelogs,...o})}async _updateSelected(){const e=Object.keys(this._selectedIds).filter(e=>this._selectedIds[e]);if(0===e.length)return;if(await Pt.show(this,{message:ge("confirmUpdateSelected",{n:e.length}),confirmText:ge("confirmUpdate"),danger:!1})){this.updating=!0;try{await ce.update(e),Mt(`${ge("allUpdatesStarted")} (${e.length})`,"success"),this._selectedIds={},this._load(),this.dispatchEvent(new CustomEvent("refresh-stats",{bubbles:!0,composed:!0}))}catch(e){Mt(`${ge("updateFailed")}: ${e.message}`,"error")}this.updating=!1}}async _updateAll(){const e=this.updates.map(e=>e.id||e.full_name);if(0===e.length)return;if(await Pt.show(this,{message:ge("confirmUpdateAll",{n:e.length}),confirmText:ge("confirmUpdate"),danger:!1})){this.updating=!0;try{await ce.update(e),Mt(`${ge("allUpdatesStarted")} (${e.length})`,"success"),this._selectedIds={},this._load(),this.dispatchEvent(new CustomEvent("refresh-stats",{bubbles:!0,composed:!0}))}catch(e){Mt(`${ge("updateFailed")}: ${e.message}`,"error")}this.updating=!1}}_toggleSelect(e){this._selectedIds={...this._selectedIds,[e]:!this._selectedIds[e]}}_toggleSelectFull(e){this._selectedRepos.includes(e)?this._selectedRepos=this._selectedRepos.filter(t=>t!==e):this._selectedRepos=[...this._selectedRepos,e]}async _batchDo(e){if(0!==this._selectedRepos.length){if("remove"===e){if(!await Pt.show(this,{message:ge("batchRemoveConfirm",{n:this._selectedRepos.length}),confirmText:ge("batchRemove"),danger:!0}))return}try{Mt(ge("batchInProgress"),"info"),"update"===e?await ce.update(this._selectedRepos):"remove"===e&&await ce.batchRemove(this._selectedRepos.map(e=>e)),Mt(ge("batchComplete"),"success"),this._selectedRepos=[],this._batchMode=!1,this._load(),this.dispatchEvent(new CustomEvent("refresh-stats",{bubbles:!0,composed:!0}))}catch(t){Mt(`${e} failed: ${t.message}`,"error")}}}_toggleSelectAll(){const e=this._getFiltered();if(this._isAllSelected())this._selectedIds={};else{const t={};for(const o of e)t[o.id||o.full_name]=!0;this._selectedIds=t}}_isAllSelected(){const e=this._getFiltered();return 0!==e.length&&e.every(e=>this._selectedIds[e.id||e.full_name])}_selectedCount(){return Object.keys(this._selectedIds).filter(e=>this._selectedIds[e]).length}async _updateOne(e){const t=e.id||e.full_name;this._installingIds={...this._installingIds,[t]:!0};try{await ce.update([t]);const o=e.latest_version;let i=0;const r=async()=>{if(i++>30)return this._installingIds={...this._installingIds},delete this._installingIds[t],void Mt(`${ge("installFailed")}: timeout`,"error");try{const i=await ce.getRepoStatus(t);if(i?.installed_version===o||i?.installed&&!i?.has_update)return this._installingIds={...this._installingIds},delete this._installingIds[t],Mt(`${ge("updateComplete")}: ${e.full_name||e.name}`,"success"),this._load(),void this.dispatchEvent(new CustomEvent("refresh-stats",{bubbles:!0,composed:!0}))}catch(e){}setTimeout(r,2e3)};setTimeout(r,2e3)}catch(e){this._installingIds={...this._installingIds},delete this._installingIds[t],Mt(`${ge("updateFailed")}: ${e.message}`,"error")}}_getFiltered(){if(!this.search)return this.updates;const e=this.search.toLowerCase();return this.updates.filter(t=>(t.full_name||t.name||"").toLowerCase().includes(e))}_clearSearch(){this._searchText="",this.search="",this._searchTimer&&(clearTimeout(this._searchTimer),this._searchTimer=null)}_openDetail(e){this.dispatchEvent(new CustomEvent("detail",{detail:{repo:e},bubbles:!0,composed:!0}))}_setViewMode(e){this._viewMode=e;try{localStorage.setItem("hacs_vision_view_mode",e)}catch{}}_renderListTable(e){return H`
+    `];async connectedCallback(){super.connectedCallback(),await this._load()}_lazyLoadChangelogs(){const e=this.updates.filter(e=>e.full_name&&!this._changelogs[e.full_name]);if(0===e.length)return;let t=0;const o=()=>{t>=e.length||(this._loadChangelog(e[t++].full_name),setTimeout(o,150))};setTimeout(o,300)}async _load(){this.loading=!0;try{ce.refresh().catch(()=>{});const e=await ce.getUpdates();this.updates=Array.isArray(e)?e:e.updates||[],this._lazyLoadChangelogs()}catch(e){console.error("Failed to load updates",e),this.updates=[]}this.loading=!1}async _loadChangelog(e){if(e&&!this._changelogs[e]&&!this._changelogsLoading[e]){this._changelogsLoading={...this._changelogsLoading,[e]:!0};try{const t=await ce.getChangelog(e);t?.body&&(this._changelogs={...this._changelogs,[e]:t})}catch{}this._changelogsLoading={...this._changelogsLoading,[e]:!1}}}_toggleChangelog(e){this._expandedChangelogs={...this._expandedChangelogs,[e]:!this._expandedChangelogs?.[e]}}async _loadChangelogs(){const e=this.updates.filter(e=>e.full_name);if(0===e.length)return;const t=await Promise.allSettled(e.map(e=>ce.getChangelog(e.full_name).then(t=>({fullName:e.full_name,data:t})))),o={};for(const e of t)"fulfilled"===e.status&&e.value.data?.body&&(o[e.value.fullName]=e.value.data);Object.keys(o).length>0&&(this._changelogs={...this._changelogs,...o})}async _updateSelected(){const e=Object.keys(this._selectedIds).filter(e=>this._selectedIds[e]);if(0===e.length)return;if(await Ht.show(this,{message:ge("confirmUpdateSelected",{n:e.length}),confirmText:ge("confirmUpdate"),danger:!1})){this.updating=!0;try{await ce.update(e),Mt(`${ge("allUpdatesStarted")} (${e.length})`,"success"),this._selectedIds={},this._load(),this.dispatchEvent(new CustomEvent("refresh-stats",{bubbles:!0,composed:!0}))}catch(e){Mt(`${ge("updateFailed")}: ${e.message}`,"error")}this.updating=!1}}async _updateAll(){const e=this.updates.map(e=>e.id||e.full_name);if(0===e.length)return;if(await Ht.show(this,{message:ge("confirmUpdateAll",{n:e.length}),confirmText:ge("confirmUpdate"),danger:!1})){this.updating=!0;try{await ce.update(e),Mt(`${ge("allUpdatesStarted")} (${e.length})`,"success"),this._selectedIds={},this._load(),this.dispatchEvent(new CustomEvent("refresh-stats",{bubbles:!0,composed:!0}))}catch(e){Mt(`${ge("updateFailed")}: ${e.message}`,"error")}this.updating=!1}}_toggleSelect(e){this._selectedIds={...this._selectedIds,[e]:!this._selectedIds[e]}}_toggleSelectFull(e){this._selectedRepos.includes(e)?this._selectedRepos=this._selectedRepos.filter(t=>t!==e):this._selectedRepos=[...this._selectedRepos,e]}async _batchDo(e){if(0!==this._selectedRepos.length){if("remove"===e){if(!await Ht.show(this,{message:ge("batchRemoveConfirm",{n:this._selectedRepos.length}),confirmText:ge("batchRemove"),danger:!0}))return}try{Mt(ge("batchInProgress"),"info"),"update"===e?await ce.update(this._selectedRepos):"remove"===e&&await ce.batchRemove(this._selectedRepos.map(e=>e)),Mt(ge("batchComplete"),"success"),this._selectedRepos=[],this._batchMode=!1,this._load(),this.dispatchEvent(new CustomEvent("refresh-stats",{bubbles:!0,composed:!0}))}catch(t){Mt(`${e} failed: ${t.message}`,"error")}}}_toggleSelectAll(){const e=this._getFiltered();if(this._isAllSelected())this._selectedIds={};else{const t={};for(const o of e)t[o.id||o.full_name]=!0;this._selectedIds=t}}_isAllSelected(){const e=this._getFiltered();return 0!==e.length&&e.every(e=>this._selectedIds[e.id||e.full_name])}_selectedCount(){return Object.keys(this._selectedIds).filter(e=>this._selectedIds[e]).length}async _updateOne(e){const t=e.id||e.full_name;this._installingIds={...this._installingIds,[t]:!0};try{await ce.update([t]);const o=e.latest_version;let i=0;const r=async()=>{if(i++>30){const e={...this._installingIds};return delete e[t],this._installingIds=e,void Mt(`${ge("updateFailed")}: timeout`,"error")}try{const i=await ce.getRepoStatus(t);if(i?.installed_version===o||i?.installed&&!i?.has_update){const o={...this._installingIds};return delete o[t],this._installingIds=o,Mt(`${ge("updateComplete")}: ${e.full_name||e.name}`,"success"),this._load(),void this.dispatchEvent(new CustomEvent("refresh-stats",{bubbles:!0,composed:!0}))}}catch(e){}setTimeout(r,2e3)};setTimeout(r,2e3)}catch(e){const o={...this._installingIds};delete o[t],this._installingIds=o,Mt(`${ge("updateFailed")}: ${e.message}`,"error")}}_getFiltered(){if(!this.search)return this.updates;const e=this.search.toLowerCase();return this.updates.filter(t=>(t.full_name||t.name||"").toLowerCase().includes(e))}_clearSearch(){this._searchText="",this.search="",this._searchTimer&&(clearTimeout(this._searchTimer),this._searchTimer=null)}_openDetail(e){this.dispatchEvent(new CustomEvent("detail",{detail:{repo:e},bubbles:!0,composed:!0}))}_setViewMode(e){this._viewMode=e;try{localStorage.setItem("hacs_vision_view_mode",e)}catch{}}_renderListTable(e){return U`
       <table class="list-table">
         <thead>
           <tr>
@@ -2181,11 +2181,11 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
           ${e.map(e=>this._renderListRow(e))}
         </tbody>
       </table>
-    `}_renderListRow(e){const t=e.id||e.full_name,o=!!this._installingIds?.[t],i=!!this._selectedIds[t],r=e.manifest_name||e.name||e.full_name||"?",s=fe(e.category),a=e.domain;return H`
+    `}_renderListRow(e){const t=e.id||e.full_name,o=!!this._installingIds?.[t],i=!!this._selectedIds[t],r=e.manifest_name||e.name||e.full_name||"?",s=fe(e.category),a=e.domain;return U`
       <tr @click=${t=>{t.target.closest(".btn")||t.target.closest("a")||t.target.closest(".checkbox")||this._openDetail(e)}}>
         <td class="col-icon">
           <div class="icon-cell" style="background:${s}">
-            ${a&&"integration"===e.category?H`
+            ${a&&"integration"===e.category?U`
                 <img src="https://brands.home-assistant.io/${a}/icon.png" style="width:100%;height:100%;object-fit:cover;" @error=${e=>{e.target.style.display="none",e.target.nextElementSibling.style.display="flex"}}>
                 <span style="display:none">${r.charAt(0).toUpperCase()}</span>
               `:r.charAt(0).toUpperCase()}
@@ -2193,9 +2193,9 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
         </td>
         <td>
           <div class="name-cell">${r}</div>
-          ${e.description?H`<div class="desc-cell">${e.description}</div>`:""}
-          ${e.is_custom?H`<span class="custom-tag-list">${ge("customBadge")}</span>`:""}
-          ${e.topics&&e.topics.length?H`<div class="topic-chips">${e.topics.slice(0,4).map(e=>H`<span class="topic-chip">${e}</span>`)}</div>`:""}
+          ${e.description?U`<div class="desc-cell">${e.description}</div>`:""}
+          ${e.is_custom?U`<span class="custom-tag-list">${ge("customBadge")}</span>`:""}
+          ${e.topics&&e.topics.length?U`<div class="topic-chips">${e.topics.slice(0,4).map(e=>U`<span class="topic-chip">${e}</span>`)}</div>`:""}
         </td>
         <td style="font-size:12px;color:var(--warning-color);white-space:nowrap;">${e.installed_version||"?"}</td>
         <td style="font-size:12px;color:var(--success-color);white-space:nowrap;">${e.latest_version||"?"}</td>
@@ -2206,11 +2206,11 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
                  @change=${()=>this._toggleSelect(t)} style="margin-right:6px;">
           <button class="btn primary ${o?"installing":""}" style="padding:4px 10px;font-size:11px;"
                   @click=${t=>{t.stopPropagation(),this._updateOne(e)}} ?disabled=${o||this.updating}>
-            ${o?H`<svg class="mini-icon spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>`:H`<svg class="mini-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg> ${ge("updateNow")}`}
+            ${o?U`<svg class="mini-icon spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>`:U`<svg class="mini-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg> ${ge("updateNow")}`}
           </button>
         </td>
       </tr>
-    `}render(){const e=this._getFiltered();return H`
+    `}render(){const e=this._getFiltered();return U`
       <div class="controls">
         <div class="search">
           <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -2218,7 +2218,7 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
           </svg>
           <input type="text" placeholder="${ge("searchUpdates")}" .value=${this._searchText||""}
                  @input=${e=>{this._searchText=e.target.value,clearTimeout(this._searchTimer),this._searchTimer=setTimeout(()=>{this.search=this._searchText},300)}}>
-          ${this.search?H`
+          ${this.search?U`
             <button class="search-clear" @click=${this._clearSearch}>✕</button>
           `:""}
         </div>
@@ -2230,9 +2230,9 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
         </div>
       </div>
 
-      ${this.loading?H`
+      ${this.loading?U`
         <div class="skeleton-grid">
-          ${[1,2,3,4,5,6].map(()=>H`
+          ${[1,2,3,4,5,6].map(()=>U`
             <div class="skeleton-card">
               <div class="skeleton-card-img"></div>
               <div class="skeleton-card-body">
@@ -2243,7 +2243,7 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
             </div>
           `)}
         </div>
-      `:0===this.updates.length?H`
+      `:0===this.updates.length?U`
         <div class="empty">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
             <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
@@ -2251,7 +2251,7 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
           </svg>
           <div>${ge("allUpToDate")}</div>
         </div>
-      `:H`
+      `:U`
         <div class="info-bar">
           <div style="display:flex;align-items:center;gap:8px;">
             <label class="select-all">
@@ -2267,13 +2267,13 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
           </button>
         </div>
 
-        ${this.updates.length>1?H`
+        ${this.updates.length>1?U`
           <div class="update-all-bar">
-            ${this._selectedCount()>0?H`
+            ${this._selectedCount()>0?U`
               <button class="update-all-btn selected-btn" @click=${this._updateSelected} ?disabled=${this.updating||0===this._selectedCount()}>
                 <svg class="mini-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="10"/></svg> ${ge("updateSelected")} (${this._selectedCount()||0})
               </button>
-            `:H`
+            `:U`
               <button class="update-all-btn" @click=${this._updateAll} ?disabled=${this.updating||0===this.updates.length}>
                 <svg class="mini-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg> ${this.updating?ge("updatingProgress"):ge("updateAllNow")}
               </button>
@@ -2281,7 +2281,7 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
           </div>
         `:""}
 
-        ${this._batchMode&&this._selectedRepos.length>0?H`
+        ${this._batchMode&&this._selectedRepos.length>0?U`
           <div class="batch-bar">
             <span>${ge("batchSelected",{n:this._selectedRepos.length})}</span>
             <button class="batch-bar-btn" @click=${()=>this._batchDo("update")}>${ge("batchUpdate")}</button>
@@ -2290,11 +2290,11 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
           </div>
         `:""}
 
-        ${"list"===this._viewMode?H`
+        ${"list"===this._viewMode?U`
           <div class="list-view">${this._renderListTable(e)}</div>
-        `:H`
+        `:U`
           <div class="grid">
-            ${e.map(e=>{const t=e.id||e.full_name,o=!!this._installingIds?.[t],i=this._changelogs?.[e.full_name],r=!!this._selectedIds[t];return H`
+            ${e.map(e=>{const t=e.id||e.full_name,o=!!this._installingIds?.[t],i=this._changelogs?.[e.full_name],r=!!this._selectedIds[t];return U`
               <div class="card" @click=${t=>{t.target.closest(".btn")||t.target.closest("a")||t.target.closest(".checkbox")||this._openDetail(e)}}>
                 <div class="card-header">
                   <div class="card-left">
@@ -2303,7 +2303,7 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
                            @change=${()=>this._toggleSelect(t)}>
                     <div class="card-name">
                       ${e.name||e.full_name}
-                      ${e.category?H`<span class="category-badge">${e.category}</span>`:""}
+                      ${e.category?U`<span class="category-badge">${e.category}</span>`:""}
                     </div>
                   </div>
                 </div>
@@ -2319,9 +2319,9 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
                 </div>
                 <div class="card-desc">${e.description||""}</div>
 
-                ${i?.body?H`
+                ${i?.body?U`
                   <div class="changelog-preview">
-                    <div class="changelog-preview-title">${ge("changelogTitle")} ${i.tag?H`<small>(${i.tag})</small>`:""}</div>
+                    <div class="changelog-preview-title">${ge("changelogTitle")} ${i.tag?U`<small>(${i.tag})</small>`:""}</div>
                     <div class="changelog-preview-body${this._expandedChangelogs?.[e.full_name]?" expanded":""}">${i.body}</div>
                     <div>
                       <button class="changelog-expand-btn" @click=${()=>this._toggleChangelog(e.full_name)}>${this._expandedChangelogs?.[e.full_name]?ge("changelogShowLess"):ge("changelogShowMore")}</button>
@@ -2332,7 +2332,7 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
 
                 <button class="btn primary ${o?"installing":""}"
                         @click=${()=>this._updateOne(e)} ?disabled=${o||this.updating}>
-                  ${o?H`<svg class="mini-icon spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> ${ge("updatingProgress")}`:H`<svg class="mini-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg> ${ge("updateNow")}`}
+                  ${o?U`<svg class="mini-icon spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> ${ge("updatingProgress")}`:U`<svg class="mini-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg> ${ge("updateNow")}`}
                 </button>
               </div>
             `})}
@@ -2740,8 +2740,8 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
       .form-actions { flex-direction: column; }
       .form-actions .btn { width: 100%; min-height: 44px; justify-content: center; }
     }
-  `];async connectedCallback(){super.connectedCallback(),await this._load()}async _load(){this.loading=!0;try{const e=await ce.getConfig()||{};this.archivedRepos=e.archived_repositories||[],this.ignoredRepos=e.ignored_repositories||[],this.renamedEntries=Object.entries(e.renamed_repositories||{});const t=await ce.getCustomRepos();this.customRepos=Array.isArray(t)?t:t.custom_repositories||[];try{const e=await ce.getFavorites();this._favorites=Array.isArray(e)?e:e.favorites||[]}catch{this._favorites=[]}}catch(e){console.error("Config load error",e)}this.loading=!1}async _removeArchivedRepo(e){if(await Pt.show(this,{message:ge("confirmRemoveArchived",{repo:e}),confirmText:ge("removeArchived"),danger:!0}))try{await ce.removeArchivedRepo(e),this._load()}catch(e){Mt(`${ge("removeRepoFailed")}: ${e.message}`,"error")}}async _removeRenamedRepo(e){if(await Pt.show(this,{message:ge("confirmRemoveRenamed",{old:e}),confirmText:ge("removeRenamed"),danger:!0}))try{await ce.removeRenamedRepo(e),this._load()}catch(e){Mt(`${ge("removeRepoFailed")}: ${e.message}`,"error")}}async _replaceRenamedOneClick(e,t){if(await Pt.show(this,{message:ge("confirmReplaceRenamed",{old:e,new:t}),confirmText:ge("replace"),danger:!0})){this._renamedRefreshing=!0;try{await ce.replaceRenamedRepo(e,t),Mt(`${ge("replace")}: ${e} → ${t}`,"success"),await ce.refresh(),this._load(),this.dispatchEvent(new CustomEvent("refresh-stats",{bubbles:!0,composed:!0}))}catch(e){Mt(`${ge("updateFailed")}: ${e.message}`,"error")}this._renamedRefreshing=!1}}async _checkDependencies(){this._depLoading=!0;try{const e=await ce.checkDependencies();this._depResults=e,e.all_ok?Mt(ge("depOk"),"success"):Mt(`${ge("depMissing")} (${e.issues_count})`,"error")}catch(e){this._depResults=null,Mt(`${ge("checkFailed")}: ${e.message}`,"error")}this._depLoading=!1}_depMissingCount(){return this._depResults?.dependencies?this._depResults.dependencies.filter(e=>e.has_issues).length:0}async _export(){this.exporting=!0;try{const e=await ce.exportBackup(),t=new Blob([JSON.stringify(e,null,2)],{type:"application/json"}),o=URL.createObjectURL(t),i=document.createElement("a");i.href=o,i.download=`hacs-vision-backup-${(new Date).toISOString().slice(0,10)}.json`,i.click(),URL.revokeObjectURL(o),Mt(ge("exportSuccess"),"success")}catch(e){Mt(`${ge("exportFailed")}: ${e.message}`,"error")}this.exporting=!1}async _import(){const e=document.createElement("input");e.type="file",e.accept=".json",e.onchange=async()=>{const t=e.files[0];if(t){this.importing=!0;try{const e=await t.text(),o=JSON.parse(e);await ce.importBackup(o),Mt(ge("importSuccess"),"success"),this.dispatchEvent(new CustomEvent("refresh-stats",{bubbles:!0,composed:!0}))}catch(e){Mt(`${ge("importFailed")}: ${e.message}`,"error")}this.importing=!1}},e.click()}_toggleAddCustom(){this._showAddCustom=!this._showAddCustom,this._showAddCustom||(this._customRepoUrl="",this._customRepoCategory="integration")}_parseRepoUrl(e){const t=(e=e.trim()).match(/github\.com\/([^/]+\/[^/\s?#]+)/i);return t?t[1].replace(/\.git$/,""):/^[a-zA-Z0-9_-]+\/[a-zA-Z0-9_.-]+$/.test(e)?e:null}async _addCustomRepo(){const e=this._parseRepoUrl(this._customRepoUrl);if(!e)return void Mt(ge("invalidRepoUrl"),"error");const t=this.customRepos.some(t=>(t.full_name||t.repository)===e);if(t)Mt(`${e} ${ge("alreadyExists")}`,"error");else{this._addingCustom=!0;try{const t=await ce.addCustomRepo(e,this._customRepoCategory);t.success?(Mt(`${ge("addSuccess")}: ${e}`,"success"),this._customRepoUrl="",this._load(),this.dispatchEvent(new CustomEvent("refresh-stats",{bubbles:!0,composed:!0}))):Mt(`${ge("addFailed")}: ${t.error}`,"error")}catch(e){Mt(`${ge("addFailed")}: ${e.message}`,"error")}this._addingCustom=!1}}async _removeCustomRepo(e,t){if(await Pt.show(this,{message:ge("confirmRemoveRepo",{repo:e}),confirmText:ge("removeRepo"),danger:!0}))try{const t=await ce.removeCustomRepo(e);t&&!1===t.success&&Mt(`${ge("removeRepoFailed")}: ${t.error}`,"error"),this._selectedRepos=this._selectedRepos.filter(t=>t!==e),this._load(),this.dispatchEvent(new CustomEvent("refresh-stats",{bubbles:!0,composed:!0}))}catch(e){Mt(`${ge("removeRepoFailed")}: ${e.message}`,"error")}}_toggleSelectRepo(e){this._selectedRepos.includes(e)?this._selectedRepos=this._selectedRepos.filter(t=>t!==e):this._selectedRepos=[...this._selectedRepos,e]}async _batchRemove(){const e=this._selectedRepos.length;if(await Pt.show(this,{message:`${ge("batchRemoveRepoConfirm")||"确认移除"} ${e} ${ge("totalRepos")}?`,confirmText:ge("removeRepo"),danger:!0})){for(const e of[...this._selectedRepos])try{await ce.removeCustomRepo(e)}catch(t){Mt(`${ge("removeRepoFailed")}: ${e} - ${t.message}`,"error")}this._selectedRepos=[],this._load(),this.dispatchEvent(new CustomEvent("refresh-stats",{bubbles:!0,composed:!0}))}}_toggleSection(e){this._collapsed={...this._collapsed,[e]:!this._collapsed[e]}}_setViewMode(e){this._viewMode=e}_openCardDetail(e){this.dispatchEvent(new CustomEvent("detail",{detail:{repo:e},bubbles:!0,composed:!0}))}_getRepoStatus(e){return e.pending_restart?"pending_restart":e.installed&&(e.has_update||e.installed_version&&e.latest_version&&e.installed_version!==e.latest_version)?"update_available":e.installed?"installed":"not_installed"}_getFilteredCustomRepos(){let e=[...this.customRepos];const t=(this._customRepoSearch||"").toLowerCase();t&&(e=e.filter(e=>{const o=(e.manifest_name||e.name||e.full_name||"").toLowerCase(),i=(e.description||"").toLowerCase();return o.includes(t)||i.includes(t)}));const o=this._statusFilter||"";o&&(e=e.filter(e=>this._getRepoStatus(e)===o));const i=this._typeFilter||"";i&&(e=e.filter(e=>(e.category||"")===i)),this._tagFilters.includes("favorites")&&(e=e.filter(e=>this._favorites.includes(e.id||e.full_name)));const r=this._customRepoSort||"name";return"stars"===r?e.sort((e,t)=>(t.stargazers_count||0)-(e.stargazers_count||0)):"updated"===r?e.sort((e,t)=>(t.last_updated||"").localeCompare(e.last_updated||"")):e.sort((e,t)=>(e.manifest_name||e.name||e.full_name||"").localeCompare(t.manifest_name||t.name||t.full_name||"")),e}_getStatusCounts(){const e={installed:0,update_available:0,not_installed:0,pending_restart:0};for(const t of this.customRepos){const o=this._getRepoStatus(t);void 0!==e[o]&&e[o]++}return e}_getTypeCounts(){const e={};for(const t of this.customRepos){const o=t.category||"other";e[o]=(e[o]||0)+1}return e}_renderFilteredContent(e,t,o,i){const r=this._customRepofilter||"all";return"archived"===r?t.length>0?H`
-        <div class="repo-cards">${t.map(e=>H`
+  `];async connectedCallback(){super.connectedCallback(),await this._load()}async _load(){this.loading=!0;try{const e=await ce.getConfig()||{};this.archivedRepos=e.archived_repositories||[],this.ignoredRepos=e.ignored_repositories||[],this.renamedEntries=Object.entries(e.renamed_repositories||{});const t=await ce.getCustomRepos();this.customRepos=Array.isArray(t)?t:t.custom_repositories||[];try{const e=await ce.getFavorites();this._favorites=Array.isArray(e)?e:e.favorites||[]}catch{this._favorites=[]}}catch(e){console.error("Config load error",e)}this.loading=!1}async _removeArchivedRepo(e){if(await Ht.show(this,{message:ge("confirmRemoveArchived",{repo:e}),confirmText:ge("removeArchived"),danger:!0}))try{await ce.removeArchivedRepo(e),this._load()}catch(e){Mt(`${ge("removeRepoFailed")}: ${e.message}`,"error")}}async _removeRenamedRepo(e){if(await Ht.show(this,{message:ge("confirmRemoveRenamed",{old:e}),confirmText:ge("removeRenamed"),danger:!0}))try{await ce.removeRenamedRepo(e),this._load()}catch(e){Mt(`${ge("removeRepoFailed")}: ${e.message}`,"error")}}async _replaceRenamedOneClick(e,t){if(await Ht.show(this,{message:ge("confirmReplaceRenamed",{old:e,new:t}),confirmText:ge("replace"),danger:!0})){this._renamedRefreshing=!0;try{await ce.replaceRenamedRepo(e,t),Mt(`${ge("replace")}: ${e} → ${t}`,"success"),await ce.refresh(),this._load(),this.dispatchEvent(new CustomEvent("refresh-stats",{bubbles:!0,composed:!0}))}catch(e){Mt(`${ge("updateFailed")}: ${e.message}`,"error")}this._renamedRefreshing=!1}}async _checkDependencies(){this._depLoading=!0;try{const e=await ce.checkDependencies();this._depResults=e,e.all_ok?Mt(ge("depOk"),"success"):Mt(`${ge("depMissing")} (${e.issues_count})`,"error")}catch(e){this._depResults=null,Mt(`${ge("checkFailed")}: ${e.message}`,"error")}this._depLoading=!1}_depMissingCount(){return this._depResults?.dependencies?this._depResults.dependencies.filter(e=>e.has_issues).length:0}async _export(){this.exporting=!0;try{const e=await ce.exportBackup(),t=new Blob([JSON.stringify(e,null,2)],{type:"application/json"}),o=URL.createObjectURL(t),i=document.createElement("a");i.href=o,i.download=`hacs-vision-backup-${(new Date).toISOString().slice(0,10)}.json`,i.click(),URL.revokeObjectURL(o),Mt(ge("exportSuccess"),"success")}catch(e){Mt(`${ge("exportFailed")}: ${e.message}`,"error")}this.exporting=!1}async _import(){const e=document.createElement("input");e.type="file",e.accept=".json",e.onchange=async()=>{const t=e.files[0];if(t){this.importing=!0;try{const e=await t.text(),o=JSON.parse(e);await ce.importBackup(o),Mt(ge("importSuccess"),"success"),this.dispatchEvent(new CustomEvent("refresh-stats",{bubbles:!0,composed:!0}))}catch(e){Mt(`${ge("importFailed")}: ${e.message}`,"error")}this.importing=!1}},e.click()}_toggleAddCustom(){this._showAddCustom=!this._showAddCustom,this._showAddCustom||(this._customRepoUrl="",this._customRepoCategory="integration")}_parseRepoUrl(e){const t=(e=e.trim()).match(/github\.com\/([^/]+\/[^/\s?#]+)/i);return t?t[1].replace(/\.git$/,""):/^[a-zA-Z0-9_-]+\/[a-zA-Z0-9_.-]+$/.test(e)?e:null}async _addCustomRepo(){const e=this._parseRepoUrl(this._customRepoUrl);if(!e)return void Mt(ge("invalidRepoUrl"),"error");const t=this.customRepos.some(t=>(t.full_name||t.repository)===e);if(t)Mt(`${e} ${ge("alreadyExists")}`,"error");else{this._addingCustom=!0;try{const t=await ce.addCustomRepo(e,this._customRepoCategory);t.success?(Mt(`${ge("addSuccess")}: ${e}`,"success"),this._customRepoUrl="",this._load(),this.dispatchEvent(new CustomEvent("refresh-stats",{bubbles:!0,composed:!0}))):Mt(`${ge("addFailed")}: ${t.error}`,"error")}catch(e){Mt(`${ge("addFailed")}: ${e.message}`,"error")}this._addingCustom=!1}}async _removeCustomRepo(e,t){if(await Ht.show(this,{message:ge("confirmRemoveRepo",{repo:e}),confirmText:ge("removeRepo"),danger:!0}))try{const t=await ce.removeCustomRepo(e);t&&!1===t.success&&Mt(`${ge("removeRepoFailed")}: ${t.error}`,"error"),this._selectedRepos=this._selectedRepos.filter(t=>t!==e),this._load(),this.dispatchEvent(new CustomEvent("refresh-stats",{bubbles:!0,composed:!0}))}catch(e){Mt(`${ge("removeRepoFailed")}: ${e.message}`,"error")}}_toggleSelectRepo(e){this._selectedRepos.includes(e)?this._selectedRepos=this._selectedRepos.filter(t=>t!==e):this._selectedRepos=[...this._selectedRepos,e]}async _batchRemove(){const e=this._selectedRepos.length;if(await Ht.show(this,{message:`${ge("batchRemoveRepoConfirm")||"确认移除"} ${e} ${ge("totalRepos")}?`,confirmText:ge("removeRepo"),danger:!0})){for(const e of[...this._selectedRepos])try{await ce.removeCustomRepo(e)}catch(t){Mt(`${ge("removeRepoFailed")}: ${e} - ${t.message}`,"error")}this._selectedRepos=[],this._load(),this.dispatchEvent(new CustomEvent("refresh-stats",{bubbles:!0,composed:!0}))}}_toggleSection(e){this._collapsed={...this._collapsed,[e]:!this._collapsed[e]}}_setViewMode(e){this._viewMode=e}_openCardDetail(e){this.dispatchEvent(new CustomEvent("detail",{detail:{repo:e},bubbles:!0,composed:!0}))}_getRepoStatus(e){return e.pending_restart?"pending_restart":e.installed&&(e.has_update||e.installed_version&&e.latest_version&&e.installed_version!==e.latest_version)?"update_available":e.installed?"installed":"not_installed"}_getFilteredCustomRepos(){let e=[...this.customRepos];const t=(this._customRepoSearch||"").toLowerCase();t&&(e=e.filter(e=>{const o=(e.manifest_name||e.name||e.full_name||"").toLowerCase(),i=(e.description||"").toLowerCase();return o.includes(t)||i.includes(t)}));const o=this._statusFilter||"";o&&(e=e.filter(e=>this._getRepoStatus(e)===o));const i=this._typeFilter||"";i&&(e=e.filter(e=>(e.category||"")===i)),this._tagFilters.includes("favorites")&&(e=e.filter(e=>this._favorites.includes(e.id||e.full_name)));const r=this._customRepoSort||"name";return"stars"===r?e.sort((e,t)=>(t.stargazers_count||0)-(e.stargazers_count||0)):"updated"===r?e.sort((e,t)=>(t.last_updated||"").localeCompare(e.last_updated||"")):e.sort((e,t)=>(e.manifest_name||e.name||e.full_name||"").localeCompare(t.manifest_name||t.name||t.full_name||"")),e}_getStatusCounts(){const e={installed:0,update_available:0,not_installed:0,pending_restart:0};for(const t of this.customRepos){const o=this._getRepoStatus(t);void 0!==e[o]&&e[o]++}return e}_getTypeCounts(){const e={};for(const t of this.customRepos){const o=t.category||"other";e[o]=(e[o]||0)+1}return e}_renderFilteredContent(e,t,o,i){const r=this._customRepofilter||"all";return"archived"===r?t.length>0?U`
+        <div class="repo-cards">${t.map(e=>U`
           <div class="repo-card" style="cursor:default;">
             <div class="repo-card-img" style="background:linear-gradient(135deg,#6a1b9a20,#7b1fa220);">
               <div class="repo-card-avatar" style="background:#7b1fa2;">
@@ -2766,8 +2766,8 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
             </div>
           </div>
         `)}</div>
-      `:H`<div class="empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width:32px;height:32px;opacity:0.4;margin-bottom:8px;"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg><div>${ge("noArchived")}</div></div>`:"ignored"===r?o.length>0?H`
-        <div class="repo-cards">${o.map(e=>H`
+      `:U`<div class="empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width:32px;height:32px;opacity:0.4;margin-bottom:8px;"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg><div>${ge("noArchived")}</div></div>`:"ignored"===r?o.length>0?U`
+        <div class="repo-cards">${o.map(e=>U`
           <div class="repo-card" style="cursor:default;">
             <div class="repo-card-img" style="background:linear-gradient(135deg,#e0e0e0,#f5f5f5);">
               <div class="repo-card-avatar" style="background:#9e9e9e;">
@@ -2782,8 +2782,8 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
             </div>
           </div>
         `)}</div>
-      `:H`<div class="empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width:32px;height:32px;opacity:0.4;margin-bottom:8px;"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg><div>${ge("noIgnored")}</div></div>`:"renamed"===r?i.length>0?H`
-        <div class="repo-cards">${i.map(([e,t])=>H`
+      `:U`<div class="empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width:32px;height:32px;opacity:0.4;margin-bottom:8px;"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg><div>${ge("noIgnored")}</div></div>`:"renamed"===r?i.length>0?U`
+        <div class="repo-cards">${i.map(([e,t])=>U`
           <div class="repo-card" style="cursor:default;">
             <div class="repo-card-img" style="background:linear-gradient(135deg,#ff8f0020,#ff980020);">
               <div class="repo-card-avatar" style="background:#ff9800;">
@@ -2811,7 +2811,7 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
             </div>
           </div>
         `)}</div>
-      `:H`<div class="empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width:32px;height:32px;opacity:0.4;margin-bottom:8px;"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg><div>${ge("noRenamed")||"无重命名仓库"}</div></div>`:0===e.length?H`<div class="empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width:32px;height:32px;opacity:0.4;margin-bottom:8px;"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg><div>${ge("noCustomRepos")}</div></div>`:"card"===this._viewMode?H`<div class="repo-cards">${this._getFilteredCustomRepos().map(e=>{const t=i.find(([t,o])=>o===(e.full_name||e.repository));return H`
+      `:U`<div class="empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width:32px;height:32px;opacity:0.4;margin-bottom:8px;"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg><div>${ge("noRenamed")||"无重命名仓库"}</div></div>`:0===e.length?U`<div class="empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width:32px;height:32px;opacity:0.4;margin-bottom:8px;"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg><div>${ge("noCustomRepos")}</div></div>`:"card"===this._viewMode?U`<div class="repo-cards">${this._getFilteredCustomRepos().map(e=>{const t=i.find(([t,o])=>o===(e.full_name||e.repository));return U`
           <repo-card .repo=${e} viewMode="management"
             .renamedFrom=${t?t[0]:void 0}
             showRemoveBtn=true
@@ -2820,11 +2820,11 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
             @detail=${e=>this._openCardDetail(e.detail.repo)}
             @remove-repo=${e=>this._removeCustomRepo(e.detail.repo?.full_name||e.detail.repo?.repository,e.detail.repo?.category)}
             @check-change=${e=>{const t=e.detail.fullName;t&&this._toggleSelectRepo(t)}}>
-          </repo-card>`})}</div>`:H`<div class="repo-list">${this._getFilteredCustomRepos().map(e=>this._renderListItem(e,i))}</div>`}_getInitials(e){if(!e)return"?";const t=e.split("/");return(t[t.length-1]||e).charAt(0).toUpperCase()}_getCategoryColor(e){return fe(e)}_getCategoryLabel(e){return{integration:ge("catIntegration"),plugin:ge("catPlugin"),theme:ge("catTheme"),appdaemon:ge("catAppDaemon"),netdaemon:ge("catNetDaemon"),python_script:ge("catPythonScript"),template:ge("catTemplate"),dashboard:ge("catDashboard")}[e]||e}_renderCard(e,t){const o=e.full_name||e.repository,i=e.manifest_name||e.name||o,r=t.find(([e,t])=>t===o),s=!!r,a=s?r[0]:null,n=e.installed_version||"",l=e.latest_version||"",c=e.has_update,d=e.stargazers_count||0,p=e.description||"",h=e.installed||!1,g=this._getCategoryColor(e.category);return H`
+          </repo-card>`})}</div>`:U`<div class="repo-list">${this._getFilteredCustomRepos().map(e=>this._renderListItem(e,i))}</div>`}_getInitials(e){if(!e)return"?";const t=e.split("/");return(t[t.length-1]||e).charAt(0).toUpperCase()}_getCategoryColor(e){return fe(e)}_getCategoryLabel(e){return{integration:ge("catIntegration"),plugin:ge("catPlugin"),theme:ge("catTheme"),appdaemon:ge("catAppDaemon"),netdaemon:ge("catNetDaemon"),python_script:ge("catPythonScript"),template:ge("catTemplate"),dashboard:ge("catDashboard")}[e]||e}_renderCard(e,t){const o=e.full_name||e.repository,i=e.manifest_name||e.name||o,r=t.find(([e,t])=>t===o),s=!!r,a=s?r[0]:null,n=e.installed_version||"",l=e.latest_version||"",c=e.has_update,d=e.stargazers_count||0,p=e.description||"",h=e.installed||!1,g=this._getCategoryColor(e.category);return U`
       <div class="repo-card" @click=${()=>this._openCardDetail(e)}>
         <div class="repo-card-img" style="background:linear-gradient(135deg, ${g}44 0%, ${g}22 100%);">
           <div class="repo-card-avatar" style="background:${g}">
-            ${e.domain&&"integration"===e.category?H`
+            ${e.domain&&"integration"===e.category?U`
               <img src="https://brands.home-assistant.io/${e.domain}/icon.png" style="width:100%;height:100%;object-fit:cover;" @error=${e=>{e.target.style.display="none",e.target.nextSibling.style.display="flex"}}>
               <span style="display:none">${this._getInitials(i)}</span>
             `:this._getInitials(i)}
@@ -2832,9 +2832,9 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
           <span class="repo-card-badge-cat" style="background:${g}">
             ${this._getCategoryLabel(e.category)}
           </span>
-          ${e.is_custom?H`<span class="repo-card-custom">${ge("customBadge")}</span>`:""}
-          ${s?H`<span class="repo-card-renamed"><svg class="mini-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg> ${a}</span>`:""}
-          ${h?H`<span class="repo-card-installed"><svg class="mini-icon" viewBox="0 0 24 24" fill="none" stroke="#4caf50" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg> ${ge("installed")}</span>`:""}
+          ${e.is_custom?U`<span class="repo-card-custom">${ge("customBadge")}</span>`:""}
+          ${s?U`<span class="repo-card-renamed"><svg class="mini-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg> ${a}</span>`:""}
+          ${h?U`<span class="repo-card-installed"><svg class="mini-icon" viewBox="0 0 24 24" fill="none" stroke="#4caf50" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg> ${ge("installed")}</span>`:""}
           <div class="repo-card-actions-img">
             <button class="btn-icon" @click=${t=>{t.stopPropagation(),this._removeCustomRepo(o,e.category)}} title="${ge("removeRepo")}">
               ✕
@@ -2845,28 +2845,28 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
           <div class="name" title=${i}>${i}</div>
           <div class="fullname">${o}</div>
           <div class="desc">${p||ge("noDesc")}</div>
-          ${e.topics&&e.topics.length?H`
+          ${e.topics&&e.topics.length?U`
             <div class="topic-chips" style="margin-top:6px;">
-              ${e.topics.slice(0,3).map(e=>H`<span class="topic-chip">${e}</span>`)}
+              ${e.topics.slice(0,3).map(e=>U`<span class="topic-chip">${e}</span>`)}
             </div>
           `:""}
           <div class="meta">
             <span class="stars">
               <svg viewBox="0 0 20 20" fill="#ff9800" width="14" height="14"><path d="M10 1l2.39 4.84L17.6 6.7l-3.8 3.71.9 5.26L10 13.27l-4.7 2.46.9-5.26L2.4 6.7l5.2-.86L10 1z"/></svg> ${d>0?"number"==typeof d?d.toLocaleString():d:0}
             </span>
-            ${h?H`
+            ${h?U`
               <span style="font-size:10px;color:var(--secondary-text-color);">
-                <svg class="mini-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg> ${n}${c?H` <span class="update-badge"><svg class="mini-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg> ${l}</span>`:""}
+                <svg class="mini-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg> ${n}${c?U` <span class="update-badge"><svg class="mini-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg> ${l}</span>`:""}
               </span>
-            `:H`<span class="repo-not-installed">${ge("notInstalled")}</span>`}
+            `:U`<span class="repo-not-installed">${ge("notInstalled")}</span>`}
           </div>
         </div>
       </div>
-    `}_renderListItem(e,t){const o=e.full_name||e.repository,i=e.manifest_name||e.name||o,r=t.find(([e,t])=>t===o),s=!!r,a=s?r[0]:null,n=e.installed_version||"",l=e.latest_version||"",c=e.has_update,d=e.stargazers_count||0,p=e.description||"";return H`
+    `}_renderListItem(e,t){const o=e.full_name||e.repository,i=e.manifest_name||e.name||o,r=t.find(([e,t])=>t===o),s=!!r,a=s?r[0]:null,n=e.installed_version||"",l=e.latest_version||"",c=e.has_update,d=e.stargazers_count||0,p=e.description||"";return U`
       <div class="repo-item" @click=${()=>this._openCardDetail(e)}>
         <div class="col-icon">
           <div class="icon-cell" style="background:${this._getCategoryColor(e.category)}">
-            ${e.domain&&"integration"===e.category?H`
+            ${e.domain&&"integration"===e.category?U`
                 <img src="https://brands.home-assistant.io/${e.domain}/icon.png" style="width:100%;height:100%;object-fit:cover;" @error=${e=>{e.target.style.display="none",e.target.nextSibling.style.display="flex"}}>
                 <span style="display:none">${i.charAt(0).toUpperCase()}</span>
               `:i.charAt(0).toUpperCase()}
@@ -2876,21 +2876,21 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
           <div class="repo-top">
             <span class="repo-name">${i}</span>
             <span class="category-badge ${e.category}">${this._getCategoryLabel(e.category)}</span>
-            ${e.is_custom?H`<span class="custom-badge-tag">${ge("customBadge")}</span>`:""}
-            ${s?H`<span class="renamed-badge"><svg class="mini-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg> ${a}</span>`:""}
+            ${e.is_custom?U`<span class="custom-badge-tag">${ge("customBadge")}</span>`:""}
+            ${s?U`<span class="renamed-badge"><svg class="mini-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg> ${a}</span>`:""}
           </div>
           <div class="repo-meta">
             <span class="repo-fullname">${o}</span>
             <span class="stars" style="color:#f9a825;"><svg viewBox="0 0 20 20" fill="#ff9800" width="14" height="14"><path d="M10 1l2.39 4.84L17.6 6.7l-3.8 3.71.9 5.26L10 13.27l-4.7 2.46.9-5.26L2.4 6.7l5.2-.86L10 1z"/></svg> ${d>0?"number"==typeof d?d.toLocaleString():d:0}</span>
-            ${e.installed?H`
+            ${e.installed?U`
               <span class="repo-version"><svg class="mini-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg> ${n}</span>
-              ${c?H`<span class="update-badge"><svg class="mini-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg> ${l}</span>`:""}
-            `:H`<span class="repo-not-installed">${ge("notInstalled")}</span>`}
+              ${c?U`<span class="update-badge"><svg class="mini-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg> ${l}</span>`:""}
+            `:U`<span class="repo-not-installed">${ge("notInstalled")}</span>`}
           </div>
-          ${p?H`<div class="repo-desc">${p}</div>`:""}
-          ${e.topics&&e.topics.length?H`
+          ${p?U`<div class="repo-desc">${p}</div>`:""}
+          ${e.topics&&e.topics.length?U`
             <div class="topic-chips" style="margin-top:4px;">
-              ${e.topics.slice(0,4).map(e=>H`<span class="topic-chip">${e}</span>`)}
+              ${e.topics.slice(0,4).map(e=>U`<span class="topic-chip">${e}</span>`)}
             </div>
           `:""}
         </div>
@@ -2898,19 +2898,19 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
           <a class="btn btn-icon" href="https://github.com/${o}" target="_blank" rel="noopener" @click=${e=>e.stopPropagation()} title="GitHub">
             <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
           </a>
-          ${s?H`
+          ${s?U`
             <button class="btn primary sm" @click=${e=>{e.stopPropagation(),this._replaceRenamedOneClick(a,o)}} ?disabled=${this._renamedRefreshing}>
-              ${this._renamedRefreshing?H`<svg class="mini-icon spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>`:ge("replace")}
+              ${this._renamedRefreshing?U`<svg class="mini-icon spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>`:ge("replace")}
             </button>
             <button class="btn danger sm" @click=${e=>{e.stopPropagation(),this._removeRenamedRepo(a)}} title=${ge("removeRenamed")}>✕</button>
           `:""}
           <button class="btn danger sm" @click=${t=>{t.stopPropagation(),this._removeCustomRepo(o,e.category)}}>✕</button>
         </div>
       </div>
-    `}render(){const{archivedRepos:e,ignoredRepos:t,renamedEntries:o,customRepos:i,loading:r,_viewMode:s,_collapsed:a}=this;return H`
-      ${r?H`
+    `}render(){const{archivedRepos:e,ignoredRepos:t,renamedEntries:o,customRepos:i,loading:r,_viewMode:s,_collapsed:a}=this;return U`
+      ${r?U`
         <div class="skeleton-grid" style="margin-bottom:16px;">
-          ${[1,2,3,4,5,6].map(()=>H`
+          ${[1,2,3,4,5,6].map(()=>U`
             <div class="skeleton-card">
               <div class="skeleton-card-img"></div>
               <div class="skeleton-card-body">
@@ -2927,7 +2927,7 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
         <div class="search" style="flex:1;min-width:150px;">
           <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
           <input type="text" placeholder="${ge("search")||"搜索..."}" .value=${this._customRepoSearch} @input=${e=>this._customRepoSearch=e.target.value}>
-          ${this._customRepoSearch?H`<button class="search-clear" @click=${()=>this._customRepoSearch=""}>✕</button>`:""}
+          ${this._customRepoSearch?U`<button class="search-clear" @click=${()=>this._customRepoSearch=""}>✕</button>`:""}
         </div>
         <div class="controls-right">
           <button class="refresh-btn" @click=${()=>this._load()} title="${ge("refreshTitle")}" style="width:36px;height:36px;padding:8px;border:1px solid var(--divider-color);border-radius:10px;background:var(--card-background-color);color:var(--primary-text-color);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
@@ -2942,25 +2942,25 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
       </div>
 
       <!-- Add Custom Repo Form (right after controls, before filters — matches store) -->
-      ${this._showAddCustom?H`
+      ${this._showAddCustom?U`
         <div class="add-repo-form">
           <div class="form-row" style="display:flex;gap:8px;flex-wrap:wrap;">
             <input class="form-input" type="text" style="flex:1;min-width:200px;" .value=${this._customRepoUrl} @input=${e=>this._customRepoUrl=e.target.value} placeholder="owner/repo 或 GitHub URL" @keydown=${e=>"Enter"===e.key&&this._addCustomRepo()}>
             <select class="form-select" .value=${this._customRepoCategory} @change=${e=>this._customRepoCategory=e.target.value}>
-              ${["integration","plugin","theme","dashboard","python_script","template","appdaemon","netdaemon"].map(e=>H`<option value=${e}>${this._getCategoryLabel(e)}</option>`)}
+              ${["integration","plugin","theme","dashboard","python_script","template","appdaemon","netdaemon"].map(e=>U`<option value=${e}>${this._getCategoryLabel(e)}</option>`)}
             </select>
           </div>
           <div class="form-actions" style="display:flex;gap:6px;margin-top:8px;">
             <button class="btn primary" @click=${this._addCustomRepo} ?disabled=${this._addingCustom||!this._customRepoUrl.trim()}>
-              ${this._addingCustom?H`<svg class="mini-icon spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> ${ge("add")}`:H`<svg class="mini-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg> ${ge("add")}`}
+              ${this._addingCustom?U`<svg class="mini-icon spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> ${ge("add")}`:U`<svg class="mini-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg> ${ge("add")}`}
             </button>
             <button class="btn" @click=${this._toggleAddCustom}>${ge("cancel")}</button>
           </div>
-          ${this._customRepoUrl.trim()&&this._parseRepoUrl(this._customRepoUrl)?H`
+          ${this._customRepoUrl.trim()&&this._parseRepoUrl(this._customRepoUrl)?U`
             <div style="margin-top:4px;font-size:11px;color:var(--secondary-text-color);display:flex;align-items:center;gap:4px;">
               <svg class="mini-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg> ${this._parseRepoUrl(this._customRepoUrl)}
             </div>
-          `:this._customRepoUrl.trim()?H`
+          `:this._customRepoUrl.trim()?U`
             <div style="margin-top:4px;font-size:11px;color:#f44336;">${ge("invalidRepoUrl")}</div>
           `:""}
         </div>
@@ -2971,18 +2971,18 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
         <button class="btn" style="padding:4px 10px;font-size:12px;" @click=${this._checkDependencies} ?disabled=${this._depLoading}>
           ${this._depLoading?"⟳":"🔗"} ${ge("checkDeps")||"检查依赖"}
         </button>
-        ${this._depResults?H`
-          <span style="font-size:12px;">${this._depResults.all_ok?H`<span style="color:var(--success-color,#0f9d58);">✅ ${ge("depOk")}</span>`:H`<span style="color:#f44336;">⚠️ ${ge("depMissing")} (${this._depMissingCount()})</span>`}</span>
+        ${this._depResults?U`
+          <span style="font-size:12px;">${this._depResults.all_ok?U`<span style="color:var(--success-color,#0f9d58);">✅ ${ge("depOk")}</span>`:U`<span style="color:#f44336;">⚠️ ${ge("depMissing")} (${this._depMissingCount()})</span>`}</span>
           <button class="btn" style="padding:2px 8px;font-size:11px;" @click=${()=>{this._depResults=null}}>✕</button>
         `:""}
       </div>
-      ${this._depResults&&!this._depResults.all_ok?H`
+      ${this._depResults&&!this._depResults.all_ok?U`
         <div class="dep-panel">
-          ${this._depResults.dependencies.filter(e=>e.has_issues).map(e=>H`
+          ${this._depResults.dependencies.filter(e=>e.has_issues).map(e=>U`
             <div class="dep-item">
               <div class="repo">${e.repository} ${e.installed?"✅":"❌"}</div>
-              ${e.missing_requirements?.length?H`<div class="missing">缺少: ${e.missing_requirements.join(", ")}</div>`:""}
-              ${e.missing_dependencies?.length?H`<div class="missing">依赖: ${e.missing_dependencies.join(", ")}</div>`:""}
+              ${e.missing_requirements?.length?U`<div class="missing">缺少: ${e.missing_requirements.join(", ")}</div>`:""}
+              ${e.missing_dependencies?.length?U`<div class="missing">依赖: ${e.missing_dependencies.join(", ")}</div>`:""}
             </div>
           `)}
         </div>
@@ -2993,13 +2993,13 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
         <div class="fs-chips">
           <span class="fs-label">${ge("repoStatus")}</span>
           <button class="filter-chip ${"all"===this._customRepofilter?"active":""}" @click=${()=>{this._customRepofilter="all",Xt({customRepofilter:this._customRepofilter,customRepoSort:this._customRepoSort,statusFilter:this._statusFilter,typeFilter:this._typeFilter})}}>${ge("all")||"全部"}</button>
-          ${e.length>0?H`<button class="filter-chip ${"archived"===this._customRepofilter?"active":""}" @click=${()=>{this._customRepofilter="archived",Xt({customRepofilter:this._customRepofilter,customRepoSort:this._customRepoSort,statusFilter:this._statusFilter,typeFilter:this._typeFilter})}}>${ge("archivedRepos")} (${e.length})</button>`:""}
-          ${o.length>0?H`<button class="filter-chip ${"renamed"===this._customRepofilter?"active":""}" @click=${()=>{this._customRepofilter="renamed",Xt({customRepofilter:this._customRepofilter,customRepoSort:this._customRepoSort,statusFilter:this._statusFilter,typeFilter:this._typeFilter})}}>${ge("renamedRepos")} (${o.length})</button>`:""}
-          ${t.length>0?H`<button class="filter-chip ${"ignored"===this._customRepofilter?"active":""}" @click=${()=>{this._customRepofilter="ignored",Xt({customRepofilter:this._customRepofilter,customRepoSort:this._customRepoSort,statusFilter:this._statusFilter,typeFilter:this._typeFilter})}}>${ge("ignoredRepos")} (${t.length})</button>`:""}
+          ${e.length>0?U`<button class="filter-chip ${"archived"===this._customRepofilter?"active":""}" @click=${()=>{this._customRepofilter="archived",Xt({customRepofilter:this._customRepofilter,customRepoSort:this._customRepoSort,statusFilter:this._statusFilter,typeFilter:this._typeFilter})}}>${ge("archivedRepos")} (${e.length})</button>`:""}
+          ${o.length>0?U`<button class="filter-chip ${"renamed"===this._customRepofilter?"active":""}" @click=${()=>{this._customRepofilter="renamed",Xt({customRepofilter:this._customRepofilter,customRepoSort:this._customRepoSort,statusFilter:this._statusFilter,typeFilter:this._typeFilter})}}>${ge("renamedRepos")} (${o.length})</button>`:""}
+          ${t.length>0?U`<button class="filter-chip ${"ignored"===this._customRepofilter?"active":""}" @click=${()=>{this._customRepofilter="ignored",Xt({customRepofilter:this._customRepofilter,customRepoSort:this._customRepoSort,statusFilter:this._statusFilter,typeFilter:this._typeFilter})}}>${ge("ignoredRepos")} (${t.length})</button>`:""}
           <span class="fs-divider"></span>
           <span class="fs-label">${ge("filterStatus")}</span>
           <button class="filter-chip ${this._statusFilter?"":"active"}" @click=${()=>{this._statusFilter="",Xt({customRepofilter:this._customRepofilter,customRepoSort:this._customRepoSort,statusFilter:this._statusFilter,typeFilter:this._typeFilter})}}>${ge("all")||"全部"}</button>
-          ${["installed","update_available","not_installed","pending_restart"].filter(e=>(this._getStatusCounts()[e]??0)>0).map(e=>H`
+          ${["installed","update_available","not_installed","pending_restart"].filter(e=>(this._getStatusCounts()[e]??0)>0).map(e=>U`
             <button class="filter-chip ${this._statusFilter===e?"active":""}" @click=${()=>{this._statusFilter=e,Xt({customRepofilter:this._customRepofilter,customRepoSort:this._customRepoSort,statusFilter:this._statusFilter,typeFilter:this._typeFilter})}}>
               ${ge("installed"===e?"statusInstalled":"update_available"===e?"statusPendingUpgrade":"not_installed"===e?"statusNotInstalled":"statusPendingRestart")}
               <span class="chip-count">${this._getStatusCounts()[e]}</span>
@@ -3008,7 +3008,7 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
           <span class="fs-divider"></span>
           <span class="fs-label">${ge("filterType")}</span>
           <button class="filter-chip ${this._typeFilter?"":"active"}" @click=${()=>{this._typeFilter="",Xt({customRepofilter:this._customRepofilter,customRepoSort:this._customRepoSort,statusFilter:this._statusFilter,typeFilter:this._typeFilter})}}>${ge("all")||"全部"}</button>
-          ${Object.entries(this._getTypeCounts()).filter(([e,t])=>t>0).map(([e,t])=>H`
+          ${Object.entries(this._getTypeCounts()).filter(([e,t])=>t>0).map(([e,t])=>U`
             <button class="filter-chip ${this._typeFilter===e?"active":""}" @click=${()=>{this._typeFilter=e,Xt({customRepofilter:this._customRepofilter,customRepoSort:this._customRepoSort,statusFilter:this._statusFilter,typeFilter:this._typeFilter})}}>
               ${this._getCategoryLabel(e)}<span class="chip-count">${t}</span>
             </button>
@@ -3016,13 +3016,13 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
           <span class="fs-divider"></span>
           <span class="fs-label">${ge("sort")||"排序"}</span>
           <button class="filter-chip sort-inline ${"name"===this._customRepoSort?"active":""}" @click=${()=>{this._customRepoSort="name",Xt({customRepofilter:this._customRepofilter,customRepoSort:this._customRepoSort,statusFilter:this._statusFilter,typeFilter:this._typeFilter})}}>
-            ${ge("sortByName")}${"name"===this._customRepoSort?H`<span class="sort-dir">▲</span>`:""}
+            ${ge("sortByName")}${"name"===this._customRepoSort?U`<span class="sort-dir">▲</span>`:""}
           </button>
           <button class="filter-chip sort-inline ${"stars"===this._customRepoSort?"active":""}" @click=${()=>{this._customRepoSort="stars",Xt({customRepofilter:this._customRepofilter,customRepoSort:this._customRepoSort,statusFilter:this._statusFilter,typeFilter:this._typeFilter})}}>
-            ${ge("sortByStars")}${"stars"===this._customRepoSort?H`<span class="sort-dir">▼</span>`:""}
+            ${ge("sortByStars")}${"stars"===this._customRepoSort?U`<span class="sort-dir">▼</span>`:""}
           </button>
           <button class="filter-chip sort-inline ${"updated"===this._customRepoSort?"active":""}" @click=${()=>{this._customRepoSort="updated",Xt({customRepofilter:this._customRepofilter,customRepoSort:this._customRepoSort,statusFilter:this._statusFilter,typeFilter:this._typeFilter})}}>
-            ${ge("sortByUpdated")}${"updated"===this._customRepoSort?H`<span class="sort-dir">▼</span>`:""}
+            ${ge("sortByUpdated")}${"updated"===this._customRepoSort?U`<span class="sort-dir">▼</span>`:""}
           </button>
         </div>
       </div>
@@ -3036,22 +3036,22 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
                  style="width:16px;height:16px;cursor:pointer;">
           ${ge("selectAll")||"全选"}
         </label>
-        ${"all"===this._customRepofilter?H`
+        ${"all"===this._customRepofilter?U`
           <span style="font-size:13px;color:var(--secondary-text-color);">
             ${ge("totalCount")||"共"} <strong>${this._getFilteredCustomRepos().length}</strong> ${ge("totalRepos")}
           </span>
-        `:H`
+        `:U`
           <span style="font-size:13px;color:var(--secondary-text-color);">
-            ${"archived"===this._customRepofilter?H`${ge("archivedRepos")}: <strong>${e.length}</strong>`:""}
-            ${"renamed"===this._customRepofilter?H`${ge("renamedRepos")}: <strong>${o.length}</strong>`:""}
-            ${"ignored"===this._customRepofilter?H`${ge("ignoredRepos")}: <strong>${t.length}</strong>`:""}
+            ${"archived"===this._customRepofilter?U`${ge("archivedRepos")}: <strong>${e.length}</strong>`:""}
+            ${"renamed"===this._customRepofilter?U`${ge("renamedRepos")}: <strong>${o.length}</strong>`:""}
+            ${"ignored"===this._customRepofilter?U`${ge("ignoredRepos")}: <strong>${t.length}</strong>`:""}
           </span>
         `}
-        ${this._selectedRepos.length>0?H`| <strong>${this._selectedRepos.length}</strong> ${ge("selected")||"已选"}`:""}
+        ${this._selectedRepos.length>0?U`| <strong>${this._selectedRepos.length}</strong> ${ge("selected")||"已选"}`:""}
       </div>
 
       <!-- Batch Action Bar -->
-      ${this._selectedRepos.length>0?H`
+      ${this._selectedRepos.length>0?U`
         <div class="batch-bar">
           <span>${ge("batchSelected",{n:this._selectedRepos.length})}</span>
           <button class="batch-bar-btn" @click=${()=>this._batchRemove()} style="border-color:#ff5252;color:#ff5252;">${ge("removeRepo")}</button>
@@ -3134,7 +3134,7 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
       text-align: center; font-size: 12px; color: var(--secondary-text-color, #727272);
       padding: 12px 0 4px;
     }
-  `];render(){return H`
+  `];render(){return U`
       <div class="container">
         <div class="config-grid">
 
@@ -3199,7 +3199,7 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
 
           <div class="save-bar">
             <button class="btn primary" @click=${this._save} ?disabled=${this._saving}>
-              ${this._saving?H`<span class="spinner-sm" style="display:inline-block;width:14px;height:14px;border-width:2px;margin:0;vertical-align:-2px;"></span> ${ge("loading")}`:H`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> ${ge("save")}`}
+              ${this._saving?U`<span class="spinner-sm" style="display:inline-block;width:14px;height:14px;border-width:2px;margin:0;vertical-align:-2px;"></span> ${ge("loading")}`:U`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> ${ge("save")}`}
             </button>
           </div>
         </div>
@@ -3234,11 +3234,11 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
           </div>
           <div class="backup-row">
             <button class="btn primary" @click=${this._export} ?disabled=${this._exporting}>
-              ${this._exporting?H`<span class="spinner-sm" style="display:inline-block;width:14px;height:14px;border-width:2px;margin:0;"></span> ${ge("exporting")}`:H`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> ${ge("exportBtn")}`}
+              ${this._exporting?U`<span class="spinner-sm" style="display:inline-block;width:14px;height:14px;border-width:2px;margin:0;"></span> ${ge("exporting")}`:U`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> ${ge("exportBtn")}`}
             </button>
             <button class="btn file-input" ?disabled=${this._importing}>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-              ${this._importing?H`${ge("importing")}`:H`${ge("importBackup")}`}
+              ${this._importing?U`${ge("importing")}`:U`${ge("importBackup")}`}
               <input type="file" accept=".json" @change=${e=>this._import(e)} />
             </button>
             <span style="font-size:11px;color:var(--secondary-text-color,#727272);">${ge("importDesc")}</span>
@@ -3248,13 +3248,13 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
         </div> <!-- config-grid -->
         <div class="version">HACS Vision${this._version?` v${this._version}`:""}</div>
       </div>
-    `}async _export(){this._exporting=!0;try{const e=await ce.exportBackup(),t=new Blob([JSON.stringify(e,null,2)],{type:"application/json"}),o=URL.createObjectURL(t),i=document.createElement("a");i.href=o,i.download=`hacs_backup_${(new Date).toISOString().slice(0,10)}.json`,i.click(),URL.revokeObjectURL(o);const{showToast:r}=await Promise.resolve().then(function(){return Nt});r(ge("exportSuccess"),"success")}catch(e){showToast(`${ge("exportFailed")}: ${e.message}`,"error")}this._exporting=!1}async _import(e){const t=e.target?.files?.[0];if(!t)return;if(await Pt.show(this,{message:ge("importDesc"),confirmText:ge("importBackup"),danger:!0})){this._importing=!0;try{const e=await t.text(),o=JSON.parse(e),i=await ce.importBackup(o),{showToast:r}=await Promise.resolve().then(function(){return Nt});i.success?(r(ge("importSuccess"),"success"),this._load()):r(`${ge("importFailed")}: ${i.error}`,"error")}catch(e){showToast(`${ge("importFailed")}: ${e.message}`,"error")}this._importing=!1,e.target.value=""}}async _checkUpdates(){try{const e=await ce.checkUpdatesWithNotify(),{showToast:t}=await Promise.resolve().then(function(){return Nt});e.success&&(e.updates_found>0?t(ge("updatesChecked",{n:e.updates_found}),"success"):t(ge("noUpdatesFound"),"info"),e.notified&&t(ge("notifySent"),"success"))}catch(e){showToast(`Update check failed: ${e.message}`,"error")}}async _checkAndRestart(){if(await Pt.show(this,{message:ge("restartConfirm"),confirmText:ge("restartHA"),danger:!0}))try{await ce.restartHA();const{showToast:e}=await Promise.resolve().then(function(){return Nt});e(ge("haRestarting"),"info")}catch(e){showToast(`${ge("restartFailed")}: ${e.message}`,"error")}}}customElements.define("config-view",Kt);class Zt extends ae{static properties={hass:{type:Object},configEntries:{type:Array},loading:{type:Boolean},searchText:{type:String},_statusFilter:{type:String,state:!0},_showAddDialog:{type:Boolean,state:!0},_handlerSearch:{type:String,state:!0},_handlers:{type:Array,state:!0},_handlersLoading:{type:Boolean,state:!0},_removing:{type:Object,state:!0},_reloading:{type:Object,state:!0},_detailDomain:{type:String,state:!0},_detailEntries:{type:Array,state:!0},_detailDeviceCounts:{type:Object,state:!0},_showDetail:{type:Boolean,state:!0},_deviceViewEntryId:{type:String,state:!0},_domainNames:{type:Object,state:!0},_viewMode:{type:String,state:!0}};constructor(){super(),this.configEntries=[],this.loading=!0,this.searchText="",this._statusFilter="all",this._showAddDialog=!1,this._handlerSearch="",this._handlers=[],this._handlersLoading=!1,this._removing={},this._reloading={},this._detailDomain="",this._detailEntries=[],this._showDetail=!1,this._domainNames={},this._viewMode=localStorage.getItem("hacs_int_view_mode")||"card",this._modalDrag={offsetX:0,offsetY:0,startX:0,startY:0,dragging:!1,cleanup:null}}_modalPointerDown(e){const t=e.target.closest(".modal-header");if(!t||e.target.closest("button, input, select, textarea"))return;if(void 0!==e.button&&0!==e.button)return;const o=this._modalDrag,i=e.currentTarget;o.dragging=!0,o.startX=e.clientX-o.offsetX,o.startY=e.clientY-o.offsetY,i.style.transition="none",i.style.cursor="grabbing",t.style.userSelect="none",i.setPointerCapture(e.pointerId);const r=e=>{o.dragging&&(o.offsetX=e.clientX-o.startX,o.offsetY=e.clientY-o.startY,i.style.transform=`translate(${o.offsetX}px, ${o.offsetY}px)`)},s=e=>{o.dragging=!1,i.style.cursor="",t.style.userSelect="",i.removeEventListener("pointermove",r),i.removeEventListener("pointerup",s),i.removeEventListener("pointercancel",s);try{i.releasePointerCapture(e.pointerId)}catch(e){}};i.addEventListener("pointermove",r),i.addEventListener("pointerup",s),i.addEventListener("pointercancel",s)}connectedCallback(){super.connectedCallback(),this._load()}_setViewMode(e){this._viewMode=e;try{localStorage.setItem("hacs_int_view_mode",e)}catch(e){}}connectedCallback(){super.connectedCallback(),this._load()}async _load(){this.loading=!0;try{const e=await ce.getConfigEntries();this.configEntries=e.entries||[];const t={};for(const e of this.configEntries)t[e.domain]||(t[e.domain]=e.translated_name||e.domain);this._domainNames=t}catch(e){console.error("Failed to load config entries:",e),Mt(ge("loadFailed"),"error")}this.loading=!1}async _loadHandlers(){if(!(this._handlers.length>0)){this._handlersLoading=!0;try{const e=await this.hass.callApi("GET","config/config_entries/flow_handlers");this._handlers=Array.isArray(e)?e.map(e=>"string"==typeof e?{domain:e,name:e}:e):[],this._handlers.sort((e,t)=>(e.name||e.domain).localeCompare(t.name||t.domain))}catch(e){console.error("Failed to load flow handlers:",e),this._handlers=[]}this._handlersLoading=!1}}async _removeEntry(e,t){t.stopPropagation();const{ConfirmDialog:o}=await Promise.resolve().then(function(){return Ut});if(!await o.show(this,{title:e.domain,message:ge("confirmDelete",{domain:e.domain}),confirmText:ge("delete"),danger:!0}))return;this._removing={...this._removing,[e.entry_id]:!0};try{const t=ce._getHeaders(),o=await fetch(`/api/config/config_entries/entry/${e.entry_id}`,{method:"DELETE",headers:t,credentials:"include"});if(!o.ok)throw new Error(`HTTP ${o.status}`);Mt(`${e.domain} ${ge("deleted")}`,"success"),this._load()}catch(t){Mt(`${ge("deleteFailed")}: ${t.message}`,"error")}const i={...this._removing};delete i[e.entry_id],this._removing=i}async _reloadEntry(e,t){t.stopPropagation(),this._reloading={...this._reloading,[e.entry_id]:!0};try{const t=ce._getHeaders(),o=await fetch(`/api/config/config_entries/entry/${e.entry_id}/reload`,{method:"POST",headers:{...t,"Content-Type":"application/json"},credentials:"include",body:"{}"});if(!o.ok)throw new Error(`HTTP ${o.status}`);Mt(`${e.domain} ${ge("reloaded")}`,"success"),setTimeout(()=>this._load(),1500)}catch(t){Mt(`${ge("reloadFailed")}: ${t.message}`,"error")}const o={...this._reloading};delete o[e.entry_id],this._reloading=o}async _toggleDisabled(e,t){t.stopPropagation();const o=e.disabled_by?null:"user",i=o?ge("disableEntry")||"禁用":ge("enableEntry")||"启用";try{const t=ce._getHeaders(),r=await fetch("/api/config/config_entries/entry",{method:"POST",headers:{...t,"Content-Type":"application/json"},credentials:"include",body:JSON.stringify({entry_id:e.entry_id,disabled_by:o})});if(!r.ok)throw new Error(`HTTP ${r.status}`);Mt(`${e.domain} ${i}${ge("successSuffix")||"成功"}`,"success"),setTimeout(()=>this._load(),1500)}catch(e){Mt(`${i}${ge("failedSuffix")||"失败"}: ${e.message}`,"error")}}_configureEntry(e,t){t.stopPropagation(),this._closeDetail(),this.dispatchEvent(new CustomEvent("configure-integration",{bubbles:!0,composed:!0,detail:{domain:e.domain,entry_id:e.entry_id}}))}_openAddDialog(){this._showAddDialog=!0,this._handlerSearch="",this._loadHandlers()}_closeAddDialog(){this._showAddDialog=!1,this._handlerSearch=""}_addIntegration(e){this._closeAddDialog(),this.dispatchEvent(new CustomEvent("add-integration",{bubbles:!0,composed:!0,detail:{domain:e}}))}_openDetail(e,t){this._detailDomain=e,this._detailEntries=t,this._showDetail=!0,this._detailDeviceCounts=null,ce.getDeviceCounts(e).then(e=>{this._detailDeviceCounts=e}).catch(t=>{console.warn("Failed to get device counts for",e,t)})}_closeDetail(){this._showDetail=!1,this._detailDomain="",this._detailEntries=[],this._deviceViewEntryId="";const e=this.shadowRoot?.querySelector(".modal");e&&(e.style.transform="")}_openDeviceView(e){this._showDetail=!0,this._detailDomain=e.domain,this._detailEntries=[e],this._deviceViewEntryId=e.entry_id}_translateDomain(e){return this._domainNames?.[e]||e}_renderAvatar(e){const t=`https://brands.home-assistant.io/${e}/icon.png`,o=`${window.location.origin}/api/hacs_vision_brand/${e}`;this._getDomainColor(e);const i=e.charAt(0).toUpperCase();return H`
+    `}async _export(){this._exporting=!0;try{const e=await ce.exportBackup(),t=new Blob([JSON.stringify(e,null,2)],{type:"application/json"}),o=URL.createObjectURL(t),i=document.createElement("a");i.href=o,i.download=`hacs_backup_${(new Date).toISOString().slice(0,10)}.json`,i.click(),URL.revokeObjectURL(o);const{showToast:r}=await Promise.resolve().then(function(){return Nt});r(ge("exportSuccess"),"success")}catch(e){showToast(`${ge("exportFailed")}: ${e.message}`,"error")}this._exporting=!1}async _import(e){const t=e.target?.files?.[0];if(!t)return;if(await Ht.show(this,{message:ge("importDesc"),confirmText:ge("importBackup"),danger:!0})){this._importing=!0;try{const e=await t.text(),o=JSON.parse(e),i=await ce.importBackup(o),{showToast:r}=await Promise.resolve().then(function(){return Nt});i.success?(r(ge("importSuccess"),"success"),this._load()):r(`${ge("importFailed")}: ${i.error}`,"error")}catch(e){showToast(`${ge("importFailed")}: ${e.message}`,"error")}this._importing=!1,e.target.value=""}}async _checkUpdates(){try{const e=await ce.checkUpdatesWithNotify(),{showToast:t}=await Promise.resolve().then(function(){return Nt});e.success&&(e.updates_found>0?t(ge("updatesChecked",{n:e.updates_found}),"success"):t(ge("noUpdatesFound"),"info"),e.notified&&t(ge("notifySent"),"success"))}catch(e){showToast(`Update check failed: ${e.message}`,"error")}}async _checkAndRestart(){if(await Ht.show(this,{message:ge("restartConfirm"),confirmText:ge("restartHA"),danger:!0}))try{await ce.restartHA();const{showToast:e}=await Promise.resolve().then(function(){return Nt});e(ge("haRestarting"),"info")}catch(e){showToast(`${ge("restartFailed")}: ${e.message}`,"error")}}}customElements.define("config-view",Kt);class Zt extends ae{static properties={hass:{type:Object},configEntries:{type:Array},loading:{type:Boolean},searchText:{type:String},_statusFilter:{type:String,state:!0},_showAddDialog:{type:Boolean,state:!0},_handlerSearch:{type:String,state:!0},_handlers:{type:Array,state:!0},_handlersLoading:{type:Boolean,state:!0},_removing:{type:Object,state:!0},_reloading:{type:Object,state:!0},_detailDomain:{type:String,state:!0},_detailEntries:{type:Array,state:!0},_detailDeviceCounts:{type:Object,state:!0},_showDetail:{type:Boolean,state:!0},_deviceViewEntryId:{type:String,state:!0},_domainNames:{type:Object,state:!0},_viewMode:{type:String,state:!0}};constructor(){super(),this.configEntries=[],this.loading=!0,this.searchText="",this._statusFilter="all",this._showAddDialog=!1,this._handlerSearch="",this._handlers=[],this._handlersLoading=!1,this._removing={},this._reloading={},this._detailDomain="",this._detailEntries=[],this._showDetail=!1,this._domainNames={},this._viewMode=localStorage.getItem("hacs_int_view_mode")||"card",this._modalDrag={offsetX:0,offsetY:0,startX:0,startY:0,dragging:!1,cleanup:null}}_modalPointerDown(e){const t=e.target.closest(".modal-header");if(!t||e.target.closest("button, input, select, textarea"))return;if(void 0!==e.button&&0!==e.button)return;const o=this._modalDrag,i=e.currentTarget;o.dragging=!0,o.startX=e.clientX-o.offsetX,o.startY=e.clientY-o.offsetY,i.style.transition="none",i.style.cursor="grabbing",t.style.userSelect="none",i.setPointerCapture(e.pointerId);const r=e=>{o.dragging&&(o.offsetX=e.clientX-o.startX,o.offsetY=e.clientY-o.startY,i.style.transform=`translate(${o.offsetX}px, ${o.offsetY}px)`)},s=e=>{o.dragging=!1,i.style.cursor="",t.style.userSelect="",i.removeEventListener("pointermove",r),i.removeEventListener("pointerup",s),i.removeEventListener("pointercancel",s);try{i.releasePointerCapture(e.pointerId)}catch(e){}};i.addEventListener("pointermove",r),i.addEventListener("pointerup",s),i.addEventListener("pointercancel",s)}connectedCallback(){super.connectedCallback(),this._load()}_setViewMode(e){this._viewMode=e;try{localStorage.setItem("hacs_int_view_mode",e)}catch(e){}}connectedCallback(){super.connectedCallback(),this._load()}async _load(){this.loading=!0;try{const e=await ce.getConfigEntries();this.configEntries=e.entries||[];const t={};for(const e of this.configEntries)t[e.domain]||(t[e.domain]=e.translated_name||e.domain);this._domainNames=t}catch(e){console.error("Failed to load config entries:",e),Mt(ge("loadFailed"),"error")}this.loading=!1}async _loadHandlers(){if(!(this._handlers.length>0)){this._handlersLoading=!0;try{const e=await this.hass.callApi("GET","config/config_entries/flow_handlers");this._handlers=Array.isArray(e)?e.map(e=>"string"==typeof e?{domain:e,name:e}:e):[],this._handlers.sort((e,t)=>(e.name||e.domain).localeCompare(t.name||t.domain))}catch(e){console.error("Failed to load flow handlers:",e),this._handlers=[]}this._handlersLoading=!1}}async _removeEntry(e,t){t.stopPropagation();const{ConfirmDialog:o}=await Promise.resolve().then(function(){return Pt});if(!await o.show(this,{title:e.domain,message:ge("confirmDelete",{domain:e.domain}),confirmText:ge("delete"),danger:!0}))return;this._removing={...this._removing,[e.entry_id]:!0};try{const t=ce._getHeaders(),o=await fetch(`/api/config/config_entries/entry/${e.entry_id}`,{method:"DELETE",headers:t,credentials:"include"});if(!o.ok)throw new Error(`HTTP ${o.status}`);Mt(`${e.domain} ${ge("deleted")}`,"success"),this._load()}catch(t){Mt(`${ge("deleteFailed")}: ${t.message}`,"error")}const i={...this._removing};delete i[e.entry_id],this._removing=i}async _reloadEntry(e,t){t.stopPropagation(),this._reloading={...this._reloading,[e.entry_id]:!0};try{const t=ce._getHeaders(),o=await fetch(`/api/config/config_entries/entry/${e.entry_id}/reload`,{method:"POST",headers:{...t,"Content-Type":"application/json"},credentials:"include",body:"{}"});if(!o.ok)throw new Error(`HTTP ${o.status}`);Mt(`${e.domain} ${ge("reloaded")}`,"success"),setTimeout(()=>this._load(),1500)}catch(t){Mt(`${ge("reloadFailed")}: ${t.message}`,"error")}const o={...this._reloading};delete o[e.entry_id],this._reloading=o}async _toggleDisabled(e,t){t.stopPropagation();const o=e.disabled_by?null:"user",i=o?ge("disableEntry")||"禁用":ge("enableEntry")||"启用";try{const t=ce._getHeaders(),r=await fetch("/api/config/config_entries/entry",{method:"POST",headers:{...t,"Content-Type":"application/json"},credentials:"include",body:JSON.stringify({entry_id:e.entry_id,disabled_by:o})});if(!r.ok)throw new Error(`HTTP ${r.status}`);Mt(`${e.domain} ${i}${ge("successSuffix")||"成功"}`,"success"),setTimeout(()=>this._load(),1500)}catch(e){Mt(`${i}${ge("failedSuffix")||"失败"}: ${e.message}`,"error")}}_configureEntry(e,t){t.stopPropagation(),this._closeDetail(),this.dispatchEvent(new CustomEvent("configure-integration",{bubbles:!0,composed:!0,detail:{domain:e.domain,entry_id:e.entry_id}}))}_openAddDialog(){this._showAddDialog=!0,this._handlerSearch="",this._loadHandlers()}_closeAddDialog(){this._showAddDialog=!1,this._handlerSearch=""}_addIntegration(e){this._closeAddDialog(),this.dispatchEvent(new CustomEvent("add-integration",{bubbles:!0,composed:!0,detail:{domain:e}}))}_openDetail(e,t){this._detailDomain=e,this._detailEntries=t,this._showDetail=!0,this._detailDeviceCounts=null,ce.getDeviceCounts(e).then(e=>{this._detailDeviceCounts=e}).catch(t=>{console.warn("Failed to get device counts for",e,t)})}_closeDetail(){this._showDetail=!1,this._detailDomain="",this._detailEntries=[],this._deviceViewEntryId="";const e=this.shadowRoot?.querySelector(".modal");e&&(e.style.transform="")}_openDeviceView(e){this._showDetail=!0,this._detailDomain=e.domain,this._detailEntries=[e],this._deviceViewEntryId=e.entry_id}_translateDomain(e){return this._domainNames?.[e]||e}_renderAvatar(e){const t=`https://brands.home-assistant.io/${e}/icon.png`,o=`${window.location.origin}/api/hacs_vision_brand/${e}`;this._getDomainColor(e);const i=e.charAt(0).toUpperCase();return U`
       <div class="avatar">
         <img class="avatar-img" src="${t}" alt=""
           @error=${e=>{if(e.target.dataset.fallbackTried){e.target.style.display="none",e.target.parentElement.style.background="${color}";const t=e.target.parentElement.querySelector(".avatar-letter");t&&(t.style.display="flex")}else e.target.dataset.fallbackTried="cdn",e.target.src=o}}>
         <span class="avatar-letter" style="display:none">${i}</span>
       </div>
-    `}_getDomainColor(e){const t=["#1565c0","#7b1fa2","#2e7d32","#e65100","#00838f","#6a1b9a","#c62828","#283593"];let o=0;for(let t=0;t<e.length;t++)o=(o<<5)-o+e.charCodeAt(t);return t[Math.abs(o)%t.length]}_getState(e){const t=(e.state||"loaded").toLowerCase();return e.disabled_by?{label:ge("statusDisabled"),cls:"state-disabled",dot:"#9e9e9e"}:t.includes("fail")||t.includes("setup_retry")||t.includes("retry")?{label:ge("badgeLoadFailed"),cls:"state-failed",dot:"#f44336"}:t.includes("not_loaded")?{label:ge("statusNotLoaded"),cls:"state-not-loaded",dot:"#ff9800"}:{label:ge("statusInstalled"),cls:"state-loaded",dot:"#4caf50"}}_groupState(e){const t=e.some(e=>!e.disabled_by&&((e.state||"").toLowerCase().includes("fail")||(e.state||"").toLowerCase().includes("setup_retry")||(e.state||"").toLowerCase().includes("retry"))),o=e.some(e=>!e.disabled_by&&(e.state||"").toLowerCase().includes("not_loaded")),i=e.some(e=>e.disabled_by);return t?"failed":o?"not-loaded":i?"disabled":"loaded"}_groupLabel(e){return{loaded:ge("statusInstalled"),failed:ge("badgeLoadFailed"),disabled:ge("statusDisabled"),"not-loaded":ge("statusNotLoaded")}[e]||e}_groupColor(e){return{loaded:"#4caf50",failed:"#f44336",disabled:"#9e9e9e","not-loaded":"#ff9800"}[e]||"#999"}get _filteredDomainGroups(){const e=this.searchText.toLowerCase().trim(),t={};for(const o of this.configEntries){if(e){const t=this._translateDomain(o.domain).toLowerCase(),i=this._groupLabel(this._groupState([o])).toLowerCase();if(!o.domain.toLowerCase().includes(e)&&!t.includes(e)&&!i.includes(e))continue}t[o.domain]||(t[o.domain]=[]),t[o.domain].push(o)}let o=Object.entries(t).map(([e,t])=>({domain:e,entries:t,_state:this._groupState(t)}));"all"!==this._statusFilter&&(o=o.filter(e=>e._state===this._statusFilter));const i={failed:0,"not-loaded":1,disabled:2,loaded:3};return o.sort((e,t)=>{const o=i[e._state]??3,r=i[t._state]??3;return o!==r?o-r:e.domain.localeCompare(t.domain)}),o}get _chipCounts(){const e={all:0,loaded:0,failed:0,disabled:0,"not-loaded":0},t={};for(const o of this.configEntries)t[o.domain]||(t[o.domain]=!0,e.all++);const o={};for(const e of this.configEntries)o[e.domain]||(o[e.domain]=[]),o[e.domain].push(e);for(const[t,i]of Object.entries(o)){const t=this._groupState(i);void 0!==e[t]&&e[t]++}return e}get _filteredHandlers(){const e=this._handlerSearch.toLowerCase().trim();return e?this._handlers.filter(t=>{const o=(this._domainNames?.[t.domain]||"").toLowerCase();return(t.name||"").toLowerCase().includes(e)||(t.domain||"").toLowerCase().includes(e)||o.includes(e)}):this._handlers}render(){const e=this._filteredDomainGroups,t=this._chipCounts;return H`
+    `}_getDomainColor(e){const t=["#1565c0","#7b1fa2","#2e7d32","#e65100","#00838f","#6a1b9a","#c62828","#283593"];let o=0;for(let t=0;t<e.length;t++)o=(o<<5)-o+e.charCodeAt(t);return t[Math.abs(o)%t.length]}_getState(e){const t=(e.state||"loaded").toLowerCase();return e.disabled_by?{label:ge("statusDisabled"),cls:"state-disabled",dot:"#9e9e9e"}:t.includes("fail")||t.includes("setup_retry")||t.includes("retry")?{label:ge("badgeLoadFailed"),cls:"state-failed",dot:"#f44336"}:t.includes("not_loaded")?{label:ge("statusNotLoaded"),cls:"state-not-loaded",dot:"#ff9800"}:{label:ge("statusInstalled"),cls:"state-loaded",dot:"#4caf50"}}_groupState(e){const t=e.some(e=>!e.disabled_by&&((e.state||"").toLowerCase().includes("fail")||(e.state||"").toLowerCase().includes("setup_retry")||(e.state||"").toLowerCase().includes("retry"))),o=e.some(e=>!e.disabled_by&&(e.state||"").toLowerCase().includes("not_loaded")),i=e.some(e=>e.disabled_by);return t?"failed":o?"not-loaded":i?"disabled":"loaded"}_groupLabel(e){return{loaded:ge("statusInstalled"),failed:ge("badgeLoadFailed"),disabled:ge("statusDisabled"),"not-loaded":ge("statusNotLoaded")}[e]||e}_groupColor(e){return{loaded:"#4caf50",failed:"#f44336",disabled:"#9e9e9e","not-loaded":"#ff9800"}[e]||"#999"}get _filteredDomainGroups(){const e=this.searchText.toLowerCase().trim(),t={};for(const o of this.configEntries){if(e){const t=this._translateDomain(o.domain).toLowerCase(),i=this._groupLabel(this._groupState([o])).toLowerCase();if(!o.domain.toLowerCase().includes(e)&&!t.includes(e)&&!i.includes(e))continue}t[o.domain]||(t[o.domain]=[]),t[o.domain].push(o)}let o=Object.entries(t).map(([e,t])=>({domain:e,entries:t,_state:this._groupState(t)}));"all"!==this._statusFilter&&(o=o.filter(e=>e._state===this._statusFilter));const i={failed:0,"not-loaded":1,disabled:2,loaded:3};return o.sort((e,t)=>{const o=i[e._state]??3,r=i[t._state]??3;return o!==r?o-r:e.domain.localeCompare(t.domain)}),o}get _chipCounts(){const e={all:0,loaded:0,failed:0,disabled:0,"not-loaded":0},t={};for(const o of this.configEntries)t[o.domain]||(t[o.domain]=!0,e.all++);const o={};for(const e of this.configEntries)o[e.domain]||(o[e.domain]=[]),o[e.domain].push(e);for(const[t,i]of Object.entries(o)){const t=this._groupState(i);void 0!==e[t]&&e[t]++}return e}get _filteredHandlers(){const e=this._handlerSearch.toLowerCase().trim();return e?this._handlers.filter(t=>{const o=(this._domainNames?.[t.domain]||"").toLowerCase();return(t.name||"").toLowerCase().includes(e)||(t.domain||"").toLowerCase().includes(e)||o.includes(e)}):this._handlers}render(){const e=this._filteredDomainGroups,t=this._chipCounts;return U`
       <div class="integrations">
         <div class="controls">
           <div class="search" style="flex:1;min-width:120px;">
@@ -3265,7 +3265,7 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
               .value=${this.searchText}
               @input=${e=>{this.searchText=e.target.value}}
               placeholder="${ge("searchIntegration")}">
-            ${this.searchText?H`<button class="search-clear" @click=${()=>{this.searchText=""}}>✕</button>`:""}
+            ${this.searchText?U`<button class="search-clear" @click=${()=>{this.searchText=""}}>✕</button>`:""}
           </div>
           <div class="controls-right">
             <div class="view-toggle">
@@ -3284,7 +3284,7 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
 
         <!-- Filter chips -->
         <div class="filter-bar">
-          ${["all","loaded","failed","disabled","not-loaded"].map(e=>H`
+          ${["all","loaded","failed","disabled","not-loaded"].map(e=>U`
             <button class="chip ${this._statusFilter===e?"chip-active":""} chip-${e}"
               @click=${()=>{this._statusFilter=e}}>
               <span class="chip-label">${ge("all"===e?"filterAll":"loaded"===e?"filterLoaded":"failed"===e?"filterFailed":"disabled"===e?"filterDisabled":"filterNotLoaded")}</span>
@@ -3293,14 +3293,14 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
           `)}
         </div>
 
-        ${this.loading?H`
+        ${this.loading?U`
           <div class="loading"><div class="spinner-sm"></div><div class="loading-text">${ge("loading")}</div></div>
-        `:0===e.length?H`
+        `:0===e.length?U`
           <div class="empty-state">
             <div class="empty-icon">⚙</div>
             <div class="empty-title">${ge("noData")}</div>
           </div>
-        `:"list"===this._viewMode?H`
+        `:"list"===this._viewMode?U`
           <div class="integrations-list">
             <div class="list-header">
               <span class="list-header-name">${ge("colName")}</span>
@@ -3309,7 +3309,7 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
             </div>
             ${e.map(e=>this._renderListRow(e))}
           </div>
-        `:H`
+        `:U`
           <div class="grid">
             ${e.map(e=>this._renderCard(e))}
           </div>
@@ -3318,7 +3318,7 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
 
       ${this._renderAddDialog()}
       ${this._renderDetailDialog()}
-    `}_renderListRow(e){const{domain:t,entries:o}=e,i=e._state,r=o.length>1,s=o[0],a=o.some(e=>this._removing[e.entry_id]||this._reloading[e.entry_id]);return H`
+    `}_renderListRow(e){const{domain:t,entries:o}=e,i=e._state,r=o.length>1,s=o[0],a=o.some(e=>this._removing[e.entry_id]||this._reloading[e.entry_id]);return U`
       <div class="list-row list-row-${i}" @click=${()=>r?this._openDetail(t,o):this._openDeviceView(s)}>
         <span class="list-row-name">
           <span class="list-row-icon">${this._renderAvatar(t)}</span>
@@ -3327,32 +3327,32 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
         </span>
         <span class="list-row-status">
           <span class="list-status-badge state-${i}">${this._groupLabel(i)}</span>
-          ${r?H`<span class="list-entry-count">${o.length} ${ge("entryCount")}</span>`:""}
+          ${r?U`<span class="list-entry-count">${o.length} ${ge("entryCount")}</span>`:""}
         </span>
         <span class="list-row-actions">
           <button class="list-action-btn" @click=${e=>{e.stopPropagation(),r?this._openDetail(t,o):this._openDeviceView(s)}} title="${ge(r?"viewDetail":"configure")}">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
           </button>
           <button class="list-action-btn reload" @click=${e=>{e.stopPropagation(),this._reloadEntry(s||o[0],e)}} title="${ge("reloadEntry")}" ?disabled=${a}>
-            ${this._reloading[s?.entry_id||""]?"⋯":H`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M1 4v6h6M23 20v-6h-6"/><path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"/></svg>`}
+            ${this._reloading[s?.entry_id||""]?"⋯":U`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M1 4v6h6M23 20v-6h-6"/><path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"/></svg>`}
           </button>
         </span>
       </div>
-    `}_renderCard(e){const{domain:t,entries:o}=e,i=this._getDomainColor(t),r=e._state,s=o.some(e=>this._removing[e.entry_id]||this._reloading[e.entry_id]),a=o.length>1,n=o[0];return H`
+    `}_renderCard(e){const{domain:t,entries:o}=e,i=this._getDomainColor(t),r=e._state,s=o.some(e=>this._removing[e.entry_id]||this._reloading[e.entry_id]),a=o.length>1,n=o[0];return U`
       <div class="card card-${r}" @click=${()=>a?this._openDetail(t,o):this._openDeviceView(n)} role="button" tabindex="0"
         @keydown=${e=>{"Enter"!==e.key&&" "!==e.key||(e.preventDefault(),a?this._openDetail(t,o):this._openDeviceView(n))}}>
 
           <div class="card-img">
             <span class="category-badge" style="background:${i}">${ge("catIntegration")}</span>
             ${this._renderAvatar(t)}
-            ${"loaded"!==r?H`<span class="img-status-badge state-${r}">${this._groupLabel(r)}</span>`:""}
+            ${"loaded"!==r?U`<span class="img-status-badge state-${r}">${this._groupLabel(r)}</span>`:""}
           </div>
 
         <div class="card-body">
           <div class="card-name" title="${t}">${this._translateDomain(t)}</div>
           <div class="card-meta">
             <span>${o.length} ${ge("entryCount")}</span>
-            ${n?H`<span class="dot-sep"></span><span class="status-label" style="color:${this._groupColor(r)}">${n.title||n.entry_id.substring(0,8)}</span>`:""}
+            ${n?U`<span class="dot-sep"></span><span class="status-label" style="color:${this._groupColor(r)}">${n.title||n.entry_id.substring(0,8)}</span>`:""}
           </div>
         </div>
 
@@ -3364,17 +3364,17 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
           </button>
           <button class="footer-btn reload" @click=${()=>this._reloadEntry(n||o[0],{stopPropagation:()=>{}})}
             title="${ge("reloadEntry")}" ?disabled=${s}>
-            ${s?H`<span class="spinning-mini">⟳</span>`:H`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>`}
+            ${s?U`<span class="spinning-mini">⟳</span>`:U`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>`}
             <span class="btn-label">${ge("reloadEntry")||"重载"}</span>
           </button>
           <button class="footer-btn remove" @click=${e=>this._removeEntry(n||o[0],e)}
             title="${ge("removeEntry")}" ?disabled=${s}>
-            ${s?H`<span class="spinning-mini">⋯</span>`:H`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>`}
+            ${s?U`<span class="spinning-mini">⋯</span>`:U`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>`}
             <span class="btn-label">${ge("delete")}</span>
           </button>
         </div>
       </div>
-    `}_renderDetailDialog(){if(!this._showDetail)return"";if(this._deviceViewEntryId){const e=this._detailEntries.find(e=>e.entry_id===this._deviceViewEntryId);return H`
+    `}_renderDetailDialog(){if(!this._showDetail)return"";if(this._deviceViewEntryId){const e=this._detailEntries.find(e=>e.entry_id===this._deviceViewEntryId);return U`
         <div class="detail-overlay" role="dialog" aria-modal="true" @click=${e=>{e.target===e.currentTarget&&this._closeDetail()}} @keydown=${e=>{"Escape"===e.key&&this._closeDetail()}}>
           <div class="modal" @pointerdown=${this._modalPointerDown}>
             <hacs-vision-device-view
@@ -3387,7 +3387,7 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
             </hacs-vision-device-view>
           </div>
         </div>
-      `}if(!this._detailEntries.length)return"";const e=this._detailDomain;this._getDomainColor(e);const t=this._detailEntries,o=t.length>0&&(t.some(e=>e.subentries||e.title&&e.title.startsWith("subentry"))||t.length>=3),i=o;return H`
+      `}if(!this._detailEntries.length)return"";const e=this._detailDomain;this._getDomainColor(e);const t=this._detailEntries,o=t.length>0&&(t.some(e=>e.subentries||e.title&&e.title.startsWith("subentry"))||t.length>=3),i=o;return U`
       <div class="detail-overlay" role="dialog" aria-modal="true" aria-label="${this._translateDomain(e)}" @click=${e=>{e.target===e.currentTarget&&this._closeDetail()}} @keydown=${e=>{"Escape"===e.key&&this._closeDetail()}}>
         <div class="modal ${i?"two-col":""}" @pointerdown=${this._modalPointerDown}>
           <div class="modal-header">
@@ -3396,7 +3396,7 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
                 <div class="modal-title">${this._translateDomain(e)}</div>
                 <div class="modal-subtitle">
                   ${t.length} ${ge("entryCount")}
-                  ${this._detailDeviceCounts?H` · ${this._detailDeviceCounts.devices} ${ge("deviceCount")} · ${this._detailDeviceCounts.entities} 个实体`:""}
+                  ${this._detailDeviceCounts?U` · ${this._detailDeviceCounts.devices} ${ge("deviceCount")} · ${this._detailDeviceCounts.entities} 个实体`:""}
                 </div>
               </div>
             </div>
@@ -3405,7 +3405,7 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
             </button>
           </div>
           <div class="modal-body ${i?"grid-2col":""}">
-            ${i?H`
+            ${i?U`
               <div class="col-left">
                 <div class="col-title">${ge("subentryConfig")||"子项配置"}</div>
                 ${t.map(e=>this._renderEntryRow(e))}
@@ -3427,7 +3427,7 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
           </div>
         </div>
       </div>
-    `}_renderEntryRow(e){const t=this._getState(e),o=this._removing[e.entry_id]||this._reloading[e.entry_id],i=e.title||e.entry_id.substring(0,8),r=!!e.disabled_by;return H`
+    `}_renderEntryRow(e){const t=this._getState(e),o=this._removing[e.entry_id]||this._reloading[e.entry_id],i=e.title||e.entry_id.substring(0,8),r=!!e.disabled_by;return U`
       <div class="entry-row ${r?"disabled":""}">
         <span class="entry-dot" style="background:${t.dot}"></span>
         <div class="entry-info">
@@ -3440,9 +3440,9 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
             @click=${t=>this._toggleDisabled(e,t)}
             title="${r?ge("enableEntry")||"启用":ge("disableEntry")||"禁用"}"
             ?disabled=${o}>
-            ${r?H`
+            ${r?U`
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
-            `:H`
+            `:U`
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
             `}
           </button>
@@ -3450,7 +3450,7 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
           </button>
           <button class="entry-btn reload" @click=${t=>this._reloadEntry(e,t)} title="${ge("reloadEntry")}" ?disabled=${o}>
-            ${this._reloading[e.entry_id]?H`<span class="spinning">⋯</span>`:H`
+            ${this._reloading[e.entry_id]?U`<span class="spinning">⋯</span>`:U`
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
             `}
           </button>
@@ -3458,13 +3458,13 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
           </button>
           <button class="entry-btn remove" @click=${t=>this._removeEntry(e,t)} title="${ge("removeEntry")}" ?disabled=${o}>
-            ${this._removing[e.entry_id]?H`<span class="spinning">⋯</span>`:H`
+            ${this._removing[e.entry_id]?U`<span class="spinning">⋯</span>`:U`
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
             `}
           </button>
         </div>
       </div>
-    `}_renderAddDialog(){if(!this._showAddDialog)return"";const e=this._filteredHandlers;return H`
+    `}_renderAddDialog(){if(!this._showAddDialog)return"";const e=this._filteredHandlers;return U`
       <div class="detail-overlay" role="dialog" aria-modal="true" aria-label="${ge("addHAIntegration")}" @click=${e=>{e.target===e.currentTarget&&this._closeAddDialog()}}>
         <div class="modal add-modal" @pointerdown=${this._modalPointerDown}>
           <div class="modal-header">
@@ -3482,15 +3482,15 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
           </div>
           <div class="add-panel-count">${e.length} ${ge("integrationCount")}</div>
           <div class="modal-body">
-            ${this._handlersLoading?H`
+            ${this._handlersLoading?U`
               <div class="dv-loading"><div class="spinner-sm"></div><div>${ge("loading")}</div></div>
-            `:0===e.length?H`
+            `:0===e.length?U`
               <div class="dv-empty">${ge("noIntegrationMatch")}</div>
-            `:e.map(e=>H`
+            `:e.map(e=>U`
               <div class="add-item" @click=${()=>this._addIntegration(e.domain)}>
                 ${this._renderAvatar(e.domain)}
                 <span class="add-item-name">${this._translateDomain(e.domain)}</span>
-                ${e.name&&e.name!==e.domain?H`<span class="add-item-domain">${e.domain}</span>`:""}
+                ${e.name&&e.name!==e.domain?U`<span class="add-item-domain">${e.domain}</span>`:""}
               </div>
             `)}
           </div>
@@ -3876,7 +3876,7 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
       .detail-overlay { padding: 12px; }
       .modal { max-width: 100%; max-height: 92vh; }
     }
-  `]}customElements.define("integrations-list",Zt);class Qt extends ae{static properties={hass:{type:Object},entryId:{type:String},domain:{type:String},entryTitle:{type:String},_groups:{type:Array,state:!0},_loading:{type:Boolean,state:!0},_collapsed:{type:Object,state:!0},_error:{type:String,state:!0},_toggling:{type:Object,state:!0},_deviceCollapsed:{type:Object,state:!0}};constructor(){super(),this.entryId="",this.domain="",this.entryTitle="",this._groups=[],this._loading=!1,this._collapsed={},this._allCollapsed=!1,this._error="",this._toggling={},this._deviceCollapsed={}}get _totalDeviceCount(){return this._groups.reduce((e,t)=>e+t.devices.length,0)}connectedCallback(){super.connectedCallback(),this.entryId&&this._load()}updated(e){e.has("entryId")&&this.entryId&&this._load()}async _load(){this._loading=!0,this._error="";try{const e=await ce.get(`devices/${this.entryId}`);this._groups=e.groups||[];for(const e of this._groups)this._collapsed[e.area]||(this._collapsed[e.area]=!1);this.requestUpdate()}catch(e){this._error=e.message||"Failed to load devices",this._groups=[]}this._loading=!1}_toggleArea(e){this._collapsed={...this._collapsed,[e]:!this._collapsed[e]}}_toggleDevice(e){this._deviceCollapsed={...this._deviceCollapsed,[e]:!this._deviceCollapsed[e]}}_toggleAll(){this._allCollapsed=!this._allCollapsed;const e={},t={};for(const o of this._groups){e[o.area]=this._allCollapsed;for(const e of o.devices)t[e.device_id||e.entity_id||e.name]=this._allCollapsed}this._collapsed=e,this._deviceCollapsed=t}_entityIcon(e,t){if(!t||"unavailable"===t||"unknown"===t)return"⊙";if("on"===t||"open"===t||"home"===t)return"●";if("off"===t||"closed"===t||"not_home"===t)return"○";return{light:"💡",switch:"🔌",sensor:"📊",binary_sensor:"🔍",climate:"🌡️",cover:"🚪",fan:"🌀",lock:"🔒",alarm_control_panel:"🔔",camera:"📷",media_player:"📺",vacuum:"🧹",weather:"☀️",device_tracker:"📍",person:"👤",sun:"☀️",automation:"⚡",script:"📜",input_boolean:"🔘",input_number:"🔢",input_select:"📋",number:"🔢",select:"📋",button:"🔘",text:"📝"}[e]||"◆"}_stateColor(e){return e&&"unavailable"!==e&&"unknown"!==e?"on"===e||"open"===e||"home"===e?"#4caf50":"off"===e||"closed"===e||"not_home"===e?"#9e9e9e":"var(--primary-text-color, #212121)":"var(--secondary-text-color, #888)"}_formatState(e,t,o){if(!e||"unavailable"===e)return"不可用";if("unknown"===e)return"未知";if("on"===e)return"开";if("off"===e)return"关";if("open"===e)return"已打开";if("closed"===e)return"已关闭";if("home"===e)return"在家";if("not_home"===e)return"离家";const i={cool:"❄️ 制冷",heat:"🔥 制热",fan_only:"🌀 送风",dry:"💧 除湿",auto:"🤖 自动",off:"关"};return i[e]?i[e]:o?`${e} ${o}`:e}_stateIcon(e){return e&&"unavailable"!==e&&"unknown"!==e?"on"===e||"open"===e||"home"===e?"●":"off"===e||"closed"===e||"not_home"===e?"○":"◆":"⊙"}render(){return H`
+  `]}customElements.define("integrations-list",Zt);class Qt extends ae{static properties={hass:{type:Object},entryId:{type:String},domain:{type:String},entryTitle:{type:String},_groups:{type:Array,state:!0},_loading:{type:Boolean,state:!0},_collapsed:{type:Object,state:!0},_error:{type:String,state:!0},_toggling:{type:Object,state:!0},_deviceCollapsed:{type:Object,state:!0}};constructor(){super(),this.entryId="",this.domain="",this.entryTitle="",this._groups=[],this._loading=!1,this._collapsed={},this._allCollapsed=!1,this._error="",this._toggling={},this._deviceCollapsed={}}get _totalDeviceCount(){return this._groups.reduce((e,t)=>e+t.devices.length,0)}connectedCallback(){super.connectedCallback(),this.entryId&&this._load()}updated(e){e.has("entryId")&&this.entryId&&this._load()}async _load(){this._loading=!0,this._error="";try{const e=await ce.get(`devices/${this.entryId}`);this._groups=e.groups||[];for(const e of this._groups)this._collapsed[e.area]||(this._collapsed[e.area]=!1);this.requestUpdate()}catch(e){this._error=e.message||"Failed to load devices",this._groups=[]}this._loading=!1}_toggleArea(e){this._collapsed={...this._collapsed,[e]:!this._collapsed[e]}}_toggleDevice(e){this._deviceCollapsed={...this._deviceCollapsed,[e]:!this._deviceCollapsed[e]}}_toggleAll(){this._allCollapsed=!this._allCollapsed;const e={},t={};for(const o of this._groups){e[o.area]=this._allCollapsed;for(const e of o.devices)t[e.device_id||e.entity_id||e.name]=this._allCollapsed}this._collapsed=e,this._deviceCollapsed=t}_entityIcon(e,t){if(!t||"unavailable"===t||"unknown"===t)return"⊙";if("on"===t||"open"===t||"home"===t)return"●";if("off"===t||"closed"===t||"not_home"===t)return"○";return{light:"💡",switch:"🔌",sensor:"📊",binary_sensor:"🔍",climate:"🌡️",cover:"🚪",fan:"🌀",lock:"🔒",alarm_control_panel:"🔔",camera:"📷",media_player:"📺",vacuum:"🧹",weather:"☀️",device_tracker:"📍",person:"👤",sun:"☀️",automation:"⚡",script:"📜",input_boolean:"🔘",input_number:"🔢",input_select:"📋",number:"🔢",select:"📋",button:"🔘",text:"📝"}[e]||"◆"}_stateColor(e){return e&&"unavailable"!==e&&"unknown"!==e?"on"===e||"open"===e||"home"===e?"#4caf50":"off"===e||"closed"===e||"not_home"===e?"#9e9e9e":"var(--primary-text-color, #212121)":"var(--secondary-text-color, #888)"}_formatState(e,t,o){if(!e||"unavailable"===e)return"不可用";if("unknown"===e)return"未知";if("on"===e)return"开";if("off"===e)return"关";if("open"===e)return"已打开";if("closed"===e)return"已关闭";if("home"===e)return"在家";if("not_home"===e)return"离家";const i={cool:"❄️ 制冷",heat:"🔥 制热",fan_only:"🌀 送风",dry:"💧 除湿",auto:"🤖 自动",off:"关"};return i[e]?i[e]:o?`${e} ${o}`:e}_stateIcon(e){return e&&"unavailable"!==e&&"unknown"!==e?"on"===e||"open"===e||"home"===e?"●":"off"===e||"closed"===e||"not_home"===e?"○":"◆":"⊙"}render(){return U`
       <div class="device-view">
         <div class="dv-header">
           <div class="dv-header-left">
@@ -3893,57 +3893,57 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
           </button>
         </div>
 
-        ${this._loading?H`
+        ${this._loading?U`
           <div class="dv-loading">
             <div class="spinner-sm"></div>
             <div>${ge("loading")}</div>
           </div>
-        `:this._error?H`
+        `:this._error?U`
           <div class="dv-error">
             <div class="dv-error-icon">⚠</div>
             <div>${this._error}</div>
           </div>
-        `:0===this._groups.length?H`
+        `:0===this._groups.length?U`
           <div class="dv-empty">
             <div>${ge("noDevices")||"暂无设备"}</div>
           </div>
-        `:H`
+        `:U`
           <div class="dv-toolbar">
             <span class="dv-summary">${this._groups.reduce((e,t)=>e+t.devices.length,0)} ${ge("deviceCount")||"个设备"} · ${this._groups.length} ${ge("areaCount")||"个区域"}</span>
             <button class="dv-collapse-btn" @click=${this._toggleAll}>${this._allCollapsed?ge("expandAll")||"展开全部":ge("collapseAll")||"全部折叠"}</button>
           </div>
           <div class="dv-groups">
-            ${this._groups.map(e=>H`
+            ${this._groups.map(e=>U`
               <div class="dv-group">
                 <div class="dv-group-header" @click=${()=>this._toggleArea(e.area)}>
                   <svg class="dv-arrow ${this._collapsed[e.area]?"closed":""}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
                   <span class="dv-group-name">${e.area}</span>
                   <span class="dv-group-count">${e.devices.length} 个设备</span>
                 </div>
-                ${this._collapsed[e.area]?"":H`
+                ${this._collapsed[e.area]?"":U`
                   <div class="dv-devices">
-                    ${e.devices.map(e=>H`
+                    ${e.devices.map(e=>U`
                       <div class="dv-device">
                         <div class="dv-device-header" @click=${()=>this._toggleDevice(e.device_id||e.entity_id||e.name)}>
                           <svg class="dv-dirarrow ${this._deviceCollapsed[e.device_id||e.entity_id||e.name]?"closed":""}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><polyline points="6 9 12 15 18 9"/></svg>
                           <svg class="dv-device-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
                           <span class="dv-device-name">${e.name}</span>
-                          ${e.model?H`<span class="dv-device-model">${e.model}</span>`:""}
+                          ${e.model?U`<span class="dv-device-model">${e.model}</span>`:""}
                           <span class="dv-device-ecount">${e.entities.filter(e=>!e.disabled).length} 个实体</span>
                         </div>
-                        ${this._deviceCollapsed[e.device_id||e.entity_id||e.name]?"":H`
+                        ${this._deviceCollapsed[e.device_id||e.entity_id||e.name]?"":U`
                         <div class="dv-entities">
-                          ${e.entities.map(e=>e.disabled?"":H`
+                          ${e.entities.map(e=>e.disabled?"":U`
                             <div class="dv-entity ${this._canToggle(e)?"toggleable":""}"
                               @click=${this._canToggle(e)?t=>this._toggleEntity(e,t):()=>this._openMoreInfo(e.entity_id)}>
                               <span class="dv-entity-icon">${this._entityIcon(e.domain,e.state)}</span>
                               <span class="dv-entity-name" title="${e.entity_id}">${e.name||e.entity_id.split(".").pop()}</span>
                               <span class="dv-entity-state" style="color:${this._stateColor(e.state)}">${this._formatState(e.state,e.domain,e.unit)}</span>
-                              ${this._canToggle(e)?H`
+                              ${this._canToggle(e)?U`
                                 <span class="dv-toggle ${"on"===e.state||"open"===e.state?"on":""}">
                                   ${this._toggling[e.entity_id]?"⟳":""}
                                 </span>
-                              `:H`
+                              `:U`
                                 <span class="dv-more">›</span>
                               `}
                             </div>
@@ -4221,7 +4221,7 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
       .dialog { padding: 16px; }
       .dialog { max-width: 100%; max-height: 92vh; border-radius: 16px; padding-bottom: 24px; }
     }
-  `];render(){if(!this.open)return"";const e=this._isSubentry?(this._getFlowDomain()||"")+" - "+ge("subentryTitle"):this._isOptions?this._getFlowDomain()||ge("flowTitleOptions"):this._step?.title||this._localizeTitle()||this._step?.handler||this.domain||ge("flowTitle");return H`
+  `];render(){if(!this.open)return"";const e=this._isSubentry?(this._getFlowDomain()||"")+" - "+ge("subentryTitle"):this._isOptions?this._getFlowDomain()||ge("flowTitleOptions"):this._step?.title||this._localizeTitle()||this._step?.handler||this.domain||ge("flowTitle");return U`
       <div class="overlay" role="dialog" aria-modal="true" aria-label="${this._flowTitle||ge("flowTitle")}" @keydown=${e=>{"Escape"===e.key&&this._cancelFlow()}} @click=${e=>{e.target===e.currentTarget&&this._cancelFlow()}}>
         <div class="dialog" @pointerdown=${this._dialogPointerDown}>
           <div class="header">
@@ -4231,7 +4231,7 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
             </button>
           </div>
 
-          ${this._loading?H`
+          ${this._loading?U`
             <div class="loading">
               <div class="spinner"></div>
               <div>${ge("flowProcessing")}</div>
@@ -4242,11 +4242,11 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
 
           ${this._loading||this._finished||!this._step?"":this._renderStep()}
 
-          ${this._loading||this._finished||this._step||this._result||!this._isSubentry||this._subentryType?"":H`
+          ${this._loading||this._finished||this._step||this._result||!this._isSubentry||this._subentryType?"":U`
             <div class="subentry-list">
-              ${this._existingSubentries.length>0?H`
+              ${this._existingSubentries.length>0?U`
                 <div class="step-desc" style="margin-bottom:8px">${ge("subentryExisting")}</div>
-                ${this._existingSubentries.map(e=>H`
+                ${this._existingSubentries.map(e=>U`
                   <div class="menu-option" @click=${()=>this._handleExistingSubentrySelect(e)}>
                     <span class="menu-icon">⚙</span>
                     <div class="menu-label-group">
@@ -4260,7 +4260,7 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
               `:""}
 
               <div class="step-desc" style="margin-bottom:8px">${ge("subentryAddNew")}</div>
-              ${this._subentryTypes.map(e=>H`
+              ${this._subentryTypes.map(e=>U`
                 <div class="menu-option" @click=${()=>this._handleSubentrySelect(e)}>
                   <span class="menu-icon">+</span>
                   <span class="menu-label">${ge("subentryAddPrefix")} ${this._getSubentryTypeLabel(e)}</span>
@@ -4273,7 +4273,7 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
             </div>
           `}
 
-          ${this._loading||this._finished||this._step||this._result||this._isSubentry&&!this._subentryType?"":H`
+          ${this._loading||this._finished||this._step||this._result||this._isSubentry&&!this._subentryType?"":U`
             <div class="loading">
               <div class="spinner"></div>
               <div>${ge("flowStarting")}</div>
@@ -4281,13 +4281,13 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
           `}
         </div>
       </div>
-    `}_renderStep(){const e=this._step;return e?"menu"===e.type?this._renderMenu(e):"form"===e.type?this._renderForm(e):H`<div class="result error"><div class="result-title">${ge("flowResultFailed")}: ${e.type}</div></div>`:""}_renderMenu(e){const t=this._buildDescription(e),o=e.menu_options||[];return H`
-      ${t?H`<div class="step-desc">${t}</div>`:""}
+    `}_renderStep(){const e=this._step;return e?"menu"===e.type?this._renderMenu(e):"form"===e.type?this._renderForm(e):U`<div class="result error"><div class="result-title">${ge("flowResultFailed")}: ${e.type}</div></div>`:""}_renderMenu(e){const t=this._buildDescription(e),o=e.menu_options||[];return U`
+      ${t?U`<div class="step-desc">${t}</div>`:""}
       <div class="menu-list">
-        ${o.map((t,o)=>{const i="string"==typeof t,r=i?t:t.value||"",s=this._t(`component.${this._getFlowDomain()}.config.step.${e.step_id}.menu_options.${r}`)||this._isOptions&&this._t(`component.${this._getFlowDomain()}.options.step.${e.step_id}.menu_options.${r}`)||(i?t:t.label||t.title||t.value||""),a=i?"":t.description||"";return H`
+        ${o.map((t,o)=>{const i="string"==typeof t,r=i?t:t.value||"",s=this._t(`component.${this._getFlowDomain()}.config.step.${e.step_id}.menu_options.${r}`)||this._isOptions&&this._t(`component.${this._getFlowDomain()}.options.step.${e.step_id}.menu_options.${r}`)||(i?t:t.label||t.title||t.value||""),a=i?"":t.description||"";return U`
             <div class="menu-option" @click=${()=>this._handleMenuSelect(r)}>
               <span class="menu-label">${s}</span>
-              ${a?H`<span class="menu-desc">${a}</span>`:""}
+              ${a?U`<span class="menu-desc">${a}</span>`:""}
               <span class="menu-arrow">→</span>
             </div>
           `})}
@@ -4295,9 +4295,9 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
       <div class="actions">
         <button class="btn" @click=${this._cancelFlow}>${ge("flowCancel")}</button>
       </div>
-    `}_renderForm(e){const t=this._buildDescription(e),o=e.data_schema||[],i=this._errors?.base||"";return H`
-      ${t?H`<div class="step-desc">${t}</div>`:""}
-      ${i?H`<div class="form-error" style="margin-bottom:12px">${i}</div>`:""}
+    `}_renderForm(e){const t=this._buildDescription(e),o=e.data_schema||[],i=this._errors?.base||"";return U`
+      ${t?U`<div class="step-desc">${t}</div>`:""}
+      ${i?U`<div class="form-error" style="margin-bottom:12px">${i}</div>`:""}
       <form @submit=${this._handleSubmit}>
         ${o.map(e=>this._renderField(e))}
         <div class="actions">
@@ -4307,14 +4307,14 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
           </button>
         </div>
       </form>
-    `}_buildDescription(e){let t=e.description||e.description_placeholders?.description||"";if(t&&t.includes(".")){const e=this._t(t)||null;e&&(t=e)}if(!t){const e=this._translateField("description");e&&(t=e)}const o=e.description_placeholders||{};for(const[e,i]of Object.entries(o)){const o=null!=i&&"object"!=typeof i?String(i):"";t=t.replace(new RegExp(`\\{${e}\\}`,"g"),o)}if(!t&&Object.keys(o).length>0){const e=Object.entries(o).map(([,e])=>null!=e&&"object"!=typeof e?String(e):"").filter(Boolean);t=e.join("\n")}return t}_getFlowDomain(){if(this.domain)return this.domain;if(this.entryId&&this.configEntries)for(const e of Object.values(this.configEntries))for(const t of e)if(t.entry_id===this.entryId)return t.domain||"";const e=this._step?.handler;return e&&!/^[0-9A-Z]{20,}$/.test(e)?e:""}_getSubentryTypeLabel(e){const t={conversation:"subentryConversation",tts:"subentryTts",stt:"subentryStt",translation:"subentryTranslation",ai_task_data:"subentryAiTaskData",device:"subentryDevice",wecom:"subentryWecom",wechat:"subentryWechat",qq:"subentryQq",feishu:"subentryFeishu",dingtalk:"subentryDingtalk",xiaoyi:"subentryXiaoyi",custom:"subentryCustom"}[e];return t?ge(t):e}_localizeTitle(){const e=this._getFlowDomain(),t=this._step?.step_id;if(e&&t){const e=this._translateField("title");if(e)return e}if(e){const t=`component.${e}.title`,o=this._t(t);if(o)return o}return""}_translateField(e){const t=this._getFlowDomain(),o=this._step?.step_id;if(!t||!o)return null;if(this._isSubentry&&this._subentryType){const i=`component.${t}.config_subentries.${this._subentryType}.step.${o}.${e}`,r=this._t(i);if(r)return r}const i=`component.${t}.config.step.${o}.${e}`;return this._t(i)}_getFieldLabel(e){const t=this._translateField(`data.${e.name}`);return t||(e.label||this._friendlyName(e.name))}_friendlyName(e){return e.replace(/_/g," ").replace(/(^|\s)\w/g,e=>e.toUpperCase()).replace(/Id\b/gi,"ID").replace(/Ip\b/gi,"IP").replace(/Url\b/gi,"URL").replace(/Api\b/gi,"API")}_getFieldDescription(e){const t=this._translateField(`data.${e.name}.description`);if(t)return t;const o=e.description;return"string"==typeof o?o:""}_getFieldPlaceholder(e){const t=this._translateField(`data.${e.name}.placeholder`);return t||(e.placeholder||"")}_getOptionLabel(e,t){const o=this._translateField(`data.${e.name}.options.${t}`);return o||null}_getFlowErrorMessage(e){const t=e?.message||"";return t.includes("404")?this._isSubentry?this._getSubentryTypeLabel(this._subentryType)+" "+ge("flowHandlerNotFound"):this._isOptions?ge("flowOptionsNotSupported"):ge("flowHandlerNotFound"):t.includes("401")||t.includes("403")?ge("flowAuthError"):t||(this._isOptions?ge("flowStartFailedOptions"):ge("flowStartFailed"))}_renderField(e){const t=e.name,o=this._getFieldLabel(e),i=e.type||"string",r=!1!==e.required,s=e.description?.suggested_value,a=void 0!==e.default&&null!==e.default||null!=s,n=void 0!==e.default&&null!==e.default?e.default:void 0!==s?s:"",l=this._getFieldPlaceholder(e),c=this._getFieldDescription(e),d=this._errors?.[t]||"",p=!0===e.multiline,h=!0===e.password||"password"===e.type||/token|secret|password|key|api_key|apiKey/i.test(t)&&"string"===i,g=e.selector||{},u=Object.keys(g)[0];if("select"===i||"multi_select"===i||e.options||e.enum||"select"===u){let s=e.options||e.enum||[];!s.length&&g.select?.options&&(s=g.select.options);const l="multi_select"===i||!0===g.select?.multiple;s.length?console.debug(`HACS Vision: select field "${t}" options:`,JSON.stringify(s).slice(0,200)):console.warn(`HACS Vision: select field "${t}" has empty options`,e);let p=[];return Array.isArray(s)?p=s:s&&"object"==typeof s&&(p=Object.entries(s).map(([e,t])=>({value:e,label:t}))),p=p.filter(Boolean).map(e=>{if("string"==typeof e)return{value:e,label:e};if(Array.isArray(e))return{value:e[0],label:e[1]||e[0]};if(e&&"object"==typeof e){const t=e.value??e.val??e.id??Object.values(e)[0]??"",o=e.label??e.name??e.description??Object.values(e)[1]??t;return{value:String(t),label:String(o)}}return{value:String(e),label:String(e)}}),H`
+    `}_buildDescription(e){let t=e.description||e.description_placeholders?.description||"";if(t&&t.includes(".")){const e=this._t(t)||null;e&&(t=e)}if(!t){const e=this._translateField("description");e&&(t=e)}const o=e.description_placeholders||{};for(const[e,i]of Object.entries(o)){const o=null!=i&&"object"!=typeof i?String(i):"";t=t.replace(new RegExp(`\\{${e}\\}`,"g"),o)}if(!t&&Object.keys(o).length>0){const e=Object.entries(o).map(([,e])=>null!=e&&"object"!=typeof e?String(e):"").filter(Boolean);t=e.join("\n")}return t}_getFlowDomain(){if(this.domain)return this.domain;if(this.entryId&&this.configEntries)for(const e of Object.values(this.configEntries))for(const t of e)if(t.entry_id===this.entryId)return t.domain||"";const e=this._step?.handler;return e&&!/^[0-9A-Z]{20,}$/.test(e)?e:""}_getSubentryTypeLabel(e){const t={conversation:"subentryConversation",tts:"subentryTts",stt:"subentryStt",translation:"subentryTranslation",ai_task_data:"subentryAiTaskData",device:"subentryDevice",wecom:"subentryWecom",wechat:"subentryWechat",qq:"subentryQq",feishu:"subentryFeishu",dingtalk:"subentryDingtalk",xiaoyi:"subentryXiaoyi",custom:"subentryCustom"}[e];return t?ge(t):e}_localizeTitle(){const e=this._getFlowDomain(),t=this._step?.step_id;if(e&&t){const e=this._translateField("title");if(e)return e}if(e){const t=`component.${e}.title`,o=this._t(t);if(o)return o}return""}_translateField(e){const t=this._getFlowDomain(),o=this._step?.step_id;if(!t||!o)return null;if(this._isSubentry&&this._subentryType){const i=`component.${t}.config_subentries.${this._subentryType}.step.${o}.${e}`,r=this._t(i);if(r)return r}const i=`component.${t}.config.step.${o}.${e}`;return this._t(i)}_getFieldLabel(e){const t=this._translateField(`data.${e.name}`);return t||(e.label||this._friendlyName(e.name))}_friendlyName(e){return e.replace(/_/g," ").replace(/(^|\s)\w/g,e=>e.toUpperCase()).replace(/Id\b/gi,"ID").replace(/Ip\b/gi,"IP").replace(/Url\b/gi,"URL").replace(/Api\b/gi,"API")}_getFieldDescription(e){const t=this._translateField(`data.${e.name}.description`);if(t)return t;const o=e.description;return"string"==typeof o?o:""}_getFieldPlaceholder(e){const t=this._translateField(`data.${e.name}.placeholder`);return t||(e.placeholder||"")}_getOptionLabel(e,t){const o=this._translateField(`data.${e.name}.options.${t}`);return o||null}_getFlowErrorMessage(e){const t=e?.message||"";return t.includes("404")?this._isSubentry?this._getSubentryTypeLabel(this._subentryType)+" "+ge("flowHandlerNotFound"):this._isOptions?ge("flowOptionsNotSupported"):ge("flowHandlerNotFound"):t.includes("401")||t.includes("403")?ge("flowAuthError"):t||(this._isOptions?ge("flowStartFailedOptions"):ge("flowStartFailed"))}_renderField(e){const t=e.name,o=this._getFieldLabel(e),i=e.type||"string",r=!1!==e.required,s=e.description?.suggested_value,a=void 0!==e.default&&null!==e.default||null!=s,n=void 0!==e.default&&null!==e.default?e.default:void 0!==s?s:"",l=this._getFieldPlaceholder(e),c=this._getFieldDescription(e),d=this._errors?.[t]||"",p=!0===e.multiline,h=!0===e.password||"password"===e.type||/token|secret|password|key|api_key|apiKey/i.test(t)&&"string"===i,g=e.selector||{},u=Object.keys(g)[0];if("select"===i||"multi_select"===i||e.options||e.enum||"select"===u){let s=e.options||e.enum||[];!s.length&&g.select?.options&&(s=g.select.options);const l="multi_select"===i||!0===g.select?.multiple;s.length?console.debug(`HACS Vision: select field "${t}" options:`,JSON.stringify(s).slice(0,200)):console.warn(`HACS Vision: select field "${t}" has empty options`,e);let p=[];return Array.isArray(s)?p=s:s&&"object"==typeof s&&(p=Object.entries(s).map(([e,t])=>({value:e,label:t}))),p=p.filter(Boolean).map(e=>{if("string"==typeof e)return{value:e,label:e};if(Array.isArray(e))return{value:e[0],label:e[1]||e[0]};if(e&&"object"==typeof e){const t=e.value??e.val??e.id??Object.values(e)[0]??"",o=e.label??e.name??e.description??Object.values(e)[1]??t;return{value:String(t),label:String(o)}}return{value:String(e),label:String(e)}}),U`
         <div class="form-field">
           <label>${o}${r?" *":""}</label>
-          ${c?H`<div class="field-desc">${c}</div>`:""}
-          ${l?H`
+          ${c?U`<div class="field-desc">${c}</div>`:""}
+          ${l?U`
             <!-- multi_select: render as checkboxes instead of multi-select dropdown -->
             <div class="multi-select-checkboxes">
-              ${p.map(o=>{const i=this._getOptionLabel(e,o.value)||o.label,r=a&&(Array.isArray(n)?n.includes(o.value):n===o.value);return H`
+              ${p.map(o=>{const i=this._getOptionLabel(e,o.value)||o.label,r=a&&(Array.isArray(n)?n.includes(o.value):n===o.value);return U`
                   <label class="checkbox-label multi-option">
                     <input type="checkbox" name=${t} value=${o.value}
                            ?checked=${r} @change=${this._onMultiCheckboxChange}>
@@ -4322,52 +4322,52 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
                   </label>
                 `})}
             </div>
-          `:H`
+          `:U`
             <select name=${t} ?required=${r}>
-              ${r?"":H`<option value="">${ge("flowSelectOption")}</option>`}
-              ${p.map(t=>{const o=this._getOptionLabel(e,t.value)||t.label,i=a&&n===t.value;return H`<option value=${t.value} ?selected=${i}>${o}</option>`})}
+              ${r?"":U`<option value="">${ge("flowSelectOption")}</option>`}
+              ${p.map(t=>{const o=this._getOptionLabel(e,t.value)||t.label,i=a&&n===t.value;return U`<option value=${t.value} ?selected=${i}>${o}</option>`})}
             </select>
           `}
-          ${d?H`<div class="form-error">${d}</div>`:""}
+          ${d?U`<div class="form-error">${d}</div>`:""}
         </div>
-      `}if("boolean"===i||"boolean"===u){if("back"===t&&!r)return H`
+      `}if("boolean"===i||"boolean"===u){if("back"===t&&!r)return U`
           <div class="form-field">
             <button type="button" class="btn" @click=${this._cancelFlow}>${ge("flowBack")}</button>
           </div>
-        `;return H`
+        `;return U`
         <div class="form-field">
           <label class="checkbox-label">
             <input type="checkbox" name=${t} ?checked=${!0===n||"true"===n||1===n||"1"===n}>
             <span>${o!==e.name.replace(/_/g," ")?o:c||o}</span>
           </label>
-          ${d?H`<div class="form-error">${d}</div>`:""}
+          ${d?U`<div class="form-error">${d}</div>`:""}
         </div>
-      `}if("integer"===i||"number"===i||"number"===u||"integer"===u){const s=g.number?.step||("integer"===i?1:"any"),a=g.number?.min??e.valueMin??e.minimum??"",p=g.number?.max??e.valueMax??e.maximum??"";return H`
+      `}if("integer"===i||"number"===i||"number"===u||"integer"===u){const s=g.number?.step||("integer"===i?1:"any"),a=g.number?.min??e.valueMin??e.minimum??"",p=g.number?.max??e.valueMax??e.maximum??"";return U`
         <div class="form-field">
           <label>${o}${r?" *":""}</label>
-          ${c?H`<div class="field-desc">${c}</div>`:""}
+          ${c?U`<div class="field-desc">${c}</div>`:""}
           <input type="number" name=${t} .value=${n}
                  ?required=${r} placeholder=${l}
                  step=${s} min=${a??""} max=${p??""}>
-          ${d?H`<div class="form-error">${d}</div>`:""}
+          ${d?U`<div class="form-error">${d}</div>`:""}
         </div>
-      `}return p||"text"===u&&g.text?.multiline?H`
+      `}return p||"text"===u&&g.text?.multiline?U`
         <div class="form-field">
           <label>${o}${r?" *":""}</label>
-          ${c?H`<div class="field-desc">${c}</div>`:""}
+          ${c?U`<div class="field-desc">${c}</div>`:""}
           <textarea name=${t} .value=${n}
                     ?required=${r} placeholder=${l}></textarea>
-          ${d?H`<div class="form-error">${d}</div>`:""}
+          ${d?U`<div class="form-error">${d}</div>`:""}
         </div>
-      `:H`
+      `:U`
       <div class="form-field">
         <label>${o}${r?" *":""}</label>
-        ${c&&c!==l?H`<div class="field-desc">${c}</div>`:""}
+        ${c&&c!==l?U`<div class="field-desc">${c}</div>`:""}
         <input type=${h?"password":"text"} name=${t}
                .value=${n} ?required=${r} placeholder=${l}>
-        ${d?H`<div class="form-error">${d}</div>`:""}
+        ${d?U`<div class="form-error">${d}</div>`:""}
       </div>
-    `}_renderResult(){if(!this._result)return"";const e=this._result;if("create_entry"===e.type)return H`
+    `}_renderResult(){if(!this._result)return"";const e=this._result;if("create_entry"===e.type)return U`
         <div class="result">
           <svg class="result-icon success" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
@@ -4379,7 +4379,7 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
             <button class="btn primary" @click=${this._close}>${ge("flowDone")}</button>
           </div>
         </div>
-      `;if("abort"===e.type){const t={already_configured:ge("flowAbortAlreadyConfigured"),single_instance_allowed:ge("flowAbortSingleInstance"),no_devices_found:ge("flowAbortNoDevices"),already_in_progress:ge("flowAbortInProgress")};return H`
+      `;if("abort"===e.type){const t={already_configured:ge("flowAbortAlreadyConfigured"),single_instance_allowed:ge("flowAbortSingleInstance"),no_devices_found:ge("flowAbortNoDevices"),already_in_progress:ge("flowAbortInProgress")};return U`
         <div class="result">
           <svg class="result-icon abort" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <circle cx="12" cy="12" r="10"/>
@@ -4392,7 +4392,7 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
             <button class="btn primary" @click=${this._close}>${ge("flowGotIt")}</button>
           </div>
         </div>
-      `}return"external"===e.type?H`
+      `}return"external"===e.type?U`
         <div class="result">
           <svg class="result-icon external" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
@@ -4401,12 +4401,12 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
           </svg>
           <div class="result-title">${ge("flowResultExternal")}</div>
           <div class="result-desc">${e.message||ge("flowResultExternalDesc")}</div>
-          ${e.url?H`<a href=${e.url} target="_blank" class="btn external">${ge("flowOpenAuthPage")}</a>`:""}
+          ${e.url?U`<a href=${e.url} target="_blank" class="btn external">${ge("flowOpenAuthPage")}</a>`:""}
           <div class="actions">
             <button class="btn primary" @click=${this._close}>${ge("flowClose")}</button>
           </div>
         </div>
-      `:H`
+      `:U`
       <div class="result">
         <svg class="result-icon error" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/>

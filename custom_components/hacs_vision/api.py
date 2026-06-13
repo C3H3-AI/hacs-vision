@@ -1203,9 +1203,11 @@ class HACSEnhancedAPI(HomeAssistantView):
     async def _get_device_counts(self, domain: str) -> web.Response:
         """Get device and entity counts for a given domain."""
         from homeassistant.helpers import device_registry as dr, entity_registry as er
-        safe = domain.replace("..", "").replace("/", "").replace("\\", "")
-        if not safe or safe != domain:
+        import re
+        # Sanitize domain to prevent path traversal
+        if not re.match(r'^[a-zA-Z0-9_-]+$', domain):
             return web.json_response({"error": "invalid_domain"}, status=400)
+        safe = domain
         try:
             dev_reg = dr.async_get(self.hass)
             ent_reg = er.async_get(self.hass)
@@ -1245,10 +1247,11 @@ class HACSEnhancedAPI(HomeAssistantView):
         under a ``data`` key that the frontend can traverse.
         """
         import os
-        # Sanitize domain to prevent path traversal
-        safe_domain = domain.replace("..", "").replace("/", "").replace("\\", "")
-        if not safe_domain or safe_domain != domain:
+        import re
+        # Sanitize domain to prevent path traversal — only allow safe chars
+        if not re.match(r'^[a-zA-Z0-9_-]+$', domain):
             return web.json_response({"error": "invalid_domain"}, status=400)
+        safe_domain = domain
 
         # Try multiple possible translation file locations
         # HA 2026.x stores custom component translations in:
@@ -1434,9 +1437,11 @@ class HACSBrandIconView(HomeAssistantView):
 
     async def get(self, request, domain):
         import os
-        safe_domain = domain.replace("..", "").replace("/", "").replace("\\", "")
-        if not safe_domain or safe_domain != domain:
+        import re
+        # Sanitize domain to prevent path traversal
+        if not re.match(r'^[a-zA-Z0-9_-]+$', domain):
             return web.Response(status=404)
+        safe_domain = domain
 
         # Parse path: could be "cn_im_hub" or "cn_im_hub/icon" or "cn_im_hub/logo"
         parts = safe_domain.split("/")

@@ -97,7 +97,7 @@ class BrowseView extends LitElement {
     this._installingIds = {};
     this._searchTimer = undefined;
     this._searchText = saved.search || '';
-    this.viewMode = localStorage.getItem(VIEW_MODE_KEY) || 'card';
+    this.viewMode = (() => { try { return localStorage.getItem(VIEW_MODE_KEY); } catch { return null; } })() || 'card';
     this.groupBy = saved.groupBy || 'none';
     this._showAddRepo = false;
     this._newRepoUrl = '';
@@ -583,8 +583,9 @@ class BrowseView extends LitElement {
     } catch(e) {
       showToast(`${t('installFailed')}: ${e.message}`, 'error');
     }
-    delete this._installingIds[repoId];
-    this._installingIds = { ...this._installingIds };
+    const next = { ...this._installingIds };
+    delete next[repoId];
+    this._installingIds = next;
   }
 
   async _showPostInstallPrompt(repo) {
@@ -682,7 +683,7 @@ class BrowseView extends LitElement {
       await api.remove(repo.id || repo.full_name);
       this.dispatchEvent(new CustomEvent('refresh-stats', { bubbles: true, composed: true }));
       this._load();
-    } catch(e) { console.error('Uninstall failed', e); }
+    } catch(e) { console.error('Uninstall failed', e); showToast(`${t('updateFailed')}: ${e.message}`, 'error'); }
   }
 
   _handleConfigure(repo) {
