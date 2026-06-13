@@ -423,6 +423,24 @@ class ConfigFlowDialog extends LitElement {
       return;
     }
 
+    // HA returns "already_in_progress" when a flow is already active for this
+    // integration (HTTP 409). Continue the existing flow by fetching its current step.
+    if (result.type === 'already_in_progress') {
+      this._flowId = result.flow_id || result.flowId;
+      try {
+        const stepResult = await (this._isOptions
+          ? api.stepOptionsFlow(this._flowId, {})
+          : api.stepConfigFlow(this._flowId, {}));
+        await this._handleFlowResponse(stepResult);
+      } catch (e) {
+        this._finished = true;
+        this._result = { type: 'error', message: this._getFlowErrorMessage(e) };
+        this._loading = false;
+        this.requestUpdate();
+      }
+      return;
+    }
+
     if (result.type === 'form') {
       this._flowId = result.flow_id || result.flowId;
       this._step = result;
