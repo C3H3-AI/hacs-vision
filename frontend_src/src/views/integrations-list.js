@@ -788,8 +788,8 @@ class IntegrationsList extends LitElement {
             <div class="card-top-bar" @click=${e => e.stopPropagation()}>
               <input type="checkbox" class="card-checkbox" .checked=${!!this._selectedDomains[domain]}
                      @change=${() => this._toggleSelectDomain(domain)}>
+              <span class="category-badge" style="background:${color}">${t('catIntegration')}</span>
             </div>
-            <span class="category-badge" style="background:${color}">${t('catIntegration')}</span>
             ${this._renderAvatar(domain)}
             ${st !== 'loaded' ? html`<span class="img-status-badge state-${st}">${this._groupLabel(st)}</span>` : ''}
           </div>
@@ -1205,19 +1205,19 @@ class IntegrationsList extends LitElement {
 
     /* ===== Card Image Area (compact, like store) ===== */
     .card-img {
-      height: 90px; flex-shrink: 0; position: relative;
+      height: 120px; flex-shrink: 0; position: relative;
       display: flex; align-items: center; justify-content: center;
       background: linear-gradient(135deg, var(--secondary-background-color, #f0f0f0) 0%, var(--card-background-color, #fff) 100%);
     }
     .avatar {
-      width: 42px; height: 42px; border-radius: 50%;
+      width: 52px; height: 52px; border-radius: 50%;
       display: flex; align-items: center; justify-content: center;
-      font-size: 17px; font-weight: 700; color: #fff;
-      box-shadow: 0 3px 10px rgba(0,0,0,0.13);
+      font-size: 24px; font-weight: 700; color: #fff;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
       overflow: hidden; position: relative;
     }
     .avatar-img { width: 100%; height: 100%; object-fit: cover; position: absolute; top: 0; left: 0; }
-    .avatar-letter { font-size: 17px; font-weight: 700; color: #fff; z-index: 1; }
+    .avatar-letter { font-size: 24px; font-weight: 700; color: #fff; z-index: 1; }
     /* Status badge overlay on image area (bottom left, like store) */
     .img-status-badge {
       position: absolute; bottom: 8px; left: 8px;
@@ -1236,23 +1236,26 @@ class IntegrationsList extends LitElement {
     }
 
     .card-top-bar {
-      position: absolute; top: 0; left: 0; z-index: 2;
-      display: flex; align-items: center; padding: 8px;
+      position: absolute; top: 0; left: 0; right: 0; z-index: 2;
+      display: flex; align-items: center; gap: 6px; padding: 8px;
     }
     .card-checkbox {
-      width: 16px; height: 16px; cursor: pointer;
+      width: 16px; height: 16px; cursor: pointer; flex-shrink: 0;
       accent-color: var(--primary-color, #03a9f4);
+    }
+    .card-top-bar .category-badge {
+      position: static; font-size: 9px; padding: 2px 7px; border-radius: 4px;
     }
 
     /* ===== Card Body ===== */
-    .card-body { padding: 10px 12px 0; flex: 1; display: flex; flex-direction: column; gap: 2px; }
+    .card-body { padding: 14px; flex: 1; display: flex; flex-direction: column; gap: 4px; }
     .card-name {
-      font-size: 14px; font-weight: 600;
+      font-size: 15px; font-weight: 600;
       color: var(--primary-text-color, #212121);
       white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }
     .card-meta {
-      font-size: 11px; color: var(--secondary-text-color, #727272);
+      font-size: 12px; color: var(--secondary-text-color, #727272);
       display: flex; align-items: center; gap: 4px;
       flex-wrap: wrap;
     }
@@ -1596,7 +1599,7 @@ class IntegrationsList extends LitElement {
       .controls-right { width: 100%; }
       .search input { width: 100%; }
       .card-img { height: 100px; }
-      .avatar { width: 40px; height: 40px; font-size: 17px; }
+      .avatar { width: 44px; height: 44px; font-size: 20px; }
       .card-footer .footer-btn { min-height: 44px; font-size: 12px; }
       .card-footer .footer-btn .btn-label { display: inline; }
       .chip { font-size: 12px; padding: 6px 14px; }
