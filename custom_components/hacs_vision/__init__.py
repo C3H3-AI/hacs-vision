@@ -1,6 +1,8 @@
 """HACS Vision - HACS 增强面板."""
 from __future__ import annotations
+import json
 import logging
+import os
 from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.helpers.typing import ConfigType
 from homeassistant.components.http import HomeAssistantView
@@ -9,6 +11,17 @@ from homeassistant.helpers.storage import Store
 import voluptuous as vol
 
 from .const import DOMAIN, PANEL_TITLE, PANEL_ICON, VERSION
+
+FRONTEND_DIR = os.path.join(os.path.dirname(__file__), "frontend")
+BUILD_JSON_PATH = os.path.join(FRONTEND_DIR, "build.json")
+
+def _read_build_hash() -> str:
+    """Read build hash from build.json, fall back to VERSION."""
+    try:
+        with open(BUILD_JSON_PATH) as f:
+            return json.load(f).get("hash", VERSION)
+    except Exception:
+        return VERSION
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -96,7 +109,7 @@ async def _register_panel(hass: HomeAssistant) -> None:
 
     # 3. Create/update the dashboard config with an iframe card
     config_store = Store(hass, 1, f"lovelace.{STORE_KEY}")
-    iframe_url = f"/api/hacs_vision/static/index.html?v={VERSION}"
+    iframe_url = f"/api/hacs_vision/static/index.html?v={_read_build_hash()}"
     config_body = {
         "views": [{
             "title": PANEL_TITLE,
