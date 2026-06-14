@@ -21,9 +21,13 @@ class IntegrationsList extends LitElement {
     _detailEntries: { type: Array, state: true },
     _detailDeviceCounts: { type: Object, state: true },
     _showDetail: { type: Boolean, state: true },
-    _deviceViewEntryId: { type: String, state: true },
     _domainNames: { type: Object, state: true },
     _viewMode: { type: String, state: true },
+    // Tree expand/collapse state
+    _toggledEntries: { type: Object, state: true },  // Set-like Map: entry_id → true
+    _entryDevices: { type: Object, state: true },     // Map: entry_id → groups[]
+    _toggledDevices: { type: Object, state: true },   // Set-like Map: device_id → true
+    _entryDeviceLoading: { type: Object, state: true }, // Set-like Map: entry_id → true
   };
 
   constructor() {
@@ -45,6 +49,10 @@ class IntegrationsList extends LitElement {
     this._viewMode = localStorage.getItem('hacs_int_view_mode') || 'card';
     this._detailOpenedAt = 0;
     this._modalDrag = { offsetX: 0, offsetY: 0, startX: 0, startY: 0, dragging: false, cleanup: null };
+    this._toggledEntries = {};
+    this._entryDevices = {};
+    this._toggledDevices = {};
+    this._entryDeviceLoading = {};
   }
 
   _modalPointerDown(e) {
@@ -228,6 +236,7 @@ class IntegrationsList extends LitElement {
     this._detailEntries = entries;
     this._showDetail = true;
     this._deviceViewEntryId = '';
+    console.debug('HACS Vision: _openDetail, cleared _deviceViewEntryId');
     this._detailDeviceCounts = null;
     // Fetch device/entity counts for this domain
     api.getDeviceCounts(domain).then(r => {
@@ -247,19 +256,53 @@ class IntegrationsList extends LitElement {
     this._showDetail = false;
     this._detailDomain = '';
     this._detailEntries = [];
-    this._deviceViewEntryId = '';
     this._detailOpenedAt = 0;
     // Reset drag offset for next open
     const modal = this.shadowRoot?.querySelector('.modal');
     if (modal) modal.style.transform = '';
   }
 
-  _openDeviceView(entry) {
-    this._detailOpenedAt = Date.now();
-    this._showDetail = true;
-    this._detailDomain = entry.domain;
-    this._detailEntries = [entry];
-    this._deviceViewEntryId = entry.entry_id;
+  /* ─── Tree expand/collapse ─── */
+
+  _toggleEntry(entry) {
+    const id = entry.entry_id;
+    if (this._toggledEntries[id]) {
+      // Collapse
+      this._toggledEntries = { ...this._toggledEntries };
+      delete this._toggledEntries[id];
+      this.requestUpdate();
+      return;
+    }
+    // Expand
+    this._toggledEntries = { ...this._toggledEntries, [id]: true };
+    if (!this._entryDevices[id] && !this._entryDeviceLoading[id]) {
+      this._loadEntryDevices(entry);
+    }
+    this.requestUpdate();
+  }
+
+  async _loadEntryDevices(entry) {
+    const id = entry.entry_id;
+    this._entryDeviceLoading = { ...this._entryDeviceLoading, [id]: true };
+    try {
+      const data = await api.get(`devices/${id}`);
+      this._entryDevices = { ...this._entryDevices, [id]: data.groups || [] };
+    } catch(e) {
+      this._entryDevices = { ...this._entryDevices, [id]: [] };
+    }
+    this._entryDeviceLoading = { ...this._entryDeviceLoading };
+    delete this._entryDeviceLoading[id];
+    this.requestUpdate();
+  }
+
+  _toggleDevice(deviceId, entry) {
+    if (this._toggledDevices[deviceId]) {
+      this._toggledDevices = { ...this._toggledDevices };
+      delete this._toggledDevices[deviceId];
+    } else {
+      this._toggledDevices = { ...this._toggledDevices, [deviceId]: true };
+    }
+    this.requestUpdate();
   }
 
   /* ─── Localized domain name ─── */
@@ -487,7 +530,7 @@ class IntegrationsList extends LitElement {
         </span>
         <span class="list-row-actions">
           ${group._supports_options ? html`
-          <button class="list-action-btn" @click=${e => { e.stopPropagation(); multiEntry ? this._openDetail(domain, entries) : this._openDeviceView(entry0); }} title="${multiEntry ? t('viewDetail') : t('configure')}">
+          <button class="list-action-btn" @click=${e => { e.stopPropagation(); this._openDetail(domain, entries); }} title="${t('viewDetail') || '详情'}">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
           </button>
           ` : ''}
@@ -548,80 +591,34 @@ class IntegrationsList extends LitElement {
     `;
   }
 
-  /* ─── Detail Dialog: side panel on desktop, bottom sheet on mobile ─── */
+  /* ─── Detail Dialog: tree view with entries → devices → entities ─── */
   _renderDetailDialog() {
     if (!this._showDetail) return '';
     const domain = this._detailDomain;
     const entries = this._detailEntries;
-    const isDeviceView = !!this._deviceViewEntryId;
-    const entry = isDeviceView ? entries.find(e => e.entry_id === this._deviceViewEntryId) : null;
-
-    // Subentry detection for detail dialog mode
-    const hasSubentries = !isDeviceView && entries.length > 0 && (
-      entries.some(e => e.supported_subentry_types || (e.title && e.title.startsWith('subentry'))) ||
-      entries.length >= 3
-    );
-    const useTwoCol = hasSubentries;
 
     return html`
       <div class="detail-overlay" role="dialog" aria-modal="true" aria-label="${this._translateDomain(domain)}" @click=${e => { if (e.target === e.currentTarget) this._closeDetail(); }} @keydown=${e => { if (e.key === 'Escape') this._closeDetail(); }}>
-        <div class="modal ${useTwoCol ? 'two-col' : ''}" @pointerdown=${this._modalPointerDown}>
+        <div class="modal" @pointerdown=${this._modalPointerDown}>
           <div class="modal-header">
             <div class="modal-header-left">
-              ${isDeviceView ? '' : this._renderAvatar(domain)}
+              ${this._renderAvatar(domain)}
               <div>
-                <div class="modal-title">${isDeviceView ? ((entry && entry.title) || this._translateDomain(domain)) : this._translateDomain(domain)}</div>
-                <div class="modal-subtitle">${isDeviceView ? '' : html`${entries.length} ${t('entryCount')}${this._detailDeviceCounts ? html` · ${this._detailDeviceCounts.devices} ${t('deviceCount')} · ${this._detailDeviceCounts.entities} 个实体` : ''}`}</div>
+                <div class="modal-title">${this._translateDomain(domain)}</div>
+                <div class="modal-subtitle">${entries.length} ${t('entryCount')}</div>
               </div>
             </div>
-            <button class="modal-close" aria-label="${t('close') || '关闭'}" @click=${this._closeDetail}>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-            </button>
+            <div class="modal-header-right">
+              <button class="tree-action-btn" @click=${this._expandAll} title="${t('expandAll') || '展开全部'}">⊕</button>
+              <button class="tree-action-btn" @click=${this._collapseAll} title="${t('collapseAll') || '全部折叠'}">⊖</button>
+              <button class="modal-close" aria-label="${t('close') || '关闭'}" @click=${this._closeDetail}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
+            </div>
           </div>
-
-          <!-- Device view: always in DOM to prevent destroy/recreate on re-render -->
-          <div style="${isDeviceView ? 'flex:1;min-height:0;display:flex;flex-direction:column;' : 'display:none;'}">
-            <hacs-vision-device-view
-              .hass=${this.hass}
-              .entryId=${this._deviceViewEntryId || ''}
-              .domain=${domain}
-              .entryTitle=${(entry && entry.title) || domain}
-              @back=${() => { this._deviceViewEntryId = ''; }}
-              @close=${() => this._closeDetail()}
-              style="flex:1;min-height:0;display:flex;flex-direction:column;">
-            </hacs-vision-device-view>
+          <div class="tree-container">
+            ${entries.length === 0 ? html`<div class="tree-empty">${t('noData') || '暂无数据'}</div>` : entries.map(e => this._renderEntryRow(e))}
           </div>
-
-          <!-- Detail dialog: entry list / subentry layout -->
-          ${!isDeviceView && entries.length > 0 ? html`
-          <div class="modal-body ${useTwoCol ? 'grid-2col' : ''}">
-            ${useTwoCol ? html`
-              <div class="col-left">
-                <div class="col-title">${t('subentryConfig') || '子项配置'}</div>
-                ${entries.map(e => this._renderEntryRow(e))}
-              </div>
-              <div class="col-right">
-                <div class="col-title">${t('addSubentry') || '添加新子项'}</div>
-                <div class="add-subentry-card">
-                  <div class="add-subentry-icon">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="32" height="32"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                  </div>
-                  <div class="add-subentry-text">${t('addSubentryHint') || '点击添加新的子项配置'}</div>
-                  <button class="add-subentry-btn" @click=${() => {
-                    this._closeDetail();
-                    this.dispatchEvent(new CustomEvent('add-integration', {
-                      bubbles: true, composed: true,
-                      detail: { domain, isSubentry: true },
-                    }));
-                  }}>
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                    ${t('addSubentry') || '添加新子项'}
-                  </button>
-                </div>
-              </div>
-            ` : entries.map(e => this._renderEntryRow(e))}
-          </div>
-          ` : ''}
         </div>
       </div>
     `;
@@ -661,7 +658,7 @@ class IntegrationsList extends LitElement {
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
             `}
           </button>
-          <button class="entry-btn device" @click=${e => { e.stopPropagation(); this._openDeviceView(entry); }} title="${t('viewDevices') || '设备'}" ?disabled=${isProcessing}>
+          <button class="entry-btn device" @click=${e => { e.stopPropagation(); this._toggleEntry(entry); }} title="${t('viewDevices') || '设备'}" ?disabled=${isProcessing}>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
           </button>
           <button class="entry-btn remove" @click=${e => this._removeEntry(entry, e)} title="${t('removeEntry')}" ?disabled=${isProcessing}>
