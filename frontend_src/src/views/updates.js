@@ -19,6 +19,7 @@ class UpdatesView extends LitElement {
     _selectedRepos: { type: Array, state: true },
     _batchMode: { type: Boolean, state: true },
     _viewMode: { type: String, state: true },
+    _favs: { type: Object, state: true },
   };
 
   constructor() {
@@ -36,6 +37,7 @@ class UpdatesView extends LitElement {
     this._selectedIds = {};
     this._selectedRepos = [];
     this._batchMode = false;
+    this._favs = {};
     const saved = (() => { try { return localStorage.getItem('hacs_vision_view_mode'); } catch { return null; } })();
     this._viewMode = saved || 'card';
   }
@@ -58,50 +60,85 @@ class UpdatesView extends LitElement {
       .card {
         border: 1px solid var(--divider-color); border-radius: 14px;
         background: var(--card-background-color); overflow: hidden;
-        transition: all 0.2s; cursor: pointer;
+        transition: all 0.2s, box-shadow 0.2s; cursor: pointer;
         display: flex; flex-direction: column; min-height: 290px;
+        position: relative;
       }
       .card:hover { border-color: var(--primary-color); box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
 
       .img-container {
-        height: 100px; flex-shrink: 0;
+        height: 120px; flex-shrink: 0;
         display: flex; align-items: center; justify-content: center;
         background: linear-gradient(135deg, var(--secondary-background-color, #f0f0f0) 0%, var(--card-background-color, #fff) 100%);
         position: relative;
       }
-      .img-container .avatar {
-        width: 44px; height: 44px; border-radius: 50%;
+      .avatar {
+        width: 52px; height: 52px; border-radius: 50%;
         display: flex; align-items: center; justify-content: center;
-        font-size: 20px; font-weight: 700; color: #fff;
-        box-shadow: 0 3px 10px rgba(0,0,0,0.13);
+        font-size: 24px; font-weight: 700; color: #fff;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
         overflow: hidden; background: transparent;
       }
-      .img-container .avatar img { width: 100%; height: 100%; object-fit: cover; }
-      .img-container .avatar .initials {
+      .avatar img { width: 100%; height: 100%; object-fit: cover; }
+      .avatar .initials {
         display: flex; width: 100%; height: 100%;
         align-items: center; justify-content: center; border-radius: 50%;
       }
+      .badge-corner {
+        position: absolute; top: 8px; left: 8px;
+        padding: 3px 8px; border-radius: 5px;
+        font-size: 10px; font-weight: 600; color: #fff; z-index: 2;
+      }
+      .badge-corner.integration { background: #1565c0; }
+      .badge-corner.plugin { background: #7b1fa2; }
+      .badge-corner.theme { background: #2e7d32; }
+      .badge-corner.template { background: #6a1b9a; }
+
       .status-badge-update {
-        position: absolute; bottom: 8px; left: 8px;
+        position: absolute; bottom: 8px; left: 8px; z-index: 2;
         padding: 3px 8px; border-radius: 5px;
         font-size: 10px; font-weight: 600; color: #fff;
         background: rgba(255,152,0,0.85);
       }
-      .category-badge-corner {
-        position: absolute; top: 8px; left: 8px;
-        padding: 3px 8px; border-radius: 5px;
-        font-size: 10px; font-weight: 600; color: #fff;
+
+      /* Top bar: checkbox + category badge */
+      .top-bar {
+        position: absolute; top: 0; left: 0; right: 0;
+        display: flex; align-items: center; gap: 6px;
+        padding: 10px; z-index: 3;
+      }
+      .top-bar .checkbox {
+        width: 18px; height: 18px; border-radius: 4px;
+        border: 2px solid rgba(255,255,255,0.7); cursor: pointer;
+        display: flex; align-items: center; justify-content: center;
+        flex-shrink: 0; transition: all 0.2s;
+        background: rgba(0,0,0,0.25);
+        -webkit-appearance: none; appearance: none; touch-action: manipulation;
+      }
+      .top-bar .checkbox:checked {
+        background: var(--primary-color); border-color: var(--primary-color);
+      }
+      .top-bar .checkbox:checked::after {
+        content: '✓'; color: #fff; font-size: 12px; font-weight: 700;
       }
 
-      .card-body { padding: 14px; flex: 1; display: flex; flex-direction: column; }
+      .fav-btn {
+        position: absolute; top: 10px; right: 10px; z-index: 3;
+        width: 32px; height: 32px; border-radius: 50%;
+        border: none; background: rgba(255,255,255,0.85);
+        cursor: pointer; display: flex; align-items: center; justify-content: center;
+        transition: all 0.2s; z-index: 2; padding: 0;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.12);
+      }
+      .fav-btn:hover { transform: scale(1.1); }
+      .fav-btn svg { width: 18px; height: 18px; transition: all 0.2s; }
+      .fav-btn.active svg { fill: #ff9800; color: #ff9800; }
+      .fav-btn:not(.active) svg { fill: none; color: var(--secondary-text-color, #727272); }
 
-      .card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; }
-      .card-left { display: flex; align-items: center; gap: 8px; min-width: 0; flex: 1; }
-      .card-name { font-size: 15px; font-weight: 600; color: var(--primary-text-color); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-      .card-name .category-badge {
-        display: inline-block; font-size: 9px; padding: 2px 7px;
-        border-radius: 4px; background: rgba(var(--rgb-primary-color), 0.08);
-        color: var(--primary-color); margin-left: 6px; vertical-align: middle;
+      .card-body { padding: 14px; flex: 1; display: flex; flex-direction: column; }
+      .card-name {
+        font-size: 15px; font-weight: 600; color: var(--primary-text-color);
+        overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-bottom: 8px;
       }
 
       .version-row { display: flex; gap: 12px; margin-bottom: 12px; }
@@ -134,13 +171,33 @@ class UpdatesView extends LitElement {
       }
       .select-all:hover { color: var(--primary-text-color); }
 
-      .btn.primary { width: 100%; padding: 10px; border-radius: 10px; font-size: 13px; font-weight: 600; margin-top: auto; }
-      .btn.primary:hover { opacity: 0.9; }
-      /* F3: Progress button pulse */
-      .btn.primary.installing {
+      /* ===== Action Bar (matches repo-card) ===== */
+      .actions {
+        display: flex; gap: 6px;
+        padding: 8px 14px;
+        border-top: 1px solid var(--divider-color, #e0e0e0);
+        margin-top: auto; background: var(--card-background-color, #fff);
+      }
+      .action-btn {
+        flex: 1; min-width: 0; padding: 8px 4px; border-radius: 10px;
+        font-size: 12px; text-align: center; justify-content: center;
+        border: 1px solid var(--divider-color, #e0e0e0);
+        background: var(--card-background-color, #fff);
+        color: var(--primary-text-color, #212121);
+        cursor: pointer; transition: all 0.2s;
+        display: flex; align-items: center; gap: 4px;
+        touch-action: manipulation;
+      }
+      .action-btn:hover { border-color: var(--primary-color, #03a9f4); color: var(--primary-color, #03a9f4); }
+      .action-btn.primary {
+        background: var(--primary-color, #03a9f4); border-color: var(--primary-color, #03a9f4); color: #fff;
+      }
+      .action-btn.primary:hover { opacity: 0.9; }
+      .action-btn.installing {
         opacity: 0.7; cursor: not-allowed;
         animation: btnPulse 1.5s infinite;
       }
+      .action-btn svg { width: 16px; height: 16px; flex-shrink: 0; }
       @keyframes btnPulse { 0%, 100% { opacity: 0.7; } 50% { opacity: 0.45; } }
 
       /* F6: Changelog preview */
@@ -255,11 +312,18 @@ class UpdatesView extends LitElement {
       @media (max-width: 768px) {
         .search { min-width: 0; }
         .card { min-height: 260px; }
-        .img-container { height: 80px; }
-        .img-container .avatar { width: 36px; height: 36px; font-size: 16px; }
+        .img-container { height: 100px; }
+        .avatar { width: 44px; height: 44px; font-size: 20px; }
         .card-body { padding: 10px; }
-        .card-header { margin-bottom: 6px; }
         .card-name { font-size: 14px; }
+        .version-row { gap: 8px; }
+        .version-item { padding: 6px; }
+        .version-label { font-size: 9px; }
+        .version-value { font-size: 12px; }
+        .card-desc { font-size: 11px; margin-bottom: 10px; }
+        .action-btn { min-height: 44px; padding: 10px 6px; font-size: 11px; }
+        .fav-btn { width: 36px; height: 36px; }
+        .fav-btn svg { width: 20px; height: 20px; }
         .version-row { gap: 8px; }
         .version-item { padding: 6px; }
         .version-label { font-size: 9px; }
@@ -538,6 +602,20 @@ class UpdatesView extends LitElement {
     this.dispatchEvent(new CustomEvent('detail', { detail: { repo }, bubbles: true, composed: true }));
   }
 
+  async _toggleFav(repo) {
+    const repoId = repo.id || repo.full_name;
+    const isFav = !!this._favs[repoId];
+    const newFavs = { ...this._favs };
+    if (isFav) { delete newFavs[repoId]; } else { newFavs[repoId] = true; }
+    this._favs = newFavs;
+    try {
+      const ids = Object.keys(newFavs);
+      await api.setFavorites(ids);
+    } catch(e) {
+      this._favs = this._favs; // revert
+    }
+  }
+
   _setViewMode(mode) {
     this._viewMode = mode;
     try { localStorage.setItem('hacs_vision_view_mode', mode); } catch {}
@@ -705,13 +783,19 @@ class UpdatesView extends LitElement {
               const changelog = this._changelogs?.[r.full_name];
               const isChecked = !!this._selectedIds[repoId];
               return html`
-              <div class="card" @click=${(e) => { if (e.target.closest('.btn') || e.target.closest('a') || e.target.closest('.checkbox')) return; this._openDetail(r); }}>
+              <div class="card" @click=${(e) => { if (e.target.closest('.action-btn') || e.target.closest('a') || e.target.closest('.checkbox') || e.target.closest('.fav-btn')) return; this._openDetail(r); }}>
                 <div class="img-container">
+                  <div class="top-bar">
+                    <input type="checkbox" class="checkbox" .checked=${isChecked}
+                           @click=${(e) => e.stopPropagation()}
+                           @change=${() => this._toggleSelect(repoId)}>
+                    <span class="badge-corner ${r.category || 'integration'}">${r.category || 'integration'}</span>
+                  </div>
                   <div class="avatar">
                     ${(() => {
                       const urls = [];
-                      if (r.domain && r.category === 'integration') urls.push(`https://brands.home-assistant.io/${r.domain}/icon.png`);
-                      if (r.full_name) { const o = r.full_name.split('/')[0]; if (o) urls.push(`https://github.com/${o}.png`); }
+                      if (r.domain && r.category === 'integration') urls.push('https://brands.home-assistant.io/' + r.domain + '/icon.png');
+                      if (r.full_name) { const o = r.full_name.split('/')[0]; if (o) urls.push('https://github.com/' + o + '.png'); }
                       const catColor = getCategoryColor(r.category);
                       if (urls.length > 0) {
                         return html`
@@ -728,49 +812,45 @@ class UpdatesView extends LitElement {
                     })()}
                   </div>
                   <span class="status-badge-update">${t('statusPendingUpgrade')}</span>
-                  <span class="category-badge-corner" style="background:${getCategoryColor(r.category)}">${r.category}</span>
+                  <button class="fav-btn ${this._favs?.[r.id || r.full_name] ? 'active' : ''}"
+                    @click=${(e) => { e.stopPropagation(); this._toggleFav(r); }}
+                    title=${this._favs?.[r.id || r.full_name] ? (t('favOn') || '取消收藏') : (t('favOff') || '收藏')}>
+                    <svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                    </svg>
+                  </button>
                 </div>
                 <div class="card-body">
-                <div class="card-header">
-                  <div class="card-left">
-                    <input type="checkbox" class="checkbox" .checked=${isChecked}
-                           @click=${(e) => e.stopPropagation()}
-                           @change=${() => this._toggleSelect(repoId)}>
-                    <div class="card-name">
-                      ${r.name || r.full_name}
-                      ${r.category ? html`<span class="category-badge">${r.category}</span>` : ''}
+                  <div class="card-name" title="${r.name || r.full_name}">${r.name || r.full_name}</div>
+                  <div class="version-row">
+                    <div class="version-item">
+                      <div class="version-label">${t('currentVersion')}</div>
+                      <div class="version-value old">${r.installed_version || '?'}</div>
+                    </div>
+                    <div class="version-item">
+                      <div class="version-label">${t('latestVersion')}</div>
+                      <div class="version-value new">${r.latest_version || '?'}</div>
                     </div>
                   </div>
-                </div>
-                <div class="version-row">
-                  <div class="version-item">
-                    <div class="version-label">${t('currentVersion')}</div>
-                    <div class="version-value old">${r.installed_version || '?'}</div>
-                  </div>
-                  <div class="version-item">
-                    <div class="version-label">${t('latestVersion')}</div>
-                    <div class="version-value new">${r.latest_version || '?'}</div>
-                  </div>
-                </div>
-                <div class="card-desc">${r.description || ''}</div>
-
-                ${changelog?.body ? html`
-                  <div class="changelog-preview">
-                    <div class="changelog-preview-title">${t('changelogTitle')} ${changelog.tag ? html`<small>(${changelog.tag})</small>` : ''}</div>
-                    <div class="changelog-preview-body${this._expandedChangelogs?.[r.full_name] ? ' expanded' : ''}">${changelog.body}</div>
-                    <div>
-                      <button class="changelog-expand-btn" @click=${() => this._toggleChangelog(r.full_name)}>${this._expandedChangelogs?.[r.full_name] ? t('changelogShowLess') : t('changelogShowMore')}</button>
-                      <a class="changelog-preview-link" href="${changelog.url || `https://github.com/${r.full_name}/releases`}" target="_blank" rel="noopener">${t('viewFullChangelog')} →</a>
+                  <div class="card-desc">${r.description || ''}</div>
+                  ${changelog?.body ? html`
+                    <div class="changelog-preview">
+                      <div class="changelog-preview-title">${t('changelogTitle')} ${changelog.tag ? html`<small>(${changelog.tag})</small>` : ''}</div>
+                      <div class="changelog-preview-body${this._expandedChangelogs?.[r.full_name] ? ' expanded' : ''}">${changelog.body}</div>
+                      <div>
+                        <button class="changelog-expand-btn" @click=${() => this._toggleChangelog(r.full_name)}>${this._expandedChangelogs?.[r.full_name] ? t('changelogShowLess') : t('changelogShowMore')}</button>
+                        <a class="changelog-preview-link" href="${changelog.url || `https://github.com/${r.full_name}/releases`}" target="_blank" rel="noopener">${t('viewFullChangelog')} →</a>
+                      </div>
                     </div>
-                  </div>
-                ` : ''}
-
-                <button class="btn primary ${isInstalling ? 'installing' : ''}"
-                        @click=${() => this._updateOne(r)} ?disabled=${isInstalling || this.updating}>
-                  ${isInstalling
-                    ? html`<svg class="mini-icon spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> ${t('updatingProgress')}`
-                    : html`<svg class="mini-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg> ${t('updateNow')}`}
-                </button>
+                  ` : ''}
+                </div>
+                <div class="actions">
+                  <button class="action-btn primary ${isInstalling ? 'installing' : ''}"
+                    @click=${() => this._updateOne(r)} ?disabled=${isInstalling || this.updating}>
+                    ${isInstalling
+                      ? html`<svg class="mini-icon spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> ${t('updatingProgress')}`
+                      : html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg> ${t('updateNow')}`}
+                  </button>
                 </div>
               </div>
             `;})}

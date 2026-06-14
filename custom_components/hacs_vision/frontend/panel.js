@@ -1974,7 +1974,7 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
         `:""}
       </div>
       `}
-    `}}customElements.define("browse-view",Gt);class Yt extends ae{static properties={updates:{type:Array},loading:{type:Boolean},updating:{type:Boolean},search:{type:String},_installingIds:{type:Object,state:!0},_changelogs:{type:Object,state:!0},_searchText:{type:String,state:!0},_selectedIds:{type:Object,state:!0},_selectedRepos:{type:Array,state:!0},_batchMode:{type:Boolean,state:!0},_viewMode:{type:String,state:!0}};constructor(){super(),this.updates=[],this.loading=!1,this.updating=!1,this.search="",this._searchTimer=null,this._installingIds={},this._changelogs={},this._changelogsLoading={},this._expandedChangelogs={},this._searchText="",this._selectedIds={},this._selectedRepos=[],this._batchMode=!1;const e=(()=>{try{return localStorage.getItem("hacs_vision_view_mode")}catch{return null}})();this._viewMode=e||"card"}static styles=[me(),s`
+    `}}customElements.define("browse-view",Gt);class Yt extends ae{static properties={updates:{type:Array},loading:{type:Boolean},updating:{type:Boolean},search:{type:String},_installingIds:{type:Object,state:!0},_changelogs:{type:Object,state:!0},_searchText:{type:String,state:!0},_selectedIds:{type:Object,state:!0},_selectedRepos:{type:Array,state:!0},_batchMode:{type:Boolean,state:!0},_viewMode:{type:String,state:!0},_favs:{type:Object,state:!0}};constructor(){super(),this.updates=[],this.loading=!1,this.updating=!1,this.search="",this._searchTimer=null,this._installingIds={},this._changelogs={},this._changelogsLoading={},this._expandedChangelogs={},this._searchText="",this._selectedIds={},this._selectedRepos=[],this._batchMode=!1,this._favs={};const e=(()=>{try{return localStorage.getItem("hacs_vision_view_mode")}catch{return null}})();this._viewMode=e||"card"}static styles=[me(),s`
       :host { display: block; touch-action: manipulation; background: var(--primary-background-color); }
 
       .search { min-width: 160px; }
@@ -1990,50 +1990,85 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
       .card {
         border: 1px solid var(--divider-color); border-radius: 14px;
         background: var(--card-background-color); overflow: hidden;
-        transition: all 0.2s; cursor: pointer;
+        transition: all 0.2s, box-shadow 0.2s; cursor: pointer;
         display: flex; flex-direction: column; min-height: 290px;
+        position: relative;
       }
       .card:hover { border-color: var(--primary-color); box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
 
       .img-container {
-        height: 100px; flex-shrink: 0;
+        height: 120px; flex-shrink: 0;
         display: flex; align-items: center; justify-content: center;
         background: linear-gradient(135deg, var(--secondary-background-color, #f0f0f0) 0%, var(--card-background-color, #fff) 100%);
         position: relative;
       }
-      .img-container .avatar {
-        width: 44px; height: 44px; border-radius: 50%;
+      .avatar {
+        width: 52px; height: 52px; border-radius: 50%;
         display: flex; align-items: center; justify-content: center;
-        font-size: 20px; font-weight: 700; color: #fff;
-        box-shadow: 0 3px 10px rgba(0,0,0,0.13);
+        font-size: 24px; font-weight: 700; color: #fff;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
         overflow: hidden; background: transparent;
       }
-      .img-container .avatar img { width: 100%; height: 100%; object-fit: cover; }
-      .img-container .avatar .initials {
+      .avatar img { width: 100%; height: 100%; object-fit: cover; }
+      .avatar .initials {
         display: flex; width: 100%; height: 100%;
         align-items: center; justify-content: center; border-radius: 50%;
       }
+      .badge-corner {
+        position: absolute; top: 8px; left: 8px;
+        padding: 3px 8px; border-radius: 5px;
+        font-size: 10px; font-weight: 600; color: #fff; z-index: 2;
+      }
+      .badge-corner.integration { background: #1565c0; }
+      .badge-corner.plugin { background: #7b1fa2; }
+      .badge-corner.theme { background: #2e7d32; }
+      .badge-corner.template { background: #6a1b9a; }
+
       .status-badge-update {
-        position: absolute; bottom: 8px; left: 8px;
+        position: absolute; bottom: 8px; left: 8px; z-index: 2;
         padding: 3px 8px; border-radius: 5px;
         font-size: 10px; font-weight: 600; color: #fff;
         background: rgba(255,152,0,0.85);
       }
-      .category-badge-corner {
-        position: absolute; top: 8px; left: 8px;
-        padding: 3px 8px; border-radius: 5px;
-        font-size: 10px; font-weight: 600; color: #fff;
+
+      /* Top bar: checkbox + category badge */
+      .top-bar {
+        position: absolute; top: 0; left: 0; right: 0;
+        display: flex; align-items: center; gap: 6px;
+        padding: 10px; z-index: 3;
+      }
+      .top-bar .checkbox {
+        width: 18px; height: 18px; border-radius: 4px;
+        border: 2px solid rgba(255,255,255,0.7); cursor: pointer;
+        display: flex; align-items: center; justify-content: center;
+        flex-shrink: 0; transition: all 0.2s;
+        background: rgba(0,0,0,0.25);
+        -webkit-appearance: none; appearance: none; touch-action: manipulation;
+      }
+      .top-bar .checkbox:checked {
+        background: var(--primary-color); border-color: var(--primary-color);
+      }
+      .top-bar .checkbox:checked::after {
+        content: '✓'; color: #fff; font-size: 12px; font-weight: 700;
       }
 
-      .card-body { padding: 14px; flex: 1; display: flex; flex-direction: column; }
+      .fav-btn {
+        position: absolute; top: 10px; right: 10px; z-index: 3;
+        width: 32px; height: 32px; border-radius: 50%;
+        border: none; background: rgba(255,255,255,0.85);
+        cursor: pointer; display: flex; align-items: center; justify-content: center;
+        transition: all 0.2s; z-index: 2; padding: 0;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.12);
+      }
+      .fav-btn:hover { transform: scale(1.1); }
+      .fav-btn svg { width: 18px; height: 18px; transition: all 0.2s; }
+      .fav-btn.active svg { fill: #ff9800; color: #ff9800; }
+      .fav-btn:not(.active) svg { fill: none; color: var(--secondary-text-color, #727272); }
 
-      .card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; }
-      .card-left { display: flex; align-items: center; gap: 8px; min-width: 0; flex: 1; }
-      .card-name { font-size: 15px; font-weight: 600; color: var(--primary-text-color); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-      .card-name .category-badge {
-        display: inline-block; font-size: 9px; padding: 2px 7px;
-        border-radius: 4px; background: rgba(var(--rgb-primary-color), 0.08);
-        color: var(--primary-color); margin-left: 6px; vertical-align: middle;
+      .card-body { padding: 14px; flex: 1; display: flex; flex-direction: column; }
+      .card-name {
+        font-size: 15px; font-weight: 600; color: var(--primary-text-color);
+        overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-bottom: 8px;
       }
 
       .version-row { display: flex; gap: 12px; margin-bottom: 12px; }
@@ -2066,13 +2101,33 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
       }
       .select-all:hover { color: var(--primary-text-color); }
 
-      .btn.primary { width: 100%; padding: 10px; border-radius: 10px; font-size: 13px; font-weight: 600; margin-top: auto; }
-      .btn.primary:hover { opacity: 0.9; }
-      /* F3: Progress button pulse */
-      .btn.primary.installing {
+      /* ===== Action Bar (matches repo-card) ===== */
+      .actions {
+        display: flex; gap: 6px;
+        padding: 8px 14px;
+        border-top: 1px solid var(--divider-color, #e0e0e0);
+        margin-top: auto; background: var(--card-background-color, #fff);
+      }
+      .action-btn {
+        flex: 1; min-width: 0; padding: 8px 4px; border-radius: 10px;
+        font-size: 12px; text-align: center; justify-content: center;
+        border: 1px solid var(--divider-color, #e0e0e0);
+        background: var(--card-background-color, #fff);
+        color: var(--primary-text-color, #212121);
+        cursor: pointer; transition: all 0.2s;
+        display: flex; align-items: center; gap: 4px;
+        touch-action: manipulation;
+      }
+      .action-btn:hover { border-color: var(--primary-color, #03a9f4); color: var(--primary-color, #03a9f4); }
+      .action-btn.primary {
+        background: var(--primary-color, #03a9f4); border-color: var(--primary-color, #03a9f4); color: #fff;
+      }
+      .action-btn.primary:hover { opacity: 0.9; }
+      .action-btn.installing {
         opacity: 0.7; cursor: not-allowed;
         animation: btnPulse 1.5s infinite;
       }
+      .action-btn svg { width: 16px; height: 16px; flex-shrink: 0; }
       @keyframes btnPulse { 0%, 100% { opacity: 0.7; } 50% { opacity: 0.45; } }
 
       /* F6: Changelog preview */
@@ -2187,11 +2242,18 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
       @media (max-width: 768px) {
         .search { min-width: 0; }
         .card { min-height: 260px; }
-        .img-container { height: 80px; }
-        .img-container .avatar { width: 36px; height: 36px; font-size: 16px; }
+        .img-container { height: 100px; }
+        .avatar { width: 44px; height: 44px; font-size: 20px; }
         .card-body { padding: 10px; }
-        .card-header { margin-bottom: 6px; }
         .card-name { font-size: 14px; }
+        .version-row { gap: 8px; }
+        .version-item { padding: 6px; }
+        .version-label { font-size: 9px; }
+        .version-value { font-size: 12px; }
+        .card-desc { font-size: 11px; margin-bottom: 10px; }
+        .action-btn { min-height: 44px; padding: 10px 6px; font-size: 11px; }
+        .fav-btn { width: 36px; height: 36px; }
+        .fav-btn svg { width: 20px; height: 20px; }
         .version-row { gap: 8px; }
         .version-item { padding: 6px; }
         .version-label { font-size: 9px; }
@@ -2226,7 +2288,7 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
         display: inline-flex; align-items: center; margin-right: 4px; cursor: pointer;
       }
       .batch-checkbox input { width: 16px; height: 16px; cursor: pointer; }
-    `];async connectedCallback(){super.connectedCallback(),await this._load()}_lazyLoadChangelogs(){const e=this.updates.filter(e=>e.full_name&&!this._changelogs[e.full_name]);if(0===e.length)return;let t=0;const o=()=>{t>=e.length||(this._loadChangelog(e[t++].full_name),setTimeout(o,150))};setTimeout(o,300)}async _load(){this.loading=!0;try{ce.refresh().catch(()=>{});const e=await ce.getUpdates();this.updates=Array.isArray(e)?e:e.updates||[],this._lazyLoadChangelogs()}catch(e){console.error("Failed to load updates",e),this.updates=[]}this.loading=!1}async _loadChangelog(e){if(e&&!this._changelogs[e]&&!this._changelogsLoading[e]){this._changelogsLoading={...this._changelogsLoading,[e]:!0};try{const t=await ce.getChangelog(e);t?.body&&(this._changelogs={...this._changelogs,[e]:t})}catch{}this._changelogsLoading={...this._changelogsLoading,[e]:!1}}}_toggleChangelog(e){this._expandedChangelogs={...this._expandedChangelogs,[e]:!this._expandedChangelogs?.[e]}}async _loadChangelogs(){const e=this.updates.filter(e=>e.full_name);if(0===e.length)return;const t=await Promise.allSettled(e.map(e=>ce.getChangelog(e.full_name).then(t=>({fullName:e.full_name,data:t})))),o={};for(const e of t)"fulfilled"===e.status&&e.value.data?.body&&(o[e.value.fullName]=e.value.data);Object.keys(o).length>0&&(this._changelogs={...this._changelogs,...o})}async _updateSelected(){const e=Object.keys(this._selectedIds).filter(e=>this._selectedIds[e]);if(0===e.length)return;if(await Ut.show(this,{message:ge("confirmUpdateSelected",{n:e.length}),confirmText:ge("confirmUpdate"),danger:!1})){this.updating=!0;try{await ce.update(e),Mt(`${ge("allUpdatesStarted")} (${e.length})`,"success"),this._selectedIds={},this._load(),this.dispatchEvent(new CustomEvent("refresh-stats",{bubbles:!0,composed:!0}))}catch(e){Mt(`${ge("updateFailed")}: ${e.message}`,"error")}this.updating=!1}}async _updateAll(){const e=this.updates.map(e=>e.id||e.full_name);if(0===e.length)return;if(await Ut.show(this,{message:ge("confirmUpdateAll",{n:e.length}),confirmText:ge("confirmUpdate"),danger:!1})){this.updating=!0;try{await ce.update(e),Mt(`${ge("allUpdatesStarted")} (${e.length})`,"success"),this._selectedIds={},this._load(),this.dispatchEvent(new CustomEvent("refresh-stats",{bubbles:!0,composed:!0}))}catch(e){Mt(`${ge("updateFailed")}: ${e.message}`,"error")}this.updating=!1}}_toggleSelect(e){this._selectedIds={...this._selectedIds,[e]:!this._selectedIds[e]}}_toggleSelectFull(e){this._selectedRepos.includes(e)?this._selectedRepos=this._selectedRepos.filter(t=>t!==e):this._selectedRepos=[...this._selectedRepos,e]}async _batchDo(e){if(0!==this._selectedRepos.length){if("remove"===e){if(!await Ut.show(this,{message:ge("batchRemoveConfirm",{n:this._selectedRepos.length}),confirmText:ge("batchRemove"),danger:!0}))return}try{Mt(ge("batchInProgress"),"info"),"update"===e?await ce.update(this._selectedRepos):"remove"===e&&await ce.batchRemove(this._selectedRepos.map(e=>e)),Mt(ge("batchComplete"),"success"),this._selectedRepos=[],this._batchMode=!1,this._load(),this.dispatchEvent(new CustomEvent("refresh-stats",{bubbles:!0,composed:!0}))}catch(t){Mt(`${e} failed: ${t.message}`,"error")}}}_toggleSelectAll(){const e=this._getFiltered();if(this._isAllSelected())this._selectedIds={};else{const t={};for(const o of e)t[o.id||o.full_name]=!0;this._selectedIds=t}}_isAllSelected(){const e=this._getFiltered();return 0!==e.length&&e.every(e=>this._selectedIds[e.id||e.full_name])}_selectedCount(){return Object.keys(this._selectedIds).filter(e=>this._selectedIds[e]).length}async _updateOne(e){const t=e.id||e.full_name;this._installingIds={...this._installingIds,[t]:!0};try{await ce.update([t]);const o=e.latest_version;let i=0;const r=async()=>{if(i++>30){const e={...this._installingIds};return delete e[t],this._installingIds=e,void Mt(`${ge("updateFailed")}: timeout`,"error")}try{const i=await ce.getRepoStatus(t);if(i?.installed_version===o||i?.installed&&!i?.has_update){const o={...this._installingIds};return delete o[t],this._installingIds=o,Mt(`${ge("updateComplete")}: ${e.full_name||e.name}`,"success"),this._load(),void this.dispatchEvent(new CustomEvent("refresh-stats",{bubbles:!0,composed:!0}))}}catch(e){}setTimeout(r,2e3)};setTimeout(r,2e3)}catch(e){const o={...this._installingIds};delete o[t],this._installingIds=o,Mt(`${ge("updateFailed")}: ${e.message}`,"error")}}_getFiltered(){if(!this.search)return this.updates;const e=this.search.toLowerCase();return this.updates.filter(t=>(t.full_name||t.name||"").toLowerCase().includes(e))}_clearSearch(){this._searchText="",this.search="",this._searchTimer&&(clearTimeout(this._searchTimer),this._searchTimer=null)}_openDetail(e){this.dispatchEvent(new CustomEvent("detail",{detail:{repo:e},bubbles:!0,composed:!0}))}_setViewMode(e){this._viewMode=e;try{localStorage.setItem("hacs_vision_view_mode",e)}catch{}}_renderListTable(e){return H`
+    `];async connectedCallback(){super.connectedCallback(),await this._load()}_lazyLoadChangelogs(){const e=this.updates.filter(e=>e.full_name&&!this._changelogs[e.full_name]);if(0===e.length)return;let t=0;const o=()=>{t>=e.length||(this._loadChangelog(e[t++].full_name),setTimeout(o,150))};setTimeout(o,300)}async _load(){this.loading=!0;try{ce.refresh().catch(()=>{});const e=await ce.getUpdates();this.updates=Array.isArray(e)?e:e.updates||[],this._lazyLoadChangelogs()}catch(e){console.error("Failed to load updates",e),this.updates=[]}this.loading=!1}async _loadChangelog(e){if(e&&!this._changelogs[e]&&!this._changelogsLoading[e]){this._changelogsLoading={...this._changelogsLoading,[e]:!0};try{const t=await ce.getChangelog(e);t?.body&&(this._changelogs={...this._changelogs,[e]:t})}catch{}this._changelogsLoading={...this._changelogsLoading,[e]:!1}}}_toggleChangelog(e){this._expandedChangelogs={...this._expandedChangelogs,[e]:!this._expandedChangelogs?.[e]}}async _loadChangelogs(){const e=this.updates.filter(e=>e.full_name);if(0===e.length)return;const t=await Promise.allSettled(e.map(e=>ce.getChangelog(e.full_name).then(t=>({fullName:e.full_name,data:t})))),o={};for(const e of t)"fulfilled"===e.status&&e.value.data?.body&&(o[e.value.fullName]=e.value.data);Object.keys(o).length>0&&(this._changelogs={...this._changelogs,...o})}async _updateSelected(){const e=Object.keys(this._selectedIds).filter(e=>this._selectedIds[e]);if(0===e.length)return;if(await Ut.show(this,{message:ge("confirmUpdateSelected",{n:e.length}),confirmText:ge("confirmUpdate"),danger:!1})){this.updating=!0;try{await ce.update(e),Mt(`${ge("allUpdatesStarted")} (${e.length})`,"success"),this._selectedIds={},this._load(),this.dispatchEvent(new CustomEvent("refresh-stats",{bubbles:!0,composed:!0}))}catch(e){Mt(`${ge("updateFailed")}: ${e.message}`,"error")}this.updating=!1}}async _updateAll(){const e=this.updates.map(e=>e.id||e.full_name);if(0===e.length)return;if(await Ut.show(this,{message:ge("confirmUpdateAll",{n:e.length}),confirmText:ge("confirmUpdate"),danger:!1})){this.updating=!0;try{await ce.update(e),Mt(`${ge("allUpdatesStarted")} (${e.length})`,"success"),this._selectedIds={},this._load(),this.dispatchEvent(new CustomEvent("refresh-stats",{bubbles:!0,composed:!0}))}catch(e){Mt(`${ge("updateFailed")}: ${e.message}`,"error")}this.updating=!1}}_toggleSelect(e){this._selectedIds={...this._selectedIds,[e]:!this._selectedIds[e]}}_toggleSelectFull(e){this._selectedRepos.includes(e)?this._selectedRepos=this._selectedRepos.filter(t=>t!==e):this._selectedRepos=[...this._selectedRepos,e]}async _batchDo(e){if(0!==this._selectedRepos.length){if("remove"===e){if(!await Ut.show(this,{message:ge("batchRemoveConfirm",{n:this._selectedRepos.length}),confirmText:ge("batchRemove"),danger:!0}))return}try{Mt(ge("batchInProgress"),"info"),"update"===e?await ce.update(this._selectedRepos):"remove"===e&&await ce.batchRemove(this._selectedRepos.map(e=>e)),Mt(ge("batchComplete"),"success"),this._selectedRepos=[],this._batchMode=!1,this._load(),this.dispatchEvent(new CustomEvent("refresh-stats",{bubbles:!0,composed:!0}))}catch(t){Mt(`${e} failed: ${t.message}`,"error")}}}_toggleSelectAll(){const e=this._getFiltered();if(this._isAllSelected())this._selectedIds={};else{const t={};for(const o of e)t[o.id||o.full_name]=!0;this._selectedIds=t}}_isAllSelected(){const e=this._getFiltered();return 0!==e.length&&e.every(e=>this._selectedIds[e.id||e.full_name])}_selectedCount(){return Object.keys(this._selectedIds).filter(e=>this._selectedIds[e]).length}async _updateOne(e){const t=e.id||e.full_name;this._installingIds={...this._installingIds,[t]:!0};try{await ce.update([t]);const o=e.latest_version;let i=0;const r=async()=>{if(i++>30){const e={...this._installingIds};return delete e[t],this._installingIds=e,void Mt(`${ge("updateFailed")}: timeout`,"error")}try{const i=await ce.getRepoStatus(t);if(i?.installed_version===o||i?.installed&&!i?.has_update){const o={...this._installingIds};return delete o[t],this._installingIds=o,Mt(`${ge("updateComplete")}: ${e.full_name||e.name}`,"success"),this._load(),void this.dispatchEvent(new CustomEvent("refresh-stats",{bubbles:!0,composed:!0}))}}catch(e){}setTimeout(r,2e3)};setTimeout(r,2e3)}catch(e){const o={...this._installingIds};delete o[t],this._installingIds=o,Mt(`${ge("updateFailed")}: ${e.message}`,"error")}}_getFiltered(){if(!this.search)return this.updates;const e=this.search.toLowerCase();return this.updates.filter(t=>(t.full_name||t.name||"").toLowerCase().includes(e))}_clearSearch(){this._searchText="",this.search="",this._searchTimer&&(clearTimeout(this._searchTimer),this._searchTimer=null)}_openDetail(e){this.dispatchEvent(new CustomEvent("detail",{detail:{repo:e},bubbles:!0,composed:!0}))}async _toggleFav(e){const t=e.id||e.full_name,o=!!this._favs[t],i={...this._favs};o?delete i[t]:i[t]=!0,this._favs=i;try{const e=Object.keys(i);await ce.setFavorites(e)}catch(e){this._favs=this._favs}}_setViewMode(e){this._viewMode=e;try{localStorage.setItem("hacs_vision_view_mode",e)}catch{}}_renderListTable(e){return H`
       <table class="list-table">
         <thead>
           <tr>
@@ -2356,57 +2418,59 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
         `:H`
           <div class="grid">
             ${e.map(e=>{const t=e.id||e.full_name,o=!!this._installingIds?.[t],i=this._changelogs?.[e.full_name],r=!!this._selectedIds[t];return H`
-              <div class="card" @click=${t=>{t.target.closest(".btn")||t.target.closest("a")||t.target.closest(".checkbox")||this._openDetail(e)}}>
+              <div class="card" @click=${t=>{t.target.closest(".action-btn")||t.target.closest("a")||t.target.closest(".checkbox")||t.target.closest(".fav-btn")||this._openDetail(e)}}>
                 <div class="img-container">
+                  <div class="top-bar">
+                    <input type="checkbox" class="checkbox" .checked=${r}
+                           @click=${e=>e.stopPropagation()}
+                           @change=${()=>this._toggleSelect(t)}>
+                    <span class="badge-corner ${e.category||"integration"}">${e.category||"integration"}</span>
+                  </div>
                   <div class="avatar">
-                    ${(()=>{const t=[];if(e.domain&&"integration"===e.category&&t.push(`https://brands.home-assistant.io/${e.domain}/icon.png`),e.full_name){const o=e.full_name.split("/")[0];o&&t.push(`https://github.com/${o}.png`)}const o=fe(e.category);return t.length>0?H`
+                    ${(()=>{const t=[];if(e.domain&&"integration"===e.category&&t.push("https://brands.home-assistant.io/"+e.domain+"/icon.png"),e.full_name){const o=e.full_name.split("/")[0];o&&t.push("https://github.com/"+o+".png")}const o=fe(e.category);return t.length>0?H`
                           <img src="${t[0]}" alt=""
                             @error=${function(){this.style.display="none";const e=this.parentElement?.querySelector(".initials");e&&(e.style.display="flex",e.style.background=o)}}>
                           <span class="initials" style="display:none">${(e.name||e.full_name||"?").charAt(0).toUpperCase()}</span>
                         `:H`<span class="initials" style="display:flex;background:${o}">${(e.name||e.full_name||"?").charAt(0).toUpperCase()}</span>`})()}
                   </div>
                   <span class="status-badge-update">${ge("statusPendingUpgrade")}</span>
-                  <span class="category-badge-corner" style="background:${fe(e.category)}">${e.category}</span>
+                  <button class="fav-btn ${this._favs?.[e.id||e.full_name]?"active":""}"
+                    @click=${t=>{t.stopPropagation(),this._toggleFav(e)}}
+                    title=${this._favs?.[e.id||e.full_name]?ge("favOn")||"取消收藏":ge("favOff")||"收藏"}>
+                    <svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                    </svg>
+                  </button>
                 </div>
                 <div class="card-body">
-                <div class="card-header">
-                  <div class="card-left">
-                    <input type="checkbox" class="checkbox" .checked=${r}
-                           @click=${e=>e.stopPropagation()}
-                           @change=${()=>this._toggleSelect(t)}>
-                    <div class="card-name">
-                      ${e.name||e.full_name}
-                      ${e.category?H`<span class="category-badge">${e.category}</span>`:""}
+                  <div class="card-name" title="${e.name||e.full_name}">${e.name||e.full_name}</div>
+                  <div class="version-row">
+                    <div class="version-item">
+                      <div class="version-label">${ge("currentVersion")}</div>
+                      <div class="version-value old">${e.installed_version||"?"}</div>
+                    </div>
+                    <div class="version-item">
+                      <div class="version-label">${ge("latestVersion")}</div>
+                      <div class="version-value new">${e.latest_version||"?"}</div>
                     </div>
                   </div>
-                </div>
-                <div class="version-row">
-                  <div class="version-item">
-                    <div class="version-label">${ge("currentVersion")}</div>
-                    <div class="version-value old">${e.installed_version||"?"}</div>
-                  </div>
-                  <div class="version-item">
-                    <div class="version-label">${ge("latestVersion")}</div>
-                    <div class="version-value new">${e.latest_version||"?"}</div>
-                  </div>
-                </div>
-                <div class="card-desc">${e.description||""}</div>
-
-                ${i?.body?H`
-                  <div class="changelog-preview">
-                    <div class="changelog-preview-title">${ge("changelogTitle")} ${i.tag?H`<small>(${i.tag})</small>`:""}</div>
-                    <div class="changelog-preview-body${this._expandedChangelogs?.[e.full_name]?" expanded":""}">${i.body}</div>
-                    <div>
-                      <button class="changelog-expand-btn" @click=${()=>this._toggleChangelog(e.full_name)}>${this._expandedChangelogs?.[e.full_name]?ge("changelogShowLess"):ge("changelogShowMore")}</button>
-                      <a class="changelog-preview-link" href="${i.url||`https://github.com/${e.full_name}/releases`}" target="_blank" rel="noopener">${ge("viewFullChangelog")} →</a>
+                  <div class="card-desc">${e.description||""}</div>
+                  ${i?.body?H`
+                    <div class="changelog-preview">
+                      <div class="changelog-preview-title">${ge("changelogTitle")} ${i.tag?H`<small>(${i.tag})</small>`:""}</div>
+                      <div class="changelog-preview-body${this._expandedChangelogs?.[e.full_name]?" expanded":""}">${i.body}</div>
+                      <div>
+                        <button class="changelog-expand-btn" @click=${()=>this._toggleChangelog(e.full_name)}>${this._expandedChangelogs?.[e.full_name]?ge("changelogShowLess"):ge("changelogShowMore")}</button>
+                        <a class="changelog-preview-link" href="${i.url||`https://github.com/${e.full_name}/releases`}" target="_blank" rel="noopener">${ge("viewFullChangelog")} →</a>
+                      </div>
                     </div>
-                  </div>
-                `:""}
-
-                <button class="btn primary ${o?"installing":""}"
-                        @click=${()=>this._updateOne(e)} ?disabled=${o||this.updating}>
-                  ${o?H`<svg class="mini-icon spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> ${ge("updatingProgress")}`:H`<svg class="mini-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg> ${ge("updateNow")}`}
-                </button>
+                  `:""}
+                </div>
+                <div class="actions">
+                  <button class="action-btn primary ${o?"installing":""}"
+                    @click=${()=>this._updateOne(e)} ?disabled=${o||this.updating}>
+                    ${o?H`<svg class="mini-icon spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> ${ge("updatingProgress")}`:H`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg> ${ge("updateNow")}`}
+                  </button>
                 </div>
               </div>
             `})}
