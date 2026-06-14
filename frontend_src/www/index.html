@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>HACS Vision</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body {
+      width: 100%; min-height: 100%;
+      overflow-x: hidden;
+      background: #1c1c1c;
+    }
+    hacs-vision-panel {
+      display: block;
+      min-height: 100vh;
+    }
+  </style>
+</head>
+<body>
+  <hacs-vision-panel></hacs-vision-panel>
+  <script src="./panel.js?v=__VERSION__"></script>
+  <script>
+    // Bridge: get hass from parent HA frame and pass it to the panel
+    // This makes the iframe work as if it were a native HA panel
+    (function() {
+      var panel = document.querySelector('hacs-vision-panel');
+      if (!panel) return;
+
+      function bridgeHass() {
+        try {
+          var haEl = window.parent.document.querySelector('home-assistant');
+          if (haEl && haEl.hass && !panel.hass) {
+            panel.hass = haEl.hass;
+            syncIframeBg();
+              return true;
+          }
+        } catch(e) {}
+        return false;
+      }
+
+      function syncIframeBg() {
+        try {
+          var parentDoc = window.parent.document;
+          var haEl = parentDoc.querySelector('home-assistant') || parentDoc.documentElement;
+          var bg = window.getComputedStyle(haEl).getPropertyValue('--primary-background-color').trim();
+          if (bg && bg.indexOf('var(') === -1) {
+            document.body.style.backgroundColor = bg;
+            // Also propagate CSS variable to root so LitElement :host can resolve it
+            document.documentElement.style.setProperty('--primary-background-color', bg);
+            return;
+          }
+          var parentBg = window.getComputedStyle(parentDoc.body).backgroundColor;
+          if (parentBg && parentBg !== 'rgba(0, 0, 0, 0)' && parentBg !== 'transparent') {
+            document.body.style.backgroundColor = parentBg;
+            document.documentElement.style.setProperty('--primary-background-color', parentBg);
+            return;
+          }
+        } catch(e) {}
+        document.body.style.backgroundColor = '#1c1c1c';
+        document.documentElement.style.setProperty('--primary-background-color', '#1c1c1c');
+      }
+      // Try immediately, then poll up to 10s
+      syncIframeBg();
+      if (!bridgeHass()) {
+        var count = 0;
+        var iv = setInterval(function() {
+          count++;
+          if (bridgeHass() || count >= 20) clearInterval(iv);
+        }, 500);
+      }
+    })();
+  </script>
+</body>
+</html>
