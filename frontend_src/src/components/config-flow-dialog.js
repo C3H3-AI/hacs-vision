@@ -62,6 +62,7 @@ class ConfigFlowDialog extends LitElement {
     this._translations = null;
     this._lang = 'zh-Hans';
     this._dialogDrag = { offsetX: 0, offsetY: 0, startX: 0, startY: 0, dragging: false };
+    this._cleanedUp = false;
   }
 
   /** Get hass object — from prop or directly from parent HA iframe */
@@ -76,6 +77,7 @@ class ConfigFlowDialog extends LitElement {
   disconnectedCallback() {
     super.disconnectedCallback();
     this._clearLoadingTimeout();
+    this._cleanedUp = true;
   }
 
   _clearLoadingTimeout() {
@@ -407,6 +409,7 @@ class ConfigFlowDialog extends LitElement {
       await this._handleFlowResponse(result);
     } catch (e) {
       console.error('HACS Vision: config flow start error:', e);
+      this._clearLoadingTimeout();
       this._finished = true;
       this._result = { type: 'error', message: this._getFlowErrorMessage(e) };
       this._loading = false;
@@ -435,6 +438,7 @@ class ConfigFlowDialog extends LitElement {
     // integration (HTTP 409). Continue the existing flow by fetching its current step.
     if (result.type === 'already_in_progress') {
       this._flowId = result.flow_id || result.flowId;
+      this._clearLoadingTimeout();
       try {
         const stepResult = await (this._isOptions
           ? api.stepOptionsFlow(this._flowId, {})
@@ -591,22 +595,29 @@ class ConfigFlowDialog extends LitElement {
   }
 
   _close() {
-    this.open = false;
-    this._flowId = null;
-    this._step = null;
-    this._finished = false;
-    this._result = null;
-    this._errors = {};
-    this._isOptions = false;
-    this._isSubentry = false;
-    this._subentryTypes = [];
-    this._subentryType = '';
-    this._existingSubentries = [];
-    this._isSubentryReconfigure = false;
-    this._subentryReconfigureId = '';
-    this.domain = '';
-    this.entryId = null;
-    this.dispatchEvent(new CustomEvent('close', { bubbles: true, composed: true }));
+    try {
+      this._clearLoadingTimeout();
+      this.open = false;
+      this._flowId = null;
+      this._step = null;
+      this._finished = false;
+      this._result = null;
+      this._errors = {};
+      this._isOptions = false;
+      this._isSubentry = false;
+      this._subentryTypes = [];
+      this._subentryType = '';
+      this._existingSubentries = [];
+      this._isSubentryReconfigure = false;
+      this._subentryReconfigureId = '';
+      this.domain = '';
+      this.entryId = null;
+      this.dispatchEvent(new CustomEvent('close', { bubbles: true, composed: true }));
+    } catch(e) {
+      console.error('HACS Vision: config flow close error:', e);
+      // Force parent cleanup even on crash
+      this.dispatchEvent(new CustomEvent('close', { bubbles: true, composed: true }));
+    }
   }
 
   static styles = [getCommonStyles(), css`
@@ -791,7 +802,8 @@ class ConfigFlowDialog extends LitElement {
               ${this.domain ? html`
                 <div class="cfg-avatar">
                   <img class="cfg-avatar-img" src="https://brands.home-assistant.io/${this.domain}/icon.png" alt=""
-                    @error=${function() {
+                    @error=${function(e) {
+                      if (!this.isConnected) return;
                       this.style.display = 'none';
                       const fl = this.parentElement.querySelector('.cfg-avatar-letter');
                       if (fl) fl.style.display = 'flex';
