@@ -535,7 +535,7 @@ class IntegrationsList extends LitElement {
               e.target.src = localUrl;
             } else {
               e.target.style.display = 'none';
-              e.target.parentElement.style.background = '${color}';
+              e.target.parentElement.style.background = color;
               const fl = e.target.parentElement.querySelector('.avatar-letter');
               if (fl) fl.style.display = 'flex';
             }
@@ -894,13 +894,8 @@ class IntegrationsList extends LitElement {
         <span class="tree-arrow ${isOpen ? 'open' : ''}" @click=${e => { e.stopPropagation(); this._toggleEntry(entry); }}>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><polyline points="6 9 12 15 18 9"/></svg>
         </span>
-        <div class="entry-icon" style="background:${this._getDomainColor(this._detailDomain)}">
-          <img class="entry-icon-img" src="https://brands.home-assistant.io/${this._detailDomain}/icon.png" alt=""
-            @error=${function() {
-              try { this.style.display = 'none'; const el = this.parentElement?.querySelector('.entry-icon-letter');
-              if (el) { el.style.display = 'flex'; this.parentElement.style.background = el.dataset.color || 'var(--primary-color)'; } } catch(e) {}
-            }}>
-          <span class="entry-icon-letter" style="display:none" data-color="${this._getDomainColor(this._detailDomain)}">${(this._detailDomain || '').charAt(0).toUpperCase()}</span>
+        <div class="entry-icon">
+          ${this._renderAvatar(this._detailDomain)}
         </div>
         <span class="entry-dot" style="background:${state.dot}"></span>
         <div class="entry-info">
@@ -1403,12 +1398,13 @@ class IntegrationsList extends LitElement {
     }
     .sel-all-label input { width: 13px; height: 13px; cursor: pointer; }
     .entry-icon {
-      width: 28px; height: 28px; border-radius: 50%; flex-shrink: 0;
-      display: flex; align-items: center; justify-content: center;
-      overflow: hidden; background: var(--primary-color, #03a9f4);
+      width: 28px; height: 28px; flex-shrink: 0;
+      overflow: hidden; border-radius: 50%;
     }
-    .entry-icon-img { width: 100%; height: 100%; object-fit: cover; }
-    .entry-icon-letter { font-size: 12px; font-weight: 700; color: #fff; }
+    .entry-icon .avatar {
+      width: 28px; height: 28px; font-size: 12px;
+      box-shadow: none;
+    }
     .entry-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
     .entry-info { flex: 1; min-width: 0; }
     .entry-label { font-size: 13px; font-weight: 500; color: var(--primary-text-color); }
