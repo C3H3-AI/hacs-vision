@@ -242,6 +242,10 @@ class ConfigView extends LitElement {
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
               ${t('restartHA')}
             </button>
+            <button class="btn" style="color:#ff9800;border-color:#ff9800;" @click=${this._clearPanelCache}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/></svg>
+              ${t('clearCache')}
+            </button>
           </div>
         </div>
 
@@ -349,6 +353,27 @@ class ConfigView extends LitElement {
       showToast(t('haRestarting'), 'info');
     } catch(e) {
       showToast(`${t('restartFailed')}: ${e.message}`, 'error');
+    }
+  }
+
+  async _clearPanelCache() {
+    const { ConfirmDialog } = await import('../shared/confirm-dialog.js');
+    const ok = await ConfirmDialog.show(this, {
+      message: t('clearCacheConfirm'),
+      confirmText: t('confirm'),
+      danger: false,
+    });
+    if (!ok) return;
+    try {
+      const keys = await caches.keys();
+      await Promise.all(keys.map(k => caches.delete(k)));
+      localStorage.clear();
+      const { showToast } = await import('../hacs-vision-panel.js');
+      showToast(t('clearCacheDone'), 'success');
+      setTimeout(() => location.reload(), 1500);
+    } catch(e) {
+      const { showToast } = await import('../hacs-vision-panel.js');
+      showToast(`${t('clearCache')}: ${e.message}`, 'error');
     }
   }
 

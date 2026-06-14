@@ -76,12 +76,13 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
     this._entrySelectorEntries = [];
     this._entrySelectorCurrentId = null;
     registerPanel(this);
-    window.addEventListener('resize', () => {
-      this.narrow = window.innerWidth < 768;
-    });
+    this._resizeHandler = () => { this.narrow = window.innerWidth < 768; };
+    window.addEventListener('resize', this._resizeHandler);
     // F2: Network status listeners
-    window.addEventListener('online', () => { this._networkStatus = 'online'; });
-    window.addEventListener('offline', () => { this._networkStatus = 'offline'; });
+    this._onlineHandler = () => { this._networkStatus = 'online'; };
+    this._offlineHandler = () => { this._networkStatus = 'offline'; };
+    window.addEventListener('online', this._onlineHandler);
+    window.addEventListener('offline', this._offlineHandler);
     // _updateFavoriteCount() deferred to willUpdate when hass becomes available
   }
 
@@ -656,6 +657,9 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
 
   disconnectedCallback() {
     super.disconnectedCallback();
+    window.removeEventListener('resize', this._resizeHandler);
+    window.removeEventListener('online', this._onlineHandler);
+    window.removeEventListener('offline', this._offlineHandler);
     window.removeEventListener('keydown', this._keydownHandler);
   }
 

@@ -339,6 +339,11 @@ const T = {
   today: { zh: '今天', en: 'Today' },
   yesterday: { zh: '昨天', en: 'Yesterday' },
 
+  // Maintenance
+  clearCache: { zh: '清除缓存', en: 'Clear cache' },
+  clearCacheConfirm: { zh: '清除面板缓存后，页面将重新加载以获取最新版本。确定继续？', en: 'Clear the panel cache? The page will reload to get the latest version.' },
+  clearCacheDone: { zh: '缓存已清除，正在重新加载...', en: 'Cache cleared, reloading...' },
+
   // Config tab
   tabSettings: { zh: '设置', en: 'Settings' },
   settingsTitle: { zh: '设置', en: 'Settings' },
