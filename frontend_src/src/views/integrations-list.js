@@ -678,6 +678,12 @@ class IntegrationsList extends LitElement {
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
               ${t('addHAIntegration')}
             </button>
+            <label style="display:flex;align-items:center;gap:3px;font-size:12px;color:var(--secondary-text-color);cursor:pointer;flex-shrink:0;white-space:nowrap;">
+              <input type="checkbox" style="width:14px;height:14px;cursor:pointer;accent-color:var(--primary-color);"
+                .checked=${this._isAllDomainsSelected(groups)}
+                @change=${() => this._toggleSelectAllDomains(groups)}>
+              ${t('selectAll') || '全选'} ${this._selectedDomainCount() > 0 ? html`<span style="color:var(--primary-color);font-weight:600;">(${this._selectedDomainCount()})</span>` : ''}
+            </label>
           </div>
         </div>
 
@@ -690,13 +696,6 @@ class IntegrationsList extends LitElement {
               <span class="chip-count">${cc[key] ?? 0}</span>
             </button>
           `)}
-          <div style="flex:1"></div>
-          <label class="sel-all-label" style="flex-shrink:0;font-size:12px;color:var(--secondary-text-color);">
-            <input type="checkbox" style="width:13px;height:13px;cursor:pointer;accent-color:var(--primary-color);"
-              .checked=${this._isAllDomainsSelected(groups)}
-              @change=${() => this._toggleSelectAllDomains(groups)}>
-            ${t('selectAll') || '全选'} ${this._selectedDomainCount() > 0 ? html`<span style="color:var(--primary-color);font-weight:600;">(${this._selectedDomainCount()})</span>` : ''}
-          </label>
         </div>
 
         ${this._selectedDomainCount() > 0 ? html`

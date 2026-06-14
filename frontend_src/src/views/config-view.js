@@ -12,6 +12,8 @@ class ConfigView extends LitElement {
     _version: { type: String, state: true },
     _importing: { type: Boolean, state: true },
     _exporting: { type: Boolean, state: true },
+    _depLoading: { type: Boolean, state: true },
+    _depResults: { type: Object, state: true },
   };
 
   constructor() {
@@ -21,6 +23,8 @@ class ConfigView extends LitElement {
     this._version = '';
     this._importing = false;
     this._exporting = false;
+    this._depLoading = false;
+    this._depResults = null;
   }
 
   connectedCallback() {
@@ -71,6 +75,20 @@ class ConfigView extends LitElement {
       const { showToast } = await import('../hacs-vision-panel.js');
       showToast(`${t('coreReloadFailed')}: ${e.message}`, 'error');
     }
+  }
+
+  async _checkDependencies() {
+    this._depLoading = true;
+    try {
+      const result = await api.checkDependencies();
+      this._depResults = result;
+      if (result.all_ok) showToast(t('depOk'), 'success');
+      else showToast(`${t('depMissing')} (${result.issues_count})`, 'error');
+    } catch(e) {
+      this._depResults = null;
+      showToast(`${t('checkFailed')}: ${e.message}`, 'error');
+    }
+    this._depLoading = false;
   }
 
   static styles = [getCommonStyles(), css`
@@ -268,6 +286,36 @@ class ConfigView extends LitElement {
             </button>
             <span style="font-size:11px;color:var(--secondary-text-color,#727272);">${t('importDesc')}</span>
           </div>
+        </div>
+
+        <!-- 依赖检查 -->
+        <div class="section">
+          <div class="section-title">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            ${t('depCheck')}
+          </div>
+          <div class="setting-row">
+            <div class="setting-info">
+              <div class="label">${t('depDesc')}</div>
+            </div>
+            <div class="setting-control">
+              <button class="btn" @click=${this._checkDependencies} ?disabled=${this._depLoading}>
+                ${this._depLoading ? '⟳' : '🔗'} ${t('checkDep')}
+              </button>
+            </div>
+          </div>
+          ${this._depResults?.dependencies?.filter(d => d.has_issues).length > 0 ? html`
+            <div style="margin-top:8px;font-size:12px;color:var(--secondary-text-color);">
+              ${this._depResults.dependencies.filter(d => d.has_issues).map(d => html`
+                <div style="padding:4px 0;display:flex;gap:6px;align-items:center;">
+                  <span style="color:#f44336;">✕</span> <span>${d.name}</span>
+                  ${d.missing_dependencies?.length ? html`<span style="color:var(--secondary-text-color);">— ${t('depMissing')}: ${d.missing_dependencies.join(', ')}</span>` : ''}
+                </div>
+              `)}
+            </div>
+          ` : this._depResults?.all_ok ? html`
+            <div style="margin-top:8px;font-size:12px;color:#4caf50;">✅ ${t('depOk')}</div>
+          ` : ''}
         </div>
 
         </div> <!-- config-grid -->

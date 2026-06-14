@@ -735,6 +735,13 @@ class UpdatesView extends LitElement {
             <button class="view-toggle-btn ${this._viewMode === 'card' ? 'active' : ''}" @click=${() => this._setViewMode('card')} title="${t('viewCard')}">${t('viewCard')}</button>
             <button class="view-toggle-btn ${this._viewMode === 'list' ? 'active' : ''}" @click=${() => this._setViewMode('list')} title="${t('viewList')}">${t('viewList')}</button>
           </div>
+          <label style="display:flex;align-items:center;gap:3px;font-size:12px;color:var(--secondary-text-color);cursor:pointer;flex-shrink:0;white-space:nowrap;">
+            <input type="checkbox" .checked=${this._isAllSelected()}
+                   @click=${e => e.stopPropagation()} @change=${this._toggleSelectAll}
+                   style="width:14px;height:14px;cursor:pointer;accent-color:var(--primary-color);">
+            ${t('selectAll') || '全选'}
+            ${this._selectedCount() > 0 ? html`<span style="color:var(--primary-color);font-weight:600;">(${this._selectedCount()})</span>` : ''}
+          </label>
         </div>
       </div>
 
@@ -751,14 +758,6 @@ class UpdatesView extends LitElement {
               <span class="chip-count">${counts[c]}</span>
             </button>
           `)}
-          <div style="flex:1"></div>
-          <label style="display:flex;align-items:center;gap:4px;font-size:12px;color:var(--secondary-text-color);cursor:pointer;flex-shrink:0;">
-            <input type="checkbox" .checked=${this._isAllSelected()}
-                   @click=${e => e.stopPropagation()} @change=${this._toggleSelectAll}
-                   style="width:14px;height:14px;cursor:pointer;accent-color:var(--primary-color);">
-            ${t('selectAll') || '全选'}
-            ${this._selectedCount() > 0 ? html`<span style="color:var(--primary-color);font-weight:600;">(${this._selectedCount()})</span>` : ''}
-          </label>
         </div>`;
       })()}
 
@@ -786,12 +785,6 @@ class UpdatesView extends LitElement {
       ` : html`
         <div class="info-bar">
           <div style="display:flex;align-items:center;gap:8px;">
-            <label class="select-all">
-              <input type="checkbox" class="checkbox" .checked=${this._isAllSelected()}
-                     @click=${(e) => e.stopPropagation()}
-                     @change=${this._toggleSelectAll}>
-              ${t('selectAll') || '全选'}
-            </label>
             <span>${t('totalPrefix')} <span class="count">${this.updates.length}</span> ${t('totalUpdates')}</span>
           </div>
         </div>

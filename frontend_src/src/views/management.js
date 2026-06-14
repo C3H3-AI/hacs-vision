@@ -34,8 +34,6 @@ export class ManagementView extends LitElement {
     _viewMode: { type: String },
     _collapsed: { type: Object },
     _renamedRefreshing: { type: Boolean },
-    _depResults: { type: Object },
-    _depLoading: { type: Boolean },
     _customRepoSearch: { type: String },
     _customRepofilter: { type: String },
     _customRepoSort: { type: String },
@@ -56,8 +54,6 @@ export class ManagementView extends LitElement {
     this.loading = false;
     this.exporting = false;
     this.importing = false;
-    this._depResults = null;
-    this._depLoading = false;
     this._renamedRefreshing = false;
     this._showAddCustom = false;
     this._customRepoUrl = '';
@@ -555,24 +551,6 @@ export class ManagementView extends LitElement {
     this._renamedRefreshing = false;
   }
 
-  async _checkDependencies() {
-    this._depLoading = true;
-    try {
-      const result = await api.checkDependencies();
-      this._depResults = result;
-      if (result.all_ok) showToast(t('depOk'), 'success');
-      else showToast(`${t('depMissing')} (${result.issues_count})`, 'error');
-    } catch(e) {
-      this._depResults = null;
-      showToast(`${t('checkFailed')}: ${e.message}`, 'error');
-    }
-    this._depLoading = false;
-  }
-
-  _depMissingCount() {
-    if (!this._depResults?.dependencies) return 0;
-    return this._depResults.dependencies.filter(r => r.has_issues).length;
-  }
 
   async _export() {
     this.exporting = true;
@@ -1057,6 +1035,14 @@ export class ManagementView extends LitElement {
             <button class="view-toggle-btn ${_viewMode === 'list' ? 'active' : ''}" @click=${() => this._setViewMode('list')}>${t('viewList')}</button>
           </div>
           <button class="btn primary" style="padding:6px 12px;font-size:12px;min-height:36px;" @click=${this._toggleAddCustom}>+ ${t('addRepo')}</button>
+          <label style="display:flex;align-items:center;gap:3px;font-size:12px;color:var(--secondary-text-color);cursor:pointer;flex-shrink:0;white-space:nowrap;">
+            <input type="checkbox" .checked=${this._getFilteredCustomRepos().length > 0 && this._selectedRepos.length === this._getFilteredCustomRepos().length}
+                   @click=${e => e.stopPropagation()}
+                   @change=${() => { if (this._selectedRepos.length > 0) { this._selectedRepos = []; } else { this._selectedRepos = this._getFilteredCustomRepos().map(r => r.full_name || r.repository).filter(Boolean); } }}
+                   style="width:14px;height:14px;cursor:pointer;accent-color:var(--primary-color);">
+            ${t('selectAll') || '全选'}
+            ${this._selectedRepos.length > 0 ? html`<span style="color:var(--primary-color);font-weight:600;">(${this._selectedRepos.length})</span>` : ''}
+          </label>
         </div>
       </div>
 
@@ -1082,28 +1068,6 @@ export class ManagementView extends LitElement {
           ` : this._customRepoUrl.trim() ? html`
             <div style="margin-top:4px;font-size:11px;color:#f44336;">${t('invalidRepoUrl')}</div>
           ` : ''}
-        </div>
-      ` : ''}
-
-      <!-- Dependency Check -->
-      <div style="display:flex;align-items:center;gap:8px;margin:8px 0;">
-        <button class="btn" style="padding:4px 10px;font-size:12px;" @click=${this._checkDependencies} ?disabled=${this._depLoading}>
-          ${this._depLoading ? '⟳' : '🔗'} ${t('checkDeps') || '检查依赖'}
-        </button>
-        ${this._depResults ? html`
-          <span style="font-size:12px;">${this._depResults.all_ok ? html`<span style="color:var(--success-color,#0f9d58);">✅ ${t('depOk')}</span>` : html`<span style="color:#f44336;">⚠️ ${t('depMissing')} (${this._depMissingCount()})</span>`}</span>
-          <button class="btn" style="padding:2px 8px;font-size:11px;" @click=${() => { this._depResults = null; }}>✕</button>
-        ` : ''}
-      </div>
-      ${this._depResults && !this._depResults.all_ok ? html`
-        <div class="dep-panel">
-          ${this._depResults.dependencies.filter(r => r.has_issues).map(d => html`
-            <div class="dep-item">
-              <div class="repo">${d.repository} ${d.installed ? '✅' : '❌'}</div>
-              ${d.missing_requirements?.length ? html`<div class="missing">缺少: ${d.missing_requirements.join(', ')}</div>` : ''}
-              ${d.missing_dependencies?.length ? html`<div class="missing">依赖: ${d.missing_dependencies.join(', ')}</div>` : ''}
-            </div>
-          `)}
         </div>
       ` : ''}
 
@@ -1144,14 +1108,6 @@ export class ManagementView extends LitElement {
             ${t('sortByUpdated')}${this._customRepoSort === 'updated' ? html`<span class="sort-dir">▼</span>` : ''}
           </button>
         </div>
-        <label style="display:flex;align-items:center;gap:4px;margin-left:auto;font-size:12px;color:var(--secondary-text-color);cursor:pointer;flex-shrink:0;white-space:nowrap;">
-          <input type="checkbox" .checked=${this._getFilteredCustomRepos().length > 0 && this._selectedRepos.length === this._getFilteredCustomRepos().length}
-                 @click=${e => e.stopPropagation()}
-                 @change=${() => { if (this._selectedRepos.length > 0) { this._selectedRepos = []; } else { this._selectedRepos = this._getFilteredCustomRepos().map(r => r.full_name || r.repository).filter(Boolean); } }}
-                 style="width:14px;height:14px;cursor:pointer;accent-color:var(--primary-color);">
-          ${t('selectAll') || '全选'}
-          ${this._selectedRepos.length > 0 ? html`<span style="color:var(--primary-color);font-weight:600;">(${this._selectedRepos.length})</span>` : ''}
-        </label>
       </div>
 
       <!-- Batch Action Bar -->
