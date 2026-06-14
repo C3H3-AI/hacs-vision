@@ -487,7 +487,7 @@ class HACSOperator:
                     releases.append({
                         "tag_name": getattr(release, 'tag_name', str(release)),
                         "name": getattr(release, 'name', ''),
-                        "prerelease": getattr(release, 'prerelease', False),
+                        "prerelease": release.get('prerelease', False) if isinstance(release, dict) else getattr(release, 'prerelease', False),
                         "published_at": getattr(release, 'published_at', ''),
                     })
 

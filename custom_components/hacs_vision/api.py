@@ -133,7 +133,7 @@ class HACSEnhancedAPI(HomeAssistantView):
         if path.startswith("readme/"):
             return await self._get_readme(path[7:])
         if path.startswith("changelog/"):
-            return await self._get_changelog(path[10:])
+            return await self._get_changelog(path[10:], query)
         if path == "repos/releases":
             return await self._get_repo_releases(query)
         if path.startswith("repos/status/"):
@@ -746,10 +746,19 @@ class HACSEnhancedAPI(HomeAssistantView):
             _LOGGER.error("README proxy unexpected error: %s", e, exc_info=True)
             return web.json_response({"error": str(e)}, status=502)
 
-    async def _get_changelog(self, full_name: str) -> web.Response:
-        """Proxy GitHub Releases API for changelog preview."""
+    async def _get_changelog(self, full_name: str, query) -> web.Response:
+        """Proxy GitHub Releases API for changelog preview.
+
+        Query params:
+          - tag (optional): specific tag to fetch changelog for.
+            If omitted, fetches the latest stable (non-prerelease) release.
+        """
         session = await self._get_session()
-        url = f"https://api.github.com/repos/{full_name}/releases?per_page=1"
+        tag = query.get("tag", "")
+        if tag:
+            url = f"https://api.github.com/repos/{full_name}/releases/tags/{tag}"
+        else:
+            url = f"https://api.github.com/repos/{full_name}/releases/latest"
         headers = {"Accept": "application/vnd.github.v3+json"}
         token = self._get_github_token()
         if token:
@@ -762,18 +771,17 @@ class HACSEnhancedAPI(HomeAssistantView):
 
                 if resp.status == 200:
                     data = await self._safe_json_response(resp)
-                    if data and len(data) > 0:
-                        release = data[0]
-                        body = release.get("body", "")
-                        return web.json_response({
-                            "tag": release.get("tag_name", ""),
-                            "name": release.get("name", ""),
-                            "body": body[:10000] if body else "",
-                            "url": release.get("html_url", f"https://github.com/{full_name}/releases"),
-                        })
-                    return web.json_response({"tag": "", "body": ""})
+                    # If tag endpoint, data is a single release object;
+                    # if latest endpoint, data is also a single release object.
+                    body = data.get("body", "")
+                    return web.json_response({
+                        "tag": data.get("tag_name", ""),
+                        "name": data.get("name", ""),
+                        "body": body[:10000] if body else "",
+                        "url": data.get("html_url", f"https://github.com/{full_name}/releases"),
+                    })
                 elif resp.status == 404:
-                    return web.json_response({"tag": "", "body": ""})
+                    return web.json_response({"tag": tag or "", "body": "", "not_found": True})
                 else:
                     return web.json_response({"error": f"github_api_{resp.status}"}, status=502)
         except (aiohttp.ClientError, TimeoutError, OSError) as e:
