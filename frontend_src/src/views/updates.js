@@ -840,7 +840,7 @@ class UpdatesView extends LitElement {
                     <input type="checkbox" class="checkbox" .checked=${isChecked}
                            @click=${(e) => e.stopPropagation()}
                            @change=${() => this._toggleSelect(repoId)}>
-                    <span class="badge-corner ${r.category || 'integration'}">${r.category || 'integration'}</span>
+                    <span class="badge-corner ${r.category || 'integration'}">${t('cat' + (r.category || 'integration').charAt(0).toUpperCase() + (r.category || 'integration').slice(1))}</span>
                   </div>
                   <div class="avatar">
                     ${(() => {

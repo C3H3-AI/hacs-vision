@@ -2482,7 +2482,7 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
                     <input type="checkbox" class="checkbox" .checked=${r}
                            @click=${e=>e.stopPropagation()}
                            @change=${()=>this._toggleSelect(t)}>
-                    <span class="badge-corner ${e.category||"integration"}">${e.category||"integration"}</span>
+                    <span class="badge-corner ${e.category||"integration"}">${ge("cat"+(e.category||"integration").charAt(0).toUpperCase()+(e.category||"integration").slice(1))}</span>
                   </div>
                   <div class="avatar">
                     ${(()=>{const t=[];if(e.domain&&"integration"===e.category&&t.push("https://brands.home-assistant.io/"+e.domain+"/icon.png"),e.full_name){const o=e.full_name.split("/")[0];o&&t.push("https://github.com/"+o+".png")}const o=fe(e.category);return t.length>0?H`
