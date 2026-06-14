@@ -37,7 +37,7 @@ class DeviceView extends LitElement {
 
   connectedCallback() {
     super.connectedCallback();
-    if (this.entryId) this._load();
+    // _load() is called from updated() when entryId is set
   }
 
   updated(changedProps) {
@@ -47,18 +47,20 @@ class DeviceView extends LitElement {
   }
 
   async _load() {
-    this._loading = true;
     this._error = '';
+    // Don't flash loading spinner if we already have groups (e.g., switching between entries)
+    if (this._groups.length === 0) {
+      this._loading = true;
+    }
     try {
       const data = await api.get(`devices/${this.entryId}`);
       this._groups = data.groups || [];
-      // Auto-collapse groups with 0 devices
+      // Auto-expand all groups by default
+      const collapsed = {};
       for (const g of this._groups) {
-        if (!this._collapsed[g.area]) {
-          this._collapsed[g.area] = false;
-        }
+        collapsed[g.area] = false;
       }
-      this.requestUpdate();
+      this._collapsed = collapsed;
     } catch(e) {
       this._error = e.message || 'Failed to load devices';
       this._groups = [];

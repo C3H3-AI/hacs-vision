@@ -239,7 +239,11 @@ class IntegrationsList extends LitElement {
 
   _closeDetail() {
     // Safety: prevent accidental close within 500ms of opening
-    if (this._detailOpenedAt && Date.now() - this._detailOpenedAt < 500) return;
+    if (this._detailOpenedAt && Date.now() - this._detailOpenedAt < 500) {
+      console.debug('HACS Vision: _closeDetail blocked by 500ms guard');
+      return;
+    }
+    console.debug('HACS Vision: _closeDetail CALLED');
     this._showDetail = false;
     this._detailDomain = '';
     this._detailEntries = [];
@@ -471,7 +475,7 @@ class IntegrationsList extends LitElement {
     const anyProcessing = entries.some(e => this._removing[e.entry_id] || this._reloading[e.entry_id]);
 
     return html`
-      <div class="list-row list-row-${st}" @click=${() => multiEntry ? this._openDetail(domain, entries) : this._openDeviceView(entry0)}>
+      <div class="list-row list-row-${st}" @click=${() => this._openDetail(domain, entries)}>
         <span class="list-row-name">
           <span class="list-row-icon">${this._renderAvatar(domain)}</span>
           <span class="list-row-title">${this._translateDomain(domain)}</span>
@@ -504,8 +508,8 @@ class IntegrationsList extends LitElement {
     const entry0 = entries[0];
 
     return html`
-      <div class="card card-${st}" @click=${() => multiEntry ? this._openDetail(domain, entries) : this._openDeviceView(entry0)} role="button" tabindex="0"
-        @keydown=${e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); if (multiEntry) this._openDetail(domain, entries); else this._openDeviceView(entry0); } }}>
+      <div class="card card-${st}" @click=${() => this._openDetail(domain, entries)} role="button" tabindex="0"
+        @keydown=${e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); this._openDetail(domain, entries); } }}>
 
           <div class="card-img">
             <span class="category-badge" style="background:${color}">${t('catIntegration')}</span>
@@ -547,39 +551,13 @@ class IntegrationsList extends LitElement {
   /* ─── Detail Dialog: side panel on desktop, bottom sheet on mobile ─── */
   _renderDetailDialog() {
     if (!this._showDetail) return '';
-    // Device view mode
-    if (this._deviceViewEntryId) {
-      const entry = this._detailEntries.find(e => e.entry_id === this._deviceViewEntryId);
-      return html`
-        <div class="detail-overlay" role="dialog" aria-modal="true" @click=${e => { if (e.target === e.currentTarget) this._closeDetail(); }} @keydown=${e => { if (e.key === 'Escape') this._closeDetail(); }}>
-          <div class="modal" @pointerdown=${this._modalPointerDown}>
-            <div class="modal-header">
-              <div class="modal-header-left">
-                <span class="modal-title">${(entry && entry.title) || this._translateDomain(this._detailDomain)}</span>
-              </div>
-              <button class="modal-close" aria-label="${t('close') || '关闭'}" @click=${this._closeDetail}>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-              </button>
-            </div>
-            <hacs-vision-device-view
-              .hass=${this.hass}
-              .entryId=${this._deviceViewEntryId}
-              .domain=${this._detailDomain}
-              .entryTitle=${(entry && entry.title) || this._detailDomain}
-              @back=${() => { this._deviceViewEntryId = ''; }}
-              @close=${() => this._closeDetail()}
-              style="flex:1;min-height:0;display:flex;flex-direction:column;">
-            </hacs-vision-device-view>
-          </div>
-        </div>
-      `;
-    }
-
-    if (!this._detailEntries.length) return '';
     const domain = this._detailDomain;
-    const color = this._getDomainColor(domain);
     const entries = this._detailEntries;
-    const hasSubentries = entries.length > 0 && (
+    const isDeviceView = !!this._deviceViewEntryId;
+    const entry = isDeviceView ? entries.find(e => e.entry_id === this._deviceViewEntryId) : null;
+
+    // Subentry detection for detail dialog mode
+    const hasSubentries = !isDeviceView && entries.length > 0 && (
       entries.some(e => e.supported_subentry_types || (e.title && e.title.startsWith('subentry'))) ||
       entries.length >= 3
     );
@@ -590,24 +568,37 @@ class IntegrationsList extends LitElement {
         <div class="modal ${useTwoCol ? 'two-col' : ''}" @pointerdown=${this._modalPointerDown}>
           <div class="modal-header">
             <div class="modal-header-left">
-              ${this._renderAvatar(domain)}
+              ${isDeviceView ? '' : this._renderAvatar(domain)}
               <div>
-                <div class="modal-title">${this._translateDomain(domain)}</div>
-                <div class="modal-subtitle">
-                  ${entries.length} ${t('entryCount')}
-                  ${this._detailDeviceCounts ? html` · ${this._detailDeviceCounts.devices} ${t('deviceCount')} · ${this._detailDeviceCounts.entities} 个实体` : ''}
-                </div>
+                <div class="modal-title">${isDeviceView ? ((entry && entry.title) || this._translateDomain(domain)) : this._translateDomain(domain)}</div>
+                <div class="modal-subtitle">${isDeviceView ? '' : html`${entries.length} ${t('entryCount')}${this._detailDeviceCounts ? html` · ${this._detailDeviceCounts.devices} ${t('deviceCount')} · ${this._detailDeviceCounts.entities} 个实体` : ''}`}</div>
               </div>
             </div>
             <button class="modal-close" aria-label="${t('close') || '关闭'}" @click=${this._closeDetail}>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
             </button>
           </div>
+
+          <!-- Device view: always in DOM to prevent destroy/recreate on re-render -->
+          <div style="${isDeviceView ? 'flex:1;min-height:0;display:flex;flex-direction:column;' : 'display:none;'}">
+            <hacs-vision-device-view
+              .hass=${this.hass}
+              .entryId=${this._deviceViewEntryId || ''}
+              .domain=${domain}
+              .entryTitle=${(entry && entry.title) || domain}
+              @back=${() => { this._deviceViewEntryId = ''; }}
+              @close=${() => this._closeDetail()}
+              style="flex:1;min-height:0;display:flex;flex-direction:column;">
+            </hacs-vision-device-view>
+          </div>
+
+          <!-- Detail dialog: entry list / subentry layout -->
+          ${!isDeviceView && entries.length > 0 ? html`
           <div class="modal-body ${useTwoCol ? 'grid-2col' : ''}">
             ${useTwoCol ? html`
               <div class="col-left">
                 <div class="col-title">${t('subentryConfig') || '子项配置'}</div>
-                ${entries.map(entry => this._renderEntryRow(entry))}
+                ${entries.map(e => this._renderEntryRow(e))}
               </div>
               <div class="col-right">
                 <div class="col-title">${t('addSubentry') || '添加新子项'}</div>
@@ -628,8 +619,9 @@ class IntegrationsList extends LitElement {
                   </button>
                 </div>
               </div>
-            ` : entries.map(entry => this._renderEntryRow(entry))}
+            ` : entries.map(e => this._renderEntryRow(e))}
           </div>
+          ` : ''}
         </div>
       </div>
     `;
@@ -953,13 +945,12 @@ class IntegrationsList extends LitElement {
       background: rgba(0,0,0,0.6);
       display: flex; align-items: center; justify-content: center;
       padding: 40px; box-sizing: border-box;
-      animation: overlayFadeIn 0.2s ease;
+      animation: overlayFadeIn 0.15s ease;
     }
     @media (max-width: 768px) {
       .detail-overlay { padding: 16px; }
     }
     @keyframes overlayFadeIn { from { opacity: 0; } to { opacity: 1; } }
-    @keyframes modalSlideUp { from { transform: translateY(24px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
 
     .modal {
       background: var(--card-background-color, #fff);
@@ -968,7 +959,6 @@ class IntegrationsList extends LitElement {
       max-height: 90vh; min-width: 360px;
       display: flex; flex-direction: column;
       box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-      animation: modalSlideUp 0.2s ease;
       overflow: hidden;
       user-select: text;
       -webkit-user-select: text;
