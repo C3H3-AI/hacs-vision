@@ -637,6 +637,8 @@ class ConfigFlowDialog extends LitElement {
       overflow-y: auto;
       padding: 24px;
       animation: slideUp 0.25s ease;
+      user-select: text;
+      -webkit-user-select: text;
     }
     @media (min-width: 1024px) {
       .overlay { padding: 40px; }
