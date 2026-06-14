@@ -335,7 +335,16 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
     }
     .modal-close:hover { background: var(--divider-color, #e0e0e0); }
 
-    .modal-body { padding: 16px 24px 24px; overflow-y: auto; flex: 1; }
+    .modal-header-left {
+      display: flex; align-items: center; gap: 12px; min-width: 0; flex: 1;
+    }
+    .detail-avatar {
+      width: 44px; height: 44px; border-radius: 50%; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      overflow: hidden; position: relative;
+    }
+    .detail-avatar-img { width: 100%; height: 100%; object-fit: cover; position: absolute; top: 0; left: 0; }
+    .detail-avatar-letter { font-size: 18px; font-weight: 700; color: #fff; z-index: 1; }    .modal-body { padding: 16px 24px 24px; overflow-y: auto; flex: 1; }
 
     .detail-category {
       display: inline-block; padding: 4px 12px; border-radius: 6px;
@@ -999,6 +1008,39 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
     return labels[category] || category;
   }
 
+  _getDomainColor(domain) {
+    const colors = ['#1565c0','#7b1fa2','#2e7d32','#e65100','#00838f','#6a1b9a','#c62828','#283593'];
+    let hash = 0;
+    for (let i = 0; i < domain.length; i++) hash = ((hash << 5) - hash) + domain.charCodeAt(i);
+    return colors[Math.abs(hash) % colors.length];
+  }
+
+  _renderDetailAvatar(repo) {
+    const domain = repo.domain;
+    if (!domain) return '';
+    const brandUrl = `https://brands.home-assistant.io/${domain}/icon.png`;
+    const localUrl = `${window.location.origin}/api/hacs_vision_brand/${domain}`;
+    const color = this._getDomainColor(domain);
+    const letter = domain.charAt(0).toUpperCase();
+    return html`
+      <div class="detail-avatar">
+        <img class="detail-avatar-img" src="${brandUrl}" alt=""
+          @error=${function() {
+            if (!this.dataset.fallbackTried) {
+              this.dataset.fallbackTried = 'cdn';
+              this.src = localUrl;
+            } else {
+              this.style.display = 'none';
+              this.parentElement.style.background = color;
+              const fl = this.parentElement.querySelector('.detail-avatar-letter');
+              if (fl) fl.style.display = 'flex';
+            }
+          }}>
+        <span class="detail-avatar-letter" style="display:none">${letter}</span>
+      </div>
+    `;
+  }
+
   async _modalAction(action) {
     const repo = this._detailRepo;
     if (!repo) return;
@@ -1174,7 +1216,12 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
           <div class="modal ${this._detailExpanded ? 'expanded' : ''}" @dblclick=${this._toggleDetailExpand}>
             ${!this._detailExpanded ? html`<div class="modal-expand-hint">${t('dblZoomHint') || '双击放大'}</div>` : ''}
             <div class="modal-header">
-              <div class="modal-title">${r.manifest_name || r.repository_manifest?.name || r.full_name || r.name || 'unknown'}</div>
+              <div class="modal-header-left">
+                ${this._renderDetailAvatar(r)}
+                <div>
+                  <div class="modal-title">${r.manifest_name || r.repository_manifest?.name || r.full_name || r.name || 'unknown'}</div>
+                </div>
+              </div>
               <button class="modal-close" aria-label="${t('close') || '关闭'}" @click=${this._closeDetail}>✕</button>
             </div>
             <div class="modal-body">
