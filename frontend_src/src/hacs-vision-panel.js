@@ -657,6 +657,7 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
 
   disconnectedCallback() {
     super.disconnectedCallback();
+    this._clearFlowTimeout();
     window.removeEventListener('resize', this._resizeHandler);
     window.removeEventListener('online', this._onlineHandler);
     window.removeEventListener('offline', this._offlineHandler);
@@ -914,6 +915,7 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
     this._configFlowDomain = domain;
     this._configFlowEntryId = entry_id;
     this._showConfigFlow = true;
+    this._scheduleFlowTimeout();
   }
 
   _onAddIntegration(e) {
@@ -921,9 +923,29 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
     this._configFlowDomain = domain;
     this._configFlowEntryId = null;
     this._showConfigFlow = true;
+    this._scheduleFlowTimeout();
+  }
+
+  _scheduleFlowTimeout() {
+    this._clearFlowTimeout();
+    this._flowTimeout = setTimeout(() => {
+      if (this._showConfigFlow) {
+        this._showConfigFlow = false;
+        this._configFlowDomain = '';
+        this._configFlowEntryId = null;
+      }
+    }, 8000);
+  }
+
+  _clearFlowTimeout() {
+    if (this._flowTimeout) {
+      clearTimeout(this._flowTimeout);
+      this._flowTimeout = null;
+    }
   }
 
   _onFlowClose() {
+    this._clearFlowTimeout();
     this._showConfigFlow = false;
     this._configFlowDomain = '';
     this._configFlowEntryId = null;
