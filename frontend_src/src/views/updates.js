@@ -705,6 +705,9 @@ class UpdatesView extends LitElement {
           ` : ''}
         </div>
         <div class="controls-right">
+          <button class="refresh-btn" @click=${this._load} title="${t('refreshTitle')}" style="width:36px;height:36px;padding:8px;border:1px solid var(--divider-color);border-radius:10px;background:var(--card-background-color);color:var(--primary-text-color);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
+          </button>
           <div class="view-toggle">
             <button class="view-toggle-btn ${this._viewMode === 'card' ? 'active' : ''}" @click=${() => this._setViewMode('card')} title="${t('viewCard')}">${t('viewCard')}</button>
             <button class="view-toggle-btn ${this._viewMode === 'list' ? 'active' : ''}" @click=${() => this._setViewMode('list')} title="${t('viewList')}">${t('viewList')}</button>
@@ -744,9 +747,6 @@ class UpdatesView extends LitElement {
             </label>
             <span>${t('totalPrefix')} <span class="count">${this.updates.length}</span> ${t('totalUpdates')}</span>
           </div>
-          <button class="btn" @click=${this._load}>
-            <svg class="mini-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg> ${t('refresh')}
-          </button>
         </div>
 
         ${this.updates.length > 1 ? html`

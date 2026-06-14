@@ -1853,6 +1853,11 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
           `:""}
         </div>
         <div class="controls-right">
+          <button class="refresh-btn" @click=${this._refresh} title="${ge("refreshTitle")}" style="width:36px;height:36px;padding:8px;border:1px solid var(--divider-color);border-radius:10px;background:var(--card-background-color);color:var(--primary-text-color);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;">
+              <path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/>
+            </svg>
+          </button>
           <div class="view-toggle">
             <button class="view-toggle-btn ${"card"===this.viewMode?"active":""}" @click=${()=>this._onViewModeChange("card")} title="${ge("viewCard")}">${ge("viewCard")}</button>
             <button class="view-toggle-btn ${"list"===this.viewMode?"active":""}" @click=${()=>this._onViewModeChange("list")} title="${ge("viewList")}">${ge("viewList")}</button>
@@ -2354,6 +2359,9 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
           `:""}
         </div>
         <div class="controls-right">
+          <button class="refresh-btn" @click=${this._load} title="${ge("refreshTitle")}" style="width:36px;height:36px;padding:8px;border:1px solid var(--divider-color);border-radius:10px;background:var(--card-background-color);color:var(--primary-text-color);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
+          </button>
           <div class="view-toggle">
             <button class="view-toggle-btn ${"card"===this._viewMode?"active":""}" @click=${()=>this._setViewMode("card")} title="${ge("viewCard")}">${ge("viewCard")}</button>
             <button class="view-toggle-btn ${"list"===this._viewMode?"active":""}" @click=${()=>this._setViewMode("list")} title="${ge("viewList")}">${ge("viewList")}</button>
@@ -2393,9 +2401,6 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
             </label>
             <span>${ge("totalPrefix")} <span class="count">${this.updates.length}</span> ${ge("totalUpdates")}</span>
           </div>
-          <button class="btn" @click=${this._load}>
-            <svg class="mini-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg> ${ge("refresh")}
-          </button>
         </div>
 
         ${this.updates.length>1?H`
@@ -3419,13 +3424,13 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
             ${this.searchText?H`<button class="search-clear" @click=${()=>{this.searchText=""}}>✕</button>`:""}
           </div>
           <div class="controls-right">
+            <button class="refresh-btn" @click=${this._load} title="${ge("refresh")}" style="width:36px;height:36px;padding:8px;border:1px solid var(--divider-color);border-radius:10px;background:var(--card-background-color);color:var(--primary-text-color);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+            </button>
             <div class="view-toggle">
               <button class="view-toggle-btn ${"card"===this._viewMode?"active":""}" @click=${()=>this._setViewMode("card")} title="${ge("viewCard")}">${ge("viewCard")}</button>
               <button class="view-toggle-btn ${"list"===this._viewMode?"active":""}" @click=${()=>this._setViewMode("list")} title="${ge("viewList")}">${ge("viewList")}</button>
             </div>
-            <button class="action-btn icon-btn" @click=${this._load} title="${ge("refresh")}">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
-            </button>
             <button class="action-btn primary" @click=${this._openAddDialog}>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
               ${ge("addHAIntegration")}
