@@ -864,11 +864,11 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
                       ${this._releases.some(e=>e.prerelease)&&this._releases.some(e=>!e.prerelease)?U`
                         <div class="version-tab-bar">
                           <div class="version-tab ${"stable"===this._versionTab?"active":""}"
-                               @click=${()=>{this._versionTab="stable",this._loadChangelog(this._detailRepo)}}>
+                               @click=${()=>{this._versionTab="stable";const e=this._releases.find(e=>!e.prerelease);this._loadChangelog(this._detailRepo,e?.tag_name||e?.tag)}}>
                             ${ge("releaseStable")}
                           </div>
                           <div class="version-tab ${"prerelease"===this._versionTab?"active":""}"
-                               @click=${()=>{this._versionTab="prerelease",this._loadChangelog(this._detailRepo)}}>
+                               @click=${()=>{this._versionTab="prerelease";const e=this._releases.find(e=>e.prerelease);this._loadChangelog(this._detailRepo,e?.tag_name||e?.tag)}}>
                             ${ge("releasePrerelease")}
                           </div>
                         </div>
