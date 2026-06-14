@@ -146,9 +146,12 @@ class DeviceView extends LitElement {
             <div class="dv-header-icon">
               <img class="dv-header-img" src="https://brands.home-assistant.io/${this.domain}/icon.png" alt=""
                 @error=${function() {
-                  this.style.display = 'none';
-                  const fl = this.parentElement.querySelector('.dv-header-letter');
-                  if (fl) fl.style.display = 'flex';
+                  try {
+                    if (!this.parentElement) return;
+                    this.style.display = 'none';
+                    const fl = this.parentElement.querySelector('.dv-header-letter');
+                    if (fl) fl.style.display = 'flex';
+                  } catch(e) {}
                 }}>
               <span class="dv-header-letter" style="display:none">${(this.domain || '').charAt(0).toUpperCase()}</span>
             </div>

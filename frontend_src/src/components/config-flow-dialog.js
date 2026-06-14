@@ -411,12 +411,14 @@ class ConfigFlowDialog extends LitElement {
       console.error('HACS Vision: config flow start error:', e);
       this._clearLoadingTimeout();
       const message = this._getFlowErrorMessage(e);
-      // For simple errors (no options flow, etc.), just show toast and close
+      // For simple errors (no options flow, etc.), close silently with toast
       if (message === t('flowOptionsNotSupported') || e.message?.includes('404')) {
-        // Close immediately and show a brief toast so user isn't blocked
-        const { showToast } = await import('../hacs-vision-panel.js');
-        showToast(message, 'info');
-        this._close();
+        this._finished = true;
+        this._result = { type: 'error', message };
+        this._loading = false;
+        this.requestUpdate();
+        // Auto-close after a brief moment so user sees the error
+        setTimeout(() => { this._close(); }, 1200);
         return;
       }
       this._finished = true;
@@ -811,11 +813,13 @@ class ConfigFlowDialog extends LitElement {
               ${this.domain ? html`
                 <div class="cfg-avatar">
                   <img class="cfg-avatar-img" src="https://brands.home-assistant.io/${this.domain}/icon.png" alt=""
-                    @error=${function(e) {
-                      if (!this.isConnected) return;
-                      this.style.display = 'none';
-                      const fl = this.parentElement.querySelector('.cfg-avatar-letter');
-                      if (fl) fl.style.display = 'flex';
+                    @error=${function() {
+                      try {
+                        if (!this.parentElement) return;
+                        this.style.display = 'none';
+                        const fl = this.parentElement.querySelector('.cfg-avatar-letter');
+                        if (fl) fl.style.display = 'flex';
+                      } catch(e) {}
                     }}>
                   <span class="cfg-avatar-letter" style="display:none">${this.domain.charAt(0).toUpperCase()}</span>
                 </div>
