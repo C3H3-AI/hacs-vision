@@ -843,9 +843,9 @@ class IntegrationsList extends LitElement {
                   <label class="sel-all-label" @click=${(e) => e.stopPropagation()}>
                     <input type="checkbox" class="entry-checkbox" .checked=${this._isAllSelected()}
                            @change=${this._toggleSelectAll}>
-                    <span style="font-size:11px;color:var(--secondary-text-color);cursor:pointer;">${t('selectAll') || '全选'}</span>
+                    <span style="font-size:12px;color:var(--secondary-text-color);cursor:pointer;">${t('selectAll') || '全选'}</span>
                   </label>
-                  ${this._selectedCount() > 0 ? html`<span style="font-size:11px;color:var(--primary-color);font-weight:600;">${this._selectedCount()} ${t('selected') || '已选'}</span>` : ''}
+                  ${this._selectedCount() > 0 ? html`<span style="font-size:12px;color:var(--primary-color);font-weight:600;">${this._selectedCount()} ${t('selected') || '已选'}</span>` : ''}
                 </div>
               </div>
             </div>

@@ -3563,9 +3563,9 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
                   <label class="sel-all-label" @click=${e=>e.stopPropagation()}>
                     <input type="checkbox" class="entry-checkbox" .checked=${this._isAllSelected()}
                            @change=${this._toggleSelectAll}>
-                    <span style="font-size:11px;color:var(--secondary-text-color);cursor:pointer;">${ge("selectAll")||"全选"}</span>
+                    <span style="font-size:12px;color:var(--secondary-text-color);cursor:pointer;">${ge("selectAll")||"全选"}</span>
                   </label>
-                  ${this._selectedCount()>0?H`<span style="font-size:11px;color:var(--primary-color);font-weight:600;">${this._selectedCount()} ${ge("selected")||"已选"}</span>`:""}
+                  ${this._selectedCount()>0?H`<span style="font-size:12px;color:var(--primary-color);font-weight:600;">${this._selectedCount()} ${ge("selected")||"已选"}</span>`:""}
                 </div>
               </div>
             </div>
