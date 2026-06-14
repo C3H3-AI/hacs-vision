@@ -410,19 +410,8 @@ class ConfigFlowDialog extends LitElement {
     } catch (e) {
       console.error('HACS Vision: config flow start error:', e);
       this._clearLoadingTimeout();
-      const message = this._getFlowErrorMessage(e);
-      // For simple errors (no options flow, etc.), close silently with toast
-      if (message === t('flowOptionsNotSupported') || e.message?.includes('404')) {
-        this._finished = true;
-        this._result = { type: 'error', message };
-        this._loading = false;
-        this.requestUpdate();
-        // Auto-close after a brief moment so user sees the error
-        setTimeout(() => { this._close(); }, 1200);
-        return;
-      }
       this._finished = true;
-      this._result = { type: 'error', message };
+      this._result = { type: 'error', message: this._getFlowErrorMessage(e) };
       this._loading = false;
       this.requestUpdate();
     }
