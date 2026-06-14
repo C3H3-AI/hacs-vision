@@ -1075,7 +1075,6 @@ class IntegrationsList extends LitElement {
       transition: all 0.15s; white-space: nowrap; min-height: 36px;
     }
     .action-btn:hover { border-color: var(--primary-color, #03a9f4); }
-    .action-btn.icon-btn { padding: 9px 12px; }
     .action-btn.primary {
       background: var(--primary-color, #03a9f4); color: #fff; border-color: var(--primary-color, #03a9f4);
     }

@@ -489,13 +489,6 @@ class BrowseView extends LitElement {
     }
     .batch-bar-btn:hover { background: rgba(255,255,255,0.35); }
     .batch-bar-btn.danger { border-color: #ff5252; color: #ff5252; }
-    .restart-bar {
-      display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
-      padding: 8px 12px; margin: 6px 0;
-      background: rgba(244,67,54,0.1); border: 1px solid rgba(244,67,54,0.3);
-      border-radius: 8px; font-size: 13px; font-weight: 600; color: #f44336;
-    }
-    .restart-bar .batch-bar-btn { background: #f44336; border-color: #f44336; color: #fff; }
   `;
 
   async connectedCallback() {

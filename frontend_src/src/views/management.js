@@ -413,22 +413,6 @@ export class ManagementView extends LitElement {
     .add-preview { font-size: 12px; color: var(--secondary-text-color); padding: 4px 2px; }
     .add-error { color: #f44336; }
 
-    /* ===== Dep Check Results ===== */
-    .dep-panel {
-      margin-top:12px;padding:12px 14px;border-radius:10px;font-size:13px;
-      background:var(--secondary-background-color);
-    }
-    .dep-summary { display:flex;justify-content:space-between;align-items:center;margin-bottom:8px; }
-    .dep-summary .title { font-weight:600;color:var(--primary-text-color); }
-    .dep-summary .issues { color:#f44336;font-weight:600; }
-    .dep-item {
-      margin-top:8px;padding:10px 12px;border-radius:8px;
-      background:var(--card-background-color);border:1px solid var(--divider-color);
-    }
-    .dep-item .repo { font-weight:500;color:var(--primary-text-color);margin-bottom:4px; }
-    .dep-item .missing { font-size:11px;color:#f44336; }
-    .dep-ok { color:var(--success-color,#0f9d58);font-weight:500; }
-
     .mini-icon { width: 14px; height: 14px; vertical-align: -2px; display: inline; flex-shrink: 0; }
     .mini-icon.spin { animation: spin 1s linear infinite; }
     @keyframes spin { 100% { transform: rotate(360deg); } }

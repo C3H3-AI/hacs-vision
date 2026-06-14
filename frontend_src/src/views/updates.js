@@ -164,12 +164,6 @@ class UpdatesView extends LitElement {
       .checkbox:checked::after {
         content: '✓'; color: #fff; font-size: 12px; font-weight: 700;
       }
-      .select-all {
-        display: flex; align-items: center; gap: 6px;
-        font-size: 12px; color: var(--secondary-text-color); cursor: pointer;
-        touch-action: manipulation; user-select: none;
-      }
-      .select-all:hover { color: var(--primary-text-color); }
 
       /* ===== Action Bar (matches repo-card) ===== */
       .actions {
@@ -350,13 +344,6 @@ class UpdatesView extends LitElement {
         .update-all-btn { flex: 1; min-width: 120px; justify-content: center; min-height: 44px; }
       }
 
-      .batch-toggle {
-        padding: 3px 10px; border-radius: 4px; font-size: 11px;
-        border: 1px solid var(--divider-color, #ccc);
-        background: var(--card-background-color);
-        color: var(--primary-text-color); cursor: pointer;
-      }
-      .batch-toggle:hover { border-color: var(--primary-color); }
       .batch-bar {
         display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
         padding: 8px 12px; margin: 6px 0;
@@ -370,10 +357,6 @@ class UpdatesView extends LitElement {
       }
       .batch-bar-btn:hover { background: rgba(255,255,255,0.35); }
       .batch-bar-btn.danger { border-color: #ff5252; color: #ff5252; }
-      .batch-checkbox {
-        display: inline-flex; align-items: center; margin-right: 4px; cursor: pointer;
-      }
-      .batch-checkbox input { width: 16px; height: 16px; cursor: pointer; }
     `
   ];
 
