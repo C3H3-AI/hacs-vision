@@ -2406,11 +2406,6 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
           <div>${ge("allUpToDate")}</div>
         </div>
       `:H`
-        <div class="info-bar">
-          <div style="display:flex;align-items:center;gap:8px;">
-            <span>${ge("totalPrefix")} <span class="count">${this.updates.length}</span> ${ge("totalUpdates")}</span>
-          </div>
-        </div>
 
         ${this._selectedCount()>0?H`
           <div class="batch-bar" style="margin-bottom:10px;">

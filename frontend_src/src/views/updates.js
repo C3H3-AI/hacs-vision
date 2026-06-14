@@ -766,11 +766,6 @@ class UpdatesView extends LitElement {
           <div>${t('allUpToDate')}</div>
         </div>
       ` : html`
-        <div class="info-bar">
-          <div style="display:flex;align-items:center;gap:8px;">
-            <span>${t('totalPrefix')} <span class="count">${this.updates.length}</span> ${t('totalUpdates')}</span>
-          </div>
-        </div>
 
         ${this._selectedCount() > 0 ? html`
           <div class="batch-bar" style="margin-bottom:10px;">
