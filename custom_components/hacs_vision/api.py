@@ -1226,11 +1226,11 @@ class HACSEnhancedAPI(HomeAssistantView):
                 if entry.domain != safe:
                     continue
                 # Devices linked to this config entry
-                entry_devices = dev_reg.async_entries_for_config_entry(entry.entry_id)
-                for d in entry_devices:
-                    device_ids.add(d.id)
-                    entities = ent_reg.async_entries_for_device(d.id)
-                    entity_count += len([e for e in entities if not e.disabled_by])
+                for device in dev_reg.devices.values():
+                    if entry.entry_id in device.config_entries:
+                        device_ids.add(device.id)
+                        entities = ent_reg.async_entries_for_device(device.id)
+                        entity_count += len([e for e in entities if not e.disabled_by])
             return web.json_response({
                 "domain": safe,
                 "devices": len(device_ids),
