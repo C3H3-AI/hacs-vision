@@ -15,13 +15,18 @@ from .const import DOMAIN, PANEL_TITLE, PANEL_ICON, VERSION
 FRONTEND_DIR = os.path.join(os.path.dirname(__file__), "frontend")
 BUILD_JSON_PATH = os.path.join(FRONTEND_DIR, "build.json")
 
-def _read_build_hash() -> str:
-    """Read build hash from build.json, fall back to VERSION."""
+async def _read_build_hash(hass: HomeAssistant) -> str:
+    """Read build hash from build.json via executor, fall back to VERSION."""
     try:
-        with open(BUILD_JSON_PATH) as f:
-            return json.load(f).get("hash", VERSION)
+        content = await hass.async_add_executor_job(_read_file, BUILD_JSON_PATH)
+        return json.loads(content).get("hash", VERSION)
     except Exception:
         return VERSION
+
+def _read_file(path: str) -> str:
+    """Synchronous file read for executor."""
+    with open(path) as f:
+        return f.read()
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -109,7 +114,7 @@ async def _register_panel(hass: HomeAssistant) -> None:
 
     # 3. Create/update the dashboard config with an iframe card
     config_store = Store(hass, 1, f"lovelace.{STORE_KEY}")
-    iframe_url = f"/api/hacs_vision/static/index.html?v={_read_build_hash()}"
+    iframe_url = f"/api/hacs_vision/static/index.html?v={await _read_build_hash(hass)}"
     config_body = {
         "views": [{
             "title": PANEL_TITLE,
