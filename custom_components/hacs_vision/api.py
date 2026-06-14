@@ -1276,9 +1276,11 @@ class HACSEnhancedAPI(HomeAssistantView):
             )
             if os.path.isfile(trans_path):
                 try:
-                    with open(trans_path, "r", encoding="utf-8") as f:
-                        data = json.load(f)
-                    return web.json_response({"data": data, "domain": safe_domain, "lang": lang_file.replace(".json", "")})
+                    data = await self.hass.async_add_executor_job(
+                        _read_json_text, trans_path
+                    )
+                    if data is not None:
+                        return web.json_response({"data": data, "domain": safe_domain, "lang": lang_file.replace(".json", "")})
                 except (json.JSONDecodeError, OSError) as e:
                     _LOGGER.warning("Failed to read translations for %s: %s", safe_domain, e)
                     continue
@@ -1427,6 +1429,21 @@ class HACSEnhancedAPI(HomeAssistantView):
             return web.json_response({"success": False, "error": str(e)}, status=500)
 
 
+def _read_file_binary(path: str) -> bytes:
+    """Blocking binary file read — must run via executor."""
+    with open(path, "rb") as f:
+        return f.read()
+
+
+def _read_json_text(path: str) -> dict | None:
+    """Blocking JSON text file read — must run via executor."""
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return None
+
+
 class HACSBrandIconView(HomeAssistantView):
     """Serve custom component brand icons (no auth - for <img> tags).
 
@@ -1461,6 +1478,8 @@ class HACSBrandIconView(HomeAssistantView):
             path = os.path.join(base, f"{asset_type}.{ext}")
             if os.path.isfile(path):
                 content_type = "image/svg+xml" if ext == "svg" else "image/png"
-                with open(path, "rb") as f:
-                    return web.Response(body=f.read(), content_type=content_type)
+                body = await self.hass.async_add_executor_job(
+                    _read_file_binary, path
+                )
+                return web.Response(body=body, content_type=content_type)
         return web.Response(status=404)

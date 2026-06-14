@@ -622,7 +622,7 @@ class HACSOperator:
                     err_str = str(e)
                     if "403" in err_str or "rate limit" in err_str.lower():
                         rate_limited = True
-                    errors.append(f"{repo.data.full_name}: {type(e).__name__}: {e[:120]}")
+                    errors.append(f"{repo.data.full_name}: {type(e).__name__}: {str(e)[:120]}")
 
         await asyncio.gather(*[_update_one(r) for r in repos])
         self.invalidate_index()

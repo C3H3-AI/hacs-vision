@@ -61,6 +61,7 @@ class ConfigFlowDialog extends LitElement {
     this._loadingTimeout = null;
     this._translations = null;
     this._lang = 'zh-Hans';
+    this._dialogDrag = { offsetX: 0, offsetY: 0, startX: 0, startY: 0, dragging: false };
   }
 
   /** Get hass object — from prop or directly from parent HA iframe */
@@ -106,22 +107,29 @@ class ConfigFlowDialog extends LitElement {
     const header = e.target.closest('.header');
     if (!header || e.target.closest('button')) return;
     if (e.button !== undefined && e.button !== 0) return;
+    const drag = this._dialogDrag;
     const dialog = e.currentTarget;
-    let offsetX = 0, offsetY = 0, startX = e.clientX, startY = e.clientY;
+    drag.dragging = true;
+    drag.startX = e.clientX - drag.offsetX;
+    drag.startY = e.clientY - drag.offsetY;
     dialog.style.transition = 'none';
     dialog.style.cursor = 'grabbing';
+    header.style.userSelect = 'none';
     dialog.setPointerCapture(e.pointerId);
     const onMove = (ev) => {
-      offsetX = ev.clientX - startX;
-      offsetY = ev.clientY - startY;
-      dialog.style.transform = `translate(${offsetX}px, ${offsetY}px)`;
+      if (!drag.dragging) return;
+      drag.offsetX = ev.clientX - drag.startX;
+      drag.offsetY = ev.clientY - drag.startY;
+      dialog.style.transform = `translate(${drag.offsetX}px, ${drag.offsetY}px)`;
     };
-    const onUp = () => {
+    const onUp = (ev) => {
+      drag.dragging = false;
       dialog.style.cursor = '';
+      header.style.userSelect = '';
       dialog.removeEventListener('pointermove', onMove);
       dialog.removeEventListener('pointerup', onUp);
       dialog.removeEventListener('pointercancel', onUp);
-      try { dialog.releasePointerCapture(e.pointerId); } catch(er) {}
+      try { dialog.releasePointerCapture(ev.pointerId); } catch(er) {}
     };
     dialog.addEventListener('pointermove', onMove);
     dialog.addEventListener('pointerup', onUp);
@@ -568,9 +576,10 @@ class ConfigFlowDialog extends LitElement {
   }
 
   _cancelFlow() {
-    // Reset transform for next open
+    // Reset transform and drag state for next open
     const dialog = this.shadowRoot?.querySelector('.dialog');
     if (dialog) dialog.style.transform = '';
+    this._dialogDrag = { offsetX: 0, offsetY: 0, startX: 0, startY: 0, dragging: false };
     if (this._flowId) {
       if (this._isSubentry) {
         api.cancelSubentryFlow(this._flowId).catch(() => {});
@@ -638,7 +647,15 @@ class ConfigFlowDialog extends LitElement {
       display: flex; justify-content: space-between; align-items: center;
       margin-bottom: 16px;
     }
+    .header-left { display: flex; align-items: center; gap: 10px; }
     .title { font-size: 18px; font-weight: 700; color: var(--primary-text-color, #212121); }
+    .cfg-avatar {
+      width: 32px; height: 32px; border-radius: 50%; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      background: var(--primary-color, #03a9f4); overflow: hidden;
+    }
+    .cfg-avatar-img { width: 100%; height: 100%; object-fit: cover; }
+    .cfg-avatar-letter { font-size: 14px; font-weight: 700; color: #fff; z-index: 1; }
     .close-btn {
       width: 32px; height: 32px; border: none; border-radius: 50%;
       background: var(--divider-color, #e0e0e0);
@@ -768,7 +785,20 @@ class ConfigFlowDialog extends LitElement {
       <div class="overlay" role="dialog" aria-modal="true" aria-label="${this._flowTitle || t('flowTitle')}" @keydown=${(e) => { if (e.key === 'Escape') this._cancelFlow(); }} @click=${(e) => { if (e.target === e.currentTarget) this._cancelFlow(); }}>
         <div class="dialog" @pointerdown=${this._dialogPointerDown}>
           <div class="header">
-            <span class="title">${title}</span>
+            <div class="header-left">
+              ${this.domain ? html`
+                <div class="cfg-avatar">
+                  <img class="cfg-avatar-img" src="https://brands.home-assistant.io/${this.domain}/icon.png" alt=""
+                    @error=${function() {
+                      this.style.display = 'none';
+                      const fl = this.parentElement.querySelector('.cfg-avatar-letter');
+                      if (fl) fl.style.display = 'flex';
+                    }}>
+                  <span class="cfg-avatar-letter" style="display:none">${this.domain.charAt(0).toUpperCase()}</span>
+                </div>
+              ` : ''}
+              <span class="title">${title}</span>
+            </div>
             <button class="close-btn" aria-label="${t('close')}" @click=${this._cancelFlow}>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
             </button>

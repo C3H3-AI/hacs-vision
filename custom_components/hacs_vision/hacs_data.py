@@ -14,6 +14,15 @@ class HACSData:
     def __init__(self, hass) -> None:
         self.hass = hass
 
+    @staticmethod
+    def _read_json_sync(path: str) -> dict | None:
+        """Blocking JSON file read — must run via executor."""
+        try:
+            with open(path) as f:
+                return json.load(f)
+        except Exception:
+            return None
+
     def _get_path(self, key: str) -> str:
         rel_path = STORAGE_PATHS.get(key)
         if not rel_path:
@@ -268,11 +277,13 @@ class HACSData:
 
                 if trans_path and os.path.isfile(trans_path):
                     try:
-                        with open(trans_path) as f:
-                            root = json.load(f)
-                        title = root.get("title") or root.get("name")
-                        if title:
-                            translations[domain] = title
+                        root = await self.hass.async_add_executor_job(
+                            self._read_json_sync, trans_path
+                        )
+                        if root:
+                            title = root.get("title") or root.get("name")
+                            if title:
+                                translations[domain] = title
                     except Exception:
                         pass
 
@@ -286,11 +297,13 @@ class HACSData:
                 )
                 if os.path.isfile(manifest_path):
                     try:
-                        with open(manifest_path) as f:
-                            manifest = json.load(f)
-                        name = manifest.get("name", "")
-                        if name:
-                            translations[domain] = name
+                        manifest = await self.hass.async_add_executor_job(
+                            self._read_json_sync, manifest_path
+                        )
+                        if manifest:
+                            name = manifest.get("name", "")
+                            if name:
+                                translations[domain] = name
                     except Exception:
                         pass
 
