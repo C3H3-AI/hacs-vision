@@ -30,6 +30,7 @@ class IntegrationsList extends LitElement {
     _entryDeviceLoading: { type: Object, state: true }, // Set-like Map: entry_id → true
     _toggling: { type: Object, state: true },            // Set-like Map: entity_id → true
     _selectedEntryIds: { type: Object, state: true },     // Set-like Map: entry_id → true (批量选择)
+    _selectedDomains: { type: Object, state: true },       // Set-like Map: domain → true (卡片批量)
   };
 
   constructor() {
@@ -57,6 +58,7 @@ class IntegrationsList extends LitElement {
     this._entryDeviceLoading = {};
     this._toggling = {};
     this._selectedEntryIds = {};
+    this._selectedDomains = {};
   }
 
   _modalPointerDown(e) {
@@ -464,6 +466,56 @@ class IntegrationsList extends LitElement {
     const { showToast } = await import('../hacs-vision-panel.js');
     showToast(`${t('batchComplete') || '批量操作完成'} (${ids.length})`, 'success');
   }
+
+  /* ─── Card batch selection ─── */
+  _toggleSelectDomain(domain) {
+    const next = { ...this._selectedDomains };
+    if (next[domain]) { delete next[domain]; } else { next[domain] = true; }
+    this._selectedDomains = next;
+  }
+
+  _isAllDomainsSelected(groups) {
+    if (!groups || groups.length === 0) return false;
+    return groups.every(g => this._selectedDomains[g.domain]);
+  }
+
+  _toggleSelectAllDomains(groups) {
+    if (this._isAllDomainsSelected(groups)) {
+      this._selectedDomains = {};
+    } else {
+      const sel = {};
+      for (const g of groups) sel[g.domain] = true;
+      this._selectedDomains = sel;
+    }
+  }
+
+  _selectedDomainCount() {
+    return Object.keys(this._selectedDomains).filter(k => this._selectedDomains[k]).length;
+  }
+
+  async _batchDomainAction(action) {
+    const domains = Object.keys(this._selectedDomains).filter(k => this._selectedDomains[k]);
+    if (domains.length === 0) return;
+    const groups = this._filteredDomainGroups || [];
+    const entries = groups.filter(g => domains.includes(g.domain)).flatMap(g => g.entries || []);
+    if (entries.length === 0) return;
+    for (const entry of entries) {
+      try {
+        if (action === 'remove') await this._removeEntry(entry, { stopPropagation: () => {} });
+        else if (action === 'reload') await this._reloadEntry(entry, { stopPropagation: () => {} });
+        else if (action === 'enable') {
+          if (entry.disabled_by) await this._toggleDisabled(entry, { stopPropagation: () => {} });
+        }
+        else if (action === 'disable') {
+          if (!entry.disabled_by) await this._toggleDisabled(entry, { stopPropagation: () => {} });
+        }
+      } catch(e) { console.error(`Batch ${action} failed for ${entry.entry_id}:`, e); }
+    }
+    this._selectedDomains = {};
+    this.requestUpdate();
+    const { showToast } = await import('../hacs-vision-panel.js');
+    showToast(`${t('batchComplete') || '批量操作完成'} (${domains.length} 集成, ${entries.length} 条目)`, 'success');
+  }
   _translateDomain(domain) {
     return this._domainNames?.[domain] || domain;
   }
@@ -638,7 +690,27 @@ class IntegrationsList extends LitElement {
               <span class="chip-count">${cc[key] ?? 0}</span>
             </button>
           `)}
+          <div style="flex:1"></div>
+          <label class="sel-all-label" style="flex-shrink:0;font-size:12px;color:var(--secondary-text-color);">
+            <input type="checkbox" style="width:13px;height:13px;cursor:pointer;accent-color:var(--primary-color);"
+              .checked=${this._isAllDomainsSelected(groups)}
+              @change=${() => this._toggleSelectAllDomains(groups)}>
+            ${t('selectAll') || '全选'} ${this._selectedDomainCount() > 0 ? html`<span style="color:var(--primary-color);font-weight:600;">(${this._selectedDomainCount()})</span>` : ''}
+          </label>
         </div>
+
+        ${this._selectedDomainCount() > 0 ? html`
+          <div class="batch-bar" style="margin-bottom:10px;">
+            <span style="font-weight:600;">${this._selectedDomainCount()} ${t('selected') || '个集成已选'}</span>
+            <div class="batch-actions">
+              <button class="batch-btn enable" @click=${() => this._batchDomainAction('enable')}>${t('enableEntry') || '启用'}</button>
+              <button class="batch-btn disable" @click=${() => this._batchDomainAction('disable')}>${t('disableEntry') || '禁用'}</button>
+              <button class="batch-btn reload" @click=${() => this._batchDomainAction('reload')}>${t('reloadEntry') || '重载'}</button>
+              <button class="batch-btn remove" @click=${() => this._batchDomainAction('remove')}>${t('removeEntry') || '删除'}</button>
+              <button class="batch-btn cancel" @click=${() => { this._selectedDomains = {}; this.requestUpdate(); }}>✕</button>
+            </div>
+          </div>
+        ` : ''}
 
         ${this.loading ? html`
           <div class="loading"><div class="spinner-sm"></div><div class="loading-text">${t('loading')}</div></div>
@@ -713,6 +785,10 @@ class IntegrationsList extends LitElement {
         @keydown=${e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); this._openDetail(domain, entries); } }}>
 
           <div class="card-img">
+            <div class="card-top-bar" @click=${e => e.stopPropagation()}>
+              <input type="checkbox" class="card-checkbox" .checked=${!!this._selectedDomains[domain]}
+                     @change=${() => this._toggleSelectDomain(domain)}>
+            </div>
             <span class="category-badge" style="background:${color}">${t('catIntegration')}</span>
             ${this._renderAvatar(domain)}
             ${st !== 'loaded' ? html`<span class="img-status-badge state-${st}">${this._groupLabel(st)}</span>` : ''}
@@ -1157,6 +1233,15 @@ class IntegrationsList extends LitElement {
       position: absolute; top: 8px; left: 8px;
       padding: 3px 8px; border-radius: 5px;
       font-size: 10px; font-weight: 600; color: #fff; text-transform: uppercase;
+    }
+
+    .card-top-bar {
+      position: absolute; top: 0; left: 0; z-index: 2;
+      display: flex; align-items: center; padding: 8px;
+    }
+    .card-checkbox {
+      width: 16px; height: 16px; cursor: pointer;
+      accent-color: var(--primary-color, #03a9f4);
     }
 
     /* ===== Card Body ===== */
