@@ -1132,6 +1132,15 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
           </div>
         </div>
 
+        ${(this.stats.pending_restart ?? 0) > 0 ? html`
+        <div class="restart-bar">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          <span>${t('statusPendingRestart')}: ${this.stats.pending_restart} ${t('repositories')}</span>
+          <button class="restart-bar-btn" @click=${this._restartHA}>${t('restartHA')}</button>
+          <button class="restart-bar-btn outline" @click=${() => this._applyFilter('pending_restart')}>${t('viewDetail') || '查看'}</button>
+        </div>
+        ` : ''}
+
         <!-- Sticky Tabs -->
         <div class="sticky-header">
           <div class="tabs-wrapper">
