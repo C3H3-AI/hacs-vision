@@ -177,7 +177,11 @@ class DeviceView extends LitElement {
           </div>
         ` : this._groups.length === 0 ? html`
           <div class="dv-empty">
-            <div>${t('noDevices') || '暂无设备'}</div>
+            <div class="dv-empty-icon">📋</div>
+            <div class="dv-empty-title">${this.entryTitle || this.domain}</div>
+            <div class="dv-empty-domain">${this.domain}</div>
+            <div class="dv-empty-meta">${t('entryId') || '条目ID'}: ${this.entryId.substring(0,16)}...</div>
+            <div class="dv-empty-msg">${t('noDevicesOrEntities') || '此集成没有关联的设备或实体'}</div>
           </div>
         ` : html`
           <div class="dv-toolbar">
@@ -305,11 +309,20 @@ class DeviceView extends LitElement {
     .dv-close svg { width: 16px; height: 16px; }
     .dv-close:hover { background: var(--primary-color, #03a9f4); color: #fff; }
 
-    .dv-loading, .dv-error, .dv-empty {
+    .dv-loading, .dv-error {
       flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
       gap: 12px; color: var(--secondary-text-color); padding: 40px;
     }
     .dv-error-icon { font-size: 32px; }
+    .dv-empty {
+      flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 8px; padding: 40px; color: var(--primary-text-color);
+    }
+    .dv-empty-icon { font-size: 40px; opacity: 0.5; }
+    .dv-empty-title { font-size: 16px; font-weight: 500; }
+    .dv-empty-domain { font-size: 12px; color: var(--secondary-text-color); font-family: monospace; }
+    .dv-empty-meta { font-size: 11px; color: var(--secondary-text-color); }
+    .dv-empty-msg { font-size: 13px; color: var(--secondary-text-color); margin-top: 8px; }
 
     .dv-toolbar {
       display: flex; align-items: center; justify-content: space-between;

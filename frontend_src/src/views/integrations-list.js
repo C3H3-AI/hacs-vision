@@ -227,6 +227,7 @@ class IntegrationsList extends LitElement {
     this._detailDomain = domain;
     this._detailEntries = entries;
     this._showDetail = true;
+    this._deviceViewEntryId = '';
     this._detailDeviceCounts = null;
     // Fetch device/entity counts for this domain
     api.getDeviceCounts(domain).then(r => {

@@ -1147,24 +1147,30 @@ class HACSEnhancedAPI(HomeAssistantView):
 
             # Get all devices for this config entry
             devices = []
+            orphan_entities = []
+            seen_entity_ids = set()
+
+            def _entity_to_dict(entity_entry):
+                state = self.hass.states.get(entity_entry.entity_id)
+                seen_entity_ids.add(entity_entry.entity_id)
+                return {
+                    "entity_id": entity_entry.entity_id,
+                    "name": entity_entry.name or entity_entry.original_name,
+                    "state": state.state if state else None,
+                    "icon": entity_entry.icon or entity_entry.original_icon,
+                    "unit": entity_entry.unit_of_measurement,
+                    "domain": entity_entry.domain,
+                    "disabled": entity_entry.disabled_by is not None,
+                }
+
             for device in device_reg.devices.values():
                 if entry_id not in device.config_entries:
                     continue
-                # Get entities for this device
                 entities = []
                 for entity_entry in entity_reg.entities.values():
                     if entity_entry.device_id != device.id:
                         continue
-                    state = self.hass.states.get(entity_entry.entity_id)
-                    entities.append({
-                        "entity_id": entity_entry.entity_id,
-                        "name": entity_entry.name or entity_entry.original_name,
-                        "state": state.state if state else None,
-                        "icon": entity_entry.icon or entity_entry.original_icon,
-                        "unit": entity_entry.unit_of_measurement,
-                        "domain": entity_entry.domain,
-                        "disabled": entity_entry.disabled_by is not None,
-                    })
+                    entities.append(_entity_to_dict(entity_entry))
                 entities.sort(key=lambda e: (e["disabled"], e["entity_id"]))
 
                 area_name = None
@@ -1187,6 +1193,15 @@ class HACSEnhancedAPI(HomeAssistantView):
                     "entities": entities,
                 })
 
+            # Collect orphan entities (belong to this config entry but no device)
+            for entity_entry in entity_reg.entities.values():
+                if entity_entry.entity_id in seen_entity_ids:
+                    continue
+                if entity_entry.config_entry_id != entry_id:
+                    continue
+                orphan_entities.append(_entity_to_dict(entity_entry))
+            orphan_entities.sort(key=lambda e: (e["disabled"], e["entity_id"]))
+
             # Group by area
             groups = {}
             for dev in devices:
@@ -1196,9 +1211,17 @@ class HACSEnhancedAPI(HomeAssistantView):
             # Sort: named areas first, "其他" last
             sorted_groups = sorted(groups.items(), key=lambda x: (x[0] == "其他", x[0] or ""))
 
-            return web.json_response({
-                "groups": [{"area": area, "devices": devs} for area, devs in sorted_groups]
-            })
+            result_groups = [{"area": area, "devices": devs} for area, devs in sorted_groups]
+            if orphan_entities:
+                result_groups.append({"area": "无关联设备", "devices": [{
+                    "id": "_orphan",
+                    "name": "未关联设备的实体",
+                    "model": None,
+                    "manufacturer": None,
+                    "entities": orphan_entities,
+                }]})
+
+            return web.json_response({"groups": result_groups})
         except Exception as e:
             _LOGGER.error("Failed to get devices: %s", e, exc_info=True)
             return web.json_response({"error": str(e)}, status=500)
