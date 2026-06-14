@@ -3277,7 +3277,7 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
         </div> <!-- config-grid -->
         <div class="version">HACS Vision${this._version?` v${this._version}`:""}</div>
       </div>
-    `}async _export(){this._exporting=!0;try{const e=await ce.exportBackup(),t=new Blob([JSON.stringify(e,null,2)],{type:"application/json"}),o=URL.createObjectURL(t),i=document.createElement("a");i.href=o,i.download=`hacs_backup_${(new Date).toISOString().slice(0,10)}.json`,i.click(),URL.revokeObjectURL(o);const{showToast:r}=await Promise.resolve().then(function(){return Nt});r(ge("exportSuccess"),"success")}catch(e){showToast(`${ge("exportFailed")}: ${e.message}`,"error")}this._exporting=!1}async _import(e){const t=e.target?.files?.[0];if(!t)return;if(await Pt.show(this,{message:ge("importDesc"),confirmText:ge("importBackup"),danger:!0})){this._importing=!0;try{const e=await t.text(),o=JSON.parse(e),i=await ce.importBackup(o),{showToast:r}=await Promise.resolve().then(function(){return Nt});i.success?(r(ge("importSuccess"),"success"),this._load()):r(`${ge("importFailed")}: ${i.error}`,"error")}catch(e){showToast(`${ge("importFailed")}: ${e.message}`,"error")}this._importing=!1,e.target.value=""}}async _checkUpdates(){try{const e=await ce.checkUpdatesWithNotify(),{showToast:t}=await Promise.resolve().then(function(){return Nt});e.success&&(e.updates_found>0?t(ge("updatesChecked",{n:e.updates_found}),"success"):t(ge("noUpdatesFound"),"info"),e.notified&&t(ge("notifySent"),"success"))}catch(e){showToast(`Update check failed: ${e.message}`,"error")}}async _checkAndRestart(){if(await Pt.show(this,{message:ge("restartConfirm"),confirmText:ge("restartHA"),danger:!0}))try{await ce.restartHA();const{showToast:e}=await Promise.resolve().then(function(){return Nt});e(ge("haRestarting"),"info")}catch(e){showToast(`${ge("restartFailed")}: ${e.message}`,"error")}}async _clearPanelCache(){const{ConfirmDialog:e}=await Promise.resolve().then(function(){return Ut});if(await e.show(this,{message:ge("clearCacheConfirm"),confirmText:ge("confirm"),danger:!1}))try{const e=await caches.keys();await Promise.all(e.map(e=>caches.delete(e))),localStorage.clear();const{showToast:t}=await Promise.resolve().then(function(){return Nt});t(ge("clearCacheDone"),"success"),setTimeout(()=>location.reload(),1500)}catch(e){const{showToast:t}=await Promise.resolve().then(function(){return Nt});t(`${ge("clearCache")}: ${e.message}`,"error")}}}customElements.define("config-view",Kt);class Zt extends ae{static properties={hass:{type:Object},configEntries:{type:Array},loading:{type:Boolean},searchText:{type:String},_statusFilter:{type:String,state:!0},_showAddDialog:{type:Boolean,state:!0},_handlerSearch:{type:String,state:!0},_handlers:{type:Array,state:!0},_handlersLoading:{type:Boolean,state:!0},_removing:{type:Object,state:!0},_reloading:{type:Object,state:!0},_detailDomain:{type:String,state:!0},_detailEntries:{type:Array,state:!0},_detailDeviceCounts:{type:Object,state:!0},_showDetail:{type:Boolean,state:!0},_domainNames:{type:Object,state:!0},_viewMode:{type:String,state:!0},_toggledEntries:{type:Object,state:!0},_entryDevices:{type:Object,state:!0},_toggledDevices:{type:Object,state:!0},_entryDeviceLoading:{type:Object,state:!0}};constructor(){super(),this.configEntries=[],this.loading=!0,this.searchText="",this._statusFilter="all",this._showAddDialog=!1,this._handlerSearch="",this._handlers=[],this._handlersLoading=!1,this._removing={},this._reloading={},this._detailDomain="",this._detailEntries=[],this._showDetail=!1,this._domainNames={},this._viewMode=localStorage.getItem("hacs_int_view_mode")||"card",this._detailOpenedAt=0,this._modalDrag={offsetX:0,offsetY:0,startX:0,startY:0,dragging:!1,cleanup:null},this._toggledEntries={},this._entryDevices={},this._toggledDevices={},this._entryDeviceLoading={}}_modalPointerDown(e){const t=e.target.closest(".modal-header, .dv-header");if(!t||e.target.closest("button, input, select, textarea"))return;if(void 0!==e.button&&0!==e.button)return;const o=this._modalDrag,i=e.currentTarget;o.dragging=!0,o.startX=e.clientX-o.offsetX,o.startY=e.clientY-o.offsetY,i.style.transition="none",i.style.cursor="grabbing",t.style.userSelect="none",i.setPointerCapture(e.pointerId);const r=e=>{o.dragging&&(o.offsetX=e.clientX-o.startX,o.offsetY=e.clientY-o.startY,i.style.transform=`translate(${o.offsetX}px, ${o.offsetY}px)`)},s=e=>{o.dragging=!1,i.style.cursor="",t.style.userSelect="",i.removeEventListener("pointermove",r),i.removeEventListener("pointerup",s),i.removeEventListener("pointercancel",s);try{i.releasePointerCapture(e.pointerId)}catch(e){}};i.addEventListener("pointermove",r),i.addEventListener("pointerup",s),i.addEventListener("pointercancel",s)}connectedCallback(){super.connectedCallback(),this._load()}_setViewMode(e){this._viewMode=e;try{localStorage.setItem("hacs_int_view_mode",e)}catch(e){}}async _load(){this.loading=!0;try{const e=await ce.getConfigEntries();this.configEntries=e.entries||[];const t={};for(const e of this.configEntries)t[e.domain]||(t[e.domain]=e.translated_name||e.domain);this._domainNames=t}catch(e){console.error("Failed to load config entries:",e),Mt(ge("loadFailed"),"error")}this.loading=!1}async _loadHandlers(){if(!(this._handlers.length>0)){this._handlersLoading=!0;try{const e=await this.hass.callApi("GET","config/config_entries/flow_handlers");this._handlers=Array.isArray(e)?e.map(e=>"string"==typeof e?{domain:e,name:e}:e):[],this._handlers.sort((e,t)=>(e.name||e.domain).localeCompare(t.name||t.domain))}catch(e){console.error("Failed to load flow handlers:",e),this._handlers=[]}this._handlersLoading=!1}}async _removeEntry(e,t){t.stopPropagation();const{ConfirmDialog:o}=await Promise.resolve().then(function(){return Ut});if(!await o.show(this,{title:e.domain,message:ge("confirmDelete",{domain:e.domain}),confirmText:ge("delete"),danger:!0}))return;this._removing={...this._removing,[e.entry_id]:!0};try{const t=ce._getHeaders(),o=await fetch(`/api/config/config_entries/entry/${e.entry_id}`,{method:"DELETE",headers:t,credentials:"include"});if(!o.ok)throw new Error(`HTTP ${o.status}`);Mt(`${e.domain} ${ge("deleted")}`,"success"),this._load()}catch(t){Mt(`${ge("deleteFailed")}: ${t.message}`,"error")}const i={...this._removing};delete i[e.entry_id],this._removing=i}async _reloadEntry(e,t){t.stopPropagation(),this._reloading={...this._reloading,[e.entry_id]:!0};try{const t=ce._getHeaders(),o=await fetch(`/api/config/config_entries/entry/${e.entry_id}/reload`,{method:"POST",headers:{...t,"Content-Type":"application/json"},credentials:"include",body:"{}"});if(!o.ok)throw new Error(`HTTP ${o.status}`);Mt(`${e.domain} ${ge("reloaded")}`,"success"),setTimeout(()=>this._load(),1500)}catch(t){Mt(`${ge("reloadFailed")}: ${t.message}`,"error")}const o={...this._reloading};delete o[e.entry_id],this._reloading=o}async _toggleDisabled(e,t){t.stopPropagation();const o=e.disabled_by?null:"user",i=o?ge("disableEntry")||"禁用":ge("enableEntry")||"启用";try{const t=ce._getHeaders(),r=await fetch("/api/config/config_entries/entry",{method:"POST",headers:{...t,"Content-Type":"application/json"},credentials:"include",body:JSON.stringify({entry_id:e.entry_id,disabled_by:o})});if(!r.ok)throw new Error(`HTTP ${r.status}`);Mt(`${e.domain} ${i}${ge("successSuffix")||"成功"}`,"success"),setTimeout(()=>this._load(),1500)}catch(e){Mt(`${i}${ge("failedSuffix")||"失败"}: ${e.message}`,"error")}}_configureEntry(e,t){t.stopPropagation(),this._closeDetail(),this.dispatchEvent(new CustomEvent("configure-integration",{bubbles:!0,composed:!0,detail:{domain:e.domain,entry_id:e.entry_id}}))}_openAddDialog(){this._showAddDialog=!0,this._handlerSearch="",this._loadHandlers()}_closeAddDialog(){this._showAddDialog=!1,this._handlerSearch=""}_addIntegration(e){this._closeAddDialog(),this.dispatchEvent(new CustomEvent("add-integration",{bubbles:!0,composed:!0,detail:{domain:e}}))}_openDetail(e,t){this._detailOpenedAt=Date.now(),this._detailDomain=e,this._detailEntries=t,this._showDetail=!0,this._deviceViewEntryId="",console.debug("HACS Vision: _openDetail, cleared _deviceViewEntryId"),this._detailDeviceCounts=null,ce.getDeviceCounts(e).then(e=>{this._detailDeviceCounts=e}).catch(t=>{console.warn("Failed to get device counts for",e,t)})}_closeDetail(){if(this._detailOpenedAt&&Date.now()-this._detailOpenedAt<500)return void console.debug("HACS Vision: _closeDetail blocked by 500ms guard");console.debug("HACS Vision: _closeDetail CALLED"),this._showDetail=!1,this._detailDomain="",this._detailEntries=[],this._detailOpenedAt=0;const e=this.shadowRoot?.querySelector(".modal");e&&(e.style.transform="")}_toggleEntry(e){const t=e.entry_id;if(this._toggledEntries[t])return this._toggledEntries={...this._toggledEntries},delete this._toggledEntries[t],void this.requestUpdate();this._toggledEntries={...this._toggledEntries,[t]:!0},this._entryDevices[t]||this._entryDeviceLoading[t]||this._loadEntryDevices(e),this.requestUpdate()}async _loadEntryDevices(e){const t=e.entry_id;this._entryDeviceLoading={...this._entryDeviceLoading,[t]:!0};try{const e=await ce.get(`devices/${t}`);this._entryDevices={...this._entryDevices,[t]:e.groups||[]}}catch(e){this._entryDevices={...this._entryDevices,[t]:[]}}this._entryDeviceLoading={...this._entryDeviceLoading},delete this._entryDeviceLoading[t],this.requestUpdate()}_toggleDevice(e,t){this._toggledDevices[e]?(this._toggledDevices={...this._toggledDevices},delete this._toggledDevices[e]):this._toggledDevices={...this._toggledDevices,[e]:!0},this.requestUpdate()}_translateDomain(e){return this._domainNames?.[e]||e}_renderAvatar(e){const t=`https://brands.home-assistant.io/${e}/icon.png`,o=`${window.location.origin}/api/hacs_vision_brand/${e}`;this._getDomainColor(e);const i=e.charAt(0).toUpperCase();return H`
+    `}async _export(){this._exporting=!0;try{const e=await ce.exportBackup(),t=new Blob([JSON.stringify(e,null,2)],{type:"application/json"}),o=URL.createObjectURL(t),i=document.createElement("a");i.href=o,i.download=`hacs_backup_${(new Date).toISOString().slice(0,10)}.json`,i.click(),URL.revokeObjectURL(o);const{showToast:r}=await Promise.resolve().then(function(){return Nt});r(ge("exportSuccess"),"success")}catch(e){showToast(`${ge("exportFailed")}: ${e.message}`,"error")}this._exporting=!1}async _import(e){const t=e.target?.files?.[0];if(!t)return;if(await Pt.show(this,{message:ge("importDesc"),confirmText:ge("importBackup"),danger:!0})){this._importing=!0;try{const e=await t.text(),o=JSON.parse(e),i=await ce.importBackup(o),{showToast:r}=await Promise.resolve().then(function(){return Nt});i.success?(r(ge("importSuccess"),"success"),this._load()):r(`${ge("importFailed")}: ${i.error}`,"error")}catch(e){showToast(`${ge("importFailed")}: ${e.message}`,"error")}this._importing=!1,e.target.value=""}}async _checkUpdates(){try{const e=await ce.checkUpdatesWithNotify(),{showToast:t}=await Promise.resolve().then(function(){return Nt});e.success&&(e.updates_found>0?t(ge("updatesChecked",{n:e.updates_found}),"success"):t(ge("noUpdatesFound"),"info"),e.notified&&t(ge("notifySent"),"success"))}catch(e){showToast(`Update check failed: ${e.message}`,"error")}}async _checkAndRestart(){if(await Pt.show(this,{message:ge("restartConfirm"),confirmText:ge("restartHA"),danger:!0}))try{await ce.restartHA();const{showToast:e}=await Promise.resolve().then(function(){return Nt});e(ge("haRestarting"),"info")}catch(e){showToast(`${ge("restartFailed")}: ${e.message}`,"error")}}async _clearPanelCache(){const{ConfirmDialog:e}=await Promise.resolve().then(function(){return Ut});if(await e.show(this,{message:ge("clearCacheConfirm"),confirmText:ge("confirm"),danger:!1}))try{const e=await caches.keys();await Promise.all(e.map(e=>caches.delete(e))),localStorage.clear();const{showToast:t}=await Promise.resolve().then(function(){return Nt});t(ge("clearCacheDone"),"success"),setTimeout(()=>location.reload(),1500)}catch(e){const{showToast:t}=await Promise.resolve().then(function(){return Nt});t(`${ge("clearCache")}: ${e.message}`,"error")}}}customElements.define("config-view",Kt);class Zt extends ae{static properties={hass:{type:Object},configEntries:{type:Array},loading:{type:Boolean},searchText:{type:String},_statusFilter:{type:String,state:!0},_showAddDialog:{type:Boolean,state:!0},_handlerSearch:{type:String,state:!0},_handlers:{type:Array,state:!0},_handlersLoading:{type:Boolean,state:!0},_removing:{type:Object,state:!0},_reloading:{type:Object,state:!0},_detailDomain:{type:String,state:!0},_detailEntries:{type:Array,state:!0},_detailDeviceCounts:{type:Object,state:!0},_showDetail:{type:Boolean,state:!0},_domainNames:{type:Object,state:!0},_viewMode:{type:String,state:!0},_toggledEntries:{type:Object,state:!0},_entryDevices:{type:Object,state:!0},_toggledDevices:{type:Object,state:!0},_entryDeviceLoading:{type:Object,state:!0},_toggling:{type:Object,state:!0}};constructor(){super(),this.configEntries=[],this.loading=!0,this.searchText="",this._statusFilter="all",this._showAddDialog=!1,this._handlerSearch="",this._handlers=[],this._handlersLoading=!1,this._removing={},this._reloading={},this._detailDomain="",this._detailEntries=[],this._showDetail=!1,this._domainNames={},this._viewMode=localStorage.getItem("hacs_int_view_mode")||"card",this._detailOpenedAt=0,this._modalDrag={offsetX:0,offsetY:0,startX:0,startY:0,dragging:!1,cleanup:null},this._toggledEntries={},this._entryDevices={},this._toggledDevices={},this._entryDeviceLoading={},this._toggling={}}_modalPointerDown(e){const t=e.target.closest(".modal-header, .dv-header");if(!t||e.target.closest("button, input, select, textarea"))return;if(void 0!==e.button&&0!==e.button)return;const o=this._modalDrag,i=e.currentTarget;o.dragging=!0,o.startX=e.clientX-o.offsetX,o.startY=e.clientY-o.offsetY,i.style.transition="none",i.style.cursor="grabbing",t.style.userSelect="none",i.setPointerCapture(e.pointerId);const r=e=>{o.dragging&&(o.offsetX=e.clientX-o.startX,o.offsetY=e.clientY-o.startY,i.style.transform=`translate(${o.offsetX}px, ${o.offsetY}px)`)},s=e=>{o.dragging=!1,i.style.cursor="",t.style.userSelect="",i.removeEventListener("pointermove",r),i.removeEventListener("pointerup",s),i.removeEventListener("pointercancel",s);try{i.releasePointerCapture(e.pointerId)}catch(e){}};i.addEventListener("pointermove",r),i.addEventListener("pointerup",s),i.addEventListener("pointercancel",s)}connectedCallback(){super.connectedCallback(),this._load()}_setViewMode(e){this._viewMode=e;try{localStorage.setItem("hacs_int_view_mode",e)}catch(e){}}async _load(){this.loading=!0;try{const e=await ce.getConfigEntries();this.configEntries=e.entries||[];const t={};for(const e of this.configEntries)t[e.domain]||(t[e.domain]=e.translated_name||e.domain);this._domainNames=t}catch(e){console.error("Failed to load config entries:",e),Mt(ge("loadFailed"),"error")}this.loading=!1}async _loadHandlers(){if(!(this._handlers.length>0)){this._handlersLoading=!0;try{const e=await this.hass.callApi("GET","config/config_entries/flow_handlers");this._handlers=Array.isArray(e)?e.map(e=>"string"==typeof e?{domain:e,name:e}:e):[],this._handlers.sort((e,t)=>(e.name||e.domain).localeCompare(t.name||t.domain))}catch(e){console.error("Failed to load flow handlers:",e),this._handlers=[]}this._handlersLoading=!1}}async _removeEntry(e,t){t.stopPropagation();const{ConfirmDialog:o}=await Promise.resolve().then(function(){return Ut});if(!await o.show(this,{title:e.domain,message:ge("confirmDelete",{domain:e.domain}),confirmText:ge("delete"),danger:!0}))return;this._removing={...this._removing,[e.entry_id]:!0};try{const t=ce._getHeaders(),o=await fetch(`/api/config/config_entries/entry/${e.entry_id}`,{method:"DELETE",headers:t,credentials:"include"});if(!o.ok)throw new Error(`HTTP ${o.status}`);Mt(`${e.domain} ${ge("deleted")}`,"success"),this._load()}catch(t){Mt(`${ge("deleteFailed")}: ${t.message}`,"error")}const i={...this._removing};delete i[e.entry_id],this._removing=i}async _reloadEntry(e,t){t.stopPropagation(),this._reloading={...this._reloading,[e.entry_id]:!0};try{const t=ce._getHeaders(),o=await fetch(`/api/config/config_entries/entry/${e.entry_id}/reload`,{method:"POST",headers:{...t,"Content-Type":"application/json"},credentials:"include",body:"{}"});if(!o.ok)throw new Error(`HTTP ${o.status}`);Mt(`${e.domain} ${ge("reloaded")}`,"success"),setTimeout(()=>this._load(),1500)}catch(t){Mt(`${ge("reloadFailed")}: ${t.message}`,"error")}const o={...this._reloading};delete o[e.entry_id],this._reloading=o}async _toggleDisabled(e,t){t.stopPropagation();const o=e.disabled_by?null:"user",i=o?ge("disableEntry")||"禁用":ge("enableEntry")||"启用";try{const t=ce._getHeaders(),r=await fetch("/api/config/config_entries/entry",{method:"POST",headers:{...t,"Content-Type":"application/json"},credentials:"include",body:JSON.stringify({entry_id:e.entry_id,disabled_by:o})});if(!r.ok)throw new Error(`HTTP ${r.status}`);Mt(`${e.domain} ${i}${ge("successSuffix")||"成功"}`,"success"),setTimeout(()=>this._load(),1500)}catch(e){Mt(`${i}${ge("failedSuffix")||"失败"}: ${e.message}`,"error")}}_configureEntry(e,t){t.stopPropagation(),this._closeDetail(),this.dispatchEvent(new CustomEvent("configure-integration",{bubbles:!0,composed:!0,detail:{domain:e.domain,entry_id:e.entry_id}}))}_openAddDialog(){this._showAddDialog=!0,this._handlerSearch="",this._loadHandlers()}_closeAddDialog(){this._showAddDialog=!1,this._handlerSearch=""}_addIntegration(e){this._closeAddDialog(),this.dispatchEvent(new CustomEvent("add-integration",{bubbles:!0,composed:!0,detail:{domain:e}}))}_openDetail(e,t){this._detailOpenedAt=Date.now(),this._detailDomain=e,this._detailEntries=t,this._showDetail=!0,this._deviceViewEntryId="",console.debug("HACS Vision: _openDetail, cleared _deviceViewEntryId"),this._detailDeviceCounts=null,ce.getDeviceCounts(e).then(e=>{this._detailDeviceCounts=e}).catch(t=>{console.warn("Failed to get device counts for",e,t)})}_closeDetail(){if(this._detailOpenedAt&&Date.now()-this._detailOpenedAt<500)return void console.debug("HACS Vision: _closeDetail blocked by 500ms guard");console.debug("HACS Vision: _closeDetail CALLED"),this._showDetail=!1,this._detailDomain="",this._detailEntries=[],this._detailOpenedAt=0;const e=this.shadowRoot?.querySelector(".modal");e&&(e.style.transform="")}_toggleEntry(e){const t=e.entry_id;if(this._toggledEntries[t])return this._toggledEntries={...this._toggledEntries},delete this._toggledEntries[t],void this.requestUpdate();this._toggledEntries={...this._toggledEntries,[t]:!0},this._entryDevices[t]||this._entryDeviceLoading[t]||this._loadEntryDevices(e),this.requestUpdate()}async _loadEntryDevices(e){const t=e.entry_id;this._entryDeviceLoading={...this._entryDeviceLoading,[t]:!0};try{const e=await ce.get(`devices/${t}`);this._entryDevices={...this._entryDevices,[t]:e.groups||[]}}catch(e){this._entryDevices={...this._entryDevices,[t]:[]}}this._entryDeviceLoading={...this._entryDeviceLoading},delete this._entryDeviceLoading[t],this.requestUpdate()}_toggleDevice(e,t){this._toggledDevices[e]?(this._toggledDevices={...this._toggledDevices},delete this._toggledDevices[e]):this._toggledDevices={...this._toggledDevices,[e]:!0},this.requestUpdate()}_expandAll(){const e={};for(const t of this._detailEntries||[])e[t.entry_id]=!0,this._entryDevices[t.entry_id]||this._entryDeviceLoading[t.entry_id]||this._loadEntryDevices(t);this._toggledEntries=e;const t={};for(const e of Object.keys(this._entryDevices)){const o=this._entryDevices[e]||[];for(const e of o)for(const o of e.devices||[])t[o.device_id||o.entity_id||o.name]=!0}this._toggledDevices=t,this.requestUpdate()}_collapseAll(){this._toggledEntries={},this._toggledDevices={},this.requestUpdate()}_entityIcon(e,t){if(!t||"unavailable"===t||"unknown"===t)return"⊙";if("on"===t||"open"===t||"home"===t)return"●";if("off"===t||"closed"===t||"not_home"===t)return"○";return{light:"💡",switch:"🔌",sensor:"📊",binary_sensor:"🔍",climate:"🌡️",cover:"🚪",fan:"🌀",lock:"🔒",alarm_control_panel:"🔔",camera:"📷",media_player:"📺",vacuum:"🧹",weather:"☀️",device_tracker:"📍",person:"👤",sun:"☀️",automation:"⚡",script:"📜",input_boolean:"🔘",input_number:"🔢",input_select:"📋",number:"🔢",select:"📋",button:"🔘",text:"📝"}[e]||"◆"}_stateColor(e){return e&&"unavailable"!==e&&"unknown"!==e?"on"===e||"open"===e||"home"===e?"#4caf50":"off"===e||"closed"===e||"not_home"===e?"#9e9e9e":"var(--primary-text-color, #212121)":"var(--secondary-text-color, #888)"}_formatState(e,t,o){if(!e||"unavailable"===e)return ge("unavailable")||"不可用";if("unknown"===e)return ge("unknown")||"未知";if("on"===e)return ge("stateOn")||"开";if("off"===e)return ge("stateOff")||"关";if("open"===e)return ge("stateOpen")||"已打开";if("closed"===e)return ge("stateClosed")||"已关闭";if("home"===e)return ge("stateHome")||"在家";if("not_home"===e)return ge("stateNotHome")||"离家";const i={cool:"❄️ 制冷",heat:"🔥 制热",fan_only:"🌀 送风",dry:"💧 除湿",auto:"🤖 自动",off:"关"};return i[e]?i[e]:o?`${e} ${o}`:e}_canToggle(e){return["switch","light","fan","input_boolean","automation","script","lock","cover","vacuum"].includes(e.domain)&&this.hass}async _toggleEntity(e,t){if(t.stopPropagation(),!this._toggling?.[e.entity_id]){this._toggling||(this._toggling={}),this._toggling={...this._toggling,[e.entity_id]:!0};try{if("lock"===e.domain){const t="locked"===e.state?"unlock":"lock";await this.hass.callService(e.domain,t,{entity_id:e.entity_id})}else if("cover"===e.domain){const t="open"===e.state||"opening"===e.state?"close":"open";await this.hass.callService(e.domain,t,{entity_id:e.entity_id})}else"vacuum"===e.domain?await this.hass.callService(e.domain,"toggle",{entity_id:e.entity_id}):await this.hass.callService("homeassistant","toggle",{entity_id:e.entity_id})}catch(t){console.error("Toggle failed:",t)}this._toggling={...this._toggling,[e.entity_id]:!1}}}_openMoreInfo(e){this.dispatchEvent(new CustomEvent("more-info",{bubbles:!0,composed:!0,detail:{entityId:e}}))}_translateDomain(e){return this._domainNames?.[e]||e}_renderAvatar(e){const t=`https://brands.home-assistant.io/${e}/icon.png`,o=`${window.location.origin}/api/hacs_vision_brand/${e}`;this._getDomainColor(e);const i=e.charAt(0).toUpperCase();return H`
       <div class="avatar">
         <img class="avatar-img" src="${t}" alt=""
           @error=${e=>{if(e.target.dataset.fallbackTried){e.target.style.display="none",e.target.parentElement.style.background="${color}";const t=e.target.parentElement.querySelector(".avatar-letter");t&&(t.style.display="flex")}else e.target.dataset.fallbackTried="cdn",e.target.src=o}}>
@@ -3431,8 +3431,11 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
           </div>
         </div>
       </div>
-    `}_renderEntryRow(e){const t=this._getState(e),o=this._removing[e.entry_id]||this._reloading[e.entry_id],i=e.title||e.entry_id.substring(0,8),r=!!e.disabled_by;return H`
-      <div class="entry-row ${r?"disabled":""}">
+    `}_renderEntryRow(e){const t=this._getState(e),o=this._removing[e.entry_id]||this._reloading[e.entry_id],i=e.title||e.entry_id.substring(0,8),r=!!e.disabled_by,s=!!this._toggledEntries[e.entry_id],a=this._entryDevices[e.entry_id],n=!!this._entryDeviceLoading[e.entry_id];return H`
+      <div class="entry-row ${r?"disabled":""} ${s?"expanded":""}">
+        <span class="tree-arrow ${s?"open":""}" @click=${t=>{t.stopPropagation(),this._toggleEntry(e)}}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><polyline points="6 9 12 15 18 9"/></svg>
+        </span>
         <span class="entry-dot" style="background:${t.dot}"></span>
         <div class="entry-info">
           <span class="entry-label">${t.label}</span>
@@ -3460,15 +3463,63 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
             `}
           </button>
-          <button class="entry-btn device" @click=${t=>{t.stopPropagation(),this._toggleEntry(e)}} title="${ge("viewDevices")||"设备"}" ?disabled=${o}>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
-          </button>
           <button class="entry-btn remove" @click=${t=>this._removeEntry(e,t)} title="${ge("removeEntry")}" ?disabled=${o}>
             ${this._removing[e.entry_id]?H`<span class="spinning">⋯</span>`:H`
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
             `}
           </button>
         </div>
+      </div>
+      <!-- Entry children: device tree -->
+      ${s?H`
+        <div class="entry-children">
+          ${n?H`
+            <div class="tree-loading"><div class="spinner-xs"></div><span>${ge("loading")}</span></div>
+          `:a&&0!==a.length?a.map(t=>this._renderDeviceGroup(t,e)):H`
+            <div class="tree-empty-msg">${ge("noDevicesOrEntities")||"无设备"}</div>
+          `}
+        </div>
+      `:""}
+    `}_renderDeviceGroup(e,t){const{area:o,devices:i}=e;return H`
+      <div class="device-group">
+        <div class="device-group-header">
+          <span class="device-group-name">${o}</span>
+          <span class="device-group-count">${i.length} ${ge("deviceCount")||"设备"}</span>
+        </div>
+        <div class="device-group-body">
+          ${i.map(e=>this._renderDevice(e,t))}
+        </div>
+      </div>
+    `}_renderDevice(e,t){const o=e.device_id||e.entity_id||e.name,i=!!this._toggledDevices[o],r=e.entities?e.entities.filter(e=>!e.disabled).length:0;return H`
+      <div class="device-row ${i?"expanded":""}">
+        <div class="device-header" @click=${()=>this._toggleDevice(o,t)}>
+          <span class="device-arrow ${i?"open":""}">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><polyline points="6 9 12 15 18 9"/></svg>
+          </span>
+          <svg class="device-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+          <span class="device-name">${e.name}</span>
+          ${e.model?H`<span class="device-model">${e.model}</span>`:""}
+          <span class="device-ecount">${r} ${ge("entityCount")||"实体"}</span>
+        </div>
+        ${i&&e.entities?H`
+          <div class="device-entities">
+            ${e.entities.filter(e=>!e.disabled).map(e=>this._renderEntity(e))}
+          </div>
+        `:""}
+      </div>
+    `}_renderEntity(e){const t=this._canToggle(e);return H`
+      <div class="entity-row ${t?"toggleable":""}"
+        @click=${t?t=>this._toggleEntity(e,t):()=>this._openMoreInfo(e.entity_id)}>
+        <span class="entity-icon">${this._entityIcon(e.domain,e.state)}</span>
+        <span class="entity-name" title="${e.entity_id}">${e.name||e.entity_id.split(".").pop()}</span>
+        <span class="entity-state" style="color:${this._stateColor(e.state)}">${this._formatState(e.state,e.domain,e.unit)}</span>
+        ${t?H`
+          <span class="entity-toggle ${"on"===e.state||"open"===e.state?"on":""}">
+            ${this._toggling?.[e.entity_id]?H`<span class="spinning-xs">⟳</span>`:""}
+          </span>
+        `:H`
+          <span class="entity-more">›</span>
+        `}
       </div>
     `}_renderAddDialog(){if(!this._showAddDialog)return"";const e=this._filteredHandlers;return H`
       <div class="detail-overlay" role="dialog" aria-modal="true" aria-label="${ge("addHAIntegration")}" @click=${e=>{e.target===e.currentTarget&&this._closeAddDialog()}}>
@@ -3773,6 +3824,25 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
     }
     .modal-close svg { width: 16px; height: 16px; }
     .modal-close:hover { background: var(--primary-color, #03a9f4); color: #fff; }
+
+    /* Tree action buttons (expand/collapse all) */
+    .modal-header-right { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
+    /* ===== Tree Container ===== */
+    .tree-container {
+      overflow-y: auto; flex: 1; padding: 4px 0;
+    }
+    .tree-empty {
+      padding: 40px; text-align: center; color: var(--secondary-text-color); font-size: 14px;
+    }
+    .tree-action-btn {
+      width: 30px; height: 30px; border: none; border-radius: 6px;
+      background: none; cursor: pointer;
+      font-size: 15px; line-height: 1;
+      color: var(--secondary-text-color);
+      display: flex; align-items: center; justify-content: center;
+      transition: all 0.15s;
+    }
+    .tree-action-btn:hover { background: var(--divider-color, #e0e0e0); color: var(--primary-text-color); }
     .modal-search { padding: 12px 20px; border-bottom: 1px solid var(--divider-color, #e0e0e0); }
     .modal-body {
       overflow-y: auto; flex: 1; padding: 8px 0;
@@ -3833,10 +3903,116 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
     .entry-btn:disabled { opacity: 0.35; cursor: not-allowed; }
     .entry-btn:not(:disabled):hover { background: rgba(33,150,243,0.08); color: #2196f3; }
     .entry-btn.reload:not(:disabled):hover { background: rgba(255,152,0,0.08); color: #ff9800; }
-    .entry-btn.device:not(:disabled):hover { background: rgba(76,175,80,0.08); color: #4caf50; }
     .entry-btn.remove:not(:disabled):hover { background: rgba(244,67,54,0.08); color: #f44336; }
     .entry-btn.enable:not(:disabled):hover { background: rgba(76,175,80,0.08); color: #4caf50; }
     .entry-btn.disable:not(:disabled):hover { background: rgba(158,158,158,0.08); color: #9e9e9e; }
+
+    /* ===== Tree Arrow ===== */
+    .tree-arrow {
+      width: 20px; height: 20px; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; color: var(--secondary-text-color);
+      transition: transform 0.2s; border-radius: 4px;
+    }
+    .tree-arrow:hover { background: rgba(var(--rgb-primary-color, 3,169,244), 0.08); color: var(--primary-color); }
+    .tree-arrow svg { transition: transform 0.2s; }
+    .tree-arrow.open svg { transform: rotate(0deg); }
+    .tree-arrow:not(.open) svg { transform: rotate(-90deg); }
+    .entry-row.expanded { background: var(--secondary-background-color, #f5f5f5); }
+
+    /* ===== Entry Children (device tree container) ===== */
+    .entry-children {
+      padding: 0 20px 8px 48px;
+    }
+    .tree-loading {
+      display: flex; align-items: center; gap: 8px;
+      padding: 12px 0; font-size: 12px; color: var(--secondary-text-color);
+    }
+    .spinner-xs {
+      width: 14px; height: 14px;
+      border: 2px solid var(--divider-color, #e0e0e0);
+      border-top-color: var(--primary-color, #03a9f4);
+      border-radius: 50%; animation: spin 1s linear infinite; flex-shrink: 0;
+    }
+    .spinning-xs { animation: spin 1s linear infinite; display: inline-block; font-size: 11px; }
+    .tree-empty-msg {
+      padding: 12px 0; font-size: 12px; color: var(--secondary-text-color);
+      text-align: center;
+    }
+
+    /* ===== Device Group ===== */
+    .device-group { margin-bottom: 4px; }
+    .device-group-header {
+      display: flex; align-items: center; gap: 8px;
+      padding: 6px 0; border-bottom: 1px solid var(--divider-color, #eee);
+      margin-bottom: 4px;
+    }
+    .device-group-name { font-size: 12px; font-weight: 600; color: var(--primary-text-color); }
+    .device-group-count { font-size: 10px; color: var(--secondary-text-color); margin-left: auto; }
+
+    /* ===== Device Row ===== */
+    .device-row {
+      background: var(--card-background-color, #fff);
+      border: 1px solid var(--divider-color, #e8e8e8);
+      border-radius: 8px; margin-bottom: 6px; overflow: hidden;
+    }
+    .device-row.expanded { border-color: var(--primary-color, #03a9f4); }
+    .device-header {
+      display: flex; align-items: center; gap: 6px;
+      padding: 8px 10px; cursor: pointer; user-select: none;
+      transition: background 0.1s;
+    }
+    .device-header:hover { background: var(--secondary-background-color, #f5f5f5); }
+    .device-arrow {
+      width: 18px; height: 18px; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      color: var(--secondary-text-color); transition: transform 0.2s;
+    }
+    .device-arrow svg { transition: transform 0.2s; }
+    .device-arrow.open svg { transform: rotate(0deg); }
+    .device-arrow:not(.open) svg { transform: rotate(-90deg); }
+    .device-icon { color: var(--primary-color, #03a9f4); flex-shrink: 0; }
+    .device-name { font-size: 12px; font-weight: 500; color: var(--primary-text-color); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .device-model { font-size: 10px; color: var(--secondary-text-color); }
+    .device-ecount {
+      font-size: 10px; color: var(--secondary-text-color);
+      background: var(--divider-color, #e8e8e8);
+      padding: 1px 7px; border-radius: 6px; flex-shrink: 0;
+    }
+
+    /* ===== Entity Rows ===== */
+    .device-entities { border-top: 1px solid var(--divider-color, #eee); }
+    .entity-row {
+      display: flex; align-items: center; gap: 6px;
+      padding: 6px 10px; cursor: pointer; transition: background 0.1s;
+      min-height: 30px;
+    }
+    .entity-row:hover { background: rgba(var(--rgb-primary-color, 3,169,244), 0.04); }
+    .entity-icon { font-size: 13px; width: 18px; text-align: center; flex-shrink: 0; }
+    .entity-name {
+      font-size: 12px; color: var(--primary-text-color);
+      flex: 1; min-width: 0;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .entity-state { font-size: 12px; font-weight: 500; flex-shrink: 0; margin-right: 2px; }
+    .entity-toggle {
+      width: 24px; height: 16px; border-radius: 8px; flex-shrink: 0;
+      background: var(--secondary-background-color, #e0e0e0); position: relative;
+      transition: background 0.2s; cursor: pointer; display: flex; align-items: center; justify-content: center;
+    }
+    .entity-toggle.on { background: var(--primary-color, #03a9f4); }
+    .entity-toggle::after {
+      content: ''; position: absolute; top: 2px; left: 2px;
+      width: 12px; height: 12px; border-radius: 50%;
+      background: #fff; transition: transform 0.2s;
+    }
+    .entity-toggle.on::after { transform: translateX(8px); }
+    .entity-toggle .spinning-xs { position: relative; z-index: 1; color: #fff; font-size: 10px; }
+    .entity-more {
+      font-size: 14px; color: var(--secondary-text-color); width: 16px; text-align: center; flex-shrink: 0;
+      opacity: 0; transition: opacity 0.15s;
+    }
+    .entity-row:hover .entity-more { opacity: 1; }
 
     /* Mobile responsive */
     @media (max-width: 600px) {
@@ -3882,229 +4058,15 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
       .chip { font-size: 12px; padding: 6px 14px; }
       .detail-overlay { padding: 12px; }
       .modal { max-width: 100%; max-height: 92vh; }
+      /* Tree mobile */
+      .entry-children { padding: 0 12px 8px 36px; }
+      .entry-row { padding: 10px 12px; }
+      .entity-row { min-height: 36px; padding: 7px 8px; }
+      .device-header { padding: 8px 8px; }
+      .device-name { font-size: 12px; }
+      .entity-name { font-size: 12px; }
     }
-  `]}customElements.define("integrations-list",Zt);class Qt extends ae{static properties={hass:{type:Object},entryId:{type:String},domain:{type:String},entryTitle:{type:String},_groups:{type:Array,state:!0},_loading:{type:Boolean,state:!0},_collapsed:{type:Object,state:!0},_error:{type:String,state:!0},_toggling:{type:Object,state:!0},_deviceCollapsed:{type:Object,state:!0}};constructor(){super(),this.entryId="",this.domain="",this.entryTitle="",this._groups=[],this._loading=!0,this._collapsed={},this._allCollapsed=!1,this._error="",this._toggling={},this._deviceCollapsed={}}get _totalDeviceCount(){return this._groups.reduce((e,t)=>e+t.devices.length,0)}connectedCallback(){super.connectedCallback()}updated(e){e.has("entryId")&&this.entryId&&this._load()}async _load(){this._error="",0===this._groups.length&&(this._loading=!0);try{const e=await ce.get(`devices/${this.entryId}`);this._groups=e.groups||[];const t={};for(const e of this._groups)t[e.area]=!1;this._collapsed=t}catch(e){this._error=e.message||"Failed to load devices",this._groups=[]}this._loading=!1}_toggleArea(e){this._collapsed={...this._collapsed,[e]:!this._collapsed[e]}}_toggleDevice(e){this._deviceCollapsed={...this._deviceCollapsed,[e]:!this._deviceCollapsed[e]}}_toggleAll(){this._allCollapsed=!this._allCollapsed;const e={},t={};for(const o of this._groups){e[o.area]=this._allCollapsed;for(const e of o.devices)t[e.device_id||e.entity_id||e.name]=this._allCollapsed}this._collapsed=e,this._deviceCollapsed=t}_entityIcon(e,t){if(!t||"unavailable"===t||"unknown"===t)return"⊙";if("on"===t||"open"===t||"home"===t)return"●";if("off"===t||"closed"===t||"not_home"===t)return"○";return{light:"💡",switch:"🔌",sensor:"📊",binary_sensor:"🔍",climate:"🌡️",cover:"🚪",fan:"🌀",lock:"🔒",alarm_control_panel:"🔔",camera:"📷",media_player:"📺",vacuum:"🧹",weather:"☀️",device_tracker:"📍",person:"👤",sun:"☀️",automation:"⚡",script:"📜",input_boolean:"🔘",input_number:"🔢",input_select:"📋",number:"🔢",select:"📋",button:"🔘",text:"📝"}[e]||"◆"}_stateColor(e){return e&&"unavailable"!==e&&"unknown"!==e?"on"===e||"open"===e||"home"===e?"#4caf50":"off"===e||"closed"===e||"not_home"===e?"#9e9e9e":"var(--primary-text-color, #212121)":"var(--secondary-text-color, #888)"}_formatState(e,t,o){if(!e||"unavailable"===e)return"不可用";if("unknown"===e)return"未知";if("on"===e)return"开";if("off"===e)return"关";if("open"===e)return"已打开";if("closed"===e)return"已关闭";if("home"===e)return"在家";if("not_home"===e)return"离家";const i={cool:"❄️ 制冷",heat:"🔥 制热",fan_only:"🌀 送风",dry:"💧 除湿",auto:"🤖 自动",off:"关"};return i[e]?i[e]:o?`${e} ${o}`:e}_stateIcon(e){return e&&"unavailable"!==e&&"unknown"!==e?"on"===e||"open"===e||"home"===e?"●":"off"===e||"closed"===e||"not_home"===e?"○":"◆":"⊙"}render(){return H`
-      <div class="device-view">
-        <div class="dv-header">
-          <div class="dv-header-left">
-            <div class="dv-back" @click=${()=>this.dispatchEvent(new CustomEvent("back",{bubbles:!0,composed:!0}))}>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><polyline points="15 18 9 12 15 6"/></svg>
-            </div>
-            <div class="dv-header-icon">
-              <img class="dv-header-img" src="https://brands.home-assistant.io/${this.domain}/icon.png" alt=""
-                @error=${function(){try{if(!this.parentElement)return;this.style.display="none";const e=this.parentElement.querySelector(".dv-header-letter");e&&(e.style.display="flex")}catch(e){}}}>
-              <span class="dv-header-letter" style="display:none">${(this.domain||"").charAt(0).toUpperCase()}</span>
-            </div>
-            <div>
-              <div class="dv-title">${this.entryTitle||this.domain}</div>
-              <div class="dv-subtitle">${ge("deviceAndService")||"设备与服务"}</div>
-            </div>
-          </div>
-          <button class="dv-close" aria-label="${ge("close")||"关闭"}" title="${ge("close")||"关闭"}" @click=${()=>this.dispatchEvent(new CustomEvent("close",{bubbles:!0,composed:!0}))}>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-          </button>
-        </div>
-
-        ${this._loading?H`
-          <div class="dv-loading">
-            <div class="spinner-sm"></div>
-            <div>${ge("loading")}</div>
-          </div>
-        `:this._error?H`
-          <div class="dv-error">
-            <div class="dv-error-icon">⚠</div>
-            <div>${this._error}</div>
-          </div>
-        `:0===this._groups.length?H`
-          <div class="dv-empty">
-            <div class="dv-empty-icon">📋</div>
-            <div class="dv-empty-title">${this.entryTitle||this.domain}</div>
-            <div class="dv-empty-domain">${this.domain}</div>
-            <div class="dv-empty-meta">${ge("entryId")||"条目ID"}: ${this.entryId.substring(0,16)}...</div>
-            <div class="dv-empty-msg">${ge("noDevicesOrEntities")||"此集成没有关联的设备或实体"}</div>
-          </div>
-        `:H`
-          <div class="dv-toolbar">
-            <span class="dv-summary">${this._groups.reduce((e,t)=>e+t.devices.length,0)} ${ge("deviceCount")||"个设备"} · ${this._groups.length} ${ge("areaCount")||"个区域"}</span>
-            <button class="dv-collapse-btn" @click=${this._toggleAll}>${this._allCollapsed?ge("expandAll")||"展开全部":ge("collapseAll")||"全部折叠"}</button>
-          </div>
-          <div class="dv-groups">
-            ${this._groups.map(e=>H`
-              <div class="dv-group">
-                <div class="dv-group-header" @click=${()=>this._toggleArea(e.area)}>
-                  <svg class="dv-arrow ${this._collapsed[e.area]?"closed":""}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
-                  <span class="dv-group-name">${e.area}</span>
-                  <span class="dv-group-count">${e.devices.length} 个设备</span>
-                </div>
-                ${this._collapsed[e.area]?"":H`
-                  <div class="dv-devices">
-                    ${e.devices.map(e=>H`
-                      <div class="dv-device">
-                        <div class="dv-device-header" @click=${()=>this._toggleDevice(e.device_id||e.entity_id||e.name)}>
-                          <svg class="dv-dirarrow ${this._deviceCollapsed[e.device_id||e.entity_id||e.name]?"closed":""}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><polyline points="6 9 12 15 18 9"/></svg>
-                          <svg class="dv-device-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
-                          <span class="dv-device-name">${e.name}</span>
-                          ${e.model?H`<span class="dv-device-model">${e.model}</span>`:""}
-                          <span class="dv-device-ecount">${e.entities.filter(e=>!e.disabled).length} 个实体</span>
-                        </div>
-                        ${this._deviceCollapsed[e.device_id||e.entity_id||e.name]?"":H`
-                        <div class="dv-entities">
-                          ${e.entities.map(e=>e.disabled?"":H`
-                            <div class="dv-entity ${this._canToggle(e)?"toggleable":""}"
-                              @click=${this._canToggle(e)?t=>this._toggleEntity(e,t):()=>this._openMoreInfo(e.entity_id)}>
-                              <span class="dv-entity-icon">${this._entityIcon(e.domain,e.state)}</span>
-                              <span class="dv-entity-name" title="${e.entity_id}">${e.name||e.entity_id.split(".").pop()}</span>
-                              <span class="dv-entity-state" style="color:${this._stateColor(e.state)}">${this._formatState(e.state,e.domain,e.unit)}</span>
-                              ${this._canToggle(e)?H`
-                                <span class="dv-toggle ${"on"===e.state||"open"===e.state?"on":""}">
-                                  ${this._toggling[e.entity_id]?"⟳":""}
-                                </span>
-                              `:H`
-                                <span class="dv-more">›</span>
-                              `}
-                            </div>
-                          `)}
-                        </div>
-                        `}
-                      </div>
-                    `)}
-                  </div>
-                `}
-              </div>
-            `)}
-          </div>
-        `}
-      </div>
-    `}_openMoreInfo(e){this.dispatchEvent(new CustomEvent("more-info",{bubbles:!0,composed:!0,detail:{entityId:e}}))}_canToggle(e){return["switch","light","fan","input_boolean","automation","script","lock","cover","vacuum"].includes(e.domain)&&this.hass}async _toggleEntity(e,t){if(t.stopPropagation(),!this._toggling[e.entity_id]){this._toggling={...this._toggling,[e.entity_id]:!0};try{if("lock"===e.domain){const t="locked"===e.state?"unlock":"lock";await this.hass.callService(e.domain,t,{entity_id:e.entity_id})}else if("cover"===e.domain){const t="open"===e.state||"opening"===e.state?"close":"open";await this.hass.callService(e.domain,t,{entity_id:e.entity_id})}else"button"===e.domain?await this.hass.callService(e.domain,"press",{entity_id:e.entity_id}):"vacuum"===e.domain?await this.hass.callService(e.domain,"toggle",{entity_id:e.entity_id}):await this.hass.callService("homeassistant","toggle",{entity_id:e.entity_id})}catch(t){console.error("Toggle failed:",t)}this._toggling={...this._toggling,[e.entity_id]:!1}}}static styles=[me(),s`
-    .device-view {
-      display: flex; flex-direction: column; height: 100%;
-      user-select: text;
-      -webkit-user-select: text;
-    }
-    .dv-header {
-      display: flex; align-items: center; justify-content: space-between;
-      padding: 16px 18px; border-bottom: 1px solid var(--divider-color, #e0e0e0); flex-shrink: 0;
-    }
-    .dv-header-left { display: flex; align-items: center; gap: 12px; }
-    .dv-back {
-      width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;
-      border-radius: 50%; cursor: pointer; color: var(--primary-color, #03a9f4);
-      transition: background 0.15s;
-    }
-    .dv-back:hover { background: rgba(var(--rgb-primary-color, 3,169,244), 0.08); }
-    .dv-title { font-size: 16px; font-weight: 600; color: var(--primary-text-color); }
-    .dv-subtitle { font-size: 11px; color: var(--secondary-text-color); margin-top: 1px; }
-    .dv-header-icon {
-      width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0;
-      display: flex; align-items: center; justify-content: center;
-      background: var(--primary-color, #03a9f4); overflow: hidden;
-    }
-    .dv-header-img { width: 100%; height: 100%; object-fit: cover; }
-    .dv-header-letter { font-size: 15px; font-weight: 700; color: #fff; }
-    .dv-close {
-      width: 32px; height: 32px; border: none; border-radius: 50%;
-      background: var(--divider-color, #e0e0e0); color: var(--secondary-text-color);
-      cursor: pointer; font-size: 16px;
-      display: flex; align-items: center; justify-content: center; transition: all 0.2s; flex-shrink: 0;
-    }
-    .dv-close svg { width: 16px; height: 16px; }
-    .dv-close:hover { background: var(--primary-color, #03a9f4); color: #fff; }
-
-    .dv-loading, .dv-error {
-      flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
-      gap: 12px; color: var(--secondary-text-color); padding: 40px;
-    }
-    .dv-error-icon { font-size: 32px; }
-    .dv-empty {
-      flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
-      gap: 8px; padding: 40px; color: var(--primary-text-color);
-    }
-    .dv-empty-icon { font-size: 40px; opacity: 0.5; }
-    .dv-empty-title { font-size: 16px; font-weight: 500; }
-    .dv-empty-domain { font-size: 12px; color: var(--secondary-text-color); font-family: monospace; }
-    .dv-empty-meta { font-size: 11px; color: var(--secondary-text-color); }
-    .dv-empty-msg { font-size: 13px; color: var(--secondary-text-color); margin-top: 8px; }
-
-    .dv-toolbar {
-      display: flex; align-items: center; justify-content: space-between;
-      padding: 8px 18px; border-bottom: 1px solid var(--divider-color, #e0e0e0);
-      flex-shrink: 0;
-    }
-    .dv-summary { font-size: 12px; color: var(--secondary-text-color); }
-    .dv-collapse-btn {
-      font-size: 12px; color: var(--primary-color, #03a9f4); background: none;
-      border: 1px solid var(--divider-color, #e0e0e0); border-radius: 6px;
-      padding: 4px 10px; cursor: pointer;
-    }
-    .dv-collapse-btn:hover { background: rgba(var(--rgb-primary-color, 3,169,244), 0.06); }
-
-    .dv-groups { flex: 1; overflow-y: auto; padding: 8px 0; }
-    .dv-group-header {
-      display: flex; align-items: center; gap: 8px;
-      padding: 10px 18px; cursor: pointer; transition: background 0.1s;
-      user-select: none;
-    }
-    .dv-group-header:hover { background: var(--secondary-background-color, #f5f5f5); }
-    .dv-arrow { width: 14px; height: 14px; transition: transform 0.2s; color: var(--secondary-text-color); }
-    .dv-arrow.closed { transform: rotate(-90deg); }
-    .dv-group-name { font-size: 14px; font-weight: 600; color: var(--primary-text-color); flex: 1; }
-    .dv-group-count { font-size: 11px; color: var(--secondary-text-color); }
-
-    .dv-devices { padding: 0 18px 8px; }
-    .dv-device {
-      background: var(--secondary-background-color, #f5f5f5);
-      border-radius: 10px; margin-bottom: 8px; overflow: hidden;
-    }
-    .dv-device-header {
-      display: flex; align-items: center; gap: 8px;
-      padding: 10px 12px; border-bottom: 1px solid var(--divider-color, #e0e0e0);
-      cursor: pointer; user-select: none;
-    }
-    .dv-dirarrow { width: 12px; height: 12px; transition: transform 0.2s; color: var(--secondary-text-color); flex-shrink: 0; }
-    .dv-dirarrow.closed { transform: rotate(-90deg); }
-    .dv-device-icon { color: var(--primary-color, #03a9f4); flex-shrink: 0; }
-    .dv-device-name { font-size: 13px; font-weight: 500; color: var(--primary-text-color); flex: 1; }
-    .dv-device-model { font-size: 11px; color: var(--secondary-text-color); }
-    .dv-device-ecount { font-size: 11px; color: var(--secondary-text-color); background: var(--divider-color, #e0e0e0); padding: 1px 8px; border-radius: 8px; }
-
-    .dv-entities { padding: 2px 0; }
-    @media (min-width: 768px) {
-      .dv-entities { display: grid; grid-template-columns: 1fr 1fr; gap: 0; }
-    }
-    .dv-entity {
-      display: flex; align-items: center; gap: 8px;
-      padding: 7px 12px; cursor: pointer; transition: background 0.1s;
-    }
-    .dv-entity:hover { background: rgba(var(--rgb-primary-color, 3,169,244), 0.04); }
-    .dv-entity-icon { font-size: 14px; width: 20px; text-align: center; flex-shrink: 0; }
-    .dv-entity-name { font-size: 13px; color: var(--primary-text-color); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .dv-entity-state { font-size: 13px; font-weight: 500; flex-shrink: 0; margin-right: 4px; }
-    .dv-toggle {
-      width: 28px; height: 18px; border-radius: 10px; flex-shrink: 0;
-      background: var(--secondary-background-color, #e0e0e0); position: relative;
-      transition: background 0.2s; cursor: pointer;
-    }
-    .dv-toggle.on { background: var(--primary-color, #03a9f4); }
-    .dv-toggle.on::after { transform: translateX(10px); }
-    .dv-toggle::after {
-      content: ''; position: absolute; top: 2px; left: 2px;
-      width: 14px; height: 14px; border-radius: 50%;
-      background: #fff; transition: transform 0.2s;
-    }
-    .dv-more {
-      font-size: 16px; color: var(--secondary-text-color); width: 20px; text-align: center; flex-shrink: 0;
-      opacity: 0; transition: opacity 0.15s;
-    }
-    .dv-entity:hover .dv-more { opacity: 1; }
-
-    @media (max-width: 600px) {
-      .dv-entity { min-height: 44px; padding: 10px 14px; }
-      .dv-entity-name { font-size: 14px; }
-      .dv-entity-state { font-size: 14px; }
-      .dv-device { border-radius: 12px; }
-      .dv-group-header { padding: 12px 16px; font-size: 14px; }
-    }
-  `]}customElements.define("hacs-vision-device-view",Qt);class eo extends ae{static properties={hass:{type:Object},domain:{type:String},entryId:{type:String},configEntries:{type:Object},open:{type:Boolean,reflect:!0},_loading:{type:Boolean,state:!0},_flowId:{type:String,state:!0},_step:{type:Object,state:!0},_errors:{type:Object,state:!0},_finished:{type:Boolean,state:!0},_result:{type:Object,state:!0},_isOptions:{type:Boolean,state:!0},_isSubentry:{type:Boolean,state:!0},_subentryTypes:{type:Array,state:!0},_subentryType:{type:String,state:!0},_existingSubentries:{type:Array,state:!0},_isSubentryReconfigure:{type:Boolean,state:!0},_subentryReconfigureId:{type:String,state:!0}};constructor(){super(),this.domain="",this.entryId=null,this.configEntries=null,this.open=!1,this._loading=!1,this._flowId=null,this._step=null,this._errors={},this._finished=!1,this._result=null,this._isOptions=!1,this._isSubentry=!1,this._subentryTypes=[],this._subentryType="",this._existingSubentries=[],this._isSubentryReconfigure=!1,this._subentryReconfigureId="",this._loadingTimeout=null,this._translations=null,this._lang="zh-Hans",this._dialogDrag={offsetX:0,offsetY:0,startX:0,startY:0,dragging:!1},this._cleanedUp=!1}_getHass(){if(this.hass)return this.hass;try{const e=window.parent?.document?.querySelector("home-assistant");return e?.hass||null}catch(e){return null}}disconnectedCallback(){super.disconnectedCallback(),this._clearLoadingTimeout(),this._cleanedUp=!0}_clearLoadingTimeout(){this._loadingTimeout&&(clearTimeout(this._loadingTimeout),this._loadingTimeout=null)}_startLoadingTimeout(){this._clearLoadingTimeout(),this._loadingTimeout=setTimeout(()=>{this._loading&&!this._finished&&(this._clearLoadingTimeout(),this._finished=!0,this._result={type:"error",message:ge("flowTimeout")},this._loading=!1,this.requestUpdate())},3e4)}connectedCallback(){super.connectedCallback()}_dialogPointerDown(e){const t=e.target.closest(".header");if(!t||e.target.closest("button"))return;if(void 0!==e.button&&0!==e.button)return;const o=this._dialogDrag,i=e.currentTarget;o.dragging=!0,o.startX=e.clientX-o.offsetX,o.startY=e.clientY-o.offsetY,i.style.transition="none",i.style.cursor="grabbing",t.style.userSelect="none",i.setPointerCapture(e.pointerId);const r=e=>{o.dragging&&(o.offsetX=e.clientX-o.startX,o.offsetY=e.clientY-o.startY,i.style.transform=`translate(${o.offsetX}px, ${o.offsetY}px)`)},s=e=>{o.dragging=!1,i.style.cursor="",t.style.userSelect="",i.removeEventListener("pointermove",r),i.removeEventListener("pointerup",s),i.removeEventListener("pointercancel",s);try{i.releasePointerCapture(e.pointerId)}catch(e){}};i.addEventListener("pointermove",r),i.addEventListener("pointerup",s),i.addEventListener("pointercancel",s)}updated(e){if(e.has("open")&&this.open)if(this.entryId){this._isOptions=!1,this._isSubentry=!1,this._subentryTypes=[],this._subentryType="",this._existingSubentries=[],this._isSubentryReconfigure=!1,this._subentryReconfigureId="";const e=this._findEntry(this.entryId);e&&e.supported_subentry_types&&e.supported_subentry_types.length>0?(this._isSubentry=!0,this._subentryTypes=e.supported_subentry_types,this._loadExistingSubentries(),this._startFlow()):(this._isOptions=!0,this._startFlow())}else this.domain&&(this._isOptions=!1,this.entryId=null,this._startFlow())}openFlow(e){this.entryId=null,this._isOptions=!1,this._isSubentry=!1,this._subentryTypes=[],this._subentryType="",this._existingSubentries=[],this._isSubentryReconfigure=!1,this._subentryReconfigureId="",this.domain=e,this.open=!0}openOptionsFlow(e){this.domain="",this._isOptions=!1,this._isSubentry=!1,this._subentryTypes=[],this._subentryType="",this._existingSubentries=[],this._isSubentryReconfigure=!1,this._subentryReconfigureId="",this.entryId=e,this.open=!0}_findEntry(e){if(!this.configEntries||!e)return null;for(const t of Object.values(this.configEntries)){const o=t.find(t=>t.entry_id===e);if(o)return o}return null}async _loadExistingSubentries(){if(this.entryId)try{const e=await ce.getSubentries(this.entryId);this._existingSubentries=e?.subentries||[]}catch{this._existingSubentries=[]}}async _loadTranslations(e){if(!e)return;if(this._translations&&this._translations._domain===e)return;let t={};try{const o=await ce.getTranslations(e,this._lang),i=o?.data||{};t=this._deepMerge(t,i)}catch(e){}try{const o=this._getHass();if(o&&"function"==typeof o.loadBackendTranslation){let i;try{i=await o.loadBackendTranslation("config",e)}catch(t){try{i=await o.loadBackendTranslation(e,"config")}catch(o){console.warn(`HACS Vision: loadBackendTranslation failed for ${e}:`,t?.message||o?.message)}}i&&"object"==typeof i&&"object"==typeof i&&Object.keys(i).length>0&&(i=this._flatToNested(i),t=this._deepMerge(t,i),console.debug(`HACS Vision: loaded HA backend translations for ${e}:`,Object.keys(i).length,"keys"))}else console.warn("HACS Vision: hass.loadBackendTranslation is not available")}catch(t){console.warn(`HACS Vision: loadBackendTranslation error for ${e}:`,t)}if(this._isOptions)try{const o=this._getHass();if(o&&"function"==typeof o.loadBackendTranslation){let i;try{i=await o.loadBackendTranslation("options",e)}catch(t){try{i=await o.loadBackendTranslation(e,"options")}catch(e){}}i&&"object"==typeof i&&Object.keys(i).length>0&&(i=this._flatToNested(i),t=this._deepMerge(t,i))}}catch(e){}this._translations={_domain:e,_data:t}}_deepMerge(e,t){for(const o of Object.keys(t))t[o]&&"object"==typeof t[o]&&!Array.isArray(t[o])?(e[o]&&"object"==typeof e[o]||(e[o]={}),this._deepMerge(e[o],t[o])):e[o]=t[o];return e}_flatToNested(e){if(!e||"object"!=typeof e)return e;const t=Object.keys(e)[0];if(!t||!t.includes("."))return e;const o={};for(const[t,i]of Object.entries(e)){if("string"!=typeof i)continue;const e=t.split(".");let r=o;for(let t=0;t<e.length-1;t++)r[e[t]]&&"object"==typeof r[e[t]]||(r[e[t]]={}),r=r[e[t]];r[e[e.length-1]]=i}return o}_t(e){if(!this._translations?._data)return null;const t="component."+this._translations._domain+".",o=e.startsWith(t)?e.slice(t.length):e;let i=this._traverse(this._translations._data,o);return i||(o.startsWith("config.")&&(i=this._traverse(this._translations._data,"options."+o.slice(7)),i)?i:null)}_traverse(e,t){const o=t.split(".");let i=e;for(const e of o){if(null==i||"object"!=typeof i)return null;i=i[e]}return"string"==typeof i?i:null}async _startFlow(){if(this._isSubentry&&!this._subentryType&&!this._isSubentryReconfigure)return this._loading=!1,this._finished=!1,this._result=null,this._step=null,void this.requestUpdate();this._loading=!0,this._finished=!1,this._result=null,this._step=null,this._errors={},this.requestUpdate(),this._startLoadingTimeout();try{const e=this._isOptions||this._isSubentry?this._getFlowDomain():this.domain;let t;e&&await this._loadTranslations(e),t=this._isSubentryReconfigure&&this._subentryType&&this.entryId?await ce.startSubentryFlow(this.entryId,this._subentryType,{source:"reconfigure",subentry_id:this._subentryReconfigureId}):this._isSubentry&&this._subentryType&&this.entryId?await ce.startSubentryFlow(this.entryId,this._subentryType):this._isOptions&&this.entryId?await ce.startOptionsFlow(this.entryId):await ce.startConfigFlow(this.domain),await this._handleFlowResponse(t)}catch(e){console.error("HACS Vision: config flow start error:",e),this._clearLoadingTimeout(),this._finished=!0,this._result={type:"error",message:this._getFlowErrorMessage(e)},this._loading=!1,this.requestUpdate()}}async _handleFlowResponse(e){if("abort"===e.type)return this._finished=!0,this._result={type:"abort",reason:e.reason},this._loading=!1,void this.requestUpdate();if("create_entry"===e.type)return this._finished=!0,this._result={type:"create_entry",title:e.title||this.domain||ge("flowDone")},this._loading=!1,void this.requestUpdate();if("already_in_progress"!==e.type){if("form"===e.type){this._flowId=e.flow_id||e.flowId,this._step=e,this._errors=e.errors||{};const t=this._getFlowDomain()||e.handler;return t&&await this._loadTranslations(t),this._loading=!1,void this.requestUpdate()}if("external"===e.type){this._finished=!0;const t=e.url||"";return this._result={type:"external",url:t,message:ge("flowExternalAuth")},this._loading=!1,void this.requestUpdate()}if("menu"===e.type)return this._flowId=e.flow_id||e.flowId,this._step=e,this._errors={},this._loading=!1,void this.requestUpdate();this._finished=!0,this._result={type:"unsupported",message:ge("flowUnknownType",{type:e.type})},this._loading=!1,this.requestUpdate()}else{this._flowId=e.flow_id||e.flowId,this._clearLoadingTimeout();try{const e=await(this._isOptions?ce.stepOptionsFlow(this._flowId,{}):ce.stepConfigFlow(this._flowId,{}));await this._handleFlowResponse(e)}catch(e){this._finished=!0,this._result={type:"error",message:this._getFlowErrorMessage(e)},this._loading=!1,this.requestUpdate()}}}async _submitStep(e){this._loading=!0,this._errors={},this.requestUpdate();try{let t;t=this._isSubentry&&this._flowId?await ce.stepSubentryFlow(this._flowId,e):this._isOptions&&this._step?await ce.stepOptionsFlow(this._flowId,e):await ce.stepConfigFlow(this._flowId,e),this._handleFlowResponse(t)}catch(e){console.error("HACS Vision: flow step error:",e),this._errors={base:e.message||ge("flowSubmitFailed")},this._loading=!1,this.requestUpdate()}}_handleSubmit(e){e.preventDefault();const t=e.target,o={},i={};for(const e of t.elements)"checkbox"===e.type&&e.name&&(i[e.name]=(i[e.name]||0)+1);for(const e of t.elements)e.name&&"submit"!==e.type&&"button"!==e.type&&("checkbox"===e.type?i[e.name]>1?(Array.isArray(o[e.name])||(o[e.name]=[]),e.checked&&o[e.name].push(e.value)):o[e.name]=e.checked:void 0!==e.value&&null!==e.value&&(o[e.name]=void 0===e.valueAsNumber||isNaN(e.valueAsNumber)||"number"!==e.type?e.value:e.valueAsNumber));this._submitStep(o)}_handleMenuSelect(e){this._submitStep({next_step_id:e})}_onMultiCheckboxChange(e){this.requestUpdate()}_handleSubentrySelect(e){this._subentryType=e,this._isSubentryReconfigure=!1,this._subentryReconfigureId="",this._startFlow()}_handleExistingSubentrySelect(e){this._subentryType=e.subentry_type,this._isSubentryReconfigure=!0,this._subentryReconfigureId=e.subentry_id,this._subentryType=e.subentry_type,this._startFlow()}_cancelFlow(){const e=this.shadowRoot?.querySelector(".dialog");e&&(e.style.transform=""),this._dialogDrag={offsetX:0,offsetY:0,startX:0,startY:0,dragging:!1},this._flowId&&(this._isSubentry?ce.cancelSubentryFlow(this._flowId).catch(()=>{}):ce.cancelConfigFlow(this._flowId).catch(()=>{})),this._close()}_close(){try{this._clearLoadingTimeout(),this.open=!1,this._flowId=null,this._step=null,this._finished=!1,this._result=null,this._errors={},this._isOptions=!1,this._isSubentry=!1,this._subentryTypes=[],this._subentryType="",this._existingSubentries=[],this._isSubentryReconfigure=!1,this._subentryReconfigureId="",this.domain="",this.entryId=null,this.dispatchEvent(new CustomEvent("close",{bubbles:!0,composed:!0}))}catch(e){console.error("HACS Vision: config flow close error:",e),this.dispatchEvent(new CustomEvent("close",{bubbles:!0,composed:!0}))}}static styles=[me(),s`
+  `]}customElements.define("integrations-list",Zt);class Qt extends ae{static properties={hass:{type:Object},domain:{type:String},entryId:{type:String},configEntries:{type:Object},open:{type:Boolean,reflect:!0},_loading:{type:Boolean,state:!0},_flowId:{type:String,state:!0},_step:{type:Object,state:!0},_errors:{type:Object,state:!0},_finished:{type:Boolean,state:!0},_result:{type:Object,state:!0},_isOptions:{type:Boolean,state:!0},_isSubentry:{type:Boolean,state:!0},_subentryTypes:{type:Array,state:!0},_subentryType:{type:String,state:!0},_existingSubentries:{type:Array,state:!0},_isSubentryReconfigure:{type:Boolean,state:!0},_subentryReconfigureId:{type:String,state:!0}};constructor(){super(),this.domain="",this.entryId=null,this.configEntries=null,this.open=!1,this._loading=!1,this._flowId=null,this._step=null,this._errors={},this._finished=!1,this._result=null,this._isOptions=!1,this._isSubentry=!1,this._subentryTypes=[],this._subentryType="",this._existingSubentries=[],this._isSubentryReconfigure=!1,this._subentryReconfigureId="",this._loadingTimeout=null,this._translations=null,this._lang="zh-Hans",this._dialogDrag={offsetX:0,offsetY:0,startX:0,startY:0,dragging:!1},this._cleanedUp=!1}_getHass(){if(this.hass)return this.hass;try{const e=window.parent?.document?.querySelector("home-assistant");return e?.hass||null}catch(e){return null}}disconnectedCallback(){super.disconnectedCallback(),this._clearLoadingTimeout(),this._cleanedUp=!0}_clearLoadingTimeout(){this._loadingTimeout&&(clearTimeout(this._loadingTimeout),this._loadingTimeout=null)}_startLoadingTimeout(){this._clearLoadingTimeout(),this._loadingTimeout=setTimeout(()=>{this._loading&&!this._finished&&(this._clearLoadingTimeout(),this._finished=!0,this._result={type:"error",message:ge("flowTimeout")},this._loading=!1,this.requestUpdate())},3e4)}connectedCallback(){super.connectedCallback()}_dialogPointerDown(e){const t=e.target.closest(".header");if(!t||e.target.closest("button"))return;if(void 0!==e.button&&0!==e.button)return;const o=this._dialogDrag,i=e.currentTarget;o.dragging=!0,o.startX=e.clientX-o.offsetX,o.startY=e.clientY-o.offsetY,i.style.transition="none",i.style.cursor="grabbing",t.style.userSelect="none",i.setPointerCapture(e.pointerId);const r=e=>{o.dragging&&(o.offsetX=e.clientX-o.startX,o.offsetY=e.clientY-o.startY,i.style.transform=`translate(${o.offsetX}px, ${o.offsetY}px)`)},s=e=>{o.dragging=!1,i.style.cursor="",t.style.userSelect="",i.removeEventListener("pointermove",r),i.removeEventListener("pointerup",s),i.removeEventListener("pointercancel",s);try{i.releasePointerCapture(e.pointerId)}catch(e){}};i.addEventListener("pointermove",r),i.addEventListener("pointerup",s),i.addEventListener("pointercancel",s)}updated(e){if(e.has("open")&&this.open)if(this.entryId){this._isOptions=!1,this._isSubentry=!1,this._subentryTypes=[],this._subentryType="",this._existingSubentries=[],this._isSubentryReconfigure=!1,this._subentryReconfigureId="";const e=this._findEntry(this.entryId);e&&e.supported_subentry_types&&e.supported_subentry_types.length>0?(this._isSubentry=!0,this._subentryTypes=e.supported_subentry_types,this._loadExistingSubentries(),this._startFlow()):(this._isOptions=!0,this._startFlow())}else this.domain&&(this._isOptions=!1,this.entryId=null,this._startFlow())}openFlow(e){this.entryId=null,this._isOptions=!1,this._isSubentry=!1,this._subentryTypes=[],this._subentryType="",this._existingSubentries=[],this._isSubentryReconfigure=!1,this._subentryReconfigureId="",this.domain=e,this.open=!0}openOptionsFlow(e){this.domain="",this._isOptions=!1,this._isSubentry=!1,this._subentryTypes=[],this._subentryType="",this._existingSubentries=[],this._isSubentryReconfigure=!1,this._subentryReconfigureId="",this.entryId=e,this.open=!0}_findEntry(e){if(!this.configEntries||!e)return null;for(const t of Object.values(this.configEntries)){const o=t.find(t=>t.entry_id===e);if(o)return o}return null}async _loadExistingSubentries(){if(this.entryId)try{const e=await ce.getSubentries(this.entryId);this._existingSubentries=e?.subentries||[]}catch{this._existingSubentries=[]}}async _loadTranslations(e){if(!e)return;if(this._translations&&this._translations._domain===e)return;let t={};try{const o=await ce.getTranslations(e,this._lang),i=o?.data||{};t=this._deepMerge(t,i)}catch(e){}try{const o=this._getHass();if(o&&"function"==typeof o.loadBackendTranslation){let i;try{i=await o.loadBackendTranslation("config",e)}catch(t){try{i=await o.loadBackendTranslation(e,"config")}catch(o){console.warn(`HACS Vision: loadBackendTranslation failed for ${e}:`,t?.message||o?.message)}}i&&"object"==typeof i&&"object"==typeof i&&Object.keys(i).length>0&&(i=this._flatToNested(i),t=this._deepMerge(t,i),console.debug(`HACS Vision: loaded HA backend translations for ${e}:`,Object.keys(i).length,"keys"))}else console.warn("HACS Vision: hass.loadBackendTranslation is not available")}catch(t){console.warn(`HACS Vision: loadBackendTranslation error for ${e}:`,t)}if(this._isOptions)try{const o=this._getHass();if(o&&"function"==typeof o.loadBackendTranslation){let i;try{i=await o.loadBackendTranslation("options",e)}catch(t){try{i=await o.loadBackendTranslation(e,"options")}catch(e){}}i&&"object"==typeof i&&Object.keys(i).length>0&&(i=this._flatToNested(i),t=this._deepMerge(t,i))}}catch(e){}this._translations={_domain:e,_data:t}}_deepMerge(e,t){for(const o of Object.keys(t))t[o]&&"object"==typeof t[o]&&!Array.isArray(t[o])?(e[o]&&"object"==typeof e[o]||(e[o]={}),this._deepMerge(e[o],t[o])):e[o]=t[o];return e}_flatToNested(e){if(!e||"object"!=typeof e)return e;const t=Object.keys(e)[0];if(!t||!t.includes("."))return e;const o={};for(const[t,i]of Object.entries(e)){if("string"!=typeof i)continue;const e=t.split(".");let r=o;for(let t=0;t<e.length-1;t++)r[e[t]]&&"object"==typeof r[e[t]]||(r[e[t]]={}),r=r[e[t]];r[e[e.length-1]]=i}return o}_t(e){if(!this._translations?._data)return null;const t="component."+this._translations._domain+".",o=e.startsWith(t)?e.slice(t.length):e;let i=this._traverse(this._translations._data,o);return i||(o.startsWith("config.")&&(i=this._traverse(this._translations._data,"options."+o.slice(7)),i)?i:null)}_traverse(e,t){const o=t.split(".");let i=e;for(const e of o){if(null==i||"object"!=typeof i)return null;i=i[e]}return"string"==typeof i?i:null}async _startFlow(){if(this._isSubentry&&!this._subentryType&&!this._isSubentryReconfigure)return this._loading=!1,this._finished=!1,this._result=null,this._step=null,void this.requestUpdate();this._loading=!0,this._finished=!1,this._result=null,this._step=null,this._errors={},this.requestUpdate(),this._startLoadingTimeout();try{const e=this._isOptions||this._isSubentry?this._getFlowDomain():this.domain;let t;e&&await this._loadTranslations(e),t=this._isSubentryReconfigure&&this._subentryType&&this.entryId?await ce.startSubentryFlow(this.entryId,this._subentryType,{source:"reconfigure",subentry_id:this._subentryReconfigureId}):this._isSubentry&&this._subentryType&&this.entryId?await ce.startSubentryFlow(this.entryId,this._subentryType):this._isOptions&&this.entryId?await ce.startOptionsFlow(this.entryId):await ce.startConfigFlow(this.domain),await this._handleFlowResponse(t)}catch(e){console.error("HACS Vision: config flow start error:",e),this._clearLoadingTimeout(),this._finished=!0,this._result={type:"error",message:this._getFlowErrorMessage(e)},this._loading=!1,this.requestUpdate()}}async _handleFlowResponse(e){if("abort"===e.type)return this._finished=!0,this._result={type:"abort",reason:e.reason},this._loading=!1,void this.requestUpdate();if("create_entry"===e.type)return this._finished=!0,this._result={type:"create_entry",title:e.title||this.domain||ge("flowDone")},this._loading=!1,void this.requestUpdate();if("already_in_progress"!==e.type){if("form"===e.type){this._flowId=e.flow_id||e.flowId,this._step=e,this._errors=e.errors||{};const t=this._getFlowDomain()||e.handler;return t&&await this._loadTranslations(t),this._loading=!1,void this.requestUpdate()}if("external"===e.type){this._finished=!0;const t=e.url||"";return this._result={type:"external",url:t,message:ge("flowExternalAuth")},this._loading=!1,void this.requestUpdate()}if("menu"===e.type)return this._flowId=e.flow_id||e.flowId,this._step=e,this._errors={},this._loading=!1,void this.requestUpdate();this._finished=!0,this._result={type:"unsupported",message:ge("flowUnknownType",{type:e.type})},this._loading=!1,this.requestUpdate()}else{this._flowId=e.flow_id||e.flowId,this._clearLoadingTimeout();try{const e=await(this._isOptions?ce.stepOptionsFlow(this._flowId,{}):ce.stepConfigFlow(this._flowId,{}));await this._handleFlowResponse(e)}catch(e){this._finished=!0,this._result={type:"error",message:this._getFlowErrorMessage(e)},this._loading=!1,this.requestUpdate()}}}async _submitStep(e){this._loading=!0,this._errors={},this.requestUpdate();try{let t;t=this._isSubentry&&this._flowId?await ce.stepSubentryFlow(this._flowId,e):this._isOptions&&this._step?await ce.stepOptionsFlow(this._flowId,e):await ce.stepConfigFlow(this._flowId,e),this._handleFlowResponse(t)}catch(e){console.error("HACS Vision: flow step error:",e),this._errors={base:e.message||ge("flowSubmitFailed")},this._loading=!1,this.requestUpdate()}}_handleSubmit(e){e.preventDefault();const t=e.target,o={},i={};for(const e of t.elements)"checkbox"===e.type&&e.name&&(i[e.name]=(i[e.name]||0)+1);for(const e of t.elements)e.name&&"submit"!==e.type&&"button"!==e.type&&("checkbox"===e.type?i[e.name]>1?(Array.isArray(o[e.name])||(o[e.name]=[]),e.checked&&o[e.name].push(e.value)):o[e.name]=e.checked:void 0!==e.value&&null!==e.value&&(o[e.name]=void 0===e.valueAsNumber||isNaN(e.valueAsNumber)||"number"!==e.type?e.value:e.valueAsNumber));this._submitStep(o)}_handleMenuSelect(e){this._submitStep({next_step_id:e})}_onMultiCheckboxChange(e){this.requestUpdate()}_handleSubentrySelect(e){this._subentryType=e,this._isSubentryReconfigure=!1,this._subentryReconfigureId="",this._startFlow()}_handleExistingSubentrySelect(e){this._subentryType=e.subentry_type,this._isSubentryReconfigure=!0,this._subentryReconfigureId=e.subentry_id,this._subentryType=e.subentry_type,this._startFlow()}_cancelFlow(){const e=this.shadowRoot?.querySelector(".dialog");e&&(e.style.transform=""),this._dialogDrag={offsetX:0,offsetY:0,startX:0,startY:0,dragging:!1},this._flowId&&(this._isSubentry?ce.cancelSubentryFlow(this._flowId).catch(()=>{}):ce.cancelConfigFlow(this._flowId).catch(()=>{})),this._close()}_close(){try{this._clearLoadingTimeout(),this.open=!1,this._flowId=null,this._step=null,this._finished=!1,this._result=null,this._errors={},this._isOptions=!1,this._isSubentry=!1,this._subentryTypes=[],this._subentryType="",this._existingSubentries=[],this._isSubentryReconfigure=!1,this._subentryReconfigureId="",this.domain="",this.entryId=null,this.dispatchEvent(new CustomEvent("close",{bubbles:!0,composed:!0}))}catch(e){console.error("HACS Vision: config flow close error:",e),this.dispatchEvent(new CustomEvent("close",{bubbles:!0,composed:!0}))}}static styles=[me(),s`
     :host { display: block; }
     :host([open]) {
       position: fixed;
@@ -4473,4 +4435,4 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
           <button class="btn primary" @click=${this._close}>${ge("flowClose")}</button>
         </div>
       </div>
-    `}}customElements.define("config-flow-dialog",eo),customElements.define("hacs-vision-panel",Et)}();
+    `}}customElements.define("config-flow-dialog",Qt),customElements.define("hacs-vision-panel",Et)}();

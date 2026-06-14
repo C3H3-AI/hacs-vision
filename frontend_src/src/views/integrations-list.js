@@ -28,6 +28,7 @@ class IntegrationsList extends LitElement {
     _entryDevices: { type: Object, state: true },     // Map: entry_id → groups[]
     _toggledDevices: { type: Object, state: true },   // Set-like Map: device_id → true
     _entryDeviceLoading: { type: Object, state: true }, // Set-like Map: entry_id → true
+    _toggling: { type: Object, state: true },            // Set-like Map: entity_id → true
   };
 
   constructor() {
@@ -53,6 +54,7 @@ class IntegrationsList extends LitElement {
     this._entryDevices = {};
     this._toggledDevices = {};
     this._entryDeviceLoading = {};
+    this._toggling = {};
   }
 
   _modalPointerDown(e) {
@@ -303,6 +305,109 @@ class IntegrationsList extends LitElement {
       this._toggledDevices = { ...this._toggledDevices, [deviceId]: true };
     }
     this.requestUpdate();
+  }
+
+  _expandAll() {
+    const expanded = {};
+    for (const e of this._detailEntries || []) {
+      expanded[e.entry_id] = true;
+      if (!this._entryDevices[e.entry_id] && !this._entryDeviceLoading[e.entry_id]) {
+        this._loadEntryDevices(e);
+      }
+    }
+    this._toggledEntries = expanded;
+    // Expand all devices
+    const devExpanded = {};
+    for (const id of Object.keys(this._entryDevices)) {
+      const groups = this._entryDevices[id] || [];
+      for (const g of groups) {
+        for (const d of g.devices || []) {
+          devExpanded[d.device_id || d.entity_id || d.name] = true;
+        }
+      }
+    }
+    this._toggledDevices = devExpanded;
+    this.requestUpdate();
+  }
+
+  _collapseAll() {
+    this._toggledEntries = {};
+    this._toggledDevices = {};
+    this.requestUpdate();
+  }
+
+  /* ─── Entity helpers (from device-view.js, inlined) ─── */
+
+  _entityIcon(domain, state) {
+    if (!state || state === 'unavailable' || state === 'unknown') return '⊙';
+    if (state === 'on' || state === 'open' || state === 'home') return '●';
+    if (state === 'off' || state === 'closed' || state === 'not_home') return '○';
+    const icons = {
+      light: '💡', switch: '🔌', sensor: '📊', binary_sensor: '🔍',
+      climate: '🌡️', cover: '🚪', fan: '🌀', lock: '🔒',
+      alarm_control_panel: '🔔', camera: '📷', media_player: '📺',
+      vacuum: '🧹', weather: '☀️', device_tracker: '📍',
+      person: '👤', sun: '☀️', automation: '⚡', script: '📜',
+      input_boolean: '🔘', input_number: '🔢', input_select: '📋',
+      number: '🔢', select: '📋', button: '🔘', text: '📝',
+    };
+    return icons[domain] || '◆';
+  }
+
+  _stateColor(state) {
+    if (!state || state === 'unavailable' || state === 'unknown') return 'var(--secondary-text-color, #888)';
+    if (state === 'on' || state === 'open' || state === 'home') return '#4caf50';
+    if (state === 'off' || state === 'closed' || state === 'not_home') return '#9e9e9e';
+    return 'var(--primary-text-color, #212121)';
+  }
+
+  _formatState(state, domain, unit) {
+    if (!state || state === 'unavailable') return t('unavailable') || '不可用';
+    if (state === 'unknown') return t('unknown') || '未知';
+    if (state === 'on') return t('stateOn') || '开';
+    if (state === 'off') return t('stateOff') || '关';
+    if (state === 'open') return t('stateOpen') || '已打开';
+    if (state === 'closed') return t('stateClosed') || '已关闭';
+    if (state === 'home') return t('stateHome') || '在家';
+    if (state === 'not_home') return t('stateNotHome') || '离家';
+    const modes = { cool: '❄️ 制冷', heat: '🔥 制热', fan_only: '🌀 送风', dry: '💧 除湿', auto: '🤖 自动', 'off': '关' };
+    if (modes[state]) return modes[state];
+    return unit ? `${state} ${unit}` : state;
+  }
+
+  _canToggle(entity) {
+    const toggleable = ['switch', 'light', 'fan', 'input_boolean', 'automation', 'script', 'lock', 'cover', 'vacuum'];
+    return toggleable.includes(entity.domain) && this.hass;
+  }
+
+  async _toggleEntity(entity, e) {
+    e.stopPropagation();
+    if (this._toggling?.[entity.entity_id]) return;
+    if (!this._toggling) this._toggling = {};
+    this._toggling = { ...this._toggling, [entity.entity_id]: true };
+    try {
+      if (entity.domain === 'lock') {
+        const service = entity.state === 'locked' ? 'unlock' : 'lock';
+        await this.hass.callService(entity.domain, service, { entity_id: entity.entity_id });
+      } else if (entity.domain === 'cover') {
+        const service = entity.state === 'open' || entity.state === 'opening' ? 'close' : 'open';
+        await this.hass.callService(entity.domain, service, { entity_id: entity.entity_id });
+      } else if (entity.domain === 'vacuum') {
+        await this.hass.callService(entity.domain, 'toggle', { entity_id: entity.entity_id });
+      } else {
+        await this.hass.callService('homeassistant', 'toggle', { entity_id: entity.entity_id });
+      }
+    } catch(e) {
+      console.error('Toggle failed:', e);
+    }
+    this._toggling = { ...this._toggling, [entity.entity_id]: false };
+  }
+
+  _openMoreInfo(entityId) {
+    this.dispatchEvent(new CustomEvent('more-info', {
+      bubbles: true, composed: true,
+      detail: { entityId },
+    }));
   }
 
   /* ─── Localized domain name ─── */
@@ -629,8 +734,15 @@ class IntegrationsList extends LitElement {
     const isProcessing = this._removing[entry.entry_id] || this._reloading[entry.entry_id];
     const title = entry.title || entry.entry_id.substring(0, 8);
     const isDisabled = !!entry.disabled_by;
+    const isOpen = !!this._toggledEntries[entry.entry_id];
+    const groups = this._entryDevices[entry.entry_id];
+    const isLoading = !!this._entryDeviceLoading[entry.entry_id];
+
     return html`
-      <div class="entry-row ${isDisabled ? 'disabled' : ''}">
+      <div class="entry-row ${isDisabled ? 'disabled' : ''} ${isOpen ? 'expanded' : ''}">
+        <span class="tree-arrow ${isOpen ? 'open' : ''}" @click=${e => { e.stopPropagation(); this._toggleEntry(entry); }}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><polyline points="6 9 12 15 18 9"/></svg>
+        </span>
         <span class="entry-dot" style="background:${state.dot}"></span>
         <div class="entry-info">
           <span class="entry-label">${state.label}</span>
@@ -658,15 +770,81 @@ class IntegrationsList extends LitElement {
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
             `}
           </button>
-          <button class="entry-btn device" @click=${e => { e.stopPropagation(); this._toggleEntry(entry); }} title="${t('viewDevices') || '设备'}" ?disabled=${isProcessing}>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
-          </button>
           <button class="entry-btn remove" @click=${e => this._removeEntry(entry, e)} title="${t('removeEntry')}" ?disabled=${isProcessing}>
             ${this._removing[entry.entry_id] ? html`<span class="spinning">⋯</span>` : html`
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
             `}
           </button>
         </div>
+      </div>
+      <!-- Entry children: device tree -->
+      ${isOpen ? html`
+        <div class="entry-children">
+          ${isLoading ? html`
+            <div class="tree-loading"><div class="spinner-xs"></div><span>${t('loading')}</span></div>
+          ` : !groups || groups.length === 0 ? html`
+            <div class="tree-empty-msg">${t('noDevicesOrEntities') || '无设备'}</div>
+          ` : groups.map(g => this._renderDeviceGroup(g, entry))}
+        </div>
+      ` : ''}
+    `;
+  }
+
+  _renderDeviceGroup(group, entry) {
+    const { area, devices } = group;
+    return html`
+      <div class="device-group">
+        <div class="device-group-header">
+          <span class="device-group-name">${area}</span>
+          <span class="device-group-count">${devices.length} ${t('deviceCount') || '设备'}</span>
+        </div>
+        <div class="device-group-body">
+          ${devices.map(d => this._renderDevice(d, entry))}
+        </div>
+      </div>
+    `;
+  }
+
+  _renderDevice(device, entry) {
+    const deviceId = device.device_id || device.entity_id || device.name;
+    const isOpen = !!this._toggledDevices[deviceId];
+    const entityCount = device.entities ? device.entities.filter(e => !e.disabled).length : 0;
+
+    return html`
+      <div class="device-row ${isOpen ? 'expanded' : ''}">
+        <div class="device-header" @click=${() => this._toggleDevice(deviceId, entry)}>
+          <span class="device-arrow ${isOpen ? 'open' : ''}">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><polyline points="6 9 12 15 18 9"/></svg>
+          </span>
+          <svg class="device-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+          <span class="device-name">${device.name}</span>
+          ${device.model ? html`<span class="device-model">${device.model}</span>` : ''}
+          <span class="device-ecount">${entityCount} ${t('entityCount') || '实体'}</span>
+        </div>
+        ${isOpen && device.entities ? html`
+          <div class="device-entities">
+            ${device.entities.filter(e => !e.disabled).map(e => this._renderEntity(e))}
+          </div>
+        ` : ''}
+      </div>
+    `;
+  }
+
+  _renderEntity(entity) {
+    const toggleable = this._canToggle(entity);
+    return html`
+      <div class="entity-row ${toggleable ? 'toggleable' : ''}"
+        @click=${toggleable ? (e) => this._toggleEntity(entity, e) : () => this._openMoreInfo(entity.entity_id)}>
+        <span class="entity-icon">${this._entityIcon(entity.domain, entity.state)}</span>
+        <span class="entity-name" title="${entity.entity_id}">${entity.name || entity.entity_id.split('.').pop()}</span>
+        <span class="entity-state" style="color:${this._stateColor(entity.state)}">${this._formatState(entity.state, entity.domain, entity.unit)}</span>
+        ${toggleable ? html`
+          <span class="entity-toggle ${entity.state === 'on' || entity.state === 'open' ? 'on' : ''}">
+            ${this._toggling?.[entity.entity_id] ? html`<span class="spinning-xs">⟳</span>` : ''}
+          </span>
+        ` : html`
+          <span class="entity-more">›</span>
+        `}
       </div>
     `;
   }
@@ -981,6 +1159,25 @@ class IntegrationsList extends LitElement {
     }
     .modal-close svg { width: 16px; height: 16px; }
     .modal-close:hover { background: var(--primary-color, #03a9f4); color: #fff; }
+
+    /* Tree action buttons (expand/collapse all) */
+    .modal-header-right { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
+    /* ===== Tree Container ===== */
+    .tree-container {
+      overflow-y: auto; flex: 1; padding: 4px 0;
+    }
+    .tree-empty {
+      padding: 40px; text-align: center; color: var(--secondary-text-color); font-size: 14px;
+    }
+    .tree-action-btn {
+      width: 30px; height: 30px; border: none; border-radius: 6px;
+      background: none; cursor: pointer;
+      font-size: 15px; line-height: 1;
+      color: var(--secondary-text-color);
+      display: flex; align-items: center; justify-content: center;
+      transition: all 0.15s;
+    }
+    .tree-action-btn:hover { background: var(--divider-color, #e0e0e0); color: var(--primary-text-color); }
     .modal-search { padding: 12px 20px; border-bottom: 1px solid var(--divider-color, #e0e0e0); }
     .modal-body {
       overflow-y: auto; flex: 1; padding: 8px 0;
@@ -1041,10 +1238,116 @@ class IntegrationsList extends LitElement {
     .entry-btn:disabled { opacity: 0.35; cursor: not-allowed; }
     .entry-btn:not(:disabled):hover { background: rgba(33,150,243,0.08); color: #2196f3; }
     .entry-btn.reload:not(:disabled):hover { background: rgba(255,152,0,0.08); color: #ff9800; }
-    .entry-btn.device:not(:disabled):hover { background: rgba(76,175,80,0.08); color: #4caf50; }
     .entry-btn.remove:not(:disabled):hover { background: rgba(244,67,54,0.08); color: #f44336; }
     .entry-btn.enable:not(:disabled):hover { background: rgba(76,175,80,0.08); color: #4caf50; }
     .entry-btn.disable:not(:disabled):hover { background: rgba(158,158,158,0.08); color: #9e9e9e; }
+
+    /* ===== Tree Arrow ===== */
+    .tree-arrow {
+      width: 20px; height: 20px; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; color: var(--secondary-text-color);
+      transition: transform 0.2s; border-radius: 4px;
+    }
+    .tree-arrow:hover { background: rgba(var(--rgb-primary-color, 3,169,244), 0.08); color: var(--primary-color); }
+    .tree-arrow svg { transition: transform 0.2s; }
+    .tree-arrow.open svg { transform: rotate(0deg); }
+    .tree-arrow:not(.open) svg { transform: rotate(-90deg); }
+    .entry-row.expanded { background: var(--secondary-background-color, #f5f5f5); }
+
+    /* ===== Entry Children (device tree container) ===== */
+    .entry-children {
+      padding: 0 20px 8px 48px;
+    }
+    .tree-loading {
+      display: flex; align-items: center; gap: 8px;
+      padding: 12px 0; font-size: 12px; color: var(--secondary-text-color);
+    }
+    .spinner-xs {
+      width: 14px; height: 14px;
+      border: 2px solid var(--divider-color, #e0e0e0);
+      border-top-color: var(--primary-color, #03a9f4);
+      border-radius: 50%; animation: spin 1s linear infinite; flex-shrink: 0;
+    }
+    .spinning-xs { animation: spin 1s linear infinite; display: inline-block; font-size: 11px; }
+    .tree-empty-msg {
+      padding: 12px 0; font-size: 12px; color: var(--secondary-text-color);
+      text-align: center;
+    }
+
+    /* ===== Device Group ===== */
+    .device-group { margin-bottom: 4px; }
+    .device-group-header {
+      display: flex; align-items: center; gap: 8px;
+      padding: 6px 0; border-bottom: 1px solid var(--divider-color, #eee);
+      margin-bottom: 4px;
+    }
+    .device-group-name { font-size: 12px; font-weight: 600; color: var(--primary-text-color); }
+    .device-group-count { font-size: 10px; color: var(--secondary-text-color); margin-left: auto; }
+
+    /* ===== Device Row ===== */
+    .device-row {
+      background: var(--card-background-color, #fff);
+      border: 1px solid var(--divider-color, #e8e8e8);
+      border-radius: 8px; margin-bottom: 6px; overflow: hidden;
+    }
+    .device-row.expanded { border-color: var(--primary-color, #03a9f4); }
+    .device-header {
+      display: flex; align-items: center; gap: 6px;
+      padding: 8px 10px; cursor: pointer; user-select: none;
+      transition: background 0.1s;
+    }
+    .device-header:hover { background: var(--secondary-background-color, #f5f5f5); }
+    .device-arrow {
+      width: 18px; height: 18px; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      color: var(--secondary-text-color); transition: transform 0.2s;
+    }
+    .device-arrow svg { transition: transform 0.2s; }
+    .device-arrow.open svg { transform: rotate(0deg); }
+    .device-arrow:not(.open) svg { transform: rotate(-90deg); }
+    .device-icon { color: var(--primary-color, #03a9f4); flex-shrink: 0; }
+    .device-name { font-size: 12px; font-weight: 500; color: var(--primary-text-color); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .device-model { font-size: 10px; color: var(--secondary-text-color); }
+    .device-ecount {
+      font-size: 10px; color: var(--secondary-text-color);
+      background: var(--divider-color, #e8e8e8);
+      padding: 1px 7px; border-radius: 6px; flex-shrink: 0;
+    }
+
+    /* ===== Entity Rows ===== */
+    .device-entities { border-top: 1px solid var(--divider-color, #eee); }
+    .entity-row {
+      display: flex; align-items: center; gap: 6px;
+      padding: 6px 10px; cursor: pointer; transition: background 0.1s;
+      min-height: 30px;
+    }
+    .entity-row:hover { background: rgba(var(--rgb-primary-color, 3,169,244), 0.04); }
+    .entity-icon { font-size: 13px; width: 18px; text-align: center; flex-shrink: 0; }
+    .entity-name {
+      font-size: 12px; color: var(--primary-text-color);
+      flex: 1; min-width: 0;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .entity-state { font-size: 12px; font-weight: 500; flex-shrink: 0; margin-right: 2px; }
+    .entity-toggle {
+      width: 24px; height: 16px; border-radius: 8px; flex-shrink: 0;
+      background: var(--secondary-background-color, #e0e0e0); position: relative;
+      transition: background 0.2s; cursor: pointer; display: flex; align-items: center; justify-content: center;
+    }
+    .entity-toggle.on { background: var(--primary-color, #03a9f4); }
+    .entity-toggle::after {
+      content: ''; position: absolute; top: 2px; left: 2px;
+      width: 12px; height: 12px; border-radius: 50%;
+      background: #fff; transition: transform 0.2s;
+    }
+    .entity-toggle.on::after { transform: translateX(8px); }
+    .entity-toggle .spinning-xs { position: relative; z-index: 1; color: #fff; font-size: 10px; }
+    .entity-more {
+      font-size: 14px; color: var(--secondary-text-color); width: 16px; text-align: center; flex-shrink: 0;
+      opacity: 0; transition: opacity 0.15s;
+    }
+    .entity-row:hover .entity-more { opacity: 1; }
 
     /* Mobile responsive */
     @media (max-width: 600px) {
@@ -1090,6 +1393,13 @@ class IntegrationsList extends LitElement {
       .chip { font-size: 12px; padding: 6px 14px; }
       .detail-overlay { padding: 12px; }
       .modal { max-width: 100%; max-height: 92vh; }
+      /* Tree mobile */
+      .entry-children { padding: 0 12px 8px 36px; }
+      .entry-row { padding: 10px 12px; }
+      .entity-row { min-height: 36px; padding: 7px 8px; }
+      .device-header { padding: 8px 8px; }
+      .device-name { font-size: 12px; }
+      .entity-name { font-size: 12px; }
     }
   `];
 }
