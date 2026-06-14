@@ -23,7 +23,7 @@ class DeviceView extends LitElement {
     this.domain = '';
     this.entryTitle = '';
     this._groups = [];
-    this._loading = false;
+    this._loading = true;
     this._collapsed = {};
     this._allCollapsed = false;
     this._error = '';

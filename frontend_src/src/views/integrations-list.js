@@ -43,6 +43,7 @@ class IntegrationsList extends LitElement {
     this._showDetail = false;
     this._domainNames = {};
     this._viewMode = localStorage.getItem('hacs_int_view_mode') || 'card';
+    this._detailOpenedAt = 0;
     this._modalDrag = { offsetX: 0, offsetY: 0, startX: 0, startY: 0, dragging: false, cleanup: null };
   }
 
@@ -222,6 +223,7 @@ class IntegrationsList extends LitElement {
   }
 
   _openDetail(domain, entries) {
+    this._detailOpenedAt = Date.now();
     this._detailDomain = domain;
     this._detailEntries = entries;
     this._showDetail = true;
@@ -235,16 +237,20 @@ class IntegrationsList extends LitElement {
   }
 
   _closeDetail() {
+    // Safety: prevent accidental close within 500ms of opening
+    if (this._detailOpenedAt && Date.now() - this._detailOpenedAt < 500) return;
     this._showDetail = false;
     this._detailDomain = '';
     this._detailEntries = [];
     this._deviceViewEntryId = '';
+    this._detailOpenedAt = 0;
     // Reset drag offset for next open
     const modal = this.shadowRoot?.querySelector('.modal');
     if (modal) modal.style.transform = '';
   }
 
   _openDeviceView(entry) {
+    this._detailOpenedAt = Date.now();
     this._showDetail = true;
     this._detailDomain = entry.domain;
     this._detailEntries = [entry];
