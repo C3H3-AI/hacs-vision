@@ -258,19 +258,11 @@ class HACSEnhancedAPI(HomeAssistantView):
             url = "http://localhost:8123/api/config/config_entries/flow_handlers"
             headers = {"Authorization": f"Bearer {token}"}
             async with session.get(url, headers=headers) as resp:
-                data = await self._safe_json_response(resp)
+                data = await resp.json()
                 return web.Response(text=json.dumps(data), content_type="application/json", status=resp.status)
         except Exception as e:
             _LOGGER.error("Config flow handlers error: %s", e, exc_info=True)
             return web.json_response({"error": str(e)}, status=500)
-
-    async def _safe_json_response(self, resp) -> dict:
-        """Safely parse JSON from HA response, fallback when HA returns error HTML."""
-        try:
-            return await resp.json()
-        except Exception:
-            text = await resp.text()
-            return {"error": "non_json_response", "status": resp.status, "body": text[:500]}
 
     async def _config_flow_start(self, request: web.Request, body: dict) -> web.Response:
         """Start a new config flow — proxy to HA native REST API."""
@@ -286,7 +278,7 @@ class HACSEnhancedAPI(HomeAssistantView):
             headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
             payload = {"handler": handler, "show_advanced_options": body.get("show_advanced_options", False)}
             async with session.post(url, headers=headers, json=payload) as resp:
-                data = await self._safe_json_response(resp)
+                data = await resp.json()
                 return web.Response(text=json.dumps(data), content_type="application/json", status=resp.status)
         except Exception as e:
             _LOGGER.error("Config flow start error for %s: %s", handler, e, exc_info=True)
@@ -302,7 +294,7 @@ class HACSEnhancedAPI(HomeAssistantView):
             url = f"http://localhost:8123/api/config/config_entries/flow/{flow_id}"
             headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
             async with session.post(url, headers=headers, json=body) as resp:
-                data = await self._safe_json_response(resp)
+                data = await resp.json()
                 return web.Response(text=json.dumps(data), content_type="application/json", status=resp.status)
         except Exception as e:
             _LOGGER.error("Config flow step error %s: %s", flow_id, e, exc_info=True)
@@ -318,7 +310,7 @@ class HACSEnhancedAPI(HomeAssistantView):
             url = f"http://localhost:8123/api/config/config_entries/flow/{flow_id}"
             headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
             async with session.delete(url, headers=headers) as resp:
-                data = await self._safe_json_response(resp)
+                data = await resp.json()
                 return web.Response(text=json.dumps(data), content_type="application/json", status=resp.status)
         except Exception as e:
             _LOGGER.error("Config flow cancel error %s: %s", flow_id, e, exc_info=True)
@@ -334,7 +326,7 @@ class HACSEnhancedAPI(HomeAssistantView):
             url = f"http://localhost:8123/api/config/config_entries/subentries/flow/{flow_id}"
             headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
             async with session.delete(url, headers=headers) as resp:
-                data = await self._safe_json_response(resp)
+                data = await resp.json()
                 return web.Response(text=json.dumps(data), content_type="application/json", status=resp.status)
         except Exception as e:
             _LOGGER.error("Subentry flow cancel error %s: %s", flow_id, e, exc_info=True)
@@ -354,7 +346,7 @@ class HACSEnhancedAPI(HomeAssistantView):
             headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
             payload = {"handler": handler}
             async with session.post(url, headers=headers, json=payload) as resp:
-                data = await self._safe_json_response(resp)
+                data = await resp.json()
                 return web.Response(text=json.dumps(data), content_type="application/json", status=resp.status)
         except Exception as e:
             _LOGGER.error("Options flow start error %s: %s", handler, e, exc_info=True)
@@ -370,7 +362,7 @@ class HACSEnhancedAPI(HomeAssistantView):
             url = f"http://localhost:8123/api/config/config_entries/options/flow/{flow_id}"
             headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
             async with session.post(url, headers=headers, json=body) as resp:
-                data = await self._safe_json_response(resp)
+                data = await resp.json()
                 return web.Response(text=json.dumps(data), content_type="application/json", status=resp.status)
         except Exception as e:
             _LOGGER.error("Options flow step error %s: %s", flow_id, e, exc_info=True)
@@ -400,7 +392,7 @@ class HACSEnhancedAPI(HomeAssistantView):
             if "subentry_id" in body:
                 payload["subentry_id"] = body["subentry_id"]
             async with session.post(url, headers=headers, json=payload) as resp:
-                data = await self._safe_json_response(resp)
+                data = await resp.json()
                 return web.Response(text=json.dumps(data), content_type="application/json", status=resp.status)
         except Exception as e:
             _LOGGER.error("Subentry flow start error %s: %s", handler, e, exc_info=True)
@@ -435,7 +427,7 @@ class HACSEnhancedAPI(HomeAssistantView):
             url = f"http://localhost:8123/api/config/config_entries/subentries/flow/{flow_id}"
             headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
             async with session.post(url, headers=headers, json=body) as resp:
-                data = await self._safe_json_response(resp)
+                data = await resp.json()
                 return web.Response(text=json.dumps(data), content_type="application/json", status=resp.status)
         except Exception as e:
             _LOGGER.error("Subentry flow step error %s: %s", flow_id, e, exc_info=True)
@@ -770,7 +762,7 @@ class HACSEnhancedAPI(HomeAssistantView):
                     return web.json_response({"error": "rate_limited"}, status=429)
 
                 if resp.status == 200:
-                    data = await self._safe_json_response(resp)
+                    data = await resp.json()
                     # If tag endpoint, data is a single release object;
                     # if latest endpoint, data is also a single release object.
                     body = data.get("body", "")
@@ -878,7 +870,7 @@ class HACSEnhancedAPI(HomeAssistantView):
                         gh_headers["Authorization"] = f"token {token}"
                     async with session.get(url, headers=gh_headers) as resp:
                         if resp.status == 200:
-                            data = await self._safe_json_response(resp)
+                            data = await resp.json()
                             seen_tags = {r["tag_name"] for r in releases}
                             for release in data:
                                 tag = release.get("tag_name", "")
