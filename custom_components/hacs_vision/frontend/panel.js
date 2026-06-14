@@ -1941,6 +1941,19 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
         </span>
       </div>
 
+      ${this._selectedRepos.length>0?H`
+      <div class="batch-bar">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+        <span>${ge("selected")}: ${this._selectedRepos.length}</span>
+        <div class="batch-actions">
+          <button class="batch-bar-btn" @click=${()=>this._batchDo("install")} ?disabled=${this._addingRepo}>${ge("batchInstall")}</button>
+          <button class="batch-bar-btn" @click=${()=>this._batchDo("update")} ?disabled=${this._addingRepo}>${ge("batchUpdate")}</button>
+          <button class="batch-bar-btn danger" @click=${()=>this._batchDo("remove")} ?disabled=${this._addingRepo}>${ge("batchRemove")}</button>
+          <button class="batch-bar-btn" style="background:transparent;border-color:transparent;font-size:14px;" @click=${()=>{this._selectedRepos=[],this.requestUpdate()}}>✕</button>
+        </div>
+      </div>
+      `:""}
+
       <!-- Content -->
       <div class="content-section">
       ${this.loading?H`
@@ -2402,6 +2415,18 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
             <span>${ge("totalPrefix")} <span class="count">${this.updates.length}</span> ${ge("totalUpdates")}</span>
           </div>
         </div>
+
+        ${this._selectedCount()>0?H`
+          <div class="batch-bar" style="margin-bottom:10px;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+            <span style="font-weight:600;">${ge("selected")}: ${this._selectedCount()}</span>
+            <div class="batch-actions">
+              <button class="batch-bar-btn" @click=${this._updateSelected} ?disabled=${this.updating}>${ge("batchUpdate")}</button>
+              <button class="batch-bar-btn danger" @click=${()=>this._batchDo("remove")} ?disabled=${this.updating}>${ge("batchRemove")}</button>
+              <button class="batch-bar-btn" style="background:transparent;border-color:transparent;font-size:14px;" @click=${()=>{this._selectedIds={},this.requestUpdate()}}>✕</button>
+            </div>
+          </div>
+        `:""}
 
         ${this.updates.length>1?H`
           <div class="update-all-bar">

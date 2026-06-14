@@ -1220,6 +1220,19 @@ class BrowseView extends LitElement {
         </span>
       </div>
 
+      ${this._selectedRepos.length > 0 ? html`
+      <div class="batch-bar">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+        <span>${t('selected')}: ${this._selectedRepos.length}</span>
+        <div class="batch-actions">
+          <button class="batch-bar-btn" @click=${() => this._batchDo('install')} ?disabled=${this._addingRepo}>${t('batchInstall')}</button>
+          <button class="batch-bar-btn" @click=${() => this._batchDo('update')} ?disabled=${this._addingRepo}>${t('batchUpdate')}</button>
+          <button class="batch-bar-btn danger" @click=${() => this._batchDo('remove')} ?disabled=${this._addingRepo}>${t('batchRemove')}</button>
+          <button class="batch-bar-btn" style="background:transparent;border-color:transparent;font-size:14px;" @click=${() => { this._selectedRepos = []; this.requestUpdate(); }}>✕</button>
+        </div>
+      </div>
+      ` : ''}
+
       <!-- Content -->
       <div class="content-section">
       ${this.loading ? html`

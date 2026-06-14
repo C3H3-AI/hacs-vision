@@ -749,6 +749,18 @@ class UpdatesView extends LitElement {
           </div>
         </div>
 
+        ${this._selectedCount() > 0 ? html`
+          <div class="batch-bar" style="margin-bottom:10px;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+            <span style="font-weight:600;">${t('selected')}: ${this._selectedCount()}</span>
+            <div class="batch-actions">
+              <button class="batch-bar-btn" @click=${this._updateSelected} ?disabled=${this.updating}>${t('batchUpdate')}</button>
+              <button class="batch-bar-btn danger" @click=${() => this._batchDo('remove')} ?disabled=${this.updating}>${t('batchRemove')}</button>
+              <button class="batch-bar-btn" style="background:transparent;border-color:transparent;font-size:14px;" @click=${() => { this._selectedIds = {}; this.requestUpdate(); }}>✕</button>
+            </div>
+          </div>
+        ` : ''}
+
         ${this.updates.length > 1 ? html`
           <div class="update-all-bar">
             ${this._selectedCount() > 0 ? html`
