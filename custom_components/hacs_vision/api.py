@@ -1219,14 +1219,7 @@ class HACSEnhancedAPI(HomeAssistantView):
         try:
             dev_reg = dr.async_get(self.hass)
             ent_reg = er.async_get(self.hass)
-            devices = []
-            for device in dev_reg.devices.values():
-                if safe in device.identifiers or any(
-                    entry.domain == safe for entry in dev_reg.async_entries_for_device(device.id)
-                ):
-                    # Also check via config entries
-                    pass
-            # Simpler: count devices connected to config entries of this domain
+            # Count devices and entities linked to config entries of this domain
             device_ids = set()
             entity_count = 0
             for entry in self.hass.config_entries.async_entries():
