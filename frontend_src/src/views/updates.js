@@ -85,9 +85,8 @@ class UpdatesView extends LitElement {
         align-items: center; justify-content: center; border-radius: 50%;
       }
       .badge-corner {
-        position: absolute; top: 8px; left: 8px;
         padding: 3px 8px; border-radius: 5px;
-        font-size: 10px; font-weight: 600; color: #fff; z-index: 2;
+        font-size: 10px; font-weight: 600; color: #fff;
       }
       .badge-corner.integration { background: #1565c0; }
       .badge-corner.plugin { background: #7b1fa2; }
@@ -127,7 +126,7 @@ class UpdatesView extends LitElement {
         width: 32px; height: 32px; border-radius: 50%;
         border: none; background: rgba(255,255,255,0.85);
         cursor: pointer; display: flex; align-items: center; justify-content: center;
-        transition: all 0.2s; z-index: 2; padding: 0;
+        transition: all 0.2s; padding: 0;
         box-shadow: 0 2px 6px rgba(0,0,0,0.12);
       }
       .fav-btn:hover { transform: scale(1.1); }
