@@ -1261,7 +1261,7 @@ class IntegrationsList extends LitElement {
     }
     .tree-loading {
       display: flex; align-items: center; gap: 8px;
-      padding: 12px 0; font-size: 12px; color: var(--secondary-text-color);
+      padding: 12px 0; font-size: 13px; color: var(--secondary-text-color);
     }
     .spinner-xs {
       width: 14px; height: 14px;
@@ -1271,7 +1271,7 @@ class IntegrationsList extends LitElement {
     }
     .spinning-xs { animation: spin 1s linear infinite; display: inline-block; font-size: 11px; }
     .tree-empty-msg {
-      padding: 12px 0; font-size: 12px; color: var(--secondary-text-color);
+      padding: 12px 0; font-size: 13px; color: var(--secondary-text-color);
       text-align: center;
     }
 
@@ -1282,8 +1282,8 @@ class IntegrationsList extends LitElement {
       padding: 6px 0; border-bottom: 1px solid var(--divider-color, #eee);
       margin-bottom: 4px;
     }
-    .device-group-name { font-size: 12px; font-weight: 600; color: var(--primary-text-color); }
-    .device-group-count { font-size: 10px; color: var(--secondary-text-color); margin-left: auto; }
+    .device-group-name { font-size: 13px; font-weight: 600; color: var(--primary-text-color); }
+    .device-group-count { font-size: 13px; color: var(--secondary-text-color); margin-left: auto; }
 
     /* ===== Device Row ===== */
     .device-row {
@@ -1307,10 +1307,10 @@ class IntegrationsList extends LitElement {
     .device-arrow.open svg { transform: rotate(0deg); }
     .device-arrow:not(.open) svg { transform: rotate(-90deg); }
     .device-icon { color: var(--primary-color, #03a9f4); flex-shrink: 0; }
-    .device-name { font-size: 12px; font-weight: 500; color: var(--primary-text-color); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .device-model { font-size: 10px; color: var(--secondary-text-color); }
+    .device-name { font-size: 13px; font-weight: 500; color: var(--primary-text-color); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .device-model { font-size: 13px; color: var(--secondary-text-color); }
     .device-ecount {
-      font-size: 10px; color: var(--secondary-text-color);
+      font-size: 13px; color: var(--secondary-text-color);
       background: var(--divider-color, #e8e8e8);
       padding: 1px 7px; border-radius: 6px; flex-shrink: 0;
     }
@@ -1325,11 +1325,11 @@ class IntegrationsList extends LitElement {
     .entity-row:hover { background: rgba(var(--rgb-primary-color, 3,169,244), 0.04); }
     .entity-icon { font-size: 13px; width: 18px; text-align: center; flex-shrink: 0; }
     .entity-name {
-      font-size: 12px; color: var(--primary-text-color);
+      font-size: 13px; color: var(--primary-text-color);
       flex: 1; min-width: 0;
       overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     }
-    .entity-state { font-size: 12px; font-weight: 500; flex-shrink: 0; margin-right: 2px; }
+    .entity-state { font-size: 13px; font-weight: 500; flex-shrink: 0; margin-right: 2px; }
     .entity-toggle {
       width: 24px; height: 16px; border-radius: 8px; flex-shrink: 0;
       background: var(--secondary-background-color, #e0e0e0); position: relative;
@@ -1398,8 +1398,9 @@ class IntegrationsList extends LitElement {
       .entry-row { padding: 10px 12px; }
       .entity-row { min-height: 36px; padding: 7px 8px; }
       .device-header { padding: 8px 8px; }
-      .device-name { font-size: 12px; }
-      .entity-name { font-size: 12px; }
+      .device-name { font-size: 13px; }
+      .entity-name { font-size: 13px; }
+      .entity-state { font-size: 13px; }
     }
   `];
 }
