@@ -313,6 +313,8 @@ const T = {
   availableVersion: { zh: '可用版本', en: 'Available Version' },
   installVersion: { zh: '安装此版本', en: 'Install This Version' },
   prerelease: { zh: '预发布', en: 'Pre-release' },
+  prereleaseTab: { zh: '预发布版', en: 'Pre-releases' },
+  stableReleases: { zh: '正式版', en: 'Stable' },
   releaseStable: { zh: '正式版', en: 'Release' },
   releasePrerelease: { zh: '预发布版', en: 'Pre-release' },
   noReleases: { zh: '暂无发布版本', en: 'No releases available' },

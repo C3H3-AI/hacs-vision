@@ -1096,6 +1096,9 @@ class ConfigFlowDialog extends LitElement {
         ? t('flowOptionsNotSupported')
         : t('flowHandlerNotFound');
     }
+    if (msg.includes('500') && this._isOptions) {
+      return t('flowOptionsNotSupported');
+    }
     if (msg.includes('401') || msg.includes('403')) {
       return t('flowAuthError');
     }

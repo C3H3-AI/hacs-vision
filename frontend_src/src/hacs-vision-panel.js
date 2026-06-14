@@ -30,6 +30,7 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
     _changelogLoading: { type: Boolean, state: true },
     _presetFilter: { type: String, state: true },
     _presetTag: { type: String, state: true },
+    _releaseTab: { type: Number, state: true },
     // Config Flow
     _configFlowDomain: { type: String, state: true },
     _configFlowEntryId: { type: String, state: true },
@@ -65,6 +66,7 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
     this._changelogLoading = false;
     this._presetFilter = '';
     this._presetTag = '';
+    this._releaseTab = 0;
     this._configFlowDomain = '';
     this._configFlowEntryId = null;
     this._showConfigFlow = false;
@@ -420,6 +422,19 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
     .release-install-btn:disabled { opacity: 0.5; cursor: not-allowed; }
     .releases-loading { text-align: center; padding: 16px; color: var(--secondary-text-color); font-size: 13px; }
     .releases-empty { text-align: center; padding: 16px; color: var(--secondary-text-color); font-size: 13px; font-style: italic; }
+
+    .release-tabs {
+      display: flex; border-bottom: 1px solid var(--divider-color, #e0e0e0);
+      margin: 0 -16px; padding: 0 16px; flex-shrink: 0;
+    }
+    .release-tab {
+      padding: 8px 16px; font-size: 12px; font-weight: 600;
+      cursor: pointer; border-bottom: 2px solid transparent;
+      color: var(--secondary-text-color); transition: all 0.2s;
+      user-select: none;
+    }
+    .release-tab.active { color: var(--primary-color); border-bottom-color: var(--primary-color); }
+    .release-tab:hover { color: var(--primary-text-color); }
 
     .modal-actions { display: flex; gap: 8px; flex-wrap: wrap; }
     .modal-btn {
@@ -1197,31 +1212,40 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
                 </div>
                 ${this._showVersionSelector ? html`
                   <div class="version-selector-body">
+                    <div class="release-tabs">
+                      <div class="release-tab ${this._releaseTab === 0 ? 'active' : ''}" @click=${() => this._releaseTab = 0}>${t('stableReleases') || '正式版'}</div>
+                      <div class="release-tab ${this._releaseTab === 1 ? 'active' : ''}" @click=${() => this._releaseTab = 1}>${t('prereleaseTab') || '预发布'}</div>
+                    </div>
                     ${this._releasesLoading ? html`
                       <div class="releases-loading">
                         <div class="spinner-sm"></div>
                         ${t('loading')}
                       </div>
-                    ` : this._releases.length === 0 ? html`
-                      <div class="releases-empty">${t('noReleases')}</div>
-                    ` : this._releases.map(release => html`
-                      <div class="release-item">
-                        <div class="release-info">
-                          <div class="release-tag">
-                            ${release.tag_name || release.tag || '?'}
-                            ${release.prerelease ? html`<span class="prerelease-badge">${t('prerelease')}</span>` : ''}
+                    ` : (() => {
+                      const filtered = this._releaseTab === 0
+                        ? this._releases.filter(r => !r.prerelease)
+                        : this._releases.filter(r => r.prerelease);
+                      return filtered.length === 0 ? html`
+                        <div class="releases-empty">${t('noReleases')}</div>
+                      ` : filtered.map(release => html`
+                        <div class="release-item">
+                          <div class="release-info">
+                            <div class="release-tag">
+                              ${release.tag_name || release.tag || '?'}
+                              ${release.prerelease ? html`<span class="prerelease-badge">${t('prerelease')}</span>` : ''}
+                            </div>
+                            ${release.published_at || release.created_at ? html`
+                              <div class="release-date">${t('publishedAt')} ${new Date(release.published_at || release.created_at).toLocaleDateString()}</div>
+                            ` : ''}
                           </div>
-                          ${release.published_at || release.created_at ? html`
-                            <div class="release-date">${t('publishedAt')} ${new Date(release.published_at || release.created_at).toLocaleDateString()}</div>
-                          ` : ''}
+                          <button class="release-install-btn"
+                                  @click=${() => this._installVersion(release.tag_name || release.tag)}
+                                  ?disabled=${this._installingVersion}>
+                            ${t('installVersion')}
+                          </button>
                         </div>
-                        <button class="release-install-btn"
-                                @click=${() => this._installVersion(release.tag_name || release.tag)}
-                                ?disabled=${this._installingVersion}>
-                          ${t('installVersion')}
-                        </button>
-                      </div>
-                    `)}
+                      `);
+                    })()}
                   </div>
                 ` : ''}
               </div>
