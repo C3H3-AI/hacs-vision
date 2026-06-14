@@ -817,16 +817,16 @@ class IntegrationsList extends LitElement {
           <input type="checkbox" class="entry-checkbox" .checked=${!!this._selectedEntryIds[entry.entry_id]}
                  @change=${() => this._toggleSelectEntry(entry.entry_id)}>
         </span>
-        <span class="tree-arrow ${isOpen ? 'open' : ''}" @click=${e => { e.stopPropagation(); this._toggleEntry(entry); }}>>
+        <span class="tree-arrow ${isOpen ? 'open' : ''}" @click=${e => { e.stopPropagation(); this._toggleEntry(entry); }}>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><polyline points="6 9 12 15 18 9"/></svg>
         </span>
-        <div class="entry-icon">
+        <div class="entry-icon" style="background:${this._getDomainColor(this._detailDomain)}">
           <img class="entry-icon-img" src="https://brands.home-assistant.io/${this._detailDomain}/icon.png" alt=""
             @error=${function() {
               try { this.style.display = 'none'; const el = this.parentElement?.querySelector('.entry-icon-letter');
-              if (el) el.style.display = 'flex'; } catch(e) {}
+              if (el) { el.style.display = 'flex'; this.parentElement.style.background = el.dataset.color || 'var(--primary-color)'; } } catch(e) {}
             }}>
-          <span class="entry-icon-letter" style="display:none">${(this._detailDomain || '').charAt(0).toUpperCase()}</span>
+          <span class="entry-icon-letter" style="display:none" data-color="${this._getDomainColor(this._detailDomain)}">${(this._detailDomain || '').charAt(0).toUpperCase()}</span>
         </div>
         <span class="entry-dot" style="background:${state.dot}"></span>
         <div class="entry-info">
@@ -1320,7 +1320,7 @@ class IntegrationsList extends LitElement {
     .entry-icon {
       width: 28px; height: 28px; border-radius: 50%; flex-shrink: 0;
       display: flex; align-items: center; justify-content: center;
-      background: var(--primary-color, #03a9f4); overflow: hidden;
+      overflow: hidden; background: var(--primary-color, #03a9f4);
     }
     .entry-icon-img { width: 100%; height: 100%; object-fit: cover; }
     .entry-icon-letter { font-size: 12px; font-weight: 700; color: #fff; }
