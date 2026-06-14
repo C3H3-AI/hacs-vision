@@ -58,14 +58,46 @@ class UpdatesView extends LitElement {
       .card {
         border: 1px solid var(--divider-color); border-radius: 14px;
         background: var(--card-background-color); overflow: hidden;
-        padding: 16px; transition: all 0.2s; cursor: pointer;
-        display: flex; flex-direction: column; min-height: 220px;
+        transition: all 0.2s; cursor: pointer;
+        display: flex; flex-direction: column; min-height: 290px;
       }
-      .card:hover { border-color: var(--primary-color); }
+      .card:hover { border-color: var(--primary-color); box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+
+      .img-container {
+        height: 100px; flex-shrink: 0;
+        display: flex; align-items: center; justify-content: center;
+        background: linear-gradient(135deg, var(--secondary-background-color, #f0f0f0) 0%, var(--card-background-color, #fff) 100%);
+        position: relative;
+      }
+      .img-container .avatar {
+        width: 44px; height: 44px; border-radius: 50%;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 20px; font-weight: 700; color: #fff;
+        box-shadow: 0 3px 10px rgba(0,0,0,0.13);
+        overflow: hidden; background: transparent;
+      }
+      .img-container .avatar img { width: 100%; height: 100%; object-fit: cover; }
+      .img-container .avatar .initials {
+        display: flex; width: 100%; height: 100%;
+        align-items: center; justify-content: center; border-radius: 50%;
+      }
+      .status-badge-update {
+        position: absolute; bottom: 8px; left: 8px;
+        padding: 3px 8px; border-radius: 5px;
+        font-size: 10px; font-weight: 600; color: #fff;
+        background: rgba(255,152,0,0.85);
+      }
+      .category-badge-corner {
+        position: absolute; top: 8px; left: 8px;
+        padding: 3px 8px; border-radius: 5px;
+        font-size: 10px; font-weight: 600; color: #fff;
+      }
+
+      .card-body { padding: 14px; flex: 1; display: flex; flex-direction: column; }
 
       .card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; }
       .card-left { display: flex; align-items: center; gap: 8px; min-width: 0; flex: 1; }
-      .card-name { font-size: 14px; font-weight: 600; color: var(--primary-text-color); word-break: break-all; }
+      .card-name { font-size: 15px; font-weight: 600; color: var(--primary-text-color); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
       .card-name .category-badge {
         display: inline-block; font-size: 9px; padding: 2px 7px;
         border-radius: 4px; background: rgba(var(--rgb-primary-color), 0.08);
@@ -222,7 +254,12 @@ class UpdatesView extends LitElement {
 
       @media (max-width: 768px) {
         .search { min-width: 0; }
-        .card { padding: 12px; }
+        .card { min-height: 260px; }
+        .img-container { height: 80px; }
+        .img-container .avatar { width: 36px; height: 36px; font-size: 16px; }
+        .card-body { padding: 10px; }
+        .card-header { margin-bottom: 6px; }
+        .card-name { font-size: 14px; }
         .version-row { gap: 8px; }
         .version-item { padding: 6px; }
         .version-label { font-size: 9px; }
@@ -669,6 +706,31 @@ class UpdatesView extends LitElement {
               const isChecked = !!this._selectedIds[repoId];
               return html`
               <div class="card" @click=${(e) => { if (e.target.closest('.btn') || e.target.closest('a') || e.target.closest('.checkbox')) return; this._openDetail(r); }}>
+                <div class="img-container">
+                  <div class="avatar">
+                    ${(() => {
+                      const urls = [];
+                      if (r.domain && r.category === 'integration') urls.push(`https://brands.home-assistant.io/${r.domain}/icon.png`);
+                      if (r.full_name) { const o = r.full_name.split('/')[0]; if (o) urls.push(`https://github.com/${o}.png`); }
+                      const catColor = getCategoryColor(r.category);
+                      if (urls.length > 0) {
+                        return html`
+                          <img src="${urls[0]}" alt=""
+                            @error=${function() {
+                              this.style.display = 'none';
+                              const el = this.parentElement?.querySelector('.initials');
+                              if (el) { el.style.display = 'flex'; el.style.background = catColor; }
+                            }}>
+                          <span class="initials" style="display:none">${(r.name || r.full_name || '?').charAt(0).toUpperCase()}</span>
+                        `;
+                      }
+                      return html`<span class="initials" style="display:flex;background:${catColor}">${(r.name || r.full_name || '?').charAt(0).toUpperCase()}</span>`;
+                    })()}
+                  </div>
+                  <span class="status-badge-update">${t('statusPendingUpgrade')}</span>
+                  <span class="category-badge-corner" style="background:${getCategoryColor(r.category)}">${r.category}</span>
+                </div>
+                <div class="card-body">
                 <div class="card-header">
                   <div class="card-left">
                     <input type="checkbox" class="checkbox" .checked=${isChecked}
@@ -709,6 +771,7 @@ class UpdatesView extends LitElement {
                     ? html`<svg class="mini-icon spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> ${t('updatingProgress')}`
                     : html`<svg class="mini-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg> ${t('updateNow')}`}
                 </button>
+                </div>
               </div>
             `;})}
           </div>

@@ -92,7 +92,7 @@ class ConfigView extends LitElement {
     .section {
       background: var(--card-background-color, #fff);
       border: 1px solid var(--divider-color, #e0e0e0);
-      border-radius: 12px; padding: 16px; margin-bottom: 14px;
+      border-radius: 14px; padding: 16px; margin-bottom: 14px;
     }
     .section-title {
       font-size: 14px; font-weight: 700; color: var(--primary-text-color, #212121);
