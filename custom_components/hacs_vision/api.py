@@ -1229,8 +1229,10 @@ class HACSEnhancedAPI(HomeAssistantView):
                 for device in dev_reg.devices.values():
                     if entry.entry_id in device.config_entries:
                         device_ids.add(device.id)
-                        entities = ent_reg.async_entries_for_device(device.id)
-                        entity_count += len([e for e in entities if not e.disabled_by])
+                        entity_count += len([
+                            e for e in ent_reg.entities.values()
+                            if e.device_id == device.id and not e.disabled_by
+                        ])
             return web.json_response({
                 "domain": safe,
                 "devices": len(device_ids),
