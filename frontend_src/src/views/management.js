@@ -1144,29 +1144,14 @@ export class ManagementView extends LitElement {
             ${t('sortByUpdated')}${this._customRepoSort === 'updated' ? html`<span class="sort-dir">▼</span>` : ''}
           </button>
         </div>
-      </div>
-
-      <!-- Stats line -->
-      <div style="display:flex;align-items:center;gap:12px;padding:8px 0;margin-bottom:4px;">
-        <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;user-select:none;">
+        <label style="display:flex;align-items:center;gap:4px;margin-left:auto;font-size:12px;color:var(--secondary-text-color);cursor:pointer;flex-shrink:0;white-space:nowrap;">
           <input type="checkbox" .checked=${this._getFilteredCustomRepos().length > 0 && this._selectedRepos.length === this._getFilteredCustomRepos().length}
                  @click=${e => e.stopPropagation()}
                  @change=${() => { if (this._selectedRepos.length > 0) { this._selectedRepos = []; } else { this._selectedRepos = this._getFilteredCustomRepos().map(r => r.full_name || r.repository).filter(Boolean); } }}
-                 style="width:16px;height:16px;cursor:pointer;">
+                 style="width:14px;height:14px;cursor:pointer;accent-color:var(--primary-color);">
           ${t('selectAll') || '全选'}
+          ${this._selectedRepos.length > 0 ? html`<span style="color:var(--primary-color);font-weight:600;">(${this._selectedRepos.length})</span>` : ''}
         </label>
-        ${this._customRepofilter === 'all' ? html`
-          <span style="font-size:13px;color:var(--secondary-text-color);">
-            ${t('totalCount') || '共'} <strong>${this._getFilteredCustomRepos().length}</strong> ${t('totalRepos')}
-          </span>
-        ` : html`
-          <span style="font-size:13px;color:var(--secondary-text-color);">
-            ${this._customRepofilter === 'archived' ? html`${t('archivedRepos')}: <strong>${archivedRepos.length}</strong>` : ''}
-            ${this._customRepofilter === 'renamed' ? html`${t('renamedRepos')}: <strong>${renamedEntries.length}</strong>` : ''}
-            ${this._customRepofilter === 'ignored' ? html`${t('ignoredRepos')}: <strong>${ignoredRepos.length}</strong>` : ''}
-          </span>
-        `}
-        ${this._selectedRepos.length > 0 ? html`| <strong>${this._selectedRepos.length}</strong> ${t('selected') || '已选'}` : ''}
       </div>
 
       <!-- Batch Action Bar -->
