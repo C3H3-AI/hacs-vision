@@ -1203,21 +1203,14 @@ class BrowseView extends LitElement {
         <button class="filter-toggle-sm" @click=${() => { this._filterExpanded = !this._filterExpanded; }} title="${t('filterMore') || '筛选/排序'}">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;"><line x1="4" y1="6" x2="20" y2="6"/><line x1="8" y1="12" x2="20" y2="12"/><line x1="12" y1="18" x2="20" y2="18"/></svg>
         </button>
-      </div>
-
-      <!-- Select All + Results Count -->
-      <div style="display:flex;align-items:center;gap:12px;padding:8px 0;margin-bottom:4px;">
-        <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;user-select:none;">
+        <div style="flex:1"></div>
+        <label style="display:flex;align-items:center;gap:4px;font-size:12px;color:var(--secondary-text-color);cursor:pointer;flex-shrink:0;">
           <input type="checkbox" .checked=${this._isAllSelected()}
-                 @click=${e => e.stopPropagation()}
-                 @change=${this._toggleSelectAll}
-                 style="width:16px;height:16px;cursor:pointer;">
+                 @click=${e => e.stopPropagation()} @change=${this._toggleSelectAll}
+                 style="width:14px;height:14px;cursor:pointer;accent-color:var(--primary-color);">
           ${t('selectAll') || '全选'}
+          ${this._selectedRepos.length > 0 ? html`<span style="color:var(--primary-color);font-weight:600;">(${this._selectedRepos.length})</span>` : ''}
         </label>
-        <span style="font-size:13px;color:var(--secondary-text-color);">
-          ${t('totalPrefix')} <strong>${displayRepos.length}</strong> ${t('totalRepos')}
-          ${this._selectedRepos.length > 0 ? html`| <strong>${this._selectedRepos.length}</strong> ${t('selected')}` : ''}
-        </span>
       </div>
 
       ${this._selectedRepos.length > 0 ? html`

@@ -20,6 +20,7 @@ class UpdatesView extends LitElement {
     _batchMode: { type: Boolean, state: true },
     _viewMode: { type: String, state: true },
     _favs: { type: Object, state: true },
+    _categoryFilter: { type: String, state: true },
   };
 
   constructor() {
@@ -198,6 +199,22 @@ class UpdatesView extends LitElement {
       }
       .action-btn svg { width: 16px; height: 16px; flex-shrink: 0; }
       @keyframes btnPulse { 0%, 100% { opacity: 0.7; } 50% { opacity: 0.45; } }
+
+      /* ===== Filter bar (matches browse/integrations) ===== */
+      .filter-bar {
+        display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+        margin-bottom: 10px;
+      }
+      .filter-bar .chip {
+        display: inline-flex; align-items: center; gap: 4px;
+        padding: 5px 12px; border-radius: 16px; border: 1px solid var(--divider-color, #e0e0e0);
+        background: var(--card-background-color); color: var(--secondary-text-color);
+        font-size: 12px; cursor: pointer; white-space: nowrap; transition: all 0.2s;
+        touch-action: manipulation; user-select: none;
+      }
+      .filter-bar .chip:hover { border-color: var(--primary-color); color: var(--primary-color); }
+      .filter-bar .chip-active { background: var(--primary-color); border-color: var(--primary-color); color: #fff; }
+      .filter-bar .chip-count { font-size: 10px; opacity: 0.7; margin-left: 2px; }
 
       /* F6: Changelog preview */
       .changelog-preview {
@@ -583,9 +600,15 @@ class UpdatesView extends LitElement {
   }
 
   _getFiltered() {
-    if (!this.search) return this.updates;
-    const q = this.search.toLowerCase();
-    return this.updates.filter(r => (r.full_name || r.name || '').toLowerCase().includes(q));
+    let list = this.updates;
+    if (this._categoryFilter && this._categoryFilter !== 'all') {
+      list = list.filter(r => (r.category || 'integration') === this._categoryFilter);
+    }
+    if (this.search) {
+      const q = this.search.toLowerCase();
+      list = list.filter(r => (r.full_name || r.name || '').toLowerCase().includes(q));
+    }
+    return list;
   }
 
   _clearSearch() {
@@ -714,6 +737,30 @@ class UpdatesView extends LitElement {
           </div>
         </div>
       </div>
+
+      ${(() => {
+        const cats = ['all','integration','plugin','theme','template'];
+        const counts = {};
+        for (const c of cats) counts[c] = c === 'all' ? this.updates.length : this.updates.filter(r => (r.category || 'integration') === c).length;
+        return html`
+        <div class="filter-bar">
+          ${cats.map(c => html`
+            <button class="chip ${this._categoryFilter === c ? 'chip-active' : ''}"
+              @click=${() => { this._categoryFilter = c; }}>
+              ${c === 'all' ? t('filterAll') : c === 'integration' ? t('catIntegration') : c === 'plugin' ? t('catPlugin') : c === 'theme' ? t('catTheme') : t('catTemplate')}
+              <span class="chip-count">${counts[c]}</span>
+            </button>
+          `)}
+          <div style="flex:1"></div>
+          <label style="display:flex;align-items:center;gap:4px;font-size:12px;color:var(--secondary-text-color);cursor:pointer;flex-shrink:0;">
+            <input type="checkbox" .checked=${this._isAllSelected()}
+                   @click=${e => e.stopPropagation()} @change=${this._toggleSelectAll}
+                   style="width:14px;height:14px;cursor:pointer;accent-color:var(--primary-color);">
+            ${t('selectAll') || '全选'}
+            ${this._selectedCount() > 0 ? html`<span style="color:var(--primary-color);font-weight:600;">(${this._selectedCount()})</span>` : ''}
+          </label>
+        </div>`;
+      })()}
 
       ${this.loading ? html`
         <div class="skeleton-grid">
