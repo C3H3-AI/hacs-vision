@@ -29,6 +29,7 @@ class IntegrationsList extends LitElement {
     _toggledDevices: { type: Object, state: true },   // Set-like Map: device_id → true
     _entryDeviceLoading: { type: Object, state: true }, // Set-like Map: entry_id → true
     _toggling: { type: Object, state: true },            // Set-like Map: entity_id → true
+    _selectedEntryIds: { type: Object, state: true },     // Set-like Map: entry_id → true (批量选择)
   };
 
   constructor() {
@@ -55,6 +56,7 @@ class IntegrationsList extends LitElement {
     this._toggledDevices = {};
     this._entryDeviceLoading = {};
     this._toggling = {};
+    this._selectedEntryIds = {};
   }
 
   _modalPointerDown(e) {
@@ -411,6 +413,57 @@ class IntegrationsList extends LitElement {
   }
 
   /* ─── Localized domain name ─── */
+
+  /* ─── Batch selection ─── */
+  _toggleSelectEntry(entryId, e) {
+    if (e) e.stopPropagation();
+    const next = { ...this._selectedEntryIds };
+    if (next[entryId]) { delete next[entryId]; } else { next[entryId] = true; }
+    this._selectedEntryIds = next;
+  }
+
+  _isAllSelected() {
+    const entries = this._detailEntries || [];
+    if (entries.length === 0) return false;
+    return entries.every(e => this._selectedEntryIds[e.entry_id]);
+  }
+
+  _toggleSelectAll() {
+    const entries = this._detailEntries || [];
+    if (this._isAllSelected()) {
+      this._selectedEntryIds = {};
+    } else {
+      const sel = {};
+      for (const e of entries) sel[e.entry_id] = true;
+      this._selectedEntryIds = sel;
+    }
+  }
+
+  _selectedCount() {
+    return Object.keys(this._selectedEntryIds).filter(k => this._selectedEntryIds[k]).length;
+  }
+
+  async _batchAction(action) {
+    const ids = Object.keys(this._selectedEntryIds).filter(k => this._selectedEntryIds[k]);
+    if (ids.length === 0) return;
+    const entries = (this._detailEntries || []).filter(e => ids.includes(e.entry_id));
+    for (const entry of entries) {
+      try {
+        if (action === 'remove') await this._removeEntry(entry, { stopPropagation: () => {} });
+        else if (action === 'reload') await this._reloadEntry(entry, { stopPropagation: () => {} });
+        else if (action === 'enable') {
+          if (entry.disabled_by) await this._toggleDisabled(entry, { stopPropagation: () => {} });
+        }
+        else if (action === 'disable') {
+          if (!entry.disabled_by) await this._toggleDisabled(entry, { stopPropagation: () => {} });
+        }
+      } catch(e) { console.error(`Batch ${action} failed for ${entry.entry_id}:`, e); }
+    }
+    this._selectedEntryIds = {};
+    this.requestUpdate();
+    const { showToast } = await import('../hacs-vision-panel.js');
+    showToast(`${t('batchComplete') || '批量操作完成'} (${ids.length})`, 'success');
+  }
   _translateDomain(domain) {
     return this._domainNames?.[domain] || domain;
   }
@@ -710,7 +763,15 @@ class IntegrationsList extends LitElement {
               ${this._renderAvatar(domain)}
               <div>
                 <div class="modal-title">${this._translateDomain(domain)}</div>
-                <div class="modal-subtitle">${entries.length} ${t('entryCount')}</div>
+                <div class="modal-subtitle" style="display:flex;align-items:center;gap:8px;">
+                  <span>${entries.length} ${t('entryCount')}</span>
+                  <label class="sel-all-label" @click=${(e) => e.stopPropagation()}>
+                    <input type="checkbox" class="entry-checkbox" .checked=${this._isAllSelected()}
+                           @change=${this._toggleSelectAll}>
+                    <span style="font-size:11px;color:var(--secondary-text-color);cursor:pointer;">${t('selectAll') || '全选'}</span>
+                  </label>
+                  ${this._selectedCount() > 0 ? html`<span style="font-size:11px;color:var(--primary-color);font-weight:600;">${this._selectedCount()} ${t('selected') || '已选'}</span>` : ''}
+                </div>
               </div>
             </div>
             <div class="modal-header-right">
@@ -722,6 +783,18 @@ class IntegrationsList extends LitElement {
             </div>
           </div>
           <div class="tree-container">
+            ${this._selectedCount() > 0 ? html`
+            <div class="batch-bar">
+              <span style="font-weight:600;">${this._selectedCount()} ${t('selected') || '已选'}</span>
+              <div class="batch-actions">
+                <button class="batch-btn enable" @click=${() => this._batchAction('enable')} title="${t('enableEntry') || '启用'}">${t('enableEntry') || '启用'}</button>
+                <button class="batch-btn disable" @click=${() => this._batchAction('disable')} title="${t('disableEntry') || '禁用'}">${t('disableEntry') || '禁用'}</button>
+                <button class="batch-btn reload" @click=${() => this._batchAction('reload')} title="${t('reloadEntry') || '重载'}">${t('reloadEntry') || '重载'}</button>
+                <button class="batch-btn remove" @click=${() => this._batchAction('remove')} title="${t('removeEntry') || '删除'}">${t('removeEntry') || '删除'}</button>
+                <button class="batch-btn cancel" @click=${() => { this._selectedEntryIds = {}; this.requestUpdate(); }}>✕</button>
+              </div>
+            </div>
+            ` : ''}
             ${entries.length === 0 ? html`<div class="tree-empty">${t('noData') || '暂无数据'}</div>` : entries.map(e => this._renderEntryRow(e))}
           </div>
         </div>
@@ -740,7 +813,11 @@ class IntegrationsList extends LitElement {
 
     return html`
       <div class="entry-row ${isDisabled ? 'disabled' : ''} ${isOpen ? 'expanded' : ''}">
-        <span class="tree-arrow ${isOpen ? 'open' : ''}" @click=${e => { e.stopPropagation(); this._toggleEntry(entry); }}>
+        <span class="entry-check-wrap" @click=${(e) => e.stopPropagation()}>
+          <input type="checkbox" class="entry-checkbox" .checked=${!!this._selectedEntryIds[entry.entry_id]}
+                 @change=${() => this._toggleSelectEntry(entry.entry_id)}>
+        </span>
+        <span class="tree-arrow ${isOpen ? 'open' : ''}" @click=${e => { e.stopPropagation(); this._toggleEntry(entry); }}>>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><polyline points="6 9 12 15 18 9"/></svg>
         </span>
         <div class="entry-icon">
@@ -1228,6 +1305,18 @@ class IntegrationsList extends LitElement {
     }
     .entry-row:hover { background: var(--secondary-background-color, #f5f5f5); }
     .entry-row.disabled { opacity: 0.45; }
+
+    .entry-check-wrap {
+      display: flex; align-items: center; flex-shrink: 0;
+    }
+    .entry-checkbox {
+      width: 15px; height: 15px; cursor: pointer; flex-shrink: 0;
+      accent-color: var(--primary-color, #03a9f4);
+    }
+    .sel-all-label {
+      display: inline-flex; align-items: center; gap: 3px; cursor: pointer;
+    }
+    .sel-all-label input { width: 13px; height: 13px; cursor: pointer; }
     .entry-icon {
       width: 28px; height: 28px; border-radius: 50%; flex-shrink: 0;
       display: flex; align-items: center; justify-content: center;
@@ -1243,6 +1332,26 @@ class IntegrationsList extends LitElement {
       color: var(--secondary-text-color); display: block; margin-top: 1px;
     }
     .entry-actions { display: flex; gap: 2px; flex-shrink: 0; }
+
+    /* ===== Batch Bar ===== */
+    .batch-bar {
+      display: flex; align-items: center; gap: 10px;
+      padding: 8px 14px; margin: 4px 14px;
+      background: var(--primary-color, #03a9f4); color: #fff;
+      border-radius: 8px; font-size: 13px;
+    }
+    .batch-actions { display: flex; gap: 4px; margin-left: auto; }
+    .batch-btn {
+      padding: 4px 10px; border-radius: 5px; font-size: 11px; font-weight: 600;
+      background: rgba(255,255,255,0.2); color: #fff;
+      border: 1px solid rgba(255,255,255,0.35); cursor: pointer;
+      transition: background 0.15s;
+    }
+    .batch-btn:hover { background: rgba(255,255,255,0.35); }
+    .batch-btn.cancel {
+      background: none; border-color: transparent; font-size: 14px; padding: 4px 6px;
+    }
+    .batch-btn.cancel:hover { background: rgba(255,255,255,0.15); }
     .entry-btn {
       width: 28px; height: 28px; padding: 0;
       display: inline-flex; align-items: center; justify-content: center;
