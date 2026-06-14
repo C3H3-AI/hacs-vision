@@ -787,7 +787,6 @@ class IntegrationsList extends LitElement {
             <div class="card-top-bar" @click=${e => e.stopPropagation()}>
               <input type="checkbox" class="card-checkbox" .checked=${!!this._selectedDomains[domain]}
                      @change=${() => this._toggleSelectDomain(domain)}>
-              <span class="category-badge" style="background:${color}">${t('catIntegration')}</span>
             </div>
             ${this._renderAvatar(domain)}
             ${st !== 'loaded' ? html`<span class="img-status-badge state-${st}">${this._groupLabel(st)}</span>` : ''}

@@ -1232,7 +1232,7 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
           <div class="right-tags">
             ${e.config_entry_id?H`<span class="tag configured">${ge("badgeConfigured")}</span>`:""}
             ${e.load_failed?H`<span class="tag load-failed">${ge("badgeLoadFailed")}</span>`:""}
-            ${e.is_custom&&"management"!==this.viewMode?H`<span class="tag custom-tag">${ge("customBadge")}</span>`:""}
+            ${e.is_custom?H`<span class="tag custom-tag">${ge("customBadge")}</span>`:""}
             ${this.renamedFrom?H`<span class="tag" style="background:#ff9800;color:#fff;font-weight:600;display:flex;align-items:center;gap:2px;"><svg class="mini-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:10px;height:10px;"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg> ${this.renamedFrom}</span>`:""}
           </div>
           ${"management"!==this.viewMode?H`
@@ -3508,44 +3508,43 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
           </button>
         </span>
       </div>
-    `}_renderCard(e){const{domain:t,entries:o}=e,i=this._getDomainColor(t),r=e._state,a=o.some(e=>this._removing[e.entry_id]||this._reloading[e.entry_id]),s=o.length>1,n=o[0];return H`
-      <div class="card card-${r}" @click=${()=>this._openDetail(t,o)} role="button" tabindex="0"
+    `}_renderCard(e){const{domain:t,entries:o}=e;this._getDomainColor(t);const i=e._state,r=o.some(e=>this._removing[e.entry_id]||this._reloading[e.entry_id]),a=o.length>1,s=o[0];return H`
+      <div class="card card-${i}" @click=${()=>this._openDetail(t,o)} role="button" tabindex="0"
         @keydown=${e=>{"Enter"!==e.key&&" "!==e.key||(e.preventDefault(),this._openDetail(t,o))}}>
 
           <div class="card-img">
             <div class="card-top-bar" @click=${e=>e.stopPropagation()}>
               <input type="checkbox" class="card-checkbox" .checked=${!!this._selectedDomains[t]}
                      @change=${()=>this._toggleSelectDomain(t)}>
-              <span class="category-badge" style="background:${i}">${ge("catIntegration")}</span>
             </div>
             ${this._renderAvatar(t)}
-            ${"loaded"!==r?H`<span class="img-status-badge state-${r}">${this._groupLabel(r)}</span>`:""}
+            ${"loaded"!==i?H`<span class="img-status-badge state-${i}">${this._groupLabel(i)}</span>`:""}
           </div>
 
         <div class="card-body">
           <div class="card-name" title="${t}">${this._translateDomain(t)}</div>
           <div class="card-meta">
             <span>${o.length} ${ge("entryCount")}</span>
-            ${n?H`<span class="dot-sep"></span><span class="status-label" style="color:${this._groupColor(r)}">${n.title||n.entry_id.substring(0,8)}</span>`:""}
+            ${s?H`<span class="dot-sep"></span><span class="status-label" style="color:${this._groupColor(i)}">${s.title||s.entry_id.substring(0,8)}</span>`:""}
           </div>
         </div>
 
         <div class="card-footer" @click=${e=>e.stopPropagation()}>
           ${e._supports_options?H`
-          <button class="footer-btn configure" @click=${()=>s?this._openDetail(t,o):this._configureEntry(n,{stopPropagation:()=>{}})}
-            title="${ge("configureEntry")}" ?disabled=${a}>
+          <button class="footer-btn configure" @click=${()=>a?this._openDetail(t,o):this._configureEntry(s,{stopPropagation:()=>{}})}
+            title="${ge("configureEntry")}" ?disabled=${r}>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-            <span class="btn-label">${s?ge("viewDetail")||"详情":ge("configure")||"配置"}</span>
+            <span class="btn-label">${a?ge("viewDetail")||"详情":ge("configure")||"配置"}</span>
           </button>
           `:""}
-          <button class="footer-btn reload" @click=${()=>this._reloadEntry(n||o[0],{stopPropagation:()=>{}})}
-            title="${ge("reloadEntry")}" ?disabled=${a}>
-            ${a?H`<span class="spinning-mini">⟳</span>`:H`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>`}
+          <button class="footer-btn reload" @click=${()=>this._reloadEntry(s||o[0],{stopPropagation:()=>{}})}
+            title="${ge("reloadEntry")}" ?disabled=${r}>
+            ${r?H`<span class="spinning-mini">⟳</span>`:H`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>`}
             <span class="btn-label">${ge("reloadEntry")||"重载"}</span>
           </button>
-          <button class="footer-btn remove" @click=${e=>this._removeEntry(n||o[0],e)}
-            title="${ge("removeEntry")}" ?disabled=${a}>
-            ${a?H`<span class="spinning-mini">⋯</span>`:H`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>`}
+          <button class="footer-btn remove" @click=${e=>this._removeEntry(s||o[0],e)}
+            title="${ge("removeEntry")}" ?disabled=${r}>
+            ${r?H`<span class="spinning-mini">⋯</span>`:H`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>`}
             <span class="btn-label">${ge("delete")}</span>
           </button>
         </div>
