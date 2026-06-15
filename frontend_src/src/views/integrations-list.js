@@ -32,6 +32,7 @@ class IntegrationsList extends LitElement {
     _selectedEntryIds: { type: Object, state: true },     // Set-like Map: entry_id → true (批量选择)
     _selectedDomains: { type: Object, state: true },       // Set-like Map: domain → true (卡片批量)
     _sortBy: { type: String, state: true },                // name | entries | status
+    _sortDir: { type: String, state: true },               // asc | desc
   };
 
   constructor() {
@@ -51,7 +52,9 @@ class IntegrationsList extends LitElement {
     this._showDetail = false;
     this._domainNames = {};
     this._viewMode = localStorage.getItem('hacs_int_view_mode') || 'card';
-    this._sortBy = localStorage.getItem('hacs_int_sort_by') || 'name';
+    const sortSaved = (localStorage.getItem('hacs_int_sort_by') || '').split(':');
+    this._sortBy = sortSaved[0] || 'name';
+    this._sortDir = sortSaved[1] || (sortSaved[0] === 'name' ? 'asc' : 'desc');
     this._detailOpenedAt = 0;
     this._modalDrag = { offsetX: 0, offsetY: 0, startX: 0, startY: 0, dragging: false, cleanup: null };
     this._toggledEntries = {};
@@ -527,15 +530,20 @@ class IntegrationsList extends LitElement {
     return this._domainNames?.[domain] || domain;
   }
 
-  _cycleSort() {
-    const order = ['name', 'entries', 'status'];
-    const idx = order.indexOf(this._sortBy);
-    this._setSortBy(order[(idx + 1) % order.length]);
+  _onSortColumn(key) {
+    // Toggle direction if same column, otherwise switch with default direction
+    if (key === this._sortBy) {
+      this._sortDir = this._sortDir === 'asc' ? 'desc' : 'asc';
+    } else {
+      this._sortDir = key === 'name' ? 'asc' : 'desc';
+    }
+    this._sortBy = key;
+    try { localStorage.setItem('hacs_int_sort_by', `${key}:${this._sortDir}`); } catch(e) {}
   }
 
-  _sortLabel(sort) {
+  _sortLabel(key) {
     const map = { name: t('sortByName'), entries: t('sortByEntries'), status: t('filterStatus') };
-    return map[sort] || sort;
+    return map[key] || key;
   }
 
   /* ─── Render avatar with CDN icon → local fallback → initials ─── */
@@ -623,18 +631,19 @@ class IntegrationsList extends LitElement {
     if (this._statusFilter !== 'all') {
       groups = groups.filter(g => g._state === this._statusFilter);
     }
-    // Sort by user selection
+    // Sort by user selection with direction
+    const dir = this._sortDir === 'desc' ? -1 : 1;
     if (this._sortBy === 'status') {
       const order = { failed: 0, 'not-loaded': 1, disabled: 2, loaded: 3 };
       groups.sort((a, b) => {
         const oa = order[a._state] ?? 3;
         const ob = order[b._state] ?? 3;
-        if (oa !== ob) return oa - ob;
+        if (oa !== ob) return (oa - ob) * dir;
         return a.domain.localeCompare(b.domain);
       });
     } else if (this._sortBy === 'entries') {
       groups.sort((a, b) => {
-        if (a.entries.length !== b.entries.length) return b.entries.length - a.entries.length;
+        if (a.entries.length !== b.entries.length) return (b.entries.length - a.entries.length) * dir;
         return a.domain.localeCompare(b.domain);
       });
     } else {
@@ -642,8 +651,8 @@ class IntegrationsList extends LitElement {
       groups.sort((a, b) => {
         const na = this._translateDomain(a.domain).toLowerCase();
         const nb = this._translateDomain(b.domain).toLowerCase();
-        if (na !== nb) return na < nb ? -1 : 1;
-        return a.domain.localeCompare(b.domain);
+        if (na !== nb) return na < nb ? -1 * dir : 1 * dir;
+        return a.domain.localeCompare(b.domain) * dir;
       });
     }
     return groups;
@@ -732,8 +741,8 @@ class IntegrationsList extends LitElement {
           <span class="fs-divider"></span>
           <span class="fs-label">${t('sort') || '排序'}</span>
           ${[{key:'name',label:t('sortByName')},{key:'entries',label:t('sortByEntries')},{key:'status',label:t('filterStatus')}].map(s => html`
-            <button class="filter-chip sort-inline ${this._sortBy === s.key ? 'active' : ''}" @click=${() => this._setSortBy(s.key)}>
-              ${s.label}${this._sortBy === s.key ? html`<span class="sort-dir">${s.key === 'name' ? 'A-Z' : ''}</span>` : ''}
+            <button class="filter-chip sort-inline ${this._sortBy === s.key ? 'active' : ''}" @click=${() => this._onSortColumn(s.key)}>
+              ${s.label}${this._sortBy === s.key ? html`<span class="sort-dir">${this._sortDir === 'desc' ? '▼' : '▲'}</span>` : ''}
             </button>
           `)}
         </div>
