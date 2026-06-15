@@ -595,7 +595,7 @@ class UpdatesView extends LitElement {
     }
     if (this.search) {
       const q = this.search.toLowerCase();
-      list = list.filter(r => (r.full_name || r.name || '').toLowerCase().includes(q));
+      list = list.filter(r => (r.manifest_name || r.full_name || r.name || '').toLowerCase().includes(q));
     }
     return list;
   }
