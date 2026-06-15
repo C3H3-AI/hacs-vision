@@ -151,7 +151,8 @@ class ConfigFlowDialog extends LitElement {
 
         const entry = this._findEntry(this.entryId);
         if (entry && entry.supported_subentry_types && entry.supported_subentry_types.length > 0) {
-          this._isSubentry = true;
+          // Has subentry types: try options flow FIRST (main settings/service config)
+          this._isOptions = true;
           this._subentryTypes = entry.supported_subentry_types;
           this._loadExistingSubentries();
           this._startFlow();
@@ -427,6 +428,18 @@ class ConfigFlowDialog extends LitElement {
     }
 
     if (result.type === 'create_entry') {
+      // If options flow completed and entry has subentry types → auto-switch to subentry management
+      if (this._isOptions && this._subentryTypes.length > 0) {
+        this._isOptions = false;
+        this._isSubentry = true;
+        this._subentryType = '';
+        this._flowId = null;
+        this._step = null;
+        this._errors = {};
+        this._loading = false;
+        this.requestUpdate();
+        return;
+      }
       this._finished = true;
       this._result = { type: 'create_entry', title: result.title || this.domain || t('flowDone') };
       this._loading = false;
