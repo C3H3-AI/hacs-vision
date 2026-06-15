@@ -492,6 +492,13 @@ class BrowseView extends LitElement {
 
   async connectedCallback() {
     super.connectedCallback();
+    this._boundDocClick = (e) => {
+      const search = this.shadowRoot?.querySelector('.search');
+      if (search && !search.contains(e.composedPath ? e.composedPath()[0] : e.target)) {
+        this._showSearchHistory = false;
+      }
+    };
+    document.addEventListener('click', this._boundDocClick, true);
     await this._loadFavorites();
     await this._load();
     this.addEventListener('install', (e) => this._handleInstall(e.detail.repo));
@@ -515,6 +522,13 @@ class BrowseView extends LitElement {
       }
       this._syncFavoriteCount();
     });
+  }
+
+  disconnectedCallback() {
+    super.disconnectedCallback();
+    if (this._boundDocClick) {
+      document.removeEventListener('click', this._boundDocClick, true);
+    }
   }
 
   willUpdate(changedProps) {
@@ -744,6 +758,13 @@ class BrowseView extends LitElement {
       this._searchHistory = history;
       this._showSearchHistory = true;
     }
+  }
+
+  _onSearchFocusOut(e) {
+    // If focus moves to something inside the search container, keep history open
+    const searchEl = e.currentTarget;
+    if (searchEl.contains(e.relatedTarget)) return;
+    this._showSearchHistory = false;
   }
 
   _onSearchHistoryClick(term) {
@@ -1101,11 +1122,12 @@ class BrowseView extends LitElement {
     return html`
       <!-- Controls: Search + Action Buttons -->
       <div class="controls">
-        <div class="search">
+        <div class="search" @focusout=${this._onSearchFocusOut}>
           <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
           </svg>
-          <input type="text" placeholder="${t('searchPlaceholder')}" .value=${this._searchText} @input=${this._onSearch} @focus=${this._onSearchFocus} @blur=${() => setTimeout(() => this._showSearchHistory = false, 200)} />
+          <input type="text" placeholder="${t('searchPlaceholder')}" .value=${this._searchText} @input=${this._onSearch} @focus=${this._onSearchFocus} />
+          ${this.search ? html`<button class="search-clear" @click=${this._clearSearch}>✕</button>` : ''}
           ${this.search ? html`<button class="search-clear" @click=${this._clearSearch}>✕</button>` : ''}
           ${this._showSearchHistory && this._searchHistory.length > 0 ? html`
             <div class="search-history">
