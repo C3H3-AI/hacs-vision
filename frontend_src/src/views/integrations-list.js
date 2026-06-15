@@ -1126,25 +1126,34 @@ class IntegrationsList extends LitElement {
     .view-toggle-btn.active { background: var(--primary-color); color: #fff; }
     .view-toggle-btn:hover:not(.active) { color: var(--primary-color); }
 
-    /* ===== Filter/Sort row (matching browse.js style) ===== */
+    /* ===== Filter/Sort row (matching browse.js exactly) ===== */
     .filter-bar {
-      display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
-      padding: 6px 0; margin-bottom: 8px;
+      display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+      margin-bottom: 10px; padding: 8px 12px;
+      background: var(--secondary-background-color, #f5f5f5);
+      border-radius: 10px;
     }
     .fs-divider {
-      width: 1px; height: 20px; background: var(--divider-color); flex-shrink: 0; margin: 0 2px;
+      display: inline-block; width: 1px; height: 22px;
+      background: var(--divider-color, #e0e0e0); margin: 0 10px; flex-shrink: 0;
     }
     .fs-label {
-      font-size: 11px; color: var(--secondary-text-color); font-weight: 500; white-space: nowrap;
+      font-size: 11px; font-weight: 700; color: var(--primary-color, #03a9f4);
+      text-transform: uppercase; letter-spacing: 0.5px; padding: 0 6px;
+      user-select: none; flex-shrink: 0;
     }
     .filter-chip {
-      padding: 4px 10px; border-radius: 14px; border: 1px solid var(--divider-color);
+      padding: 6px 12px; border: 1px solid var(--divider-color); border-radius: 18px;
       background: var(--card-background-color); color: var(--secondary-text-color);
-      cursor: pointer; font-size: 11px; transition: all 0.2s; white-space: nowrap; touch-action: manipulation;
+      cursor: pointer; font-size: 12px; transition: all 0.25s; white-space: nowrap;
+      touch-action: manipulation;
     }
     .filter-chip:hover { border-color: var(--primary-color); color: var(--primary-color); }
-    .filter-chip.active { background: var(--primary-color); color: #fff; border-color: var(--primary-color); }
-    .sort-dir { font-size: 9px; margin-left: 2px; opacity: 0.7; }
+    .filter-chip.active { background: var(--primary-color); border-color: var(--primary-color); color: #fff; }
+    .filter-chip .chip-count { font-size: 10px; opacity: 0.7; margin-left: 3px; }
+    .sort-inline { opacity: 0.85; }
+    .sort-inline.active { opacity: 1; }
+    .sort-dir { font-size: 9px; margin-left: 2px; }
 
     /* ===== List View ===== */
     .integrations-list {
@@ -1320,6 +1329,7 @@ class IntegrationsList extends LitElement {
     }
     @media (max-width: 768px) {
       .detail-overlay { padding: 16px; }
+      .filter-chip { padding: 4px 8px; font-size: 11px; }
     }
     @keyframes overlayFadeIn { from { opacity: 0; } to { opacity: 1; } }
 
@@ -1639,7 +1649,7 @@ class IntegrationsList extends LitElement {
       .avatar { width: 44px; height: 44px; font-size: 20px; }
       .card-footer .footer-btn { min-height: 44px; font-size: 12px; }
       .card-footer .footer-btn .btn-label { display: inline; }
-      .filter-chip { font-size: 10px; padding: 3px 8px; }
+      .filter-chip { padding: 4px 8px; font-size: 10px; }
       .detail-overlay { padding: 12px; }
       .modal { max-width: 100%; max-height: 92vh; }
       /* Tree mobile */
