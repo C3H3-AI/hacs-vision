@@ -277,7 +277,7 @@ class HACSOperator:
                     "id": str(repo.data.id),
                     "full_name": repo.data.full_name,
                     "name": repo.data.name or repo.data.full_name.split("/")[-1],
-                    "manifest_name": getattr(repo.data, 'name', None) or repo.data.full_name.split("/")[-1],
+                    "manifest_name": getattr(repo.data, 'manifest_name', None) or (repo.data.repository_manifest and repo.data.repository_manifest.name or None) or repo.data.full_name.split("/")[-1],
                     "installed_version": repo.display_installed_version,
                     "category": repo.data.category,
                     "has_update": has_update,
