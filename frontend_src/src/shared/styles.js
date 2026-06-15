@@ -12,6 +12,14 @@ export function getCommonStyles() {
     --success-color: #4caf50;
     --error-color: #f44336;
     --warning-color: #ff9800;
+    /* Typography scale — single source of truth */
+    --fs-xs: 10px;
+    --fs-sm: 11px;
+    --fs-md: 12px;
+    --fs-body: 13px;
+    --fs-lg: 14px;
+    --fs-xl: 16px;
+    --fs-2xl: 20px;
   }
 
   /* ===== Loading ===== */

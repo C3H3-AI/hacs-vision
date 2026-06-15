@@ -111,7 +111,16 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
   static styles = [getCommonStyles(), css`
     :host {
       display: block;
+      --fs-xs: 10px;
+      --fs-sm: 11px;
+      --fs-md: 12px;
+      --fs-body: 13px;
+      --fs-lg: 14px;
+      --fs-xl: 16px;
     }
+
+    /* ===== Typography Normalization ===== */
+    .store { --fs: var(--fs-body); }
 
     .store {
       padding: 16px;
@@ -153,7 +162,7 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
       display: inline-flex; align-items: center; gap: 4px;
       padding: 4px 12px; border: 1px solid #f44336; border-radius: 4px;
       background: rgba(244,67,54,0.1); color: #f44336;
-      cursor: pointer; font-size: 12px; font-weight: 600; white-space: nowrap;
+      line-height: 1.3; white-space: nowrap; cursor: pointer; font-size: 12px; font-weight: 600; white-space: nowrap;
       transition: background 0.15s;
     }
     .restart-btn:hover { background: rgba(244,67,54,0.25); }
