@@ -598,13 +598,40 @@ class BrowseView extends LitElement {
       if (currently) {
         await api.unstarRepo(fullName);
         this._starredMap = { ...this._starredMap, [fullName]: false };
+        // Locally update star count
+        repo.stars = Math.max(0, (repo.stars || repo.stargazers_count || 0) - 1);
       } else {
         await api.starRepo(fullName);
         this._starredMap = { ...this._starredMap, [fullName]: true };
+        // Locally update star count
+        repo.stars = (repo.stars || repo.stargazers_count || 0) + 1;
       }
+      this.requestUpdate();
     } catch(e) {
       showToast(`Star 失败: ${e.message}`, 'error');
     }
+  }
+
+  async _batchLoadStarStatus() {
+    // Batch check star status for all visible repos using a single API approach
+    // Since GitHub doesn't have a batch star check endpoint, we check each one
+    // but only for repos not already in _starredMap
+    const repos = this.repos || [];
+    const batch = repos.filter(r => r?.full_name && this._starredMap?.[r.full_name] === undefined);
+    if (batch.length === 0) return;
+    // Check in parallel but limit concurrency
+    const results = await Promise.allSettled(
+      batch.slice(0, 30).map(r =>
+        api.checkStarred(r.full_name).then(res => ({ name: r.full_name, starred: res?.starred }))
+      )
+    );
+    const updates = {};
+    for (const r of results) {
+      if (r.status === 'fulfilled' && r.value && typeof r.value.starred === 'boolean') {
+        updates[r.value.name] = r.value.starred;
+      }
+    }
+    this._starredMap = { ...this._starredMap, ...updates };
   }
 
   async _handleInstall(repo) {
@@ -765,6 +792,8 @@ class BrowseView extends LitElement {
       this.tagCounts = result.tag_counts || {};
       // Compute favorites count from client
       this.tagCounts = { ...this.tagCounts, favorites: this._favorites.length };
+      // Batch load star status for all visible repos
+      this._batchLoadStarStatus();
     } catch(e) {
       console.error('Browse load error', e);
       this.repos = []; this.total = 0;
@@ -1065,6 +1094,7 @@ class BrowseView extends LitElement {
       <repo-card .repo=${r} ._installing=${!!this._installingIds?.[r.id || r.full_name]}
         .favorites=${this._favorites}
         ?showCheckbox=${true} ?selected=${this._selectedRepos.includes(r.full_name)}
+        .starred=${this._starredMap?.[r.full_name] ?? false}
         @check-change=${(e) => { if (e.detail?.fullName) this._toggleSelect(e.detail.fullName); }}>
       </repo-card>
     `)}</div>`;

@@ -7,6 +7,7 @@ class RepoCard extends LitElement {
   static properties = {
     repo: { type: Object },
     _isFavorite: { type: Boolean, state: true },
+    starred: { type: Boolean },  // Passed from parent (browse)
     _starred: { type: Boolean, state: true },
     _starring: { type: Boolean, state: true },
     _installing: { type: Boolean },
@@ -24,6 +25,7 @@ class RepoCard extends LitElement {
     super();
     this.repo = {};
     this._isFavorite = false;
+    this.starred = false;
     this._starred = false;
     this._starring = false;
     this._installing = false;
@@ -353,10 +355,15 @@ class RepoCard extends LitElement {
       if (this._starred) {
         await api.unstarRepo(repo);
         this._starred = false;
+        // Update local star count
+        if (this.repo) this.repo.stars = Math.max(0, (this.repo.stars || this.repo.stargazers_count || 0) - 1);
       } else {
         await api.starRepo(repo);
         this._starred = true;
+        // Update local star count
+        if (this.repo) this.repo.stars = (this.repo.stars || this.repo.stargazers_count || 0) + 1;
       }
+      this.requestUpdate();
       // Dispatch event for list view sync
       this.dispatchEvent(new CustomEvent('star-changed', {
         detail: { repo: this.repo, starred: this._starred },
@@ -404,7 +411,16 @@ class RepoCard extends LitElement {
 
   updated(changed) {
     if (changed.has('repo') && this.repo?.full_name) {
-      this._checkStarred();
+      // If parent already passed known starred state, use it
+      if (this.starred !== undefined && this.starred !== null) {
+        this._starred = this.starred;
+      } else {
+        this._checkStarred();
+      }
+    }
+    // Sync parent's starred prop to internal state
+    if (changed.has('starred') && this.starred !== undefined && this.starred !== null) {
+      this._starred = this.starred;
     }
   }
 
