@@ -1347,6 +1347,9 @@ class IntegrationsList extends LitElement {
     @media (min-width: 1024px) {
       .modal { max-width: 860px; }
       .modal.two-col { max-width: 960px; }
+      .filter-bar { gap: 10px; }
+      .fs-divider { margin: 0 18px; }
+      .filter-chip { padding: 6px 16px; }
     }
     .modal-header {
       display: flex; align-items: center; justify-content: space-between;
