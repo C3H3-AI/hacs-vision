@@ -240,18 +240,36 @@ class IntegrationsList extends LitElement {
   }
 
   _configureCardEntry(entry, group) {
-    // Single entry with supports_options → direct config
-    if (group.entries.length === 1 && entry.supports_options) {
-      this._configureEntry(entry, { stopPropagation: () => {} });
+    if (group.entries.length > 1 || entry.supported_subentry_types) {
+      // Multiple entries or subentry types → show dropdown
+      this._configMenuFor = this._configMenuFor?.domain === group.domain ? null : { domain: group.domain, entries: group.entries };
       return;
     }
-    // Multiple entries or subentry types → show dropdown
-    this._configMenuFor = this._configMenuFor?.domain === group.domain ? null : { domain: group.domain, entries: group.entries };
+    // Single entry
+    if (entry.supports_options) {
+      this._configureEntry(entry, { stopPropagation: () => {} });
+    } else {
+      // No options flow → start new config flow to add another device/entry
+      this._closeDetail();
+      this.dispatchEvent(new CustomEvent('add-integration', {
+        bubbles: true, composed: true,
+        detail: { domain: entry.domain },
+      }));
+    }
   }
 
   _menuSelectEntry(entry) {
     this._configMenuFor = null;
-    this._configureEntry(entry, { stopPropagation: () => {} });
+    if (entry.supports_options) {
+      this._configureEntry(entry, { stopPropagation: () => {} });
+    } else {
+      // No options → start new config flow to add another device/entry
+      this._closeDetail();
+      this.dispatchEvent(new CustomEvent('add-integration', {
+        bubbles: true, composed: true,
+        detail: { domain: entry.domain },
+      }));
+    }
   }
 
   _addIntegration(domain) {
@@ -876,7 +894,7 @@ class IntegrationsList extends LitElement {
                 <button class="config-dropdown-item" @click=${() => this._menuSelectEntry(e)}>
                   <span class="dd-icon">${e.domain}</span>
                   <span class="dd-label">${e.title || e.entry_id.substring(0,8)}</span>
-                  ${e.supports_options ? html`<span class="dd-badge">${t('configure')}</span>` : ''}
+                  ${e.supports_options ? html`<span class="dd-badge">${t('configure')}</span>` : html`<span class="dd-badge add">+${t('add') || '添加'}</span>`}
                   ${e.supported_subentry_types ? html`<span class="dd-badge sub">+${e.supported_subentry_types.length}</span>` : ''}
                 </button>
               `)}
@@ -1388,6 +1406,7 @@ class IntegrationsList extends LitElement {
       background: var(--primary-color, #03a9f4); color: #fff; font-weight: 600; flex-shrink: 0;
     }
     .config-dropdown-item .dd-badge.sub { background: #ff9800; }
+    .config-dropdown-item .dd-badge.add { background: #4caf50; }
 
     /* ===== Modal ===== */
     .detail-overlay {
