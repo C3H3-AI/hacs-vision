@@ -520,10 +520,12 @@ class HACSEnhancedAPI(HomeAssistantView):
             repos = [
                 r for r in repos
                 if search in (r.get("full_name") or "").lower()
+                or search in (r.get("manifest_name") or "").lower()
                 or search in (r.get("description") or "").lower()
                 or search in (r.get("name") or "").lower()
                 or search in " ".join(r.get("authors") or []).lower()
                 or search in (r.get("category") or "").lower()
+                or search in (r.get("domain") or "").lower()
             ]
 
         # Category counts before filtering
