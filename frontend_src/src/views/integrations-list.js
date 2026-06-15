@@ -897,17 +897,17 @@ class IntegrationsList extends LitElement {
             </div>
             ${this._renderAvatar(domain)}
             ${st !== 'loaded' ? html`<span class="img-status-badge state-${st}">${this._groupLabel(st)}</span>` : ''}
-            <div class="img-badges">
-              ${entry0?.is_custom ? html`<span class="img-badge custom-badge" title="${t('customBadge') || '自定义'}">
-                <svg viewBox="0 0 24 24" fill="currentColor" width="12" height="12"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
-              </span>` : ''}
-              ${this._needsCloud(entry0?.iot_class) ? html`<span class="img-badge cloud-badge" title="${t('cloud') || '需要互联网'}">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9z"/></svg>
-              </span>` : ''}
-            </div>
           </div>
 
         <div class="card-body">
+          <div class="img-badges">
+            ${entry0?.is_custom ? html`<span class="img-badge custom-badge" title="${t('customBadge') || '自定义'}">
+              <svg viewBox="0 0 24 24" fill="currentColor" width="12" height="12"><path d="M2 10.96a.985.985 0 0 1-.37-1.37L3.13 7c.11-.2.28-.34.47-.42l7.83-4.4c.16-.12.36-.18.57-.18s.41.06.57.18l7.9 4.44c.19.1.35.26.44.46l1.45 2.52c.28.48.11 1.09-.36 1.36l-1 .58v4.96c0 .38-.21.71-.53.88l-7.9 4.44c-.16.12-.36.18-.57.18s-.41-.06-.57-.18l-7.9-4.44A.99.99 0 0 1 3 16.5v-5.54c-.3.17-.68.18-1 0m10-6.81v6.7l5.96-3.35zM5 15.91l6 3.38v-6.71L5 9.21zm14 0v-3.22l-5 2.9c-.33.18-.7.17-1 .01v3.69zm-5.15-2.55l6.28-3.63l-.58-1.01l-6.28 3.63z"/></svg>
+            </span>` : ''}
+            ${this._needsCloud(entry0?.iot_class) ? html`<span class="img-badge cloud-badge" title="${t('cloud') || '需要互联网'}">
+              <svg viewBox="0 0 24 24" fill="currentColor" width="12" height="12"><path d="M16.36 14c.08-.66.14-1.32.14-2s-.06-1.34-.14-2h3.38c.16.64.26 1.31.26 2s-.1 1.36-.26 2m-5.15 5.56c.6-1.11 1.06-2.31 1.38-3.56h2.95a8.03 8.03 0 0 1-4.33 3.56M14.34 14H9.66c-.1-.66-.16-1.32-.16-2s.06-1.35.16-2h4.68c.09.65.16 1.32.16 2s-.07 1.34-.16 2M12 19.96c-.83-1.2-1.5-2.53-1.91-3.96h3.82c-.41 1.43-1.08 2.76-1.91 3.96M8 8H5.08A7.92 7.92 0 0 1 9.4 4.44C8.8 5.55 8.35 6.75 8 8m-2.92 8H8c.35 1.25.8 2.45 1.4 3.56A8 8 0 0 1 5.08 16m-.82-2C4.1 13.36 4 12.69 4 12s.1-1.36.26-2h3.38c-.08.66-.14 1.32-.14 2s.06 1.34.14 2M12 4.03c.83 1.2 1.5 2.54 1.91 3.97h-3.82c.41-1.43 1.08-2.77 1.91-3.97M18.92 8h-2.95a15.7 15.7 0 0 0-1.38-3.56c1.84.63 3.37 1.9 4.33 3.56M12 2C6.47 2 2 6.5 2 12a10 10 0 0 0 10 10a10 10 0 0 0 10-10A10 10 0 0 0 12 2"/></svg>
+            </span>` : ''}
+          </div>
           <div class="card-name" title="${domain}">${this._translateDomain(domain)}</div>
           <div class="card-meta">
             <span class="count-info">
@@ -1358,8 +1358,8 @@ class IntegrationsList extends LitElement {
 
     /* ===== Custom Integration & IoT Badges ===== */
     .img-badges {
-      position: absolute; bottom: 8px; right: 8px;
       display: flex; gap: 3px;
+      align-self: flex-end; margin-top: auto;
     }
     .img-badge {
       width: 18px; height: 18px; border-radius: 50%;
