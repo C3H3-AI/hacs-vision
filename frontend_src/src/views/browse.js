@@ -1136,10 +1136,9 @@ class BrowseView extends LitElement {
             </svg>
           </button>
           <button class="btn primary" style="padding:6px 12px;font-size:12px;min-height:36px;" @click=${() => { this._showAddRepo = !this._showAddRepo; }}>+ ${t('addRepo')}</button>
-          <label style="display:flex;align-items:center;gap:3px;font-size:12px;color:var(--secondary-text-color);cursor:pointer;flex-shrink:0;white-space:nowrap;">
-            <input type="checkbox" .checked=${this._isAllSelected()}
-                   @click=${e => e.stopPropagation()} @change=${this._toggleSelectAll}
-                   style="width:14px;height:14px;cursor:pointer;accent-color:var(--primary-color);">
+          <label class="sel-all-label">
+            <input type="checkbox" class="checkbox-sm" .checked=${this._isAllSelected()}
+                   @click=${e => e.stopPropagation()} @change=${this._toggleSelectAll}>
             ${t('selectAll') || '全选'}
             ${this._selectedRepos.length > 0 ? html`<span style="color:var(--primary-color);font-weight:600;">(${this._selectedRepos.length})</span>` : ''}
           </label>

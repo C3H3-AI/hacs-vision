@@ -171,5 +171,27 @@ export function getCommonStyles() {
     0% { background-position: 200% 0; }
     100% { background-position: -200% 0; }
   }
+
+  /* ===== Small inline checkbox (controls bar) ===== */
+  .checkbox-sm {
+    width: 16px; height: 16px; border-radius: 3px;
+    border: 2px solid var(--secondary-text-color); cursor: pointer;
+    flex-shrink: 0; transition: all 0.2s; background: transparent;
+    -webkit-appearance: none; appearance: none; touch-action: manipulation;
+    margin: 0; box-sizing: border-box;
+  }
+  .checkbox-sm:checked {
+    background: var(--primary-color); border-color: var(--primary-color);
+  }
+  .checkbox-sm:checked::after {
+    content: '✓'; display: flex; align-items: center; justify-content: center;
+    color: #fff; font-size: 11px; font-weight: 700; line-height: 1;
+  }
+  /* Inline label wrapping checkbox-sm */
+  .sel-all-label {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 13px; color: var(--secondary-text-color);
+    cursor: pointer; flex-shrink: 0; white-space: nowrap; min-height: 36px;
+  }
 `;
 }

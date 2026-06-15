@@ -1029,11 +1029,10 @@ export class ManagementView extends LitElement {
             <button class="view-toggle-btn ${_viewMode === 'list' ? 'active' : ''}" @click=${() => this._setViewMode('list')}>${t('viewList')}</button>
           </div>
           <button class="btn primary" style="padding:6px 12px;font-size:12px;min-height:36px;" @click=${this._toggleAddCustom}>+ ${t('addRepo')}</button>
-          <label style="display:flex;align-items:center;gap:3px;font-size:12px;color:var(--secondary-text-color);cursor:pointer;flex-shrink:0;white-space:nowrap;">
-            <input type="checkbox" .checked=${this._getFilteredCustomRepos().length > 0 && this._selectedRepos.length === this._getFilteredCustomRepos().length}
+          <label class="sel-all-label">
+            <input type="checkbox" class="checkbox-sm" .checked=${this._getFilteredCustomRepos().length > 0 && this._selectedRepos.length === this._getFilteredCustomRepos().length}
                    @click=${e => e.stopPropagation()}
-                   @change=${() => { if (this._selectedRepos.length > 0) { this._selectedRepos = []; } else { this._selectedRepos = this._getFilteredCustomRepos().map(r => r.full_name || r.repository).filter(Boolean); } }}
-                   style="width:14px;height:14px;cursor:pointer;accent-color:var(--primary-color);">
+                   @change=${() => { if (this._selectedRepos.length > 0) { this._selectedRepos = []; } else { this._selectedRepos = this._getFilteredCustomRepos().map(r => r.full_name || r.repository).filter(Boolean); } }}>
             ${t('selectAll') || '全选'}
             ${this._selectedRepos.length > 0 ? html`<span style="color:var(--primary-color);font-weight:600;">(${this._selectedRepos.length})</span>` : ''}
           </label>

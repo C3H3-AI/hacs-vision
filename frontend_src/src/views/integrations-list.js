@@ -678,8 +678,8 @@ class IntegrationsList extends LitElement {
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
               ${t('addHAIntegration')}
             </button>
-            <label style="display:flex;align-items:center;gap:3px;font-size:12px;color:var(--secondary-text-color);cursor:pointer;flex-shrink:0;white-space:nowrap;">
-              <input type="checkbox" class="integ-checkbox"
+            <label class="sel-all-label">
+              <input type="checkbox" class="checkbox-sm"
                 .checked=${this._isAllDomainsSelected(groups)}
                 @change=${() => this._toggleSelectAllDomains(groups)}>
               ${t('selectAll') || '全选'} ${this._selectedDomainCount() > 0 ? html`<span style="color:var(--primary-color);font-weight:600;">(${this._selectedDomainCount()})</span>` : ''}
@@ -1406,10 +1406,6 @@ class IntegrationsList extends LitElement {
       content: '✓'; display: flex; align-items: center; justify-content: center;
       color: #fff; font-size: 12px; font-weight: 700; line-height: 1;
     }
-    .sel-all-label {
-      display: inline-flex; align-items: center; gap: 3px; cursor: pointer;
-    }
-    .sel-all-label input { width: 13px; height: 13px; cursor: pointer; }
     .entry-icon {
       width: 28px; height: 28px; flex-shrink: 0;
       overflow: hidden; border-radius: 50%;

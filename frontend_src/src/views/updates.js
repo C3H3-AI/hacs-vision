@@ -312,11 +312,11 @@ class UpdatesView extends LitElement {
       .status-badge.pending-upgrade { background: rgba(255,152,0,0.15); color: #ff9800; }
 
       .update-all-btn {
-        padding: 4px 10px; border-radius: 8px;
+        padding: 6px 10px; border-radius: 8px;
         background: var(--primary-color); color: #fff; border: none;
-        font-size: 11px; font-weight: 600; cursor: pointer;
+        font-size: 12px; font-weight: 600; cursor: pointer;
         display: flex; align-items: center; gap: 4px; transition: opacity 0.2s;
-        touch-action: manipulation; white-space: nowrap;
+        touch-action: manipulation; white-space: nowrap; min-height: 36px;
       }
       .update-all-btn:hover { opacity: 0.9; }
       .update-all-btn:disabled { opacity: 0.5; cursor: not-allowed; }
@@ -734,10 +734,9 @@ class UpdatesView extends LitElement {
             <button class="view-toggle-btn ${this._viewMode === 'card' ? 'active' : ''}" @click=${() => this._setViewMode('card')} title="${t('viewCard')}">${t('viewCard')}</button>
             <button class="view-toggle-btn ${this._viewMode === 'list' ? 'active' : ''}" @click=${() => this._setViewMode('list')} title="${t('viewList')}">${t('viewList')}</button>
           </div>
-          <label style="display:flex;align-items:center;gap:3px;font-size:12px;color:var(--secondary-text-color);cursor:pointer;flex-shrink:0;white-space:nowrap;">
-            <input type="checkbox" .checked=${this._isAllSelected()}
-                   @click=${e => e.stopPropagation()} @change=${this._toggleSelectAll}
-                   style="width:14px;height:14px;cursor:pointer;accent-color:var(--primary-color);">
+          <label class="sel-all-label">
+            <input type="checkbox" class="checkbox-sm" .checked=${this._isAllSelected()}
+                   @click=${e => e.stopPropagation()} @change=${this._toggleSelectAll}>
             ${t('selectAll') || '全选'}
             ${this._selectedCount() > 0 ? html`<span style="color:var(--primary-color);font-weight:600;">(${this._selectedCount()})</span>` : ''}
           </label>
