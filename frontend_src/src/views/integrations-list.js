@@ -862,8 +862,8 @@ class IntegrationsList extends LitElement {
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
           </button>
           ` : group._can_add ? html`
-          <button class="list-action-btn add" @click=${e => { e.stopPropagation(); this._onAddEntry(domain); }} title="${t('addIntegration') || '添加'}">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          <button class="list-action-btn" @click=${e => { e.stopPropagation(); this._onAddEntry(domain); }} title="${t('configureEntry')}">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
           </button>
           ` : ''}
           <button class="list-action-btn reload" @click=${e => { e.stopPropagation(); this._reloadEntry(entry0 || entries[0], e); }} title="${t('reloadEntry')}" ?disabled=${anyProcessing}>
@@ -904,43 +904,42 @@ class IntegrationsList extends LitElement {
         </div>
 
         <div class="card-footer" @click=${e => e.stopPropagation()}>
-          <div class="footer-left">
-            ${group._has_subentry ? html`
-            <!-- Subentry integrations (AI Hub): single button covers both configure + add -->
-            <button class="footer-btn manage" @click=${() => this._onConfigure(entry0 || entries[0], group)}
-              title="${t('configureEntry')}" ?disabled=${anyProcessing}>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-              <span class="btn-label">${t('configure') || '配置'}</span>
-            </button>
-            ` : group._can_add ? html`
-            <!-- Can add: always prefer ＋ (configure via detail dialog if needed) -->
-            <button class="footer-btn add-entry" @click=${() => this._onAddEntry(domain)}
-              title="${t('addIntegration') || '添加设备'}" ?disabled=${anyProcessing}>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-              <span class="btn-label">${t('add') || '添加'}</span>
-            </button>
-            ` : ''}
-            ${this._configMenuFor?.domain === domain && this._configMenuFor?.mode === 'configure' ? html`
-            <div class="config-dropdown">
-              ${entries.map(e => html`
-                <button class="config-dropdown-item" @click=${() => this._menuSelectEntry(e)}>
-                  <span class="dd-icon">${e.domain}</span>
-                  <span class="dd-label">${e.title || e.entry_id.substring(0,8)}</span>
-                  ${e.supports_options ? html`<span class="dd-badge">${t('configure')}</span>` : ''}
-                  ${e.supported_subentry_types ? html`<span class="dd-badge sub">+${e.supported_subentry_types.length}</span>` : ''}
-                </button>
-              `)}
-            </div>
-            ` : ''}
+          ${group._has_subentry ? html`
+          <button class="footer-btn manage" @click=${() => this._onConfigure(entry0 || entries[0], group)}
+            title="${t('configureEntry')}">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+            <span class="btn-label">${t('configure') || '配置'}</span>
+          </button>
+          ` : group._can_add ? html`
+          <button class="footer-btn configure" @click=${() => this._onAddEntry(domain)}
+            title="${t('configureEntry')}">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+            <span class="btn-label">${t('configure') || '配置'}</span>
+          </button>
+          ` : ''}
+          ${this._configMenuFor?.domain === domain && this._configMenuFor?.mode === 'configure' ? html`
+          <div class="config-dropdown">
+            ${entries.map(e => html`
+              <button class="config-dropdown-item" @click=${() => this._menuSelectEntry(e)}>
+                <span class="dd-icon">${e.domain}</span>
+                <span class="dd-label">${e.title || e.entry_id.substring(0,8)}</span>
+                ${e.supports_options ? html`<span class="dd-badge">${t('configure')}</span>` : ''}
+                ${e.supported_subentry_types ? html`<span class="dd-badge sub">+${e.supported_subentry_types.length}</span>` : ''}
+              </button>
+            `)}
           </div>
-          <div class="footer-right">
-            <button class="footer-btn reload" @click=${() => this._reloadEntry(entry0 || entries[0], { stopPropagation: () => {} })}
-              title="${t('reloadEntry')}" ?disabled=${anyProcessing}>
-              ${anyProcessing ? html`<span class="spinning-mini">⟳</span>` : html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>`}
-              <span class="btn-label">${t('reloadEntry') || '重载'}</span>
-            </button>
-            <button class="footer-btn remove" @click=${e => this._removeEntry(entry0 || entries[0], e)}
-              title="${t('removeEntry')}" ?disabled=${anyProcessing}>
+          ` : ''}
+          <button class="footer-btn reload" @click=${() => this._reloadEntry(entry0 || entries[0], { stopPropagation: () => {} })}
+            title="${t('reloadEntry')}" ?disabled=${anyProcessing}>
+            ${anyProcessing ? html`<span class="spinning-mini">⟳</span>` : html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>`}
+            <span class="btn-label">${t('reloadEntry') || '重载'}</span>
+          </button>
+          <button class="footer-btn remove" @click=${e => this._removeEntry(entry0 || entries[0], e)}
+            title="${t('removeEntry')}" ?disabled=${anyProcessing}>
+            ${anyProcessing ? html`<span class="spinning-mini">⋯</span>` : html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>`}
+            <span class="btn-label">${t('delete')}</span>
+          </button>
+        </div>
               ${anyProcessing ? html`<span class="spinning-mini">⋯</span>` : html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>`}
               <span class="btn-label">${t('delete')}</span>
             </button>
@@ -1281,7 +1280,6 @@ class IntegrationsList extends LitElement {
     }
     .list-action-btn:hover { border-color: var(--primary-color); color: var(--primary-color); }
     .list-action-btn.manage:hover { border-color: #9c27b0; color: #9c27b0; }
-    .list-action-btn.add:hover { border-color: #4caf50; color: #4caf50; }
     .list-action-btn.reload:hover { border-color: #ff9800; color: #ff9800; }
     .list-action-btn:disabled { opacity: 0.4; cursor: not-allowed; }
     .chip-label { color: var(--primary-text-color); }
@@ -1379,14 +1377,12 @@ class IntegrationsList extends LitElement {
     .card-meta .dot-sep { width: 3px; height: 3px; border-radius: 50%; background: var(--divider-color); }
     .card-meta .status-label { font-weight: 500; }
 
-    /* ===== Card Footer Action Bar (always visible, like store) ===== */
+    /* ===== Card Footer Action Bar ===== */
     .card-footer {
-      display: flex; justify-content: space-between; gap: 4px; padding: 8px 12px;
+      display: flex; gap: 4px; padding: 8px 12px;
       border-top: 1px solid var(--divider-color, #e0e0e0);
       margin-top: 8px; position: relative;
     }
-    .footer-left { display: flex; align-items: stretch; gap: 4px; position: relative; }
-    .footer-right { display: flex; align-items: stretch; gap: 4px; }
     .card-footer .footer-btn {
       flex: 1; min-width: 0;
       padding: 7px 10px; border-radius: 8px;
@@ -1401,7 +1397,6 @@ class IntegrationsList extends LitElement {
     .card-footer .footer-btn:disabled { opacity: 0.35; cursor: not-allowed; }
     .card-footer .footer-btn.configure:hover { border-color: #2196f3; color: #2196f3; }
     .card-footer .footer-btn.manage:hover { border-color: #9c27b0; color: #9c27b0; }
-    .card-footer .footer-btn.add-entry:hover { border-color: #4caf50; color: #4caf50; }
     .card-footer .footer-btn.reload:hover { border-color: #ff9800; color: #ff9800; }
     .card-footer .footer-btn.remove:hover { border-color: #f44336; color: #f44336; }
     .card-footer .footer-btn svg { width: 13px; height: 13px; flex-shrink: 0; }
