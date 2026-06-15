@@ -48,15 +48,7 @@ class UpdatesView extends LitElement {
     css`
       :host { display: block; touch-action: manipulation; background: var(--primary-background-color); }
 
-      .search { min-width: 160px; }
       .controls-right { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
-      .search input {
-        width: 100%; border: 1px solid var(--divider-color);
-        border-radius: 10px; font-size: 14px; background: var(--card-background-color);
-        color: var(--primary-text-color); outline: none; box-sizing: border-box;
-        transition: border-color 0.2s;
-      }
-      .search input:focus { border-color: var(--primary-color); }
 
       .card {
         border: 1px solid var(--divider-color); border-radius: 14px;

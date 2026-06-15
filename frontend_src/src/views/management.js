@@ -92,17 +92,8 @@ export class ManagementView extends LitElement {
     .section-title svg { width: 20px; height: 20px; color: var(--primary-color); flex-shrink: 0; }
     .section-desc { font-size: 13px; color: var(--secondary-text-color); margin-bottom: 16px; line-height: 1.6; }
 
-    /* ===== Search ===== */
-    .search { position: relative; display: flex; align-items: center; }
-    .search-icon { position: absolute; left: 10px; width: 16px; height: 16px; color: var(--secondary-text-color); pointer-events: none; }
-    .search input {
-      width: 100%; border: 1px solid var(--divider-color);
-      border-radius: 10px; font-size: 14px; background: var(--card-background-color);
-      color: var(--primary-text-color); outline: none; transition: border-color 0.2s;
-      box-sizing: border-box; font-family: inherit;
-    }
-    .search input:focus { border-color: var(--primary-color); }
-    .search input::placeholder { color: var(--secondary-text-color); }
+    /* ===== Search (uses shared styles from styles.js) ===== */
+    .search { position: relative; }
     .edit-input {
       padding: 8px 12px; border: 1px solid var(--divider-color);
       border-radius: 10px; font-size: 13px; background: var(--card-background-color);

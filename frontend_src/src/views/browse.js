@@ -440,7 +440,7 @@ class BrowseView extends LitElement {
     @media (max-width: 768px) {
       .controls { gap: 4px; margin-bottom: 6px; flex-wrap: wrap; }
       .search { flex: 1; min-width: 0; }
-      .search input { padding: 7px 10px 7px 34px; font-size: 13px; border-radius: 8px; }
+      .search input { padding: 7px 10px 7px 30px; font-size: 13px; border-radius: 8px; }
       .controls-right { flex-wrap: wrap; }
       .filter-sort-row { padding: 6px 10px; flex-wrap: nowrap; overflow: hidden; }
       .filter-sort-row .fs-chips { display: none; }

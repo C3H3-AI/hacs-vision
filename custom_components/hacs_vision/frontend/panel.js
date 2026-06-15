@@ -1796,7 +1796,7 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
     @media (max-width: 768px) {
       .controls { gap: 4px; margin-bottom: 6px; flex-wrap: wrap; }
       .search { flex: 1; min-width: 0; }
-      .search input { padding: 7px 10px 7px 34px; font-size: 13px; border-radius: 8px; }
+      .search input { padding: 7px 10px 7px 30px; font-size: 13px; border-radius: 8px; }
       .controls-right { flex-wrap: wrap; }
       .filter-sort-row { padding: 6px 10px; flex-wrap: nowrap; overflow: hidden; }
       .filter-sort-row .fs-chips { display: none; }
@@ -2056,15 +2056,7 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
     `}}customElements.define("browse-view",Gt);class Yt extends se{static properties={updates:{type:Array},loading:{type:Boolean},updating:{type:Boolean},search:{type:String},_installingIds:{type:Object,state:!0},_changelogs:{type:Object,state:!0},_searchText:{type:String,state:!0},_selectedIds:{type:Object,state:!0},_selectedRepos:{type:Array,state:!0},_batchMode:{type:Boolean,state:!0},_viewMode:{type:String,state:!0},_favs:{type:Object,state:!0},_categoryFilter:{type:String,state:!0}};constructor(){super(),this.updates=[],this.loading=!1,this.updating=!1,this.search="",this._searchTimer=null,this._installingIds={},this._changelogs={},this._changelogsLoading={},this._expandedChangelogs={},this._searchText="",this._selectedIds={},this._selectedRepos=[],this._batchMode=!1,this._favs={};const e=(()=>{try{return localStorage.getItem("hacs_vision_view_mode")}catch{return null}})();this._viewMode=e||"card"}static styles=[me(),a`
       :host { display: block; touch-action: manipulation; background: var(--primary-background-color); }
 
-      .search { min-width: 160px; }
       .controls-right { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
-      .search input {
-        width: 100%; border: 1px solid var(--divider-color);
-        border-radius: 10px; font-size: 14px; background: var(--card-background-color);
-        color: var(--primary-text-color); outline: none; box-sizing: border-box;
-        transition: border-color 0.2s;
-      }
-      .search input:focus { border-color: var(--primary-color); }
 
       .card {
         border: 1px solid var(--divider-color); border-radius: 14px;
@@ -2592,17 +2584,8 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
     .section-title svg { width: 20px; height: 20px; color: var(--primary-color); flex-shrink: 0; }
     .section-desc { font-size: 13px; color: var(--secondary-text-color); margin-bottom: 16px; line-height: 1.6; }
 
-    /* ===== Search ===== */
-    .search { position: relative; display: flex; align-items: center; }
-    .search-icon { position: absolute; left: 10px; width: 16px; height: 16px; color: var(--secondary-text-color); pointer-events: none; }
-    .search input {
-      width: 100%; border: 1px solid var(--divider-color);
-      border-radius: 10px; font-size: 14px; background: var(--card-background-color);
-      color: var(--primary-text-color); outline: none; transition: border-color 0.2s;
-      box-sizing: border-box; font-family: inherit;
-    }
-    .search input:focus { border-color: var(--primary-color); }
-    .search input::placeholder { color: var(--secondary-text-color); }
+    /* ===== Search (uses shared styles from styles.js) ===== */
+    .search { position: relative; }
     .edit-input {
       padding: 8px 12px; border: 1px solid var(--divider-color);
       border-radius: 10px; font-size: 13px; background: var(--card-background-color);
@@ -3810,14 +3793,6 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
     }
     .page-title { margin: 0; font-size: 20px; font-weight: 700; color: var(--primary-text-color); }
     .controls-right { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
-    .search input {
-      border: 1px solid var(--divider-color, #e0e0e0);
-      border-radius: 10px; font-size: 14px;
-      background: var(--card-background-color, #fff);
-      color: var(--primary-text-color); outline: none;
-      box-sizing: border-box; transition: border-color 0.2s; font-family: inherit;
-    }
-    .search input:focus { border-color: var(--primary-color, #03a9f4); }
 
     .action-btn {
       padding: 9px 18px; border-radius: 10px; font-size: 14px; font-weight: 600;

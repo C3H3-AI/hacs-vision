@@ -1051,14 +1051,6 @@ class IntegrationsList extends LitElement {
     }
     .page-title { margin: 0; font-size: 20px; font-weight: 700; color: var(--primary-text-color); }
     .controls-right { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
-    .search input {
-      border: 1px solid var(--divider-color, #e0e0e0);
-      border-radius: 10px; font-size: 14px;
-      background: var(--card-background-color, #fff);
-      color: var(--primary-text-color); outline: none;
-      box-sizing: border-box; transition: border-color 0.2s; font-family: inherit;
-    }
-    .search input:focus { border-color: var(--primary-color, #03a9f4); }
 
     .action-btn {
       padding: 9px 18px; border-radius: 10px; font-size: 14px; font-weight: 600;
