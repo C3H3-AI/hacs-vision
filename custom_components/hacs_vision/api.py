@@ -24,6 +24,10 @@ FRONTEND_DIR = os.path.join(os.path.dirname(__file__), "frontend")
 _README_CACHE: dict[str, dict] = {}
 _README_CACHE_TTL = 3600  # 1 hour
 
+# GitHub release download count cache: {full_name: {count, timestamp}}
+_DOWNLOAD_CACHE: dict[str, dict] = {}
+_DOWNLOAD_CACHE_TTL = 7200  # 2 hours
+
 
 class HACSEnhancedStaticView(HomeAssistantView):
     """Serve frontend static files — no auth required for JS/CSS assets.
@@ -466,6 +470,66 @@ class HACSEnhancedAPI(HomeAssistantView):
 
     # ── Repositories ─────────────────────────────────────
 
+    async def _enrich_download_counts(self, repos: list[dict]) -> None:
+        """Enrich repos with GitHub release download counts where HACS data is 0."""
+        import aiohttp
+        now = time.time()
+        need_fetch = []
+        for r in repos:
+            if r.get("downloads", 0) > 0:
+                continue  # already has HACS download data
+            fn = r.get("full_name", "")
+            if not fn or "/" not in fn:
+                continue
+            cached = _DOWNLOAD_CACHE.get(fn)
+            if cached and (now - cached["timestamp"]) < _DOWNLOAD_CACHE_TTL:
+                if cached["count"]:
+                    r["downloads"] = cached["count"]
+                continue
+            need_fetch.append(fn)
+
+        if not need_fetch:
+            return
+
+        # Fetch latest release download counts in batches
+        async def _fetch_one(full_name: str) -> tuple[str, int]:
+            url = f"https://api.github.com/repos/{full_name}/releases/latest"
+            try:
+                async with aiohttp.ClientSession() as session:
+                    async with session.get(url, timeout=aiohttp.ClientTimeout(total=10)) as resp:
+                        if resp.status == 200:
+                            data = await resp.json()
+                            total = sum(
+                                asset.get("download_count", 0)
+                                for asset in data.get("assets", [])
+                            )
+                            _DOWNLOAD_CACHE[full_name] = {"count": total, "timestamp": now}
+                            return full_name, total
+            except Exception:
+                pass
+            _DOWNLOAD_CACHE[full_name] = {"count": 0, "timestamp": now}
+            return full_name, 0
+
+        import asyncio
+        # Fetch in parallel, 5 at a time to avoid rate limiting
+        sem = asyncio.Semaphore(5)
+        async def _limited_fetch(fn: str) -> tuple[str, int]:
+            async with sem:
+                return await _fetch_one(fn)
+
+        tasks = [_limited_fetch(fn) for fn in need_fetch]
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+        result_map = {}
+        for res in results:
+            if isinstance(res, tuple):
+                result_map[res[0]] = res[1]
+
+        # Apply fetched counts
+        for r in repos:
+            fn = r.get("full_name", "")
+            if fn in result_map and result_map[fn]:
+                r["downloads"] = result_map[fn]
+
     async def _list_repositories(self, query) -> web.Response:
         # Primary data source: HACS in-memory (same as HACS UI)
         repos = await self.operator.get_all_repos_from_hacs()
@@ -480,6 +544,9 @@ class HACSEnhancedAPI(HomeAssistantView):
             fn = r.get("full_name", "")
             if fn and fn in install_times:
                 r["installed_at"] = install_times[fn]
+
+        # Enrich download counts from GitHub releases (for repos with 0 HACS downloads)
+        await self._enrich_download_counts(repos)
 
         # Cross-reference config entries to add config_entry_id / load_failed to repos
         entry_map = {}
