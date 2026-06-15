@@ -33,6 +33,7 @@ class IntegrationsList extends LitElement {
     _selectedDomains: { type: Object, state: true },       // Set-like Map: domain → true (卡片批量)
     _sortBy: { type: String, state: true },                // name | entries | status
     _sortDir: { type: String, state: true },               // asc | desc
+    _configMenuFor: { type: Object, state: true },         // { domain, anchor } → show dropdown
   };
 
   constructor() {
@@ -236,6 +237,21 @@ class IntegrationsList extends LitElement {
   _closeAddDialog() {
     this._showAddDialog = false;
     this._handlerSearch = '';
+  }
+
+  _configureCardEntry(entry, group) {
+    // Single entry with supports_options → direct config
+    if (group.entries.length === 1 && entry.supports_options) {
+      this._configureEntry(entry, { stopPropagation: () => {} });
+      return;
+    }
+    // Multiple entries or subentry types → show dropdown
+    this._configMenuFor = this._configMenuFor?.domain === group.domain ? null : { domain: group.domain, entries: group.entries };
+  }
+
+  _menuSelectEntry(entry) {
+    this._configMenuFor = null;
+    this._configureEntry(entry, { stopPropagation: () => {} });
   }
 
   _addIntegration(domain) {
@@ -807,11 +823,9 @@ class IntegrationsList extends LitElement {
           ${multiEntry ? html`<span class="list-entry-count">${entries.length} ${t('entryCount')}</span>` : ''}
         </span>
         <span class="list-row-actions">
-          ${group._supports_options ? html`
-          <button class="list-action-btn" @click=${e => { e.stopPropagation(); this._openDetail(domain, entries); }} title="${t('viewDetail') || '详情'}">
+          <button class="list-action-btn" @click=${e => { e.stopPropagation(); this._configureEntry(entry0 || entries[0], e); }} title="${t('configureEntry')}">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
           </button>
-          ` : ''}
           <button class="list-action-btn reload" @click=${e => { e.stopPropagation(); this._reloadEntry(entry0 || entries[0], e); }} title="${t('reloadEntry')}" ?disabled=${anyProcessing}>
             ${this._reloading[entry0?.entry_id || ''] ? '⋯' : html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M1 4v6h6M23 20v-6h-6"/><path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"/></svg>`}
           </button>
@@ -850,25 +864,38 @@ class IntegrationsList extends LitElement {
         </div>
 
         <div class="card-footer" @click=${e => e.stopPropagation()}>
-          <button class="footer-btn detail" @click=${() => this._openDetail(domain, entries)}
-            title="${t('viewDetail') || '详情'}" ?disabled=${anyProcessing}>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
-            <span class="btn-label">${multiEntry ? `${entries.length} ${t('entryCount')}` : t('viewDetail') || '详情'}</span>
-          </button>
-          ${group._supports_options ? html`
-          <button class="footer-btn configure" @click=${() => multiEntry ? this._openDetail(domain, entries) : this._configureEntry(entry0, { stopPropagation: () => {} })}
-            title="${t('configureEntry')}" ?disabled=${anyProcessing}>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-            <span class="btn-label">${t('configure') || '配置'}</span>
-          </button>
-          ` : ''}
-          <button class="footer-btn reload" @click=${() => this._reloadEntry(entry0 || entries[0], { stopPropagation: () => {} })}
-            title="${t('reloadEntry')}" ?disabled=${anyProcessing}>
-            ${anyProcessing ? html`<span class="spinning-mini">⟳</span>` : html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>`}
-            <span class="btn-label">${t('reloadEntry') || '重载'}</span>
-          </button>
-          <button class="footer-btn remove" @click=${e => this._removeEntry(entry0 || entries[0], e)}
-            title="${t('removeEntry')}" ?disabled=${anyProcessing}>
+          <div class="footer-left">
+            <button class="footer-btn configure" @click=${() => this._configureCardEntry(entry0 || entries[0], group)}
+              title="${t('configureEntry')}" ?disabled=${anyProcessing}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+              <span class="btn-label">${t('configure') || '配置'}${multiEntry || entries[0]?.supported_subentry_types ? html`<span class="config-arrow">▾</span>` : ''}</span>
+            </button>
+            ${this._configMenuFor?.domain === domain ? html`
+            <div class="config-dropdown">
+              ${entries.map(e => html`
+                <button class="config-dropdown-item" @click=${() => this._menuSelectEntry(e)}>
+                  <span class="dd-icon">${e.domain}</span>
+                  <span class="dd-label">${e.title || e.entry_id.substring(0,8)}</span>
+                  ${e.supports_options ? html`<span class="dd-badge">${t('configure')}</span>` : ''}
+                  ${e.supported_subentry_types ? html`<span class="dd-badge sub">+${e.supported_subentry_types.length}</span>` : ''}
+                </button>
+              `)}
+            </div>
+            ` : ''}
+          </div>
+          <div class="footer-right">
+            <button class="footer-btn reload" @click=${() => this._reloadEntry(entry0 || entries[0], { stopPropagation: () => {} })}
+              title="${t('reloadEntry')}" ?disabled=${anyProcessing}>
+              ${anyProcessing ? html`<span class="spinning-mini">⟳</span>` : html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>`}
+              <span class="btn-label">${t('reloadEntry') || '重载'}</span>
+            </button>
+            <button class="footer-btn remove" @click=${e => this._removeEntry(entry0 || entries[0], e)}
+              title="${t('removeEntry')}" ?disabled=${anyProcessing}>
+              ${anyProcessing ? html`<span class="spinning-mini">⋯</span>` : html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>`}
+              <span class="btn-label">${t('delete')}</span>
+            </button>
+          </div>
+        </div>
             ${anyProcessing ? html`<span class="spinning-mini">⋯</span>` : html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>`}
             <span class="btn-label">${t('delete')}</span>
           </button>
@@ -1306,29 +1333,61 @@ class IntegrationsList extends LitElement {
 
     /* ===== Card Footer Action Bar (always visible, like store) ===== */
     .card-footer {
-      display: flex; gap: 4px; padding: 8px 12px;
+      display: flex; justify-content: space-between; gap: 4px; padding: 8px 12px;
       border-top: 1px solid var(--divider-color, #e0e0e0);
-      margin-top: 8px;
+      margin-top: 8px; position: relative;
     }
+    .footer-left { display: flex; align-items: stretch; gap: 4px; position: relative; }
+    .footer-right { display: flex; align-items: stretch; gap: 4px; }
     .card-footer .footer-btn {
-      flex: 1; min-width: 0;
-      padding: 7px 4px; border-radius: 8px;
+      min-width: 0;
+      padding: 7px 10px; border-radius: 8px;
       font-size: 11px; font-weight: 500;
       border: 1px solid var(--divider-color, #e0e0e0);
       background: var(--card-background-color, #fff);
       color: var(--primary-text-color, #212121);
       cursor: pointer; touch-action: manipulation;
       display: flex; align-items: center; justify-content: center; gap: 3px;
-      transition: all 0.15s;
+      transition: all 0.15s; white-space: nowrap;
     }
     .card-footer .footer-btn:disabled { opacity: 0.35; cursor: not-allowed; }
-    .card-footer .footer-btn.detail:hover { border-color: var(--primary-color); color: var(--primary-color); }
     .card-footer .footer-btn.configure:hover { border-color: #2196f3; color: #2196f3; }
     .card-footer .footer-btn.reload:hover { border-color: #ff9800; color: #ff9800; }
     .card-footer .footer-btn.remove:hover { border-color: #f44336; color: #f44336; }
     .card-footer .footer-btn svg { width: 13px; height: 13px; flex-shrink: 0; }
     .card-footer .footer-btn .spinning-mini { display: inline-block; animation: spin 1s linear infinite; font-size: 13px; }
     .card-footer .footer-btn .btn-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .config-arrow { font-size: 8px; margin-left: 2px; opacity: 0.7; }
+
+    /* ===== Config Dropdown (multi-entry selector) ===== */
+    .config-dropdown {
+      position: absolute; top: 100%; left: 0; z-index: 100;
+      min-width: 200px; margin-top: 4px;
+      background: var(--card-background-color, #fff);
+      border: 1px solid var(--divider-color, #e0e0e0);
+      border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+      overflow: hidden; padding: 4px;
+    }
+    .config-dropdown-item {
+      display: flex; align-items: center; gap: 8px; width: 100%;
+      padding: 8px 10px; border: none; background: transparent;
+      color: var(--primary-text-color); cursor: pointer;
+      font-size: 12px; border-radius: 6px; text-align: left;
+      transition: background 0.15s;
+    }
+    .config-dropdown-item:hover { background: var(--divider-color, #f0f0f0); }
+    .config-dropdown-item .dd-icon {
+      width: 24px; height: 24px; border-radius: 6px;
+      background: var(--primary-color, #03a9f4); color: #fff;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 9px; font-weight: 700; flex-shrink: 0;
+    }
+    .config-dropdown-item .dd-label { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .config-dropdown-item .dd-badge {
+      font-size: 9px; padding: 2px 6px; border-radius: 4px;
+      background: var(--primary-color, #03a9f4); color: #fff; font-weight: 600; flex-shrink: 0;
+    }
+    .config-dropdown-item .dd-badge.sub { background: #ff9800; }
 
     /* ===== Modal ===== */
     .detail-overlay {
