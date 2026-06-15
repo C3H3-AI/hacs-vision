@@ -188,7 +188,7 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
 
   /* ===== Small inline checkbox (controls bar) ===== */
   .checkbox-sm {
-    width: 16px; height: 16px; border-radius: 3px;
+    width: 18px; height: 18px; border-radius: 4px;
     border: 2px solid var(--secondary-text-color); cursor: pointer;
     flex-shrink: 0; transition: all 0.2s; background: transparent;
     -webkit-appearance: none; appearance: none; touch-action: manipulation;
@@ -199,7 +199,7 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
   }
   .checkbox-sm:checked::after {
     content: '✓'; display: flex; align-items: center; justify-content: center;
-    color: #fff; font-size: 11px; font-weight: 700; line-height: 1;
+    color: #fff; font-size: 12px; font-weight: 700; line-height: 1;
   }
   /* Inline label wrapping checkbox-sm */
   .sel-all-label {
@@ -4161,8 +4161,8 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
 
     /* ===== Batch Bar ===== */
     .batch-bar {
-      display: flex; align-items: center; gap: 10px;
-      padding: 8px 14px; margin: 4px 14px;
+      display: flex; align-items: center; gap: 8px;
+      padding: 8px 12px; margin: 6px 0;
       background: var(--primary-color, #03a9f4); color: #fff;
       border-radius: 8px; font-size: 13px;
     }

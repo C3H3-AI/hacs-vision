@@ -175,7 +175,7 @@ export function getCommonStyles() {
 
   /* ===== Small inline checkbox (controls bar) ===== */
   .checkbox-sm {
-    width: 16px; height: 16px; border-radius: 3px;
+    width: 18px; height: 18px; border-radius: 4px;
     border: 2px solid var(--secondary-text-color); cursor: pointer;
     flex-shrink: 0; transition: all 0.2s; background: transparent;
     -webkit-appearance: none; appearance: none; touch-action: manipulation;
@@ -186,7 +186,7 @@ export function getCommonStyles() {
   }
   .checkbox-sm:checked::after {
     content: '✓'; display: flex; align-items: center; justify-content: center;
-    color: #fff; font-size: 11px; font-weight: 700; line-height: 1;
+    color: #fff; font-size: 12px; font-weight: 700; line-height: 1;
   }
   /* Inline label wrapping checkbox-sm */
   .sel-all-label {

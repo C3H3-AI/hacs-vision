@@ -1419,8 +1419,8 @@ class IntegrationsList extends LitElement {
 
     /* ===== Batch Bar ===== */
     .batch-bar {
-      display: flex; align-items: center; gap: 10px;
-      padding: 8px 14px; margin: 4px 14px;
+      display: flex; align-items: center; gap: 8px;
+      padding: 8px 12px; margin: 6px 0;
       background: var(--primary-color, #03a9f4); color: #fff;
       border-radius: 8px; font-size: 13px;
     }
