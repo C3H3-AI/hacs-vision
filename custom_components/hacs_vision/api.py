@@ -116,6 +116,147 @@ class HACSEnhancedAPI(HomeAssistantView):
         self._github_token = ""  # Cache negative result
         return None
 
+    async def _get_vision_github_token(self) -> str | None:
+        """Get GitHub token from hacs-vision own storage."""
+        try:
+            data = await self.data.async_load("github_token")
+            if data and isinstance(data, dict) and data.get("token"):
+                return data["token"]
+        except Exception:
+            pass
+        return None
+
+    async def _get_active_github_token(self) -> str | None:
+        """Try hacs-vision token first, then HACS token."""
+        token = await self._get_vision_github_token()
+        if token:
+            return token
+        return self._get_github_token()
+
+    async def _github_api(self, method: str, path: str, body: dict | None = None) -> dict:
+        """Call GitHub API with the active token."""
+        token = await self._get_active_github_token()
+        headers = {"Accept": "application/vnd.github.v3+json"}
+        if token:
+            headers["Authorization"] = f"Bearer {token}"
+        url = f"https://api.github.com{path}"
+        try:
+            async with aiohttp.ClientSession() as session:
+                kwargs = {"headers": headers, "timeout": aiohttp.ClientTimeout(total=15)}
+                if body is not None and method in ("POST", "PATCH", "PUT"):
+                    kwargs["json"] = body
+                async with session.request(method, url, **kwargs) as resp:
+                    if resp.status in (204, 304):
+                        return {"status": resp.status}
+                    if resp.status == 404:
+                        return {"error": "not_found", "status": 404}
+                    text = await resp.text()
+                    try:
+                        return {"status": resp.status, **json.loads(text)}
+                    except json.JSONDecodeError:
+                        return {"status": resp.status, "text": text}
+        except Exception as e:
+            return {"error": str(e), "status": 0}
+
+    async def _github_verify_token(self, body: dict) -> web.Response:
+        """Verify and store a GitHub personal access token."""
+        token = body.get("token", "").strip()
+        if not token:
+            return web.json_response({"error": "token_required"}, status=400)
+        # Verify by calling GitHub user API
+        headers = {"Authorization": f"Bearer {token}", "Accept": "application/vnd.github.v3+json"}
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get("https://api.github.com/user", headers=headers,
+                                       timeout=aiohttp.ClientTimeout(total=10)) as resp:
+                    if resp.status != 200:
+                        return web.json_response({"error": "invalid_token", "status": resp.status}, status=400)
+                    user = await resp.json()
+                    login = user.get("login", "?")
+                    # Check rate limit
+                    async with session.get("https://api.github.com/rate_limit", headers=headers,
+                                           timeout=aiohttp.ClientTimeout(total=10)) as rl_resp:
+                        rl = await rl_resp.json()
+                        remaining = rl.get("rate", {}).get("remaining", 0)
+        except Exception as e:
+            return web.json_response({"error": str(e)}, status=500)
+        # Store token
+        await self.data.async_save("github_token", {"token": token, "user": login})
+        self._github_token = token
+        return web.json_response({"ok": True, "user": login, "rate_limit_remaining": remaining})
+
+    async def _github_user(self) -> web.Response:
+        """Get current GitHub user info."""
+        token = await self._get_active_github_token()
+        if not token:
+            return web.json_response({"error": "not_authenticated"}, status=401)
+        headers = {"Authorization": f"Bearer {token}", "Accept": "application/vnd.github.v3+json"}
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get("https://api.github.com/user", headers=headers,
+                                       timeout=aiohttp.ClientTimeout(total=10)) as resp:
+                    if resp.status != 200:
+                        return web.json_response({"error": "token_invalid"}, status=401)
+                    user = await resp.json()
+        except Exception as e:
+            return web.json_response({"error": str(e)}, status=500)
+        return web.json_response({"login": user.get("login"), "avatar_url": user.get("avatar_url")})
+
+    async def _github_star(self, body: dict) -> web.Response:
+        """Star a repository."""
+        repo = body.get("repo", "").strip()
+        if not repo or "/" not in repo:
+            return web.json_response({"error": "invalid_repo"}, status=400)
+        token = await self._get_active_github_token()
+        if not token:
+            return web.json_response({"error": "not_authenticated"}, status=401)
+        headers = {"Authorization": f"Bearer {token}", "Accept": "application/vnd.github.v3+json",
+                   "Content-Length": "0"}
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.put(f"https://api.github.com/user/starred/{repo}", headers=headers,
+                                       timeout=aiohttp.ClientTimeout(total=10)) as resp:
+                    if resp.status == 204:
+                        return web.json_response({"ok": True})
+                    return web.json_response({"error": f"star_failed_{resp.status}"}, status=resp.status)
+        except Exception as e:
+            return web.json_response({"error": str(e)}, status=500)
+
+    async def _github_unstar(self, body: dict) -> web.Response:
+        """Unstar a repository."""
+        repo = body.get("repo", "").strip()
+        if not repo or "/" not in repo:
+            return web.json_response({"error": "invalid_repo"}, status=400)
+        token = await self._get_active_github_token()
+        if not token:
+            return web.json_response({"error": "not_authenticated"}, status=401)
+        headers = {"Authorization": f"Bearer {token}", "Accept": "application/vnd.github.v3+json"}
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.delete(f"https://api.github.com/user/starred/{repo}", headers=headers,
+                                          timeout=aiohttp.ClientTimeout(total=10)) as resp:
+                    if resp.status == 204:
+                        return web.json_response({"ok": True})
+                    return web.json_response({"error": f"unstar_failed_{resp.status}"}, status=resp.status)
+        except Exception as e:
+            return web.json_response({"error": str(e)}, status=500)
+
+    async def _github_check_starred(self, repo: str) -> web.Response:
+        """Check if the authenticated user has starred a repo."""
+        if not repo or "/" not in repo:
+            return web.json_response({"error": "invalid_repo"}, status=400)
+        token = await self._get_active_github_token()
+        if not token:
+            return web.json_response({"starred": False})
+        headers = {"Authorization": f"Bearer {token}", "Accept": "application/vnd.github.v3+json"}
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(f"https://api.github.com/user/starred/{repo}", headers=headers,
+                                       timeout=aiohttp.ClientTimeout(total=10)) as resp:
+                    return web.json_response({"starred": resp.status == 204})
+        except Exception as e:
+            return web.json_response({"starred": False, "error": str(e)})
+
     # ── GET ──────────────────────────────────────────────
 
     async def get(self, request, path: str = "") -> web.Response:
@@ -178,6 +319,11 @@ class HACSEnhancedAPI(HomeAssistantView):
         if path.startswith("device_counts/"):
             domain = path.split("/", 1)[1]
             return await self._get_device_counts(domain)
+        if path in ("github/user", "github/user/"):
+            return await self._github_user()
+        if path.startswith("github/starred/"):
+            repo = path.split("/", 2)[2] if "/" in path else ""
+            return await self._github_check_starred(repo)
 
         return web.json_response({"error": "not_found"}, status=404)
 
@@ -234,6 +380,14 @@ class HACSEnhancedAPI(HomeAssistantView):
             return await self._entity_refs_replace(body)
         if path in ("entity_refs/reload", "entity_refs/reload/"):
             return await self._entity_refs_reload()
+        # ── GitHub Auth ──
+        if path in ("github/verify_token", "github/verify_token/"):
+            return await self._github_verify_token(body)
+        if path in ("github/star", "github/star/"):
+            return await self._github_star(body)
+        if path in ("github/unstar", "github/unstar/"):
+            return await self._github_unstar(body)
+
         # ── Config Flow proxy ──
         if path == "config_flow/start":
             return await self._config_flow_start(request, body)

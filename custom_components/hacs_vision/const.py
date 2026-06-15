@@ -3,7 +3,7 @@ from homeassistant.const import Platform
 
 DOMAIN = "hacs_vision"
 DOMAIN_HACS = "hacs"
-VERSION = "3.1.1"
+VERSION = "4.0.0-beta"
 
 PANEL_TITLE = "HACS Vision"
 PANEL_ICON = "mdi:store"
@@ -16,6 +16,7 @@ STORAGE_PATHS = {
     "favorites": ".storage/hacs_vision_favorites.json",
     "custom_repos": ".storage/hacs_vision_custom_repos.json",
     "settings": ".storage/hacs_vision_settings.json",
+    "github_token": ".storage/hacs_vision_github_token.json",
 }
 
 API_BASE = "/api/hacs_vision"

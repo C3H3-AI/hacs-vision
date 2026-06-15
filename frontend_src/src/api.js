@@ -210,6 +210,13 @@ class HACSEnhancedAPI {
   getFavorites() { return this.get('favorites'); }
   setFavorites(favorites) { return this.post('favorites', { favorites }); }
 
+  /* GitHub Auth */
+  verifyGitHubToken(token) { return this.post('github/verify_token', { token }); }
+  getGitHubUser() { return this.get('github/user'); }
+  starRepo(repo) { return this.post('github/star', { repo }); }
+  unstarRepo(repo) { return this.post('github/unstar', { repo }); }
+  checkStarred(repo) { return this.get(`github/starred/${encodeURIComponent(repo)}`); }
+
   /* Version selector: get releases for a repo */
   getRepoReleases(repoId) {
     return this._fetch(`/repos/releases?id=${encodeURIComponent(repoId)}`);

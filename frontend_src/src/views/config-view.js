@@ -14,6 +14,11 @@ class ConfigView extends LitElement {
     _exporting: { type: Boolean, state: true },
     _depLoading: { type: Boolean, state: true },
     _depResults: { type: Object, state: true },
+    _githubUser: { type: String, state: true },
+    _githubTokenInput: { type: String, state: true },
+    _githubVerifying: { type: Boolean, state: true },
+    _githubVerifyMsg: { type: String, state: true },
+    _githubVerifyOk: { type: Boolean, state: true },
   };
 
   constructor() {
@@ -25,6 +30,11 @@ class ConfigView extends LitElement {
     this._exporting = false;
     this._depLoading = false;
     this._depResults = null;
+    this._githubUser = '';
+    this._githubTokenInput = '';
+    this._githubVerifying = false;
+    this._githubVerifyMsg = '';
+    this._githubVerifyOk = false;
   }
 
   connectedCallback() {
@@ -43,6 +53,10 @@ class ConfigView extends LitElement {
       const data = await api.getVersion();
       this._version = data?.version || '';
     } catch(e) { /* ignore */ }
+    try {
+      const user = await api.getGitHubUser();
+      if (user?.login) this._githubUser = user.login;
+    } catch(e) { /* not logged in */ }
   }
 
   async _save() {
@@ -318,10 +332,75 @@ class ConfigView extends LitElement {
           ` : ''}
         </div>
 
+        <!-- 🔑 GitHub 集成 -->
+        <div class="section">
+          <div class="section-title">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg>
+            GitHub
+          </div>
+          ${this._githubUser ? html`
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+              <span style="font-size:13px;">✅ 已登录 <strong>${this._githubUser}</strong></span>
+              <button class="btn" style="font-size:11px;padding:4px 10px;" @click=${this._githubLogout}>${t('logout') || '登出'}</button>
+            </div>
+          ` : html`
+            <div class="setting-row">
+              <div class="setting-info">
+                <div class="label">${t('githubToken') || 'GitHub Token'}</div>
+                <div class="desc">${t('githubTokenDesc') || '在 GitHub Settings → Developer settings → Personal access tokens 生成'}</div>
+              </div>
+              <div class="setting-control" style="flex-direction:column;gap:6px;align-items:stretch;">
+                <input type="password" class="token-input" placeholder="ghp_xxxxxxxxxxxx" .value=${this._githubTokenInput || ''} @input=${e => this._githubTokenInput = e.target.value} style="padding:8px;border:1px solid var(--divider-color);border-radius:8px;font-size:13px;background:var(--card-background-color);color:var(--primary-text-color);width:100%;box-sizing:border-box;" />
+                <button class="btn primary" style="font-size:11px;padding:4px 10px;align-self:flex-end;" @click=${this._githubVerifyToken} ?disabled=${this._githubVerifying}>${this._githubVerifying ? '验证中...' : '验证并保存'}</button>
+              </div>
+            </div>
+          `}
+          ${this._githubVerifyMsg ? html`<div style="font-size:12px;margin-top:4px;color:${this._githubVerifyOk ? 'var(--primary-color,#03a9f4)' : '#f44336'};">${this._githubVerifyMsg}</div>` : ''}
+        </div>
+
         </div> <!-- config-grid -->
         <div class="version">HACS Vision${this._version ? ` v${this._version}` : ''}</div>
       </div>
     `;
+  }
+
+  async _githubVerifyToken() {
+    if (!this._githubTokenInput?.trim()) {
+      this._githubVerifyMsg = '请输入 Token';
+      this._githubVerifyOk = false;
+      return;
+    }
+    this._githubVerifying = true;
+    this._githubVerifyMsg = '';
+    try {
+      const { showToast } = await import('../hacs-vision-panel.js');
+      const result = await api.verifyGitHubToken(this._githubTokenInput.trim());
+      if (result?.ok) {
+        this._githubUser = result.user;
+        this._githubTokenInput = '';
+        this._githubVerifyMsg = `已验证 ✅ 用户: ${result.user} (剩余 ${result.rate_limit_remaining}/5000 次/小时)`;
+        this._githubVerifyOk = true;
+        showToast(`GitHub 登录成功: ${result.user}`, 'success');
+      } else {
+        this._githubVerifyMsg = result?.error || '验证失败';
+        this._githubVerifyOk = false;
+      }
+    } catch(e) {
+      this._githubVerifyMsg = `验证失败: ${e.message}`;
+      this._githubVerifyOk = false;
+    }
+    this._githubVerifying = false;
+  }
+
+  async _githubLogout() {
+    try {
+      await api.verifyGitHubToken('');
+      this._githubUser = '';
+      this._githubVerifyMsg = '已登出';
+      this._githubVerifyOk = false;
+      const { showToast } = await import('../hacs-vision-panel.js');
+      showToast('已登出 GitHub', 'info');
+    } catch(e) { /* ignore */ }
   }
 
   async _export() {
