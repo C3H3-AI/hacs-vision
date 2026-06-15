@@ -206,9 +206,11 @@ class UpdatesView extends LitElement {
 
       /* ===== Filter bar (matches browse/integrations) ===== */
       .filter-bar {
-        display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
-        margin-bottom: 10px;
+        display: flex; align-items: center; gap: 6px;
+        margin-bottom: 10px; overflow-x: auto; flex-wrap: nowrap;
+        -webkit-overflow-scrolling: touch; scrollbar-width: none;
       }
+      .filter-bar::-webkit-scrollbar { display: none; }
       .filter-bar .chip {
         display: inline-flex; align-items: center; gap: 4px;
         padding: 5px 12px; border-radius: 16px; border: 1px solid var(--divider-color, #e0e0e0);

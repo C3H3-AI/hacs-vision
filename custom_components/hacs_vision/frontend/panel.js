@@ -682,7 +682,12 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
         resize: none;
       }
       .modal::after { display: none; }
-      .modal-header { padding: 16px 16px 0; }
+      .modal::before {
+        content: ''; display: block; width: 36px; height: 4px;
+        border-radius: 2px; background: var(--divider-color, #ccc);
+        margin: 8px auto 0; flex-shrink: 0;
+      }
+      .modal-header { padding: 8px 16px 0; }
       .modal-body { padding: 12px 16px 16px; padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px)); }
       .modal-actions { flex-direction: column; }
       .modal-btn { width: 100%; justify-content: center; min-height: 44px; }
@@ -2209,9 +2214,11 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
 
       /* ===== Filter bar (matches browse/integrations) ===== */
       .filter-bar {
-        display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
-        margin-bottom: 10px;
+        display: flex; align-items: center; gap: 6px;
+        margin-bottom: 10px; overflow-x: auto; flex-wrap: nowrap;
+        -webkit-overflow-scrolling: touch; scrollbar-width: none;
       }
+      .filter-bar::-webkit-scrollbar { display: none; }
       .filter-bar .chip {
         display: inline-flex; align-items: center; gap: 4px;
         padding: 5px 12px; border-radius: 16px; border: 1px solid var(--divider-color, #e0e0e0);
