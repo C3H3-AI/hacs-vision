@@ -970,7 +970,7 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
         this._configFlowDomain = '';
         this._configFlowEntryId = null;
       }
-    }, 8000);
+    }, 300000);
   }
 
   _clearFlowTimeout() {
