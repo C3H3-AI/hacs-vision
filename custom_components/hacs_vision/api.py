@@ -162,7 +162,10 @@ class HACSEnhancedAPI(HomeAssistantView):
         """Verify and store a GitHub personal access token."""
         token = body.get("token", "").strip()
         if not token:
-            return web.json_response({"error": "token_required"}, status=400)
+            # Empty token = logout: clear stored token
+            await self.data.async_save("github_token", {})
+            self._github_token = None
+            return web.json_response({"ok": True, "logout": True})
         # Verify by calling GitHub user API
         headers = {"Authorization": f"Bearer {token}", "Accept": "application/vnd.github.v3+json"}
         try:
@@ -186,8 +189,12 @@ class HACSEnhancedAPI(HomeAssistantView):
         return web.json_response({"ok": True, "user": login, "rate_limit_remaining": remaining})
 
     async def _github_user(self) -> web.Response:
-        """Get current GitHub user info."""
-        token = await self._get_active_github_token()
+        """Get current GitHub user info — ONLY from vision-stored token, not HACS fallback."""
+        try:
+            data = await self.data.async_load("github_token")
+            token = (data or {}).get("token")
+        except Exception:
+            token = None
         if not token:
             return web.json_response({"error": "not_authenticated"}, status=401)
         headers = {"Authorization": f"Bearer {token}", "Accept": "application/vnd.github.v3+json"}

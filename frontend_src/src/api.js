@@ -259,8 +259,10 @@ class HACSEnhancedAPI {
     };
     try {
       const resp = await fetch(`${API_BASE}${path}`, opts);
+      const data = await resp.json().catch(() => ({}));
       if (!resp.ok) {
-        const err = new Error(`API error: ${resp.status}`);
+        const msg = data?.error || data?.message || `API error: ${resp.status}`;
+        const err = new Error(msg);
         err.status = resp.status;
         if (this._onNetworkStatus) {
           if (resp.status === 429) this._onNetworkStatus('rate_limited');
@@ -269,7 +271,7 @@ class HACSEnhancedAPI {
         throw err;
       }
       if (this._onNetworkStatus) this._onNetworkStatus('online');
-      return resp.json();
+      return data;
     } catch(e) {
       if (!navigator.onLine && this._onNetworkStatus) {
         this._onNetworkStatus('offline');
