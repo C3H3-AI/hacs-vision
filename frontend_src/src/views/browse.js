@@ -75,6 +75,7 @@ class BrowseView extends LitElement {
     pendingRestart: { type: Number },
     _selectedRepos: { type: Array, state: true },
     _tagFilters: { type: Array, state: true },
+    _starredMap: { type: Object, state: true },
   };
 
   constructor() {
@@ -105,6 +106,7 @@ class BrowseView extends LitElement {
     this._addRepoInstalling = false;
     this._collapsedGroups = {};
     this._filterExpanded = false;
+    this._starredMap = {};
     this._favorites = [];
     this._selectedRepos = [];
     this._tagFilters = [];
@@ -382,6 +384,8 @@ class BrowseView extends LitElement {
     }
     .action-sm:hover { border-color: var(--primary-color); color: var(--primary-color); }
     .action-sm.primary { background: var(--primary-color); border-color: var(--primary-color); color: #fff; }
+    .action-sm.star-btn { padding: 4px 6px; min-width: 28px; display: inline-flex; align-items: center; justify-content: center; }
+    .action-sm.star-btn.starred { background: rgba(255,152,0,0.1); border-color: #ff9800; }
 
     /* ===== Group Headers ===== */
     .group-header {
@@ -513,6 +517,12 @@ class BrowseView extends LitElement {
     // Card 'detail' events bubble directly to hacs-vision-panel (composed:true)
     this.addEventListener('configure', (e) => this._handleConfigure(e.detail.repo));
     this.addEventListener('add-integration', (e) => this._handleAddIntegration(e.detail.repo));
+    this.addEventListener('star-changed', (e) => {
+      const { repo, starred } = e.detail;
+      if (repo?.full_name) {
+        this._starredMap = { ...this._starredMap, [repo.full_name]: starred };
+      }
+    });
     this.addEventListener('favorite', (e) => {
       // Update local favorites list from card's toggle result (no extra API call)
       const { isFavorite, repo } = e.detail;
@@ -578,6 +588,23 @@ class BrowseView extends LitElement {
       sort: this.sort, sortDir: this.sortDir, page: this.page, groupBy: this.groupBy,
       pageSize: this.pageSize,
     });
+  }
+
+  async _toggleStar(repo) {
+    const fullName = repo.full_name;
+    if (!fullName) return;
+    const currently = this._starredMap?.[fullName];
+    try {
+      if (currently) {
+        await api.unstarRepo(fullName);
+        this._starredMap = { ...this._starredMap, [fullName]: false };
+      } else {
+        await api.starRepo(fullName);
+        this._starredMap = { ...this._starredMap, [fullName]: true };
+      }
+    } catch(e) {
+      showToast(`Star 失败: ${e.message}`, 'error');
+    }
   }
 
   async _handleInstall(repo) {
@@ -1108,6 +1135,11 @@ class BrowseView extends LitElement {
         <td class="ver-cell col-installed-at">${r.installed_at ? this._formatDate(r.installed_at) : '-'}</td>
         <td class="status-cell col-status">${this._getStatusBadge(status)}</td>
         <td class="actions-cell">
+          <button class="action-sm star-btn ${this._starredMap?.[r.full_name] ? 'starred' : ''}"
+            @click=${e => { e.stopPropagation(); this._toggleStar(r); }}
+            title=${this._starredMap?.[r.full_name] ? t('unstar') || '取消星标' : t('star') || '星标'}>
+            <svg viewBox="0 0 20 20" fill="${this._starredMap?.[r.full_name] ? '#ff9800' : 'none'}" stroke="#ff9800" stroke-width="1.5" width="12" height="12" style="vertical-align:middle;"><path d="M10 1l2.39 4.84L17.6 6.7l-3.8 3.71.9 5.26L10 13.27l-4.7 2.46.9-5.26L2.4 6.7l5.2-.86L10 1z"/></svg>
+          </button>
           ${isInstalled ? html`
             ${isUpdateAvailable ? html`<button class="action-sm primary" @click=${e => { e.stopPropagation(); this._handleUpdate(r); }}>${t('update')}</button>` : ''}
           ` : html`

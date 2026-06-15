@@ -7,6 +7,8 @@ class RepoCard extends LitElement {
   static properties = {
     repo: { type: Object },
     _isFavorite: { type: Boolean, state: true },
+    _starred: { type: Boolean, state: true },
+    _starring: { type: Boolean, state: true },
     _installing: { type: Boolean },
     _updating: { type: Boolean, state: true },
     _removing: { type: Boolean, state: true },
@@ -22,6 +24,8 @@ class RepoCard extends LitElement {
     super();
     this.repo = {};
     this._isFavorite = false;
+    this._starred = false;
+    this._starring = false;
     this._installing = false;
     this._updating = false;
     this._removing = false;
@@ -237,6 +241,8 @@ class RepoCard extends LitElement {
     .action-btn.readme-btn:hover { background: var(--primary-color, #03a9f4); color: #fff; }
     .action-btn svg { width: 16px; height: 16px; flex-shrink: 0; }
     .action-btn .label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .action-btn.star-btn { flex: 0 0 auto; min-width: auto; padding: 8px 10px; }
+    .action-btn.star-btn.starred { background: rgba(255,152,0,0.1); border-color: #ff9800; color: #ff9800; }
 
     .action-btn.installing {
       opacity: 0.7; cursor: not-allowed;
@@ -337,6 +343,32 @@ class RepoCard extends LitElement {
     }));
   }
 
+  async _handleStar(e) {
+    e.stopPropagation();
+    if (this._starring) return;
+    this._starring = true;
+    const repo = this.repo.full_name;
+    if (!repo) { this._starring = false; return; }
+    try {
+      if (this._starred) {
+        await api.unstarRepo(repo);
+        this._starred = false;
+      } else {
+        await api.starRepo(repo);
+        this._starred = true;
+      }
+      // Dispatch event for list view sync
+      this.dispatchEvent(new CustomEvent('star-changed', {
+        detail: { repo: this.repo, starred: this._starred },
+        bubbles: true, composed: true,
+      }));
+    } catch(e) {
+      const { showToast } = await import('../hacs-vision-panel.js');
+      showToast(`Star 失败: ${e.message}`, 'error');
+    }
+    this._starring = false;
+  }
+
   async _handleFavorite(e) {
     e.stopPropagation();
     const repoId = this.repo.id || this.repo.full_name;
@@ -368,6 +400,21 @@ class RepoCard extends LitElement {
       detail: { repo: this.repo },
       bubbles: true, composed: true,
     }));
+  }
+
+  updated(changed) {
+    if (changed.has('repo') && this.repo?.full_name) {
+      this._checkStarred();
+    }
+  }
+
+  async _checkStarred() {
+    try {
+      const result = await api.checkStarred(this.repo.full_name);
+      if (result?.starred === true || result?.starred === false) {
+        this._starred = result.starred;
+      }
+    } catch(e) { /* not logged in or network error */ }
   }
 
   render() {
@@ -487,6 +534,16 @@ class RepoCard extends LitElement {
           <button class="action-btn readme-btn" @click=${e => this._handleAction(e, 'readme')} title="README">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
           </button>
+          ` : ''}
+          ${this.viewMode === 'store' ? html`
+            <button class="action-btn star-btn ${this._starred ? 'starred' : ''}"
+              @click=${this._handleStar} ?disabled=${this._starring}
+              title=${this._starred ? t('unstar') || '取消星标' : t('star') || '星标'}>
+              ${this._starring
+                ? html`<svg class="mini-icon spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>`
+                : html`<svg viewBox="0 0 20 20" fill="${this._starred ? '#ff9800' : 'none'}" stroke="#ff9800" stroke-width="1.5"><path d="M10 1l2.39 4.84L17.6 6.7l-3.8 3.71.9 5.26L10 13.27l-4.7 2.46.9-5.26L2.4 6.7l5.2-.86L10 1z"/></svg>`}
+              <span class="label">${this._starred ? (t('starred') || '已星标') : (t('starBtn') || '星标')}</span>
+            </button>
           ` : ''}
           ${isInstalled ? html`
             ${isUpdateAvailable ? html`
