@@ -333,8 +333,6 @@ class HACSData:
                         supports_options = entry.supports_options
                 except Exception:
                     pass
-                if entry_state and "NOT_LOADED" in entry_state:
-                    continue
                 result.append({
                     "domain": entry.domain,
                     "entry_id": entry.entry_id,
