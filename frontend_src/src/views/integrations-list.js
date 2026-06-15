@@ -650,6 +650,10 @@ class IntegrationsList extends LitElement {
   }
 
   /* ─── Status filter chip counts ─── */
+  get _chipColors() {
+    return { loaded: '#4caf50', failed: '#f44336', disabled: '#9e9e9e', 'not-loaded': '#ff9800' };
+  }
+
   get _chipCounts() {
     const counts = { all: 0, loaded: 0, failed: 0, disabled: 0, 'not-loaded': 0 };
     const seen = {};
@@ -707,10 +711,6 @@ class IntegrationsList extends LitElement {
               <button class="view-toggle-btn ${this._viewMode === 'card' ? 'active' : ''}" @click=${() => this._setViewMode('card')} title="${t('viewCard')}">${t('viewCard')}</button>
               <button class="view-toggle-btn ${this._viewMode === 'list' ? 'active' : ''}" @click=${() => this._setViewMode('list')} title="${t('viewList')}">${t('viewList')}</button>
             </div>
-            <button class="sort-btn" @click=${() => this._cycleSort()} title="${t('sortBy') || '排序'}">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M3 9l4-4 4 4M7 5v14"/><path d="M21 15l-4 4-4-4M17 19V5"/></svg>
-              <span class="sort-label">${this._sortLabel(this._sortBy)}</span>
-            </button>
             <button class="action-btn primary" @click=${this._openAddDialog}>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
               ${t('addHAIntegration')}
@@ -727,10 +727,17 @@ class IntegrationsList extends LitElement {
         <!-- Filter chips -->
         <div class="filter-bar">
           ${['all','loaded','failed','disabled','not-loaded'].map(key => html`
-            <button class="chip ${this._statusFilter === key ? 'chip-active' : ''} chip-${key}"
+            <button class="filter-chip ${this._statusFilter === key ? 'active' : ''}" style="${key !== 'all' ? `border-color:${this._chipColors[key] || '#999'}` : ''}${key !== 'all' && this._statusFilter === key ? `;background:${this._chipColors[key] || '#999'}20` : ''}"
               @click=${() => { this._statusFilter = key; }}>
               <span class="chip-label">${key === 'all' ? t('filterAll') : key === 'loaded' ? t('filterLoaded') : key === 'failed' ? t('filterFailed') : key === 'disabled' ? t('filterDisabled') : t('filterNotLoaded')}</span>
               <span class="chip-count">${cc[key] ?? 0}</span>
+            </button>
+          `)}
+          <span class="fs-divider"></span>
+          <span class="fs-label">${t('sort') || '排序'}</span>
+          ${[{key:'name',label:t('sortByName')},{key:'entries',label:t('sortByEntries')},{key:'status',label:t('filterStatus')}].map(s => html`
+            <button class="filter-chip sort-inline ${this._sortBy === s.key ? 'active' : ''}" @click=${() => this._setSortBy(s.key)}>
+              ${s.label}${this._sortBy === s.key ? html`<span class="sort-dir">${s.key === 'name' ? 'A-Z' : ''}</span>` : ''}
             </button>
           `)}
         </div>
@@ -1103,12 +1110,6 @@ class IntegrationsList extends LitElement {
     }
     .action-btn.primary:hover { opacity: 0.9; }
 
-    /* ===== Filter Chips ===== */
-    .filter-bar {
-      display: flex; gap: 8px; margin-bottom: 16px;
-      flex-wrap: wrap;
-    }
-
     /* ===== View Toggle ===== */
     .view-toggle {
       display: inline-flex; border: 1px solid var(--divider-color);
@@ -1125,17 +1126,25 @@ class IntegrationsList extends LitElement {
     .view-toggle-btn.active { background: var(--primary-color); color: #fff; }
     .view-toggle-btn:hover:not(.active) { color: var(--primary-color); }
 
-    /* ===== Sort Button ===== */
-    .sort-btn {
-      display: inline-flex; align-items: center; gap: 4px;
-      padding: 6px 10px; border: 1px solid var(--divider-color);
-      border-radius: 8px; background: var(--card-background-color);
-      color: var(--secondary-text-color); cursor: pointer;
-      font-size: 12px; min-height: 36px; white-space: nowrap;
-      transition: all 0.2s; touch-action: manipulation;
+    /* ===== Filter/Sort row (matching browse.js style) ===== */
+    .filter-bar {
+      display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
+      padding: 6px 0; margin-bottom: 8px;
     }
-    .sort-btn:hover { border-color: var(--primary-color); color: var(--primary-color); }
-    .sort-label { font-size: 11px; }
+    .fs-divider {
+      width: 1px; height: 20px; background: var(--divider-color); flex-shrink: 0; margin: 0 2px;
+    }
+    .fs-label {
+      font-size: 11px; color: var(--secondary-text-color); font-weight: 500; white-space: nowrap;
+    }
+    .filter-chip {
+      padding: 4px 10px; border-radius: 14px; border: 1px solid var(--divider-color);
+      background: var(--card-background-color); color: var(--secondary-text-color);
+      cursor: pointer; font-size: 11px; transition: all 0.2s; white-space: nowrap; touch-action: manipulation;
+    }
+    .filter-chip:hover { border-color: var(--primary-color); color: var(--primary-color); }
+    .filter-chip.active { background: var(--primary-color); color: #fff; border-color: var(--primary-color); }
+    .sort-dir { font-size: 9px; margin-left: 2px; opacity: 0.7; }
 
     /* ===== List View ===== */
     .integrations-list {
@@ -1181,23 +1190,6 @@ class IntegrationsList extends LitElement {
     .list-action-btn:hover { border-color: var(--primary-color); color: var(--primary-color); }
     .list-action-btn.reload:hover { border-color: #ff9800; color: #ff9800; }
     .list-action-btn:disabled { opacity: 0.4; cursor: not-allowed; }
-    .chip {
-      display: inline-flex; align-items: center; gap: 4px;
-      padding: 5px 12px; border-radius: 16px; border: 1px solid var(--divider-color, #e0e0e0);
-      background: var(--card-background-color, #fff);
-      color: var(--secondary-text-color); cursor: pointer;
-      font-size: 12px; white-space: nowrap;
-      transition: all 0.2s; touch-action: manipulation; user-select: none;
-    }
-    .chip:hover { border-color: var(--primary-color, #03a9f4); }
-    .chip-active {
-      border-color: var(--primary-color, #03a9f4);
-      background: rgba(var(--rgb-primary-color, 3,169,244), 0.06);
-    }
-    .chip-active.chip-loaded { border-color: #4caf50; background: rgba(76,175,80,0.08); }
-    .chip-active.chip-failed { border-color: #f44336; background: rgba(244,67,54,0.08); }
-    .chip-active.chip-disabled { border-color: #9e9e9e; background: rgba(158,158,158,0.1); }
-    .chip-active.chip-not-loaded { border-color: #ff9800; background: rgba(255,152,0,0.08); }
     .chip-label { color: var(--primary-text-color); }
     .chip-count {
       font-size: 11px; padding: 1px 7px; border-radius: 10px;
@@ -1647,7 +1639,7 @@ class IntegrationsList extends LitElement {
       .avatar { width: 44px; height: 44px; font-size: 20px; }
       .card-footer .footer-btn { min-height: 44px; font-size: 12px; }
       .card-footer .footer-btn .btn-label { display: inline; }
-      .chip { font-size: 11px; padding: 4px 10px; }
+      .filter-chip { font-size: 10px; padding: 3px 8px; }
       .detail-overlay { padding: 12px; }
       .modal { max-width: 100%; max-height: 92vh; }
       /* Tree mobile */
