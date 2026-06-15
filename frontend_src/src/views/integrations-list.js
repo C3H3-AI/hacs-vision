@@ -578,11 +578,8 @@ class IntegrationsList extends LitElement {
     return this._domainNames?.[domain] || domain;
   }
 
-  _iotLabel(iotClass) {
-    if (!iotClass) return '';
-    // Show cloud icon for integrations that need internet
-    if (iotClass === 'cloud_polling') return '☁';
-    return '';
+  _needsCloud(iotClass) {
+    return iotClass === 'cloud_polling';
   }
 
   _onSortColumn(key) {
@@ -901,8 +898,12 @@ class IntegrationsList extends LitElement {
             ${this._renderAvatar(domain)}
             ${st !== 'loaded' ? html`<span class="img-status-badge state-${st}">${this._groupLabel(st)}</span>` : ''}
             <div class="img-badges">
-              ${entry0?.is_custom ? html`<span class="img-badge custom-badge">${t('customBadge') || '自定义'}</span>` : ''}
-              ${this._iotLabel(entry0?.iot_class) ? html`<span class="img-badge iot-badge">${this._iotLabel(entry0?.iot_class)}</span>` : ''}
+              ${entry0?.is_custom ? html`<span class="img-badge custom-badge" title="${t('customBadge') || '自定义'}">
+                <svg viewBox="0 0 24 24" fill="currentColor" width="12" height="12"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+              </span>` : ''}
+              ${this._needsCloud(entry0?.iot_class) ? html`<span class="img-badge cloud-badge" title="${t('cloud') || '需要互联网'}">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9z"/></svg>
+              </span>` : ''}
             </div>
           </div>
 
@@ -1361,11 +1362,11 @@ class IntegrationsList extends LitElement {
       display: flex; gap: 3px;
     }
     .img-badge {
-      padding: 1px 6px; border-radius: 4px;
-      font-size: 9px; font-weight: 600; color: #fff; line-height: 1.5;
+      width: 18px; height: 18px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
     }
-    .img-badge.custom-badge { background: #9c27b0; }
-    .img-badge.iot-badge { background: rgba(0,0,0,0.45); font-size: 10px; padding: 1px 4px; }
+    .img-badge.custom-badge { background: #9c27b0; color: #fff; }
+    .img-badge.cloud-badge { background: rgba(0,0,0,0.4); color: #fff; }
 
     /* Category badge at top-left */
     .category-badge {
