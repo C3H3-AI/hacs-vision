@@ -242,21 +242,33 @@ class IntegrationsList extends LitElement {
   }
 
   _onConfigure(entry, group) {
-    // Open configure options for an entry
-    if (group.entries.length > 1 || entry.supported_subentry_types) {
-      // Multiple entries or subentries → show dropdown to pick entry
-      this._configMenuFor = this._configMenuFor?.domain === group.domain ? null : { domain: group.domain, entries: group.entries, mode: 'configure' };
+    // Single entry → open options/subentry config directly
+    if (group.entries.length === 1) {
+      this._closeDetail();
+      this.dispatchEvent(new CustomEvent('configure-integration', {
+        bubbles: true, composed: true,
+        detail: { domain: entry.domain, entry_id: entry.entry_id },
+      }));
       return;
     }
-    this._closeDetail();
-    this.dispatchEvent(new CustomEvent('configure-integration', {
-      bubbles: true, composed: true,
-      detail: { domain: entry.domain, entry_id: entry.entry_id },
-    }));
+    // Multiple entries → show dropdown to pick which entry to configure
+    this._configMenuFor = this._configMenuFor?.domain === group.domain ? null : { domain: group.domain, entries: group.entries, mode: 'configure' };
   }
 
   _onAddEntry(domain) {
-    // Start new config flow to add another device/entry
+    // Check if any existing entry for this domain has subentry types → open subentry dialog
+    const existing = this.configEntries.filter(e => e.domain === domain);
+    const hasSubentry = existing.some(e => e.supported_subentry_types?.length > 0);
+    if (hasSubentry && existing.length > 0) {
+      this._closeDetail();
+      // Open options flow on first entry → config flow dialog handles subentry selection
+      this.dispatchEvent(new CustomEvent('configure-integration', {
+        bubbles: true, composed: true,
+        detail: { domain, entry_id: existing[0].entry_id },
+      }));
+      return;
+    }
+    // Normal case: start new config flow
     this._closeDetail();
     this.dispatchEvent(new CustomEvent('add-integration', {
       bubbles: true, composed: true,
@@ -266,16 +278,12 @@ class IntegrationsList extends LitElement {
 
   _menuSelectEntry(entry) {
     this._configMenuFor = null;
-    if (entry.supports_options) {
-      this._configureEntry(entry, { stopPropagation: () => {} });
-    } else {
-      // Fallback: start new config flow
-      this._closeDetail();
-      this.dispatchEvent(new CustomEvent('add-integration', {
-        bubbles: true, composed: true,
-        detail: { domain: entry.domain },
-      }));
-    }
+    // Always open with entry_id for configure
+    this._closeDetail();
+    this.dispatchEvent(new CustomEvent('configure-integration', {
+      bubbles: true, composed: true,
+      detail: { domain: entry.domain, entry_id: entry.entry_id },
+    }));
   }
 
   _addIntegration(domain) {
