@@ -2421,6 +2421,9 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
           `:""}
         </div>
         <div class="controls-right">
+          <button class="refresh-btn" @click=${this._load} title="${ge("refreshTitle")}">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
+          </button>
           ${this.updates.length>0?H`
             <button class="update-all-btn" @click=${this._updateAll} ?disabled=${this.updating||0===this.updates.length}>
               <svg class="mini-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg> ${this.updating?ge("updatingProgress"):ge("updateAllNow")}
@@ -2431,9 +2434,6 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
               </button>
             `:""}
           `:""}
-          <button class="refresh-btn" @click=${this._load} title="${ge("refreshTitle")}">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
-          </button>
           <div class="view-toggle">
             <button class="view-toggle-btn ${"card"===this._viewMode?"active":""}" @click=${()=>this._setViewMode("card")} title="${ge("viewCard")}">${ge("viewCard")}</button>
             <button class="view-toggle-btn ${"list"===this._viewMode?"active":""}" @click=${()=>this._setViewMode("list")} title="${ge("viewList")}">${ge("viewList")}</button>
