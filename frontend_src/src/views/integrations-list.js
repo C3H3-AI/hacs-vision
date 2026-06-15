@@ -128,6 +128,8 @@ class IntegrationsList extends LitElement {
         names[e.domain] = e.translated_name || e.domain;
       }
       this._domainNames = names;
+      // Pre-load flow handlers for add-button visibility
+      this._loadHandlers();
     } catch(e) {
       console.error('Failed to load config entries:', e);
       showToast(t('loadFailed'), 'error');
@@ -239,23 +241,27 @@ class IntegrationsList extends LitElement {
     this._handlerSearch = '';
   }
 
-  _configureCardEntry(entry, group) {
+  _onConfigure(entry, group) {
+    // Open configure options for an entry
     if (group.entries.length > 1 || entry.supported_subentry_types) {
-      // Multiple entries or subentry types → show dropdown
-      this._configMenuFor = this._configMenuFor?.domain === group.domain ? null : { domain: group.domain, entries: group.entries };
+      // Multiple entries or subentries → show dropdown to pick entry
+      this._configMenuFor = this._configMenuFor?.domain === group.domain ? null : { domain: group.domain, entries: group.entries, mode: 'configure' };
       return;
     }
-    // Single entry
-    if (entry.supports_options) {
-      this._configureEntry(entry, { stopPropagation: () => {} });
-    } else {
-      // No options flow → start new config flow to add another device/entry
-      this._closeDetail();
-      this.dispatchEvent(new CustomEvent('add-integration', {
-        bubbles: true, composed: true,
-        detail: { domain: entry.domain },
-      }));
-    }
+    this._closeDetail();
+    this.dispatchEvent(new CustomEvent('configure-integration', {
+      bubbles: true, composed: true,
+      detail: { domain: entry.domain, entry_id: entry.entry_id },
+    }));
+  }
+
+  _onAddEntry(domain) {
+    // Start new config flow to add another device/entry
+    this._closeDetail();
+    this.dispatchEvent(new CustomEvent('add-integration', {
+      bubbles: true, composed: true,
+      detail: { domain },
+    }));
   }
 
   _menuSelectEntry(entry) {
@@ -263,7 +269,7 @@ class IntegrationsList extends LitElement {
     if (entry.supports_options) {
       this._configureEntry(entry, { stopPropagation: () => {} });
     } else {
-      // No options → start new config flow to add another device/entry
+      // Fallback: start new config flow
       this._closeDetail();
       this.dispatchEvent(new CustomEvent('add-integration', {
         bubbles: true, composed: true,
@@ -660,6 +666,8 @@ class IntegrationsList extends LitElement {
       domain, entries,
       _state: this._groupState(entries),
       _supports_options: entries.some(e => e.supports_options),
+      _has_subentry: entries.some(e => e.supported_subentry_types?.length > 0),
+      _can_add: this._handlers.some(h => h.domain === domain),
     }));
     // Filter by status
     if (this._statusFilter !== 'all') {
@@ -841,9 +849,16 @@ class IntegrationsList extends LitElement {
           ${multiEntry ? html`<span class="list-entry-count">${entries.length} ${t('entryCount')}</span>` : ''}
         </span>
         <span class="list-row-actions">
-          <button class="list-action-btn" @click=${e => { e.stopPropagation(); this._configureEntry(entry0 || entries[0], e); }} title="${t('configureEntry')}">
+          ${group._supports_options || group._has_subentry ? html`
+          <button class="list-action-btn" @click=${e => { e.stopPropagation(); this._onConfigure(entry0 || entries[0], group); }} title="${t('configureEntry')}">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
           </button>
+          ` : ''}
+          ${group._can_add ? html`
+          <button class="list-action-btn add" @click=${e => { e.stopPropagation(); this._onAddEntry(domain); }} title="${t('addIntegration') || '添加'}">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          </button>
+          ` : ''}
           <button class="list-action-btn reload" @click=${e => { e.stopPropagation(); this._reloadEntry(entry0 || entries[0], e); }} title="${t('reloadEntry')}" ?disabled=${anyProcessing}>
             ${this._reloading[entry0?.entry_id || ''] ? '⋯' : html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M1 4v6h6M23 20v-6h-6"/><path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"/></svg>`}
           </button>
@@ -883,18 +898,27 @@ class IntegrationsList extends LitElement {
 
         <div class="card-footer" @click=${e => e.stopPropagation()}>
           <div class="footer-left">
-            <button class="footer-btn configure" @click=${() => this._configureCardEntry(entry0 || entries[0], group)}
+            ${group._supports_options || group._has_subentry ? html`
+            <button class="footer-btn configure" @click=${() => this._onConfigure(entry0 || entries[0], group)}
               title="${t('configureEntry')}" ?disabled=${anyProcessing}>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-              <span class="btn-label">${t('configure') || '配置'}${multiEntry || entries[0]?.supported_subentry_types ? html`<span class="config-arrow">▾</span>` : ''}</span>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+              <span class="btn-label">${t('configure') || '配置'}${multiEntry || entry0?.supported_subentry_types ? html`<span class="config-arrow">▾</span>` : ''}</span>
             </button>
-            ${this._configMenuFor?.domain === domain ? html`
+            ` : ''}
+            ${group._can_add ? html`
+            <button class="footer-btn add-entry" @click=${() => this._onAddEntry(domain)}
+              title="${t('addIntegration') || '添加设备'}" ?disabled=${anyProcessing}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              <span class="btn-label">${t('add') || '添加'}</span>
+            </button>
+            ` : ''}
+            ${this._configMenuFor?.domain === domain && this._configMenuFor?.mode === 'configure' ? html`
             <div class="config-dropdown">
               ${entries.map(e => html`
                 <button class="config-dropdown-item" @click=${() => this._menuSelectEntry(e)}>
                   <span class="dd-icon">${e.domain}</span>
                   <span class="dd-label">${e.title || e.entry_id.substring(0,8)}</span>
-                  ${e.supports_options ? html`<span class="dd-badge">${t('configure')}</span>` : html`<span class="dd-badge add">+${t('add') || '添加'}</span>`}
+                  ${e.supports_options ? html`<span class="dd-badge">${t('configure')}</span>` : ''}
                   ${e.supported_subentry_types ? html`<span class="dd-badge sub">+${e.supported_subentry_types.length}</span>` : ''}
                 </button>
               `)}
@@ -1248,6 +1272,7 @@ class IntegrationsList extends LitElement {
       transition: all 0.15s;
     }
     .list-action-btn:hover { border-color: var(--primary-color); color: var(--primary-color); }
+    .list-action-btn.add:hover { border-color: #4caf50; color: #4caf50; }
     .list-action-btn.reload:hover { border-color: #ff9800; color: #ff9800; }
     .list-action-btn:disabled { opacity: 0.4; cursor: not-allowed; }
     .chip-label { color: var(--primary-text-color); }
@@ -1366,6 +1391,7 @@ class IntegrationsList extends LitElement {
     }
     .card-footer .footer-btn:disabled { opacity: 0.35; cursor: not-allowed; }
     .card-footer .footer-btn.configure:hover { border-color: #2196f3; color: #2196f3; }
+    .card-footer .footer-btn.add-entry:hover { border-color: #4caf50; color: #4caf50; }
     .card-footer .footer-btn.reload:hover { border-color: #ff9800; color: #ff9800; }
     .card-footer .footer-btn.remove:hover { border-color: #f44336; color: #f44336; }
     .card-footer .footer-btn svg { width: 13px; height: 13px; flex-shrink: 0; }
