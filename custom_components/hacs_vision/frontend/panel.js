@@ -1522,7 +1522,7 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
     }
     .search-history-item {
       display: flex; align-items: center; gap: 8px; padding: 8px 12px;
-      cursor: pointer; transition: background 0.1s;
+      cursor: pointer; transition: background 0.1s; color: var(--primary-text-color);
     }
     .search-history-item:hover { background: var(--secondary-background-color, #f5f5f5); }
     .history-text { flex: 1; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
