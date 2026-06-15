@@ -1418,7 +1418,7 @@ class IntegrationsList extends LitElement {
     .footer-left { display: flex; align-items: stretch; gap: 4px; position: relative; }
     .footer-right { display: flex; align-items: stretch; gap: 4px; }
     .card-footer .footer-btn {
-      min-width: 0;
+      flex: 1; min-width: 0;
       padding: 7px 10px; border-radius: 8px;
       font-size: 11px; font-weight: 500;
       border: 1px solid var(--divider-color, #e0e0e0);
