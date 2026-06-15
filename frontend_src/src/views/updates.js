@@ -720,6 +720,10 @@ class UpdatesView extends LitElement {
           <button class="refresh-btn" @click=${this._load} title="${t('refreshTitle')}">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
           </button>
+          <div class="view-toggle">
+            <button class="view-toggle-btn ${this._viewMode === 'card' ? 'active' : ''}" @click=${() => this._setViewMode('card')} title="${t('viewCard')}">${t('viewCard')}</button>
+            <button class="view-toggle-btn ${this._viewMode === 'list' ? 'active' : ''}" @click=${() => this._setViewMode('list')} title="${t('viewList')}">${t('viewList')}</button>
+          </div>
           ${this.updates.length > 0 ? html`
             <button class="update-all-btn" @click=${this._updateAll} ?disabled=${this.updating || this.updates.length === 0}>
               <svg class="mini-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg> ${this.updating ? t('updatingProgress') : t('updateAllNow')}
@@ -730,10 +734,6 @@ class UpdatesView extends LitElement {
               </button>
             ` : ''}
           ` : ''}
-          <div class="view-toggle">
-            <button class="view-toggle-btn ${this._viewMode === 'card' ? 'active' : ''}" @click=${() => this._setViewMode('card')} title="${t('viewCard')}">${t('viewCard')}</button>
-            <button class="view-toggle-btn ${this._viewMode === 'list' ? 'active' : ''}" @click=${() => this._setViewMode('list')} title="${t('viewList')}">${t('viewList')}</button>
-          </div>
           <label class="sel-all-label">
             <input type="checkbox" class="checkbox-sm" .checked=${this._isAllSelected()}
                    @click=${e => e.stopPropagation()} @change=${this._toggleSelectAll}>
