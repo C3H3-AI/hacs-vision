@@ -21,6 +21,7 @@ class UpdatesView extends LitElement {
     _viewMode: { type: String, state: true },
     _favs: { type: Object, state: true },
     _categoryFilter: { type: String, state: true },
+    _updateProgress: { type: Object, state: true },
   };
 
   constructor() {
@@ -39,6 +40,7 @@ class UpdatesView extends LitElement {
     this._selectedRepos = [];
     this._batchMode = false;
     this._favs = {};
+    this._updateProgress = null;
     const saved = (() => { try { return localStorage.getItem('hacs_vision_view_mode'); } catch { return null; } })();
     this._viewMode = saved || 'card';
   }
@@ -357,6 +359,25 @@ class UpdatesView extends LitElement {
       }
       .batch-bar-btn:hover { background: rgba(255,255,255,0.35); }
       .batch-bar-btn.danger { border-color: #ff5252; color: #ff5252; }
+
+      /* Progress bar for batch update */
+      .update-progress {
+        padding: 8px 12px; margin: 6px 0;
+        display: flex; align-items: center; gap: 10px;
+      }
+      .progress-track {
+        flex: 1; height: 6px; border-radius: 3px;
+        background: var(--divider-color, #e0e0e0); overflow: hidden;
+      }
+      .progress-fill {
+        height: 100%; border-radius: 3px;
+        background: var(--primary-color, #03a9f4);
+        transition: width 0.3s ease;
+      }
+      .progress-label {
+        font-size: 12px; color: var(--secondary-text-color);
+        white-space: nowrap; flex-shrink: 0;
+      }
     `
   ];
 
@@ -433,7 +454,7 @@ class UpdatesView extends LitElement {
     }
   }
 
-  /* "Update Selected" — updates only checked repos */
+  /* "Update Selected" — updates only checked repos with progress */
   async _updateSelected() {
     const ids = Object.keys(this._selectedIds).filter(k => this._selectedIds[k]);
     if (ids.length === 0) return;
@@ -444,19 +465,28 @@ class UpdatesView extends LitElement {
     });
     if (!confirmed) return;
     this.updating = true;
+    this._updateProgress = { current: 0, total: ids.length, currentName: '' };
     try {
-      await api.update(ids);
+      for (const rid of ids) {
+        const repo = this.updates.find(r => (r.id || r.full_name) === rid);
+        this._updateProgress = { ...this._updateProgress, currentName: repo?.name || repo?.full_name || rid };
+        this.requestUpdate();
+        await api.update([rid]);
+        this._updateProgress = { ...this._updateProgress, current: this._updateProgress.current + 1 };
+      }
       showToast(`${t('allUpdatesStarted')} (${ids.length})`, 'success');
       this._selectedIds = {};
+      this._updateProgress = null;
       this._load();
       this.dispatchEvent(new CustomEvent('refresh-stats', { bubbles: true, composed: true }));
     } catch(e) {
       showToast(`${t('updateFailed')}: ${e.message}`, 'error');
+      this._updateProgress = null;
     }
     this.updating = false;
   }
 
-  /* "Update All" — updates ALL repos without requiring selection */
+  /* "Update All" — updates ALL repos with real-time progress */
   async _updateAll() {
     const allIds = this.updates.map(r => r.id || r.full_name);
     if (allIds.length === 0) return;
@@ -467,14 +497,23 @@ class UpdatesView extends LitElement {
     });
     if (!confirmed) return;
     this.updating = true;
+    this._updateProgress = { current: 0, total: allIds.length, currentName: '' };
     try {
-      await api.update(allIds);
+      for (const repo of this.updates) {
+        const rid = repo.id || repo.full_name;
+        this._updateProgress = { ...this._updateProgress, currentName: repo.name || repo.full_name };
+        this.requestUpdate();
+        await api.update([rid]);
+        this._updateProgress = { ...this._updateProgress, current: this._updateProgress.current + 1 };
+      }
       showToast(`${t('allUpdatesStarted')} (${allIds.length})`, 'success');
       this._selectedIds = {};
+      this._updateProgress = null;
       this._load();
       this.dispatchEvent(new CustomEvent('refresh-stats', { bubbles: true, composed: true }));
     } catch(e) {
       showToast(`${t('updateFailed')}: ${e.message}`, 'error');
+      this._updateProgress = null;
     }
     this.updating = false;
   }
@@ -504,7 +543,16 @@ class UpdatesView extends LitElement {
     try {
       showToast(t('batchInProgress'), 'info');
       if (action === 'update') {
-        await api.update(this._selectedRepos);
+        this.updating = true;
+        this._updateProgress = { current: 0, total: this._selectedRepos.length, currentName: '' };
+        for (const rid of this._selectedRepos) {
+          const repo = this.updates.find(r => (r.id || r.full_name) === rid);
+          this._updateProgress = { ...this._updateProgress, currentName: repo?.name || repo?.full_name || rid };
+          this.requestUpdate();
+          await api.update([rid]);
+          this._updateProgress = { ...this._updateProgress, current: this._updateProgress.current + 1 };
+        }
+        this._updateProgress = null;
       } else if (action === 'remove') {
         await api.batchRemove(this._selectedRepos.map(r => r));
       }
@@ -751,6 +799,15 @@ class UpdatesView extends LitElement {
           `)}
         </div>`;
       })()}
+
+      ${this._updateProgress ? html`
+        <div class="update-progress">
+          <div class="progress-track">
+            <div class="progress-fill" style="width:${(this._updateProgress.current / this._updateProgress.total) * 100}%"></div>
+          </div>
+          <span class="progress-label">${t('updatingProgress')} ${this._updateProgress.current}/${this._updateProgress.total} — ${this._updateProgress.currentName}</span>
+        </div>
+      ` : ''}
 
       ${this.loading ? html`
         <div class="skeleton-grid">
