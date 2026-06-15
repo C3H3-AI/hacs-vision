@@ -333,6 +333,27 @@ class HACSData:
                         supports_options = entry.supports_options
                 except Exception:
                     pass
+                # Read manifest for iot_class
+                iot_class = None
+                manifest_path = self.hass.config.path(
+                    "custom_components", entry.domain, "manifest.json"
+                )
+                is_custom = os.path.isfile(manifest_path)
+                if is_custom or not is_custom:
+                    # Also try built-in components manifest
+                    if not is_custom:
+                        import homeassistant.components as ha_comp
+                        builtin_base = os.path.dirname(ha_comp.__file__) if hasattr(ha_comp, '__file__') and ha_comp.__file__ else None
+                        if builtin_base and os.path.isdir(builtin_base):
+                            manifest_path = os.path.join(builtin_base, entry.domain, "manifest.json")
+                    if os.path.isfile(manifest_path):
+                        try:
+                            with open(manifest_path, 'r', encoding='utf-8') as f:
+                                manifest = json.load(f)
+                            iot_class = manifest.get("iot_class")
+                        except Exception:
+                            pass
+
                 result.append({
                     "domain": entry.domain,
                     "entry_id": entry.entry_id,
@@ -343,9 +364,8 @@ class HACSData:
                     "disabled_by": entry.disabled_by,
                     "supports_options": supports_options,
                     "supported_subentry_types": subentry_types,
-                    "is_custom": os.path.isfile(
-                        self.hass.config.path("custom_components", entry.domain, "manifest.json")
-                    ),
+                    "is_custom": is_custom,
+                    "iot_class": iot_class,
                 })
         return result
 

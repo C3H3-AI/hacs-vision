@@ -578,6 +578,18 @@ class IntegrationsList extends LitElement {
     return this._domainNames?.[domain] || domain;
   }
 
+  _iotLabel(iotClass) {
+    if (!iotClass) return '';
+    const labels = {
+      'cloud_polling': '☁',
+      'local_polling': '🏠',
+      'local_push': '⚡',
+      'assumed_state': '?',
+      'calculated': '📊',
+    };
+    return labels[iotClass] || '';
+  }
+
   _onSortColumn(key) {
     // Toggle direction if same column, otherwise switch with default direction
     if (key === this._sortBy) {
@@ -893,14 +905,19 @@ class IntegrationsList extends LitElement {
             </div>
             ${this._renderAvatar(domain)}
             ${st !== 'loaded' ? html`<span class="img-status-badge state-${st}">${this._groupLabel(st)}</span>` : ''}
-            ${entry0?.is_custom ? html`<span class="img-badge custom-badge">${t('customBadge') || '自定义'}</span>` : ''}
+            <div class="img-badges">
+              ${entry0?.is_custom ? html`<span class="img-badge custom-badge">${t('customBadge') || '自定义'}</span>` : ''}
+              ${this._iotLabel(entry0?.iot_class) ? html`<span class="img-badge iot-badge">${this._iotLabel(entry0?.iot_class)}</span>` : ''}
+            </div>
           </div>
 
         <div class="card-body">
           <div class="card-name" title="${domain}">${this._translateDomain(domain)}</div>
           <div class="card-meta">
-            <span>${entries.length} ${t('entryCount')}</span>
-            ${entry0 ? html`<span class="dot-sep"></span><span class="status-label" style="color:${this._groupColor(st)}">${entry0.title || entry0.entry_id.substring(0,8)}</span>` : ''}
+            <span class="count-info">
+              ${entries.length} ${t('entryCount')}
+              ${entry0?.supported_subentry_types ? html` · ${entry0.supported_subentry_types.length} ${t('tools') || '项服务'}` : ''}
+            </span>
           </div>
         </div>
 
@@ -1343,13 +1360,17 @@ class IntegrationsList extends LitElement {
     .img-status-badge.state-failed { background: rgba(244,67,54,0.85); }
     .img-status-badge.state-disabled { background: rgba(158,158,158,0.85); }
 
-    /* ===== Custom Integration Badge ===== */
-    .img-badge {
+    /* ===== Custom Integration & IoT Badges ===== */
+    .img-badges {
       position: absolute; bottom: 8px; right: 8px;
-      padding: 2px 7px; border-radius: 5px;
-      font-size: 9px; font-weight: 600; color: #fff;
+      display: flex; gap: 3px;
+    }
+    .img-badge {
+      padding: 1px 6px; border-radius: 4px;
+      font-size: 9px; font-weight: 600; color: #fff; line-height: 1.5;
     }
     .img-badge.custom-badge { background: #9c27b0; }
+    .img-badge.iot-badge { background: rgba(0,0,0,0.45); font-size: 10px; padding: 1px 4px; }
 
     /* Category badge at top-left */
     .category-badge {
