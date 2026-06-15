@@ -1061,6 +1061,16 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
       } else if (action === 'update') {
         await api.update([repo.id || repo.full_name]);
         showToast(t('updateStarted'), 'success');
+      } else if (action === 'redownload') {
+        const { ConfirmDialog } = await import('./shared/confirm-dialog.js');
+        const ok = await ConfirmDialog.show(this, {
+          message: `${t('redownload')} ${repo.full_name || repo.name}?`,
+          confirmText: t('confirm'),
+          danger: false,
+        });
+        if (!ok) return;
+        await api.redownload(repo.id || repo.full_name, repo.category);
+        showToast(`${t('redownload')} ${t('successSuffix')}`, 'success');
       } else if (action === 'uninstall') {
         const { ConfirmDialog } = await import('./shared/confirm-dialog.js');
         const ok = await ConfirmDialog.show(this, {
@@ -1373,6 +1383,10 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
                       ${t('update')}
                     </button>
                   ` : ''}
+                  <button class="modal-btn" style="color:#ff9800;border-color:#ff9800;" @click=${() => this._modalAction('redownload')}>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
+                    ${t('redownload')}
+                  </button>
                   <button class="modal-btn danger" @click=${() => this._modalAction('uninstall')}>
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
                     ${t('remove')}
