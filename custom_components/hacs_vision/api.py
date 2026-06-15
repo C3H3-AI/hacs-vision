@@ -119,7 +119,7 @@ class HACSEnhancedAPI(HomeAssistantView):
     async def _get_vision_github_token(self) -> str | None:
         """Get GitHub token from hacs-vision own storage."""
         try:
-            data = await self.data.async_load("github_token")
+            data = await self.data.read_storage("github_token")
             if data and isinstance(data, dict) and data.get("token"):
                 return data["token"]
         except Exception:
@@ -163,7 +163,7 @@ class HACSEnhancedAPI(HomeAssistantView):
         token = body.get("token", "").strip()
         if not token:
             # Empty token = logout: clear stored token
-            await self.data.async_save("github_token", {})
+            await self.data.write_storage("github_token", {})
             self._github_token = None
             return web.json_response({"ok": True, "logout": True})
         # Verify by calling GitHub user API
@@ -184,14 +184,14 @@ class HACSEnhancedAPI(HomeAssistantView):
         except Exception as e:
             return web.json_response({"error": str(e)}, status=500)
         # Store token
-        await self.data.async_save("github_token", {"token": token, "user": login})
+        await self.data.write_storage("github_token", {"token": token, "user": login})
         self._github_token = token
         return web.json_response({"ok": True, "user": login, "rate_limit_remaining": remaining})
 
     async def _github_user(self) -> web.Response:
         """Get current GitHub user info — ONLY from vision-stored token, not HACS fallback."""
         try:
-            data = await self.data.async_load("github_token")
+            data = await self.data.read_storage("github_token")
             token = (data or {}).get("token")
         except Exception:
             token = None
