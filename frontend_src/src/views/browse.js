@@ -493,9 +493,13 @@ class BrowseView extends LitElement {
   async connectedCallback() {
     super.connectedCallback();
     this._boundDocClick = (e) => {
+      if (!this._showSearchHistory) return;
       const search = this.shadowRoot?.querySelector('.search');
-      if (search && !search.contains(e.composedPath ? e.composedPath()[0] : e.target)) {
-        this._showSearchHistory = false;
+      if (search) {
+        const path = e.composedPath();
+        if (!path.includes(search)) {
+          this._showSearchHistory = false;
+        }
       }
     };
     document.addEventListener('click', this._boundDocClick, true);
