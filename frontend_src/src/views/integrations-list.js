@@ -650,10 +650,6 @@ class IntegrationsList extends LitElement {
   }
 
   /* ─── Status filter chip counts ─── */
-  get _chipColors() {
-    return { loaded: '#4caf50', failed: '#f44336', disabled: '#9e9e9e', 'not-loaded': '#ff9800' };
-  }
-
   get _chipCounts() {
     const counts = { all: 0, loaded: 0, failed: 0, disabled: 0, 'not-loaded': 0 };
     const seen = {};
@@ -727,7 +723,7 @@ class IntegrationsList extends LitElement {
         <!-- Filter chips -->
         <div class="filter-bar">
           ${['all','loaded','failed','disabled','not-loaded'].map(key => html`
-            <button class="filter-chip ${this._statusFilter === key ? 'active' : ''}" style="${key !== 'all' ? `border-color:${this._chipColors[key] || '#999'}` : ''}${key !== 'all' && this._statusFilter === key ? `;background:${this._chipColors[key] || '#999'}20` : ''}"
+            <button class="filter-chip ${this._statusFilter === key ? 'active' : ''}"
               @click=${() => { this._statusFilter = key; }}>
               <span class="chip-label">${key === 'all' ? t('filterAll') : key === 'loaded' ? t('filterLoaded') : key === 'failed' ? t('filterFailed') : key === 'disabled' ? t('filterDisabled') : t('filterNotLoaded')}</span>
               <span class="chip-count">${cc[key] ?? 0}</span>
