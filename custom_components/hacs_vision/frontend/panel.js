@@ -2278,15 +2278,12 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
       }
       .status-badge.pending-upgrade { background: rgba(255,152,0,0.15); color: #ff9800; }
 
-      .update-all-bar {
-        display: flex; justify-content: flex-end; gap: 8px; margin-bottom: 12px;
-      }
       .update-all-btn {
-        padding: 10px 20px; border-radius: 10px;
+        padding: 4px 10px; border-radius: 8px;
         background: var(--primary-color); color: #fff; border: none;
-        font-size: 13px; font-weight: 600; cursor: pointer;
-        display: flex; align-items: center; gap: 6px; transition: opacity 0.2s;
-        touch-action: manipulation;
+        font-size: 11px; font-weight: 600; cursor: pointer;
+        display: flex; align-items: center; gap: 4px; transition: opacity 0.2s;
+        touch-action: manipulation; white-space: nowrap;
       }
       .update-all-btn:hover { opacity: 0.9; }
       .update-all-btn:disabled { opacity: 0.5; cursor: not-allowed; }
@@ -2317,8 +2314,7 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
         .version-value { font-size: 12px; }
         .card-desc { font-size: 11px; margin-bottom: 10px; }
         .btn.primary { min-height: 44px; }
-        .update-all-bar { justify-content: stretch; flex-wrap: wrap; }
-        .update-all-btn { flex: 1; min-width: 120px; justify-content: center; min-height: 44px; }
+        .update-all-btn { flex: 1; min-width: 80px; justify-content: center; min-height: 36px; font-size: 11px; padding: 4px 8px; }
       }
 
       .batch-bar {
@@ -2392,6 +2388,16 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
           `:""}
         </div>
         <div class="controls-right">
+          ${this.updates.length>0?H`
+            <button class="update-all-btn" @click=${this._updateAll} ?disabled=${this.updating||0===this.updates.length}>
+              <svg class="mini-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg> ${this.updating?ge("updatingProgress"):ge("updateAllNow")}
+            </button>
+            ${this._selectedCount()>0?H`
+              <button class="update-all-btn selected-btn" @click=${this._updateSelected} ?disabled=${this.updating||0===this._selectedCount()}>
+                <svg class="mini-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="10"/></svg> ${ge("updateSelected")} (${this._selectedCount()||0})
+              </button>
+            `:""}
+          `:""}
           <button class="refresh-btn" @click=${this._load} title="${ge("refreshTitle")}">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
           </button>
@@ -2452,19 +2458,6 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
               <button class="batch-bar-btn danger" @click=${()=>this._batchDo("remove")} ?disabled=${this.updating}>${ge("batchRemove")}</button>
               <button class="batch-bar-btn" style="background:transparent;border-color:transparent;font-size:14px;" @click=${()=>{this._selectedIds={},this.requestUpdate()}}>✕</button>
             </div>
-          </div>
-        `:""}
-
-        ${this.updates.length>0?H`
-          <div class="update-all-bar">
-            <button class="update-all-btn" @click=${this._updateAll} ?disabled=${this.updating||0===this.updates.length}>
-              <svg class="mini-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg> ${this.updating?ge("updatingProgress"):ge("updateAllNow")}
-            </button>
-            ${this._selectedCount()>0?H`
-              <button class="update-all-btn selected-btn" @click=${this._updateSelected} ?disabled=${this.updating||0===this._selectedCount()}>
-                <svg class="mini-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="10"/></svg> ${ge("updateSelected")} (${this._selectedCount()||0})
-              </button>
-            `:""}
           </div>
         `:""}
 
