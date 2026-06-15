@@ -565,12 +565,15 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
       .restart-bar-btn { font-size: 11px; padding: 5px 10px; }
       .header-right { gap: 6px; justify-content: flex-end; flex-wrap: nowrap; }
       .stat { text-align: center; min-width: 32px; }
-      .stat-num { font-size: 12px; }
-      .stat-label { font-size: 8px; }
+      .stat-num { font-size: 13px; }
+      .stat-label { font-size: 10px; white-space: nowrap; }
       .restart-btn { font-size: 10px; padding: 2px 8px; }
       .restart-btn svg { width: 12px; height: 12px; }
       .sticky-header { margin: 0 -10px 8px; padding: 0 10px 8px; }
       .tab { padding: 8px 12px; font-size: 12px; min-height: 44px; display: flex; align-items: center; }
+      .controls-right { gap: 4px; }
+      .controls .search { min-width: 80px; }
+      .chip { font-size: 11px; padding: 5px 10px; }
 
       /* Mobile modal: fullscreen */
       .modal-overlay { padding: 0; align-items: flex-end; }
