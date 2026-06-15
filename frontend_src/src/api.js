@@ -6,19 +6,22 @@ class HACSEnhancedAPI {
     this._hassRef = null;
   }
 
-  /** Call this when hass becomes available */
+  /** Call this when hass becomes available — primary token source */
   setHass(hass) {
     this._hassRef = hass;
-    // Try to extract auth token from hass
+    // Primary: HassAuth token from HA frontend
     try {
       if (hass?.auth?.data?.access_token) {
         this._token = hass.auth.data.access_token;
+        return;
+      }
+    } catch(e) { /* ignore */ }
+    // Fallback: older HA versions
+    try {
+      if (hass?.connection?.accessToken) {
+        this._token = hass.connection.accessToken;
       } else if (hass?.authToken) {
         this._token = hass.authToken;
-      } else if (hass?.connection?.accessToken) {
-        this._token = hass.connection.accessToken;
-      } else if (hass?.config?.authToken) {
-        this._token = hass.config.authToken;
       }
     } catch(e) { /* ignore */ }
   }
@@ -45,10 +48,11 @@ class HACSEnhancedAPI {
           }
         }
       } catch(e) {
-        // Cross-origin iframe → fall through to document
+        // Cross-origin iframe — skip token from parent
+        console.warn('[HACS Vision] Cross-origin iframe context: cannot extract token from parent frame');
       }
     }
-    // Final fallback: direct document
+    // Final fallback: direct document (non-panel context)
     if (!this._token) {
       try {
         const haEl = document.querySelector('home-assistant');

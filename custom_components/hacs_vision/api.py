@@ -86,6 +86,17 @@ class HACSEnhancedAPI(HomeAssistantView):
         self._session: aiohttp.ClientSession | None = None
         self._github_token: str | None = None
 
+    @property
+    def _ha_base_url(self) -> str:
+        """Get HA base URL dynamically (prefer internal, fallback to external)."""
+        try:
+            return self.hass.http.get_url()
+        except Exception:
+            try:
+                return self.hass.config.external_url or "http://localhost:8123"
+            except Exception:
+                return "http://localhost:8123"
+
     def _get_github_token(self) -> str | None:
         """Get GitHub token from HACS config entry for authenticated API calls (5000/hr vs 60/hr)."""
         if self._github_token is not None:
@@ -255,7 +266,7 @@ class HACSEnhancedAPI(HomeAssistantView):
             return web.json_response({"error": "unauthorized"}, status=401)
         try:
             session = await self._get_session()
-            url = "http://localhost:8123/api/config/config_entries/flow_handlers"
+            url = f"{self._ha_base_url}/api/config/config_entries/flow_handlers"
             headers = {"Authorization": f"Bearer {token}"}
             async with session.get(url, headers=headers) as resp:
                 data = await resp.json()
@@ -274,7 +285,7 @@ class HACSEnhancedAPI(HomeAssistantView):
             return web.json_response({"error": "unauthorized"}, status=401)
         try:
             session = await self._get_session()
-            url = f"http://localhost:8123/api/config/config_entries/flow"
+            url = f"{self._ha_base_url}/api/config/config_entries/flow"
             headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
             payload = {"handler": handler, "show_advanced_options": body.get("show_advanced_options", False)}
             async with session.post(url, headers=headers, json=payload) as resp:
@@ -291,7 +302,7 @@ class HACSEnhancedAPI(HomeAssistantView):
             return web.json_response({"error": "unauthorized"}, status=401)
         try:
             session = await self._get_session()
-            url = f"http://localhost:8123/api/config/config_entries/flow/{flow_id}"
+            url = f"{self._ha_base_url}/api/config/config_entries/flow/{flow_id}"
             headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
             async with session.post(url, headers=headers, json=body) as resp:
                 data = await resp.json()
@@ -307,7 +318,7 @@ class HACSEnhancedAPI(HomeAssistantView):
             return web.json_response({"error": "unauthorized"}, status=401)
         try:
             session = await self._get_session()
-            url = f"http://localhost:8123/api/config/config_entries/flow/{flow_id}"
+            url = f"{self._ha_base_url}/api/config/config_entries/flow/{flow_id}"
             headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
             async with session.delete(url, headers=headers) as resp:
                 data = await resp.json()
@@ -323,7 +334,7 @@ class HACSEnhancedAPI(HomeAssistantView):
             return web.json_response({"error": "unauthorized"}, status=401)
         try:
             session = await self._get_session()
-            url = f"http://localhost:8123/api/config/config_entries/subentries/flow/{flow_id}"
+            url = f"{self._ha_base_url}/api/config/config_entries/subentries/flow/{flow_id}"
             headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
             async with session.delete(url, headers=headers) as resp:
                 data = await resp.json()
@@ -342,7 +353,7 @@ class HACSEnhancedAPI(HomeAssistantView):
             return web.json_response({"error": "unauthorized"}, status=401)
         try:
             session = await self._get_session()
-            url = f"http://localhost:8123/api/config/config_entries/options/flow"
+            url = f"{self._ha_base_url}/api/config/config_entries/options/flow"
             headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
             payload = {"handler": handler}
             async with session.post(url, headers=headers, json=payload) as resp:
@@ -359,7 +370,7 @@ class HACSEnhancedAPI(HomeAssistantView):
             return web.json_response({"error": "unauthorized"}, status=401)
         try:
             session = await self._get_session()
-            url = f"http://localhost:8123/api/config/config_entries/options/flow/{flow_id}"
+            url = f"{self._ha_base_url}/api/config/config_entries/options/flow/{flow_id}"
             headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
             async with session.post(url, headers=headers, json=body) as resp:
                 data = await resp.json()
@@ -383,7 +394,7 @@ class HACSEnhancedAPI(HomeAssistantView):
             return web.json_response({"error": "unauthorized"}, status=401)
         try:
             session = await self._get_session()
-            url = "http://localhost:8123/api/config/config_entries/subentries/flow"
+            url = f"{self._ha_base_url}/api/config/config_entries/subentries/flow"
             headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
             # Pass through any extra fields (source, subentry_id) for reconfigure support
             payload = {"handler": handler}
@@ -424,7 +435,7 @@ class HACSEnhancedAPI(HomeAssistantView):
             return web.json_response({"error": "unauthorized"}, status=401)
         try:
             session = await self._get_session()
-            url = f"http://localhost:8123/api/config/config_entries/subentries/flow/{flow_id}"
+            url = f"{self._ha_base_url}/api/config/config_entries/subentries/flow/{flow_id}"
             headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
             async with session.post(url, headers=headers, json=body) as resp:
                 data = await resp.json()

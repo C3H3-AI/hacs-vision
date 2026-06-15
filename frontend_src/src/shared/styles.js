@@ -7,6 +7,13 @@ import { css } from 'lit';
  */
 export function getCommonStyles() {
   return css`
+  /* ===== CSS Variables for Theming ===== */
+  :host {
+    --success-color: #4caf50;
+    --error-color: #f44336;
+    --warning-color: #ff9800;
+  }
+
   /* ===== Loading ===== */
   .loading {
     text-align: center; padding: 60px 20px;

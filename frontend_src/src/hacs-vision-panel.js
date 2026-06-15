@@ -100,8 +100,8 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
       api.setHass(this.hass);
       if (!this._apiReady) {
         this._apiReady = true;
-        this._loadStats();
-        this._loadConfigEntries();
+        // Parallel init: stats (includes favorites) + config entries
+        Promise.all([this._loadStats(), this._loadConfigEntries()]).catch(e => console.error('Init error:', e));
         // F2: Register network status callback once
         api._onNetworkStatus = (status) => { this._networkStatus = status; };
       }
@@ -255,8 +255,9 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
       pointer-events: auto;
     }
     .toast.show { opacity: 1; transform: translateY(0); }
-    .toast.success { background: #4caf50; }
-    .toast.error { background: #f44336; }
+    .toast.success { background: var(--success-color, #4caf50); }
+    .toast.error { background: var(--error-color, #f44336); }
+    .toast.info { background: var(--primary-color, #03a9f4); }
 
     /* ===== Utility icons ===== */
     .mini-icon { width: 14px; height: 14px; vertical-align: -2px; display: inline; flex-shrink: 0; }
@@ -661,7 +662,12 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
       }
     };
     window.addEventListener('keydown', this._keydownHandler);
-    this._checkCacheVersion();
+    // Check cache version only once per page visibility cycle
+    if (!document.hidden) this._checkCacheVersion();
+    this._visibilityHandler = () => {
+      if (!document.hidden) this._checkCacheVersion();
+    };
+    document.addEventListener('visibilitychange', this._visibilityHandler);
   }
 
   disconnectedCallback() {
@@ -671,6 +677,10 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
     window.removeEventListener('online', this._onlineHandler);
     window.removeEventListener('offline', this._offlineHandler);
     window.removeEventListener('keydown', this._keydownHandler);
+    if (this._visibilityHandler) {
+      document.removeEventListener('visibilitychange', this._visibilityHandler);
+      this._visibilityHandler = null;
+    }
   }
 
   async _loadStats() {
@@ -1437,14 +1447,23 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
 }
 
 // Global toast helper with queue support
-let _panelRef = null;
-export function registerPanel(panel) { _panelRef = panel; }
+const _panelMap = new WeakMap();
+export function registerPanel(panel) { _panelMap.set(panel, true); }
 
 const _toastQueue = [];
 let _toastShowing = false;
 
 export function showToast(msg, type = 'info') {
-  const panel = _panelRef || document.querySelector('hacs-vision-panel');
+  // Find panel via WeakMap or DOM query
+  let panel = null;
+  try {
+    // Check registered panels in WeakMap (no GC leak)
+    const candidates = document.querySelectorAll('hacs-vision-panel');
+    for (const c of candidates) {
+      if (_panelMap.has(c)) { panel = c; break; }
+    }
+    if (!panel) panel = candidates[0];
+  } catch(e) { /* ignore */ }
   const container = panel?.shadowRoot?.querySelector('#toast-container');
   if (!container) { console.warn('Toast container not found:', msg); return; }
 

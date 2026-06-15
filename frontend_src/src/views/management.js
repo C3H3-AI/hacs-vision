@@ -198,6 +198,16 @@ export class ManagementView extends LitElement {
     }
     .custom-badge-tag { font-size: 10px; padding: 1px 6px; border-radius: 4px; background: #ff6f00; color: #fff; font-weight: 700; display: inline-flex; align-items: center; }
 
+    .refresh-btn {
+      padding: 8px; border: 1px solid var(--divider-color); border-radius: 10px;
+      background: var(--card-background-color); color: var(--primary-text-color);
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+      transition: all 0.25s; width: 36px; height: 36px;
+      touch-action: manipulation; flex-shrink: 0;
+    }
+    .refresh-btn:hover { border-color: var(--primary-color); color: var(--primary-color); }
+    .refresh-btn svg { width: 16px; height: 16px; }
+
     /* ===== Filter Chips (aligned with browse) ===== */
     .filter-group { margin-bottom: 10px; }
     .filter-label { font-size: 11px; font-weight: 600; color: var(--secondary-text-color); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
@@ -1011,7 +1021,7 @@ export class ManagementView extends LitElement {
           ${this._customRepoSearch ? html`<button class="search-clear" @click=${() => this._customRepoSearch = ''}>✕</button>` : ''}
         </div>
         <div class="controls-right">
-          <button class="refresh-btn" @click=${() => this._load()} title="${t('refreshTitle')}" style="width:36px;height:36px;padding:8px;border:1px solid var(--divider-color);border-radius:10px;background:var(--card-background-color);color:var(--primary-text-color);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+          <button class="refresh-btn" @click=${() => this._load()} title="${t('refreshTitle')}">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
           </button>
           <div class="view-toggle">
