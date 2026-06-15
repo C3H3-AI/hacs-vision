@@ -343,6 +343,9 @@ class HACSData:
                     "disabled_by": entry.disabled_by,
                     "supports_options": supports_options,
                     "supported_subentry_types": subentry_types,
+                    "is_custom": os.path.isfile(
+                        self.hass.config.path("custom_components", entry.domain, "manifest.json")
+                    ),
                 })
         return result
 

@@ -893,6 +893,7 @@ class IntegrationsList extends LitElement {
             </div>
             ${this._renderAvatar(domain)}
             ${st !== 'loaded' ? html`<span class="img-status-badge state-${st}">${this._groupLabel(st)}</span>` : ''}
+            ${entry0?.is_custom ? html`<span class="img-badge custom-badge">${t('customBadge') || '自定义'}</span>` : ''}
           </div>
 
         <div class="card-body">
@@ -1341,6 +1342,14 @@ class IntegrationsList extends LitElement {
     .img-status-badge.state-loaded { background: rgba(76,175,80,0.85); }
     .img-status-badge.state-failed { background: rgba(244,67,54,0.85); }
     .img-status-badge.state-disabled { background: rgba(158,158,158,0.85); }
+
+    /* ===== Custom Integration Badge ===== */
+    .img-badge {
+      position: absolute; bottom: 8px; right: 8px;
+      padding: 2px 7px; border-radius: 5px;
+      font-size: 9px; font-weight: 600; color: #fff;
+    }
+    .img-badge.custom-badge { background: #9c27b0; }
 
     /* Category badge at top-left */
     .category-badge {
