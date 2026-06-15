@@ -192,7 +192,6 @@ class BrowseView extends LitElement {
       font-size: 14px; background: var(--card-background-color);
       color: var(--primary-text-color); outline: none; transition: border-color 0.2s;
     }
-    .search input:focus { border-color: var(--primary-color); }
     .refresh-btn {
       padding: 8px; border: 1px solid var(--divider-color); border-radius: 10px;
       background: var(--card-background-color); color: var(--primary-text-color);

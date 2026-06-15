@@ -126,7 +126,8 @@ export function getCommonStyles() {
   @media (max-width: 768px) {
     .grid { grid-template-columns: 1fr; gap: 10px; }
     .controls { gap: 4px; flex-wrap: wrap; }
-    .search input { padding: 7px 10px 7px 34px; font-size: 13px; border-radius: 8px; }
+    .search { min-width: 0; flex-basis: 120px; flex-grow: 2; }
+    .search input { padding: 7px 10px 7px 30px; font-size: 13px; border-radius: 8px; }
     .search-icon { width: 14px; height: 14px; left: 8px; }
     .btn { min-height: 44px; display: flex; align-items: center; justify-content: center; }
   }
