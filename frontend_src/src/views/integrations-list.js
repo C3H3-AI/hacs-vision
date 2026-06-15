@@ -1080,7 +1080,9 @@ class IntegrationsList extends LitElement {
     .view-toggle-btn {
       padding: 6px 10px; border: none; background: var(--card-background-color);
       color: var(--secondary-text-color); cursor: pointer; font-size: 14px;
-      transition: all 0.2s; touch-action: manipulation; min-height: 36px;
+      transition: all 0.2s; min-width: 36px; min-height: 36px;
+      display: flex; align-items: center; justify-content: center;
+      touch-action: manipulation;
     }
     .view-toggle-btn + .view-toggle-btn { border-left: 1px solid var(--divider-color); }
     .view-toggle-btn.active { background: var(--primary-color); color: #fff; }
@@ -1131,12 +1133,12 @@ class IntegrationsList extends LitElement {
     .list-action-btn.reload:hover { border-color: #ff9800; color: #ff9800; }
     .list-action-btn:disabled { opacity: 0.4; cursor: not-allowed; }
     .chip {
-      display: inline-flex; align-items: center; gap: 6px;
-      padding: 6px 14px; border-radius: 20px; border: 1px solid var(--divider-color, #e0e0e0);
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 5px 12px; border-radius: 16px; border: 1px solid var(--divider-color, #e0e0e0);
       background: var(--card-background-color, #fff);
       color: var(--secondary-text-color); cursor: pointer;
-      font-size: 12px; font-weight: 500;
-      transition: all 0.15s;
+      font-size: 12px; white-space: nowrap;
+      transition: all 0.2s; touch-action: manipulation; user-select: none;
     }
     .chip:hover { border-color: var(--primary-color, #03a9f4); }
     .chip-active {
@@ -1596,7 +1598,7 @@ class IntegrationsList extends LitElement {
       .avatar { width: 44px; height: 44px; font-size: 20px; }
       .card-footer .footer-btn { min-height: 44px; font-size: 12px; }
       .card-footer .footer-btn .btn-label { display: inline; }
-      .chip { font-size: 12px; padding: 6px 14px; }
+      .chip { font-size: 11px; padding: 4px 10px; }
       .detail-overlay { padding: 12px; }
       .modal { max-width: 100%; max-height: 92vh; }
       /* Tree mobile */
