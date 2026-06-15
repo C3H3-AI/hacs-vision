@@ -679,7 +679,7 @@ class IntegrationsList extends LitElement {
               ${t('addHAIntegration')}
             </button>
             <label style="display:flex;align-items:center;gap:3px;font-size:12px;color:var(--secondary-text-color);cursor:pointer;flex-shrink:0;white-space:nowrap;">
-              <input type="checkbox" style="width:14px;height:14px;cursor:pointer;accent-color:var(--primary-color);"
+              <input type="checkbox" class="integ-checkbox"
                 .checked=${this._isAllDomainsSelected(groups)}
                 @change=${() => this._toggleSelectAllDomains(groups)}>
               ${t('selectAll') || '全选'} ${this._selectedDomainCount() > 0 ? html`<span style="color:var(--primary-color);font-weight:600;">(${this._selectedDomainCount()})</span>` : ''}
@@ -1231,10 +1231,6 @@ class IntegrationsList extends LitElement {
       position: absolute; top: 0; left: 0; right: 0; z-index: 2;
       display: flex; align-items: center; gap: 6px; padding: 8px;
     }
-    .card-checkbox {
-      width: 16px; height: 16px; cursor: pointer; flex-shrink: 0;
-      accent-color: var(--primary-color, #03a9f4);
-    }
     .card-top-bar .category-badge {
       position: static; font-size: 9px; padding: 2px 7px; border-radius: 4px;
     }
@@ -1389,9 +1385,26 @@ class IntegrationsList extends LitElement {
     .entry-check-wrap {
       display: flex; align-items: center; flex-shrink: 0;
     }
-    .entry-checkbox {
-      width: 15px; height: 15px; cursor: pointer; flex-shrink: 0;
-      accent-color: var(--primary-color, #03a9f4);
+    /* Unified custom checkbox style (consistent with updates view) */
+    .integ-checkbox,
+    .entry-checkbox,
+    .card-checkbox {
+      width: 18px; height: 18px; border-radius: 4px;
+      border: 2px solid var(--secondary-text-color); cursor: pointer;
+      flex-shrink: 0; transition: all 0.2s; background: transparent;
+      -webkit-appearance: none; appearance: none; touch-action: manipulation;
+      margin: 0; box-sizing: border-box;
+    }
+    .integ-checkbox:checked,
+    .entry-checkbox:checked,
+    .card-checkbox:checked {
+      background: var(--primary-color); border-color: var(--primary-color);
+    }
+    .integ-checkbox:checked::after,
+    .entry-checkbox:checked::after,
+    .card-checkbox:checked::after {
+      content: '✓'; display: flex; align-items: center; justify-content: center;
+      color: #fff; font-size: 12px; font-weight: 700; line-height: 1;
     }
     .sel-all-label {
       display: inline-flex; align-items: center; gap: 3px; cursor: pointer;

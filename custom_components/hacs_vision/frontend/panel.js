@@ -2455,17 +2455,16 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
           </div>
         `:""}
 
-        ${this.updates.length>1?H`
+        ${this.updates.length>0?H`
           <div class="update-all-bar">
+            <button class="update-all-btn" @click=${this._updateAll} ?disabled=${this.updating||0===this.updates.length}>
+              <svg class="mini-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg> ${this.updating?ge("updatingProgress"):ge("updateAllNow")}
+            </button>
             ${this._selectedCount()>0?H`
               <button class="update-all-btn selected-btn" @click=${this._updateSelected} ?disabled=${this.updating||0===this._selectedCount()}>
                 <svg class="mini-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="10"/></svg> ${ge("updateSelected")} (${this._selectedCount()||0})
               </button>
-            `:H`
-              <button class="update-all-btn" @click=${this._updateAll} ?disabled=${this.updating||0===this.updates.length}>
-                <svg class="mini-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg> ${this.updating?ge("updatingProgress"):ge("updateAllNow")}
-              </button>
-            `}
+            `:""}
           </div>
         `:""}
 
@@ -3475,7 +3474,7 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
               ${ge("addHAIntegration")}
             </button>
             <label style="display:flex;align-items:center;gap:3px;font-size:12px;color:var(--secondary-text-color);cursor:pointer;flex-shrink:0;white-space:nowrap;">
-              <input type="checkbox" style="width:14px;height:14px;cursor:pointer;accent-color:var(--primary-color);"
+              <input type="checkbox" class="integ-checkbox"
                 .checked=${this._isAllDomainsSelected(e)}
                 @change=${()=>this._toggleSelectAllDomains(e)}>
               ${ge("selectAll")||"全选"} ${this._selectedDomainCount()>0?H`<span style="color:var(--primary-color);font-weight:600;">(${this._selectedDomainCount()})</span>`:""}
@@ -3957,10 +3956,6 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
       position: absolute; top: 0; left: 0; right: 0; z-index: 2;
       display: flex; align-items: center; gap: 6px; padding: 8px;
     }
-    .card-checkbox {
-      width: 16px; height: 16px; cursor: pointer; flex-shrink: 0;
-      accent-color: var(--primary-color, #03a9f4);
-    }
     .card-top-bar .category-badge {
       position: static; font-size: 9px; padding: 2px 7px; border-radius: 4px;
     }
@@ -4115,9 +4110,26 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
     .entry-check-wrap {
       display: flex; align-items: center; flex-shrink: 0;
     }
-    .entry-checkbox {
-      width: 15px; height: 15px; cursor: pointer; flex-shrink: 0;
-      accent-color: var(--primary-color, #03a9f4);
+    /* Unified custom checkbox style (consistent with updates view) */
+    .integ-checkbox,
+    .entry-checkbox,
+    .card-checkbox {
+      width: 18px; height: 18px; border-radius: 4px;
+      border: 2px solid var(--secondary-text-color); cursor: pointer;
+      flex-shrink: 0; transition: all 0.2s; background: transparent;
+      -webkit-appearance: none; appearance: none; touch-action: manipulation;
+      margin: 0; box-sizing: border-box;
+    }
+    .integ-checkbox:checked,
+    .entry-checkbox:checked,
+    .card-checkbox:checked {
+      background: var(--primary-color); border-color: var(--primary-color);
+    }
+    .integ-checkbox:checked::after,
+    .entry-checkbox:checked::after,
+    .card-checkbox:checked::after {
+      content: '✓'; display: flex; align-items: center; justify-content: center;
+      color: #fff; font-size: 12px; font-weight: 700; line-height: 1;
     }
     .sel-all-label {
       display: inline-flex; align-items: center; gap: 3px; cursor: pointer;
