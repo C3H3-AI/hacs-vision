@@ -749,6 +749,8 @@ class ConfigFlowDialog extends LitElement {
     .menu-sublabel { font-size: 11px; color: var(--secondary-text-color, #727272); margin-top: 1px; }
     .menu-icon { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; background: rgba(var(--rgb-primary-color, 3,169,244), 0.1); flex-shrink: 0; }
     .subentry-divider { height: 1px; background: var(--divider-color, #e0e0e0); margin: 10px 0; }
+    .subentry-columns { display: flex; gap: 20px; }
+    .subentry-col { flex: 1; min-width: 0; }
 
     /* Result States */
     .result { text-align: center; padding: 24px 0; }
@@ -833,29 +835,34 @@ class ConfigFlowDialog extends LitElement {
 
           ${!this._loading && !this._finished && !this._step && !this._result && this._isSubentry && !this._subentryType ? html`
             <div class="subentry-list">
+              <div class="subentry-columns">
               ${this._existingSubentries.length > 0 ? html`
-                <div class="step-desc" style="margin-bottom:8px">${t('subentryExisting')}</div>
-                ${this._existingSubentries.map(se => html`
-                  <div class="menu-option" @click=${() => this._handleExistingSubentrySelect(se)}>
-                    <span class="menu-icon">⚙</span>
-                    <div class="menu-label-group">
-                      <span class="menu-label">${se.title || this._getSubentryTypeLabel(se.subentry_type)}</span>
-                      <span class="menu-sublabel">${this._getSubentryTypeLabel(se.subentry_type)}</span>
+                <div class="subentry-col">
+                  <div class="step-desc" style="margin-bottom:8px;font-weight:600;">${t('subentryExisting')}</div>
+                  ${this._existingSubentries.map(se => html`
+                    <div class="menu-option" @click=${() => this._handleExistingSubentrySelect(se)}>
+                      <span class="menu-icon">⚙</span>
+                      <div class="menu-label-group">
+                        <span class="menu-label">${se.title || this._getSubentryTypeLabel(se.subentry_type)}</span>
+                        <span class="menu-sublabel">${this._getSubentryTypeLabel(se.subentry_type)}</span>
+                      </div>
+                      <span class="menu-arrow">${t('subentryReconfigure')}</span>
                     </div>
-                    <span class="menu-arrow">${t('subentryReconfigure')}</span>
-                  </div>
-                `)}
-                <div class="subentry-divider"></div>
+                  `)}
+                </div>
               ` : ''}
 
-              <div class="step-desc" style="margin-bottom:8px">${t('subentryAddNew')}</div>
-              ${this._subentryTypes.map(type => html`
-                <div class="menu-option" @click=${() => this._handleSubentrySelect(type)}>
-                  <span class="menu-icon">+</span>
-                  <span class="menu-label">${t('subentryAddPrefix')} ${this._getSubentryTypeLabel(type)}</span>
-                  <span class="menu-arrow">→</span>
+                <div class="subentry-col">
+                  <div class="step-desc" style="margin-bottom:8px;font-weight:600;">${t('subentryAddNew')}</div>
+                  ${this._subentryTypes.map(type => html`
+                    <div class="menu-option" @click=${() => this._handleSubentrySelect(type)}>
+                      <span class="menu-icon">+</span>
+                      <span class="menu-label">${t('subentryAddPrefix')} ${this._getSubentryTypeLabel(type)}</span>
+                      <span class="menu-arrow">→</span>
+                    </div>
+                  `)}
                 </div>
-              `)}
+              </div>
               <div class="actions" style="margin-top:16px">
                 <button class="btn" @click=${this._cancelFlow}>${t('flowCancel')}</button>
               </div>
