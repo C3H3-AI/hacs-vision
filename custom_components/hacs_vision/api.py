@@ -264,6 +264,117 @@ class HACSEnhancedAPI(HomeAssistantView):
         except Exception as e:
             return web.json_response({"starred": False, "error": str(e)})
 
+    async def _github_list_starred(self) -> web.Response:
+        """Fetch all starred repos for the authenticated user, paginated."""
+        token = await self._get_active_github_token()
+        if not token:
+            return web.json_response({"error": "not_authenticated", "repos": []}, status=401)
+        headers = {"Authorization": f"Bearer {token}", "Accept": "application/vnd.github.v3+json"}
+        repos = []
+        page = 1
+        per_page = 100
+        try:
+            async with aiohttp.ClientSession() as session:
+                while True:
+                    async with session.get(
+                        f"https://api.github.com/user/starred?per_page={per_page}&page={page}",
+                        headers=headers,
+                        timeout=aiohttp.ClientTimeout(total=15)
+                    ) as resp:
+                        if resp.status != 200:
+                            break
+                        data = await resp.json()
+                        if not data:
+                            break
+                        for r in data:
+                            full_name = r.get("full_name", "")
+                            desc = r.get("description", "") or ""
+                            topics = r.get("topics", []) or []
+                            language = r.get("language") or ""
+                            # Detect HACS category from topics/description/language
+                            category = self._detect_hacs_category(r)
+                            repos.append({
+                                "full_name": full_name,
+                                "name": r.get("name", ""),
+                                "description": desc,
+                                "stars": r.get("stargazers_count", 0),
+                                "topics": topics,
+                                "language": language,
+                                "category": category,
+                                "html_url": r.get("html_url", ""),
+                                "updated_at": r.get("updated_at", ""),
+                            })
+                        if len(data) < per_page:
+                            break
+                        page += 1
+        except Exception as e:
+            _LOGGER.error("_github_list_starred error: %s", e, exc_info=True)
+            return web.json_response({"error": str(e), "repos": repos}, status=500)
+        return web.json_response({"repos": repos, "total": len(repos)})
+
+    def _detect_hacs_category(self, repo: dict) -> str:
+        """Detect HACS category from a GitHub repo's metadata."""
+        topics = [t.lower() for t in (repo.get("topics") or [])]
+        desc = (repo.get("description") or "").lower()
+        lang = (repo.get("language") or "").lower()
+        name = (repo.get("name") or "").lower()
+
+        # Check topics for explicit HACS category hints
+        topic_category_map = {
+            "hacs-integration": "integration",
+            "hacs-custom": "integration",
+            "home-assistant-integration": "integration",
+            "hacs-plugin": "plugin",
+            "hacs-dashboard": "plugin",
+            "lovelace-plugin": "plugin",
+            "lovelace-card": "plugin",
+            "hacs-theme": "theme",
+            "home-assistant-theme": "theme",
+            "hacs-python-script": "python_script",
+            "hacs-appdaemon": "appdaemon",
+            "hacs-netdaemon": "netdaemon",
+            "hacs-addon": "addon",
+        }
+        for topic_key, cat in topic_category_map.items():
+            if topic_key in topics:
+                return cat
+
+        # Check description for hints
+        if any(w in desc for w in ["plugin", "lovelace", "card", "dashboard"]):
+            return "plugin"
+        if any(w in desc for w in ["theme"]):
+            return "theme"
+        if any(w in desc for w in ["integration", "component", "custom_component"]):
+            return "integration"
+        if any(w in desc for w in ["addon", "add-on"]):
+            return "addon"
+
+        # Default to integration for home-assistant related repos
+        if any(w in desc for w in ["home assistant", "home-assistant", "hacs"]) or "home-assistant" in topics:
+            return "integration"
+
+        return "integration"  # safest default
+
+    async def _github_sync_starred(self, body: dict) -> web.Response:
+        """Add selected starred repos as custom repositories."""
+        selected = body.get("repos", [])
+        if not selected:
+            return web.json_response({"error": "no_repos"}, status=400)
+        results = []
+        for item in selected:
+            full_name = item.get("full_name", "")
+            category = item.get("category", "integration")
+            if not full_name or "/" not in full_name:
+                results.append({"full_name": full_name, "success": False, "error": "invalid_name"})
+                continue
+            try:
+                result = await self.operator.add_custom_repository(full_name, category)
+                results.append({"full_name": full_name, "success": result.get("success", False),
+                                "error": result.get("error", "")})
+            except Exception as e:
+                results.append({"full_name": full_name, "success": False, "error": str(e)})
+        return web.json_response({"results": results})
+
     # ── GET ──────────────────────────────────────────────
 
     async def get(self, request, path: str = "") -> web.Response:
@@ -331,6 +442,8 @@ class HACSEnhancedAPI(HomeAssistantView):
         if path.startswith("github/starred/"):
             repo = path.split("/", 2)[2] if "/" in path else ""
             return await self._github_check_starred(repo)
+        if path in ("github/starred", "github/starred/"):
+            return await self._github_list_starred()
 
         return web.json_response({"error": "not_found"}, status=404)
 
@@ -394,6 +507,8 @@ class HACSEnhancedAPI(HomeAssistantView):
             return await self._github_star(body)
         if path in ("github/unstar", "github/unstar/"):
             return await self._github_unstar(body)
+        if path in ("github/sync-starred", "github/sync-starred/"):
+            return await self._github_sync_starred(body)
 
         # ── Config Flow proxy ──
         if path == "config_flow/start":

@@ -19,6 +19,12 @@ class ConfigView extends LitElement {
     _githubVerifying: { type: Boolean, state: true },
     _githubVerifyMsg: { type: String, state: true },
     _githubVerifyOk: { type: Boolean, state: true },
+    _starredRepos: { type: Array, state: true },
+    _starredLoading: { type: Boolean, state: true },
+    _starredSyncing: { type: Boolean, state: true },
+    _starredSyncResult: { type: String, state: true },
+    _starredFilter: { type: String, state: true },
+    _selectedStarred: { type: Object, state: true },
   };
 
   constructor() {
@@ -35,6 +41,17 @@ class ConfigView extends LitElement {
     this._githubVerifying = false;
     this._githubVerifyMsg = '';
     this._githubVerifyOk = false;
+    this._starredRepos = [];
+    this._starredLoading = false;
+    this._starredSyncing = false;
+    this._starredSyncResult = '';
+    this._starredFilter = '';
+    this._selectedStarred = {};
+  }
+
+  get _filteredStarredCount() {
+    if (!this._starredFilter) return this._starredRepos.length;
+    return this._starredRepos.filter(r => r.full_name.toLowerCase().includes(this._starredFilter.toLowerCase())).length;
   }
 
   connectedCallback() {
@@ -358,6 +375,66 @@ class ConfigView extends LitElement {
           ${this._githubVerifyMsg ? html`<div style="font-size:12px;margin-top:4px;color:${this._githubVerifyOk ? 'var(--primary-color,#03a9f4)' : '#f44336'};">${this._githubVerifyMsg}</div>` : ''}
         </div>
 
+        ${this._githubUser ? html`
+        <!-- ⭐ 星标仓库同步 -->
+        <div class="section">
+          <div class="section-title">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+            ${t('syncStarred') || '星标仓库同步'}
+          </div>
+          <div style="font-size:12px;color:var(--secondary-text-color);margin-bottom:10px;">
+            ${t('syncStarredDesc') || '从 GitHub 拉取你点赞过的仓库，勾选后添加到自定义仓库列表'}
+          </div>
+          ${this._starredLoading ? html`
+            <div style="padding:20px;text-align:center;color:var(--secondary-text-color);font-size:13px;">
+              <svg class="mini-icon spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px;vertical-align:middle;margin-right:6px;"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+              正在从 GitHub 加载星标仓库...
+            </div>
+          ` : this._starredRepos.length > 0 ? html`
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+              <label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer;">
+                <input type="checkbox" .checked=${this._filteredStarredCount > 0 && Object.keys(this._selectedStarred).length === this._filteredStarredCount}
+                  ?indeterminate=${Object.keys(this._selectedStarred).length > 0 && Object.keys(this._selectedStarred).length < this._filteredStarredCount}
+                  @change=${e => this._toggleSelectAllStarred(e.target.checked)}>
+                全选
+              </label>
+              <span style="font-size:13px;font-weight:600;">${this._starredRepos.length} 个星标仓库</span>
+              <input type="text" placeholder="筛选..." .value=${this._starredFilter}
+                @input=${e => { this._starredFilter = e.target.value; this.requestUpdate(); }}
+                style="flex:1;padding:6px 8px;border:1px solid var(--divider-color);border-radius:6px;font-size:12px;background:var(--card-background-color);color:var(--primary-text-color);">
+              <button class="btn primary" style="font-size:11px;padding:4px 10px;" @click=${this._syncSelectedStarred} ?disabled=${this._starredSyncing || Object.keys(this._selectedStarred).length === 0}>
+                ${this._starredSyncing ? '同步中...' : `同步选中 (${Object.keys(this._selectedStarred).length})`}
+              </button>
+              <button class="btn" style="font-size:11px;padding:4px 10px;" @click=${this._refreshStarred}>
+                刷新
+              </button>
+            </div>
+            ${this._starredSyncResult ? html`<div style="font-size:12px;margin-bottom:8px;color:${this._starredSyncResult.includes('失败') ? '#f44336' : 'var(--primary-text-color)'};">${this._starredSyncResult}</div>` : ''}
+            <div style="max-height:300px;overflow-y:auto;border:1px solid var(--divider-color);border-radius:8px;">
+              ${this._starredRepos.filter(r => !this._starredFilter || r.full_name.toLowerCase().includes(this._starredFilter.toLowerCase())).map(r => html`
+                <div style="display:flex;align-items:center;gap:8px;padding:6px 10px;border-bottom:1px solid var(--divider-color);font-size:12px;cursor:pointer;" @click=${() => this._toggleSelectStarred(r.full_name)}>
+                  <input type="checkbox" .checked=${!!this._selectedStarred[r.full_name]}
+                    @click=${(e) => { e.stopPropagation(); this._toggleSelectStarred(r.full_name); }}
+                    style="cursor:pointer;">
+                  <span style="flex:1;">
+                    <strong>${r.full_name}</strong>
+                    <span style="color:var(--secondary-text-color);margin-left:6px;">
+                      ⭐${r.stars?.toLocaleString() || 0}
+                      ${r.category ? html`<span style="margin-left:4px;padding:1px 5px;border-radius:4px;background:var(--primary-color);color:#fff;font-size:10px;">${r.category}</span>` : ''}
+                    </span>
+                    ${r.description ? html`<br><span style="color:var(--secondary-text-color);">${r.description.slice(0, 80)}</span>` : ''}
+                  </span>
+                </div>
+              `)}
+            </div>
+          ` : html`
+            <button class="btn" style="font-size:12px;padding:6px 14px;" @click=${this._loadStarredRepos}>
+              ${t('loadStarred') || '加载星标仓库'}
+            </button>
+          `}
+        </div>
+        ` : ''}
+
         </div> <!-- config-grid -->
         <div class="version">HACS Vision${this._version ? ` v${this._version}` : ''}</div>
       </div>
@@ -398,9 +475,90 @@ class ConfigView extends LitElement {
       this._githubUser = '';
       this._githubVerifyMsg = '已登出';
       this._githubVerifyOk = false;
+      this._starredRepos = [];
       const { showToast } = await import('../hacs-vision-panel.js');
       showToast('已登出 GitHub', 'info');
     } catch(e) { /* ignore */ }
+  }
+
+  async _loadStarredRepos() {
+    this._starredLoading = true;
+    this._starredSyncResult = '';
+    this._selectedStarred = {};
+    try {
+      const result = await api.listStarred();
+      if (result?.repos) {
+        this._starredRepos = result.repos;
+        if (result.repos.length === 0) {
+          const { showToast } = await import('../hacs-vision-panel.js');
+          showToast('没有找到星标仓库', 'info');
+        }
+      } else {
+        const { showToast } = await import('../hacs-vision-panel.js');
+        showToast(result?.error || '加载失败', 'error');
+      }
+    } catch(e) {
+      const { showToast } = await import('../hacs-vision-panel.js');
+      showToast(`加载失败: ${e.message}`, 'error');
+    }
+    this._starredLoading = false;
+  }
+
+  async _refreshStarred() {
+    this._starredRepos = [];
+    await this._loadStarredRepos();
+  }
+
+  _toggleSelectStarred(fullName) {
+    if (this._selectedStarred[fullName]) {
+      this._selectedStarred = { ...this._selectedStarred };
+      delete this._selectedStarred[fullName];
+    } else {
+      this._selectedStarred = { ...this._selectedStarred, [fullName]: true };
+    }
+  }
+
+  _toggleSelectAllStarred(checked) {
+    const filtered = this._starredRepos.filter(r => !this._starredFilter || r.full_name.toLowerCase().includes(this._starredFilter.toLowerCase()));
+    if (checked) {
+      const sel = {};
+      filtered.forEach(r => sel[r.full_name] = true);
+      this._selectedStarred = sel;
+    } else {
+      this._selectedStarred = {};
+    }
+  }
+
+  async _syncSelectedStarred() {
+    const selectedNames = Object.keys(this._selectedStarred);
+    if (selectedNames.length === 0) return;
+    this._starredSyncing = true;
+    this._starredSyncResult = '';
+    try {
+      const reposToSync = this._starredRepos
+        .filter(r => this._selectedStarred[r.full_name])
+        .map(r => ({
+          full_name: r.full_name,
+          category: r.category || 'integration',
+        }));
+      if (reposToSync.length === 0) {
+        this._starredSyncResult = '没有选中的仓库';
+        this._starredSyncing = false;
+        return;
+      }
+      const result = await api.syncStarred(reposToSync);
+      const results = result?.results || [];
+      const ok = results.filter(r => r.success).length;
+      const fail = results.filter(r => !r.success).length;
+      this._starredSyncResult = `同步完成: ${ok} 个成功${fail ? `, ${fail} 个失败` : ''}`;
+      const { showToast } = await import('../hacs-vision-panel.js');
+      showToast(`已添加 ${ok} 个星标仓库到自定义列表`, fail ? 'warning' : 'success');
+    } catch(e) {
+      this._starredSyncResult = `同步失败: ${e.message}`;
+      const { showToast } = await import('../hacs-vision-panel.js');
+      showToast(`同步失败: ${e.message}`, 'error');
+    }
+    this._starredSyncing = false;
   }
 
   async _export() {
