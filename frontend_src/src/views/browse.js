@@ -1130,11 +1130,6 @@ class BrowseView extends LitElement {
             <button class="view-toggle-btn ${this.viewMode === 'card' ? 'active' : ''}" @click=${() => this._onViewModeChange('card')} title="${t('viewCard')}">${t('viewCard')}</button>
             <button class="view-toggle-btn ${this.viewMode === 'list' ? 'active' : ''}" @click=${() => this._onViewModeChange('list')} title="${t('viewList')}">${t('viewList')}</button>
           </div>
-          <button class="refresh-btn" @click=${this._refresh} title="${t('refreshTitle')}">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;">
-              <path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/>
-            </svg>
-          </button>
           <button class="btn primary" style="padding:6px 12px;font-size:12px;min-height:36px;" @click=${() => { this._showAddRepo = !this._showAddRepo; }}>+ ${t('addRepo')}</button>
           <label class="sel-all-label">
             <input type="checkbox" class="checkbox-sm" .checked=${this._isAllSelected()}
