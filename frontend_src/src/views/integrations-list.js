@@ -580,14 +580,9 @@ class IntegrationsList extends LitElement {
 
   _iotLabel(iotClass) {
     if (!iotClass) return '';
-    const labels = {
-      'cloud_polling': '☁',
-      'local_polling': '🏠',
-      'local_push': '⚡',
-      'assumed_state': '?',
-      'calculated': '📊',
-    };
-    return labels[iotClass] || '';
+    // Show cloud icon for integrations that need internet
+    if (iotClass === 'cloud_polling') return '☁';
+    return '';
   }
 
   _onSortColumn(key) {
