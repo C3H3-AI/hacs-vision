@@ -31,6 +31,7 @@ class IntegrationsList extends LitElement {
     _toggling: { type: Object, state: true },            // Set-like Map: entity_id → true
     _selectedEntryIds: { type: Object, state: true },     // Set-like Map: entry_id → true (批量选择)
     _selectedDomains: { type: Object, state: true },       // Set-like Map: domain → true (卡片批量)
+    _sortBy: { type: String, state: true },                // name | entries | status
   };
 
   constructor() {
@@ -50,6 +51,7 @@ class IntegrationsList extends LitElement {
     this._showDetail = false;
     this._domainNames = {};
     this._viewMode = localStorage.getItem('hacs_int_view_mode') || 'card';
+    this._sortBy = localStorage.getItem('hacs_int_sort_by') || 'name';
     this._detailOpenedAt = 0;
     this._modalDrag = { offsetX: 0, offsetY: 0, startX: 0, startY: 0, dragging: false, cleanup: null };
     this._toggledEntries = {};
@@ -103,6 +105,11 @@ class IntegrationsList extends LitElement {
   _setViewMode(mode) {
     this._viewMode = mode;
     try { localStorage.setItem('hacs_int_view_mode', mode); } catch(e) {}
+  }
+
+  _setSortBy(sort) {
+    this._sortBy = sort;
+    try { localStorage.setItem('hacs_int_sort_by', sort); } catch(e) {}
   }
 
   async _load() {
@@ -520,6 +527,17 @@ class IntegrationsList extends LitElement {
     return this._domainNames?.[domain] || domain;
   }
 
+  _cycleSort() {
+    const order = ['name', 'entries', 'status'];
+    const idx = order.indexOf(this._sortBy);
+    this._setSortBy(order[(idx + 1) % order.length]);
+  }
+
+  _sortLabel(sort) {
+    const map = { name: t('sortByName'), entries: t('sortByEntries'), status: t('filterStatus') };
+    return map[sort] || sort;
+  }
+
   /* ─── Render avatar with CDN icon → local fallback → initials ─── */
   _renderAvatar(domain) {
     const brandUrl = `https://brands.home-assistant.io/${domain}/icon.png`;
@@ -605,14 +623,29 @@ class IntegrationsList extends LitElement {
     if (this._statusFilter !== 'all') {
       groups = groups.filter(g => g._state === this._statusFilter);
     }
-    // Sort: failed first, then disabled, then loaded, then alphabetically
-    const order = { failed: 0, 'not-loaded': 1, disabled: 2, loaded: 3 };
-    groups.sort((a, b) => {
-      const oa = order[a._state] ?? 3;
-      const ob = order[b._state] ?? 3;
-      if (oa !== ob) return oa - ob;
-      return a.domain.localeCompare(b.domain);
-    });
+    // Sort by user selection
+    if (this._sortBy === 'status') {
+      const order = { failed: 0, 'not-loaded': 1, disabled: 2, loaded: 3 };
+      groups.sort((a, b) => {
+        const oa = order[a._state] ?? 3;
+        const ob = order[b._state] ?? 3;
+        if (oa !== ob) return oa - ob;
+        return a.domain.localeCompare(b.domain);
+      });
+    } else if (this._sortBy === 'entries') {
+      groups.sort((a, b) => {
+        if (a.entries.length !== b.entries.length) return b.entries.length - a.entries.length;
+        return a.domain.localeCompare(b.domain);
+      });
+    } else {
+      // name: alphabetically by translated name → domain
+      groups.sort((a, b) => {
+        const na = this._translateDomain(a.domain).toLowerCase();
+        const nb = this._translateDomain(b.domain).toLowerCase();
+        if (na !== nb) return na < nb ? -1 : 1;
+        return a.domain.localeCompare(b.domain);
+      });
+    }
     return groups;
   }
 
@@ -674,6 +707,10 @@ class IntegrationsList extends LitElement {
               <button class="view-toggle-btn ${this._viewMode === 'card' ? 'active' : ''}" @click=${() => this._setViewMode('card')} title="${t('viewCard')}">${t('viewCard')}</button>
               <button class="view-toggle-btn ${this._viewMode === 'list' ? 'active' : ''}" @click=${() => this._setViewMode('list')} title="${t('viewList')}">${t('viewList')}</button>
             </div>
+            <button class="sort-btn" @click=${() => this._cycleSort()} title="${t('sortBy') || '排序'}">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M3 9l4-4 4 4M7 5v14"/><path d="M21 15l-4 4-4-4M17 19V5"/></svg>
+              <span class="sort-label">${this._sortLabel(this._sortBy)}</span>
+            </button>
             <button class="action-btn primary" @click=${this._openAddDialog}>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
               ${t('addHAIntegration')}
@@ -1087,6 +1124,18 @@ class IntegrationsList extends LitElement {
     .view-toggle-btn + .view-toggle-btn { border-left: 1px solid var(--divider-color); }
     .view-toggle-btn.active { background: var(--primary-color); color: #fff; }
     .view-toggle-btn:hover:not(.active) { color: var(--primary-color); }
+
+    /* ===== Sort Button ===== */
+    .sort-btn {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 6px 10px; border: 1px solid var(--divider-color);
+      border-radius: 8px; background: var(--card-background-color);
+      color: var(--secondary-text-color); cursor: pointer;
+      font-size: 12px; min-height: 36px; white-space: nowrap;
+      transition: all 0.2s; touch-action: manipulation;
+    }
+    .sort-btn:hover { border-color: var(--primary-color); color: var(--primary-color); }
+    .sort-label { font-size: 11px; }
 
     /* ===== List View ===== */
     .integrations-list {

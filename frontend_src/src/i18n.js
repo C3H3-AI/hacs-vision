@@ -67,6 +67,7 @@ const T = {
   sortByStars: { zh: '按星数', en: 'By Stars' },
   sortByUpdated: { zh: '最近更新', en: 'Recently Updated' },
   sortByName: { zh: '按名称', en: 'By Name' },
+  sortByEntries: { zh: '按条目', en: 'By Entries' },
   catAll: { zh: '全部', en: 'All' },
   catIntegration: { zh: '集成', en: 'Integration' },
   catPlugin: { zh: '插件', en: 'Plugin' },
