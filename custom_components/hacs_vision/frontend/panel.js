@@ -3645,11 +3645,6 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
             <span class="btn-label">${ge("delete")}</span>
           </button>
         </div>
-              ${r?H`<span class="spinning-mini">⋯</span>`:H`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>`}
-              <span class="btn-label">${ge("delete")}</span>
-            </button>
-          </div>
-        </div>
       </div>
     `}_renderDetailDialog(){if(!this._showDetail)return"";const e=this._detailDomain,t=this._detailEntries;return H`
       <div class="detail-overlay" role="dialog" aria-modal="true" aria-label="${this._translateDomain(e)}" @click=${e=>{e.target===e.currentTarget&&this._closeDetail()}} @keydown=${e=>{"Escape"===e.key&&this._closeDetail()}}>
