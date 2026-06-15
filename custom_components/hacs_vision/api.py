@@ -54,8 +54,8 @@ class HACSEnhancedStaticView(HomeAssistantView):
                 content = content.replace("__VERSION__", VERSION)
             resp = web.Response(text=content, content_type=ctype)
             # HTML: always revalidate so the app pulls the latest ?v=VERSION panel.js
-            # JS:  let the browser cache for 1h since ?v= busts on version change
-            if filename.endswith(".html"):
+            # JS:  always revalidate too (dev-active project; cache causes stale UX)
+            if filename.endswith(".html") or filename.endswith(".js") or filename == "build.json":
                 resp.headers["Cache-Control"] = "no-cache, must-revalidate"
             else:
                 resp.headers["Cache-Control"] = "public, max-age=3600"

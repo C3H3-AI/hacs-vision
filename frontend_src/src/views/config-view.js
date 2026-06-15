@@ -413,12 +413,19 @@ class ConfigView extends LitElement {
     });
     if (!ok) return;
     try {
-      const keys = await caches.keys();
-      await Promise.all(keys.map(k => caches.delete(k)));
-      localStorage.clear();
+      // Try Cache Storage API (only available in secure contexts/HTTPS)
+      if (typeof caches !== 'undefined' || typeof window.caches !== 'undefined') {
+        const cacheApi = typeof caches !== 'undefined' ? caches : window.caches;
+        const keys = await cacheApi.keys();
+        await Promise.all(keys.map(k => cacheApi.delete(k)));
+      }
+      // Clear only HACS Vision localStorage keys (not all localStorage)
+      const hacsKeys = Object.keys(localStorage).filter(k => k.startsWith('hacs_vision'));
+      hacsKeys.forEach(k => localStorage.removeItem(k));
       const { showToast } = await import('../hacs-vision-panel.js');
       showToast(t('clearCacheDone'), 'success');
-      setTimeout(() => location.reload(), 1500);
+      // Cache-busting reload: add a timestamp param to force fresh load
+      setTimeout(() => { location.href = location.pathname + '?_t=' + Date.now(); }, 1500);
     } catch(e) {
       const { showToast } = await import('../hacs-vision-panel.js');
       showToast(`${t('clearCache')}: ${e.message}`, 'error');
