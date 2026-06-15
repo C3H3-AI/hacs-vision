@@ -2665,13 +2665,13 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
       display: inline-block; padding: 1px 8px; border-radius: 4px;
       font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.3px;
     }
-    .category-badge.integration { background: #e8f5e9; color: #2e7d32; }
-    .category-badge.plugin { background: #fff3e0; color: #e65100; }
-    .category-badge.theme { background: #f3e5f5; color: #7b1fa2; }
-    .category-badge.python_script { background: #e3f2fd; color: #1565c0; }
-    .category-badge.template { background: #fce4ec; color: #c62828; }
-    .category-badge.appdaemon { background: #e0f2f1; color: #00695c; }
-    .category-badge.netdaemon { background: #ede7f6; color: #4527a0; }
+    .category-badge.integration { background: #e3f2fd; color: #1565c0; }
+    .category-badge.plugin { background: #f3e5f5; color: #7b1fa2; }
+    .category-badge.theme { background: #e8f5e9; color: #2e7d32; }
+    .category-badge.python_script { background: #fff8e1; color: #f9a825; }
+    .category-badge.template { background: #f3e5f5; color: #6a1b9a; }
+    .category-badge.appdaemon { background: #fbe9e7; color: #e65100; }
+    .category-badge.netdaemon { background: #e0f7fa; color: #00838f; }
     .category-badge.dashboard { background: #fff8e1; color: #f57f17; }
 
     .renamed-badge {
