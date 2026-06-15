@@ -381,9 +381,8 @@ class UpdatesView extends LitElement {
   async _load() {
     this.loading = true;
     try {
-      // Trigger backend refresh in background (don't block — just fetch cached data)
-      api.refresh().catch(() => {});
-      // Fetch the cached updates list immediately
+      // Refresh backend data first, then fetch fresh updates list
+      await api.refresh();
       const result = await api.getUpdates();
       this.updates = Array.isArray(result) ? result : (result.updates || []);
       this._lazyLoadChangelogs();
