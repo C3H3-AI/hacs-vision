@@ -463,6 +463,8 @@ class BrowseView extends LitElement {
     super.connectedCallback();
     await this._loadFavorites();
     await this._load();
+    // After repos loaded, silently sync GitHub stars → local favorites (only known repos)
+    this._syncGitHubStarsToFavs();
     this.addEventListener('install', (e) => this._handleInstall(e.detail.repo));
     this.addEventListener('update', (e) => this._handleUpdate(e.detail.repo));
     this.addEventListener('uninstall', (e) => this._handleUninstall(e.detail.repo));
@@ -473,9 +475,21 @@ class BrowseView extends LitElement {
     this.addEventListener('add-integration', (e) => this._handleAddIntegration(e.detail.repo));
     this.addEventListener('star-changed', (e) => {
       const { repo, starred } = e.detail;
-      if (repo?.full_name) {
-        this._starredMap = { ...this._starredMap, [repo.full_name]: starred };
+      if (!repo?.full_name) return;
+      this._starredMap = { ...this._starredMap, [repo.full_name]: starred };
+      // Sync _favorites to match merged star state
+      const repoId = repo.id || repo.full_name;
+      if (starred && !this._favorites.includes(repo.id) && !this._favorites.includes(repo.full_name)) {
+        this._favorites = [...this._favorites, repo.id || repo.full_name];
+      } else if (!starred) {
+        this._favorites = this._favorites.filter(id => id !== repo.id && id !== repo.full_name);
       }
+      // Update header count
+      this.tagCounts = { ...this.tagCounts, favorites: this._favorites.length };
+      try {
+        const panel = document.querySelector('hacs-vision-panel');
+        if (panel) { panel._favoriteCount = this._favorites.length; panel.requestUpdate(); }
+      } catch(e) {}
     });
     this.addEventListener('favorite', (e) => {
       // Update local favorites list from card's toggle result (no extra API call)
@@ -529,6 +543,34 @@ class BrowseView extends LitElement {
     }
   }
 
+  async _syncGitHubStarsToFavs() {
+    try {
+      const hasToken = await api.hasGitHubToken();
+      if (!hasToken) return;
+      const starredResp = await api.listStarred();
+      const starred = starredResp?.repos || [];
+      // Only add stars that exist in the current repos list (HACS catalog + custom repos)
+      const knownNames = new Set((this.repos || []).map(r => r.full_name).filter(Boolean));
+      if (knownNames.size === 0) return;  // repos not loaded yet, skip
+      let changed = false;
+      for (const r of starred) {
+        const name = r.full_name || r.fullName || r.name || '';
+        if (name && knownNames.has(name) && !this._favorites.includes(name)) {
+          this._favorites.push(name);
+          changed = true;
+        }
+      }
+      if (changed) {
+        await api.setFavorites(this._favorites);
+        this.tagCounts = { ...this.tagCounts, favorites: this._favorites.length };
+        try {
+          const panel = document.querySelector('hacs-vision-panel');
+          if (panel) { panel._favoriteCount = this._favorites.length; panel.requestUpdate(); }
+        } catch(e) {}
+      }
+    } catch(e) { /* silent — no token or network error */ }
+  }
+
   _syncFavoriteCount() {
     this.requestUpdate();
   }
@@ -543,46 +585,56 @@ class BrowseView extends LitElement {
 
   async _toggleStar(repo) {
     const fullName = repo.full_name;
+    const repoId = fullName;  // Always use full_name for favorites (compatible with GitHub Star API)
     if (!fullName) return;
     const currently = this._starredMap?.[fullName];
-    try {
-      if (currently) {
-        await api.unstarRepo(fullName);
-        this._starredMap = { ...this._starredMap, [fullName]: false };
-        // Locally update star count
-        repo.stars = Math.max(0, (repo.stars || repo.stargazers_count || 0) - 1);
-      } else {
-        await api.starRepo(fullName);
-        this._starredMap = { ...this._starredMap, [fullName]: true };
-        // Locally update star count
-        repo.stars = (repo.stars || repo.stargazers_count || 0) + 1;
-      }
-      this.requestUpdate();
-    } catch(e) {
-      showToast(`Star 失败: ${e.message}`, 'error');
+
+    // 1. Toggle display + update count immediately
+    const newState = !currently;
+    this._starredMap = { ...this._starredMap, [fullName]: newState };
+    if (newState) {
+      repo.stars = (repo.stars || repo.stargazers_count || 0) + 1;
+    } else {
+      repo.stars = Math.max(0, (repo.stars || repo.stargazers_count || 0) - 1);
     }
+    this.requestUpdate();
+
+    // 2. Parallel: GitHub(后端自己判断Token) + 本地收藏
+    try {
+      const starOp = newState ? api.starRepo(fullName) : api.unstarRepo(fullName);
+      const [favsResp] = await Promise.allSettled([api.getFavorites(), starOp]);
+      const favsResult = favsResp.status === 'fulfilled' ? favsResp.value : { favorites: [] };
+      const favs = Array.isArray(favsResult) ? [...favsResult] : [...(favsResult?.favorites || [])];
+      if (newState) {
+        if (!favs.includes(repoId)) favs.push(repoId);
+      } else {
+        const idx = favs.indexOf(repoId);
+        if (idx >= 0) favs.splice(idx, 1);
+      }
+      await api.setFavorites(favs);
+      this._favorites = favs;
+    } catch(e) { /* ignore */ }
+
+    // 3. Sync counts
+    this.tagCounts = { ...this.tagCounts, favorites: this._favorites.length };
+    try {
+      const panel = document.querySelector('hacs-vision-panel');
+      if (panel) { panel._favoriteCount = this._favorites.length; panel.requestUpdate(); }
+    } catch(e) {}
   }
 
   async _batchLoadStarStatus() {
-    // Batch check star status for all visible repos using a single API approach
-    // Since GitHub doesn't have a batch star check endpoint, we check each one
-    // but only for repos not already in _starredMap
+    // Build starred map from local favorites
     const repos = this.repos || [];
-    const batch = repos.filter(r => r?.full_name && this._starredMap?.[r.full_name] === undefined);
-    if (batch.length === 0) return;
-    // Check in parallel but limit concurrency
-    const results = await Promise.allSettled(
-      batch.slice(0, 30).map(r =>
-        api.checkStarred(r.full_name).then(res => ({ name: r.full_name, starred: res?.starred }))
-      )
-    );
-    const updates = {};
-    for (const r of results) {
-      if (r.status === 'fulfilled' && r.value && typeof r.value.starred === 'boolean') {
-        updates[r.value.name] = r.value.starred;
+    let changed = false;
+    for (const r of repos) {
+      if (r?.full_name && this._starredMap?.[r.full_name] === undefined) {
+        const repoId = r.id || r.full_name;
+        const starred = this._favorites.includes(repoId);
+        if (!changed) { changed = true; this._starredMap = { ...this._starredMap }; }
+        this._starredMap[r.full_name] = starred;
       }
     }
-    this._starredMap = { ...this._starredMap, ...updates };
   }
 
   async _handleInstall(repo) {
@@ -932,7 +984,7 @@ class BrowseView extends LitElement {
     // Status and tag filtering is done server-side.
     // Only favorites filter is client-side (no server-side equivalent).
     if (this._tagFilters.includes('favorites')) {
-      return repos.filter(r => this._favorites.includes(r.id || r.full_name));
+      return repos.filter(r => this._favorites.includes(r.id) || this._favorites.includes(r.full_name));
     }
     return repos;
   }
@@ -1088,7 +1140,6 @@ class BrowseView extends LitElement {
     }
     return html`<div class="grid">${repos.map(r => html`
       <repo-card .repo=${r} ._installing=${!!this._installingIds?.[r.id || r.full_name]}
-        .favorites=${this._favorites}
         ?showCheckbox=${true} ?selected=${this._selectedRepos.includes(r.full_name)}
         .starred=${this._starredMap?.[r.full_name] ?? false}
         @check-change=${(e) => { if (e.detail?.fullName) this._toggleSelect(e.detail.fullName); }}>
