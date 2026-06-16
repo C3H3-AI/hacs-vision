@@ -81,7 +81,7 @@ export class ManagementView extends LitElement {
       ignored: false,
       tools: false,
     };
-    this._orgUrl = '';
+    this._orgRepos = [];
     this._orgRepos = [];
     this._orgLoading = false;
     this._orgFilter = '';
@@ -593,7 +593,6 @@ export class ManagementView extends LitElement {
     if (!this._showAddCustom) {
       this._customRepoUrl = '';
       this._customRepoCategory = 'integration';
-      this._orgUrl = '';
       this._orgRepos = [];
       this._orgFilter = '';
       this._selectedOrgRepos = {};
@@ -632,9 +631,13 @@ export class ManagementView extends LitElement {
     return this._orgRepos.filter(r => r.full_name.toLowerCase().includes(this._orgFilter.toLowerCase())).length;
   }
 
+  _isRepoUrl(val) {
+    return val?.includes('/');
+  }
+
   async _loadMgmtOrgRepos() {
-    const org = this._orgUrl?.trim();
-    if (!org) return;
+    const org = this._customRepoUrl?.trim();
+    if (!org || this._isRepoUrl(org)) return;
     this._orgLoading = true;
     this._orgRepos = [];
     this._selectedOrgRepos = {};
@@ -1133,72 +1136,64 @@ export class ManagementView extends LitElement {
       <!-- Add Custom Repo Form -->
       ${this._showAddCustom ? html`
         <div class="add-repo-form">
-          <!-- 单个添加 -->
           <div class="form-row" style="display:flex;gap:8px;flex-wrap:wrap;">
-            <input class="form-input" type="text" style="flex:1;min-width:200px;" .value=${this._customRepoUrl} @input=${e => this._customRepoUrl = e.target.value} placeholder="owner/repo 或 GitHub URL" @keydown=${e => e.key === 'Enter' && this._addCustomRepo()}>
-            <select class="form-select" .value=${this._customRepoCategory} @change=${e => this._customRepoCategory = e.target.value}>
-              ${['integration','plugin','theme','dashboard','python_script','template','appdaemon','netdaemon'].map(c => html`<option value=${c}>${this._getCategoryLabel(c)}</option>`)}
-            </select>
-            <button class="btn primary" @click=${this._addCustomRepo} ?disabled=${this._addingCustom || !this._customRepoUrl.trim()}>
-              ${this._addingCustom ? html`<svg class="mini-icon spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> ${t('add')}` : html`<svg class="mini-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg> ${t('add')}`}
-            </button>
-          </div>
-          ${this._customRepoUrl.trim() && this._parseRepoUrl(this._customRepoUrl) ? html`
-            <div style="margin-top:4px;font-size:11px;color:var(--secondary-text-color);display:flex;align-items:center;gap:4px;">
-              <svg class="mini-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg> ${this._parseRepoUrl(this._customRepoUrl)}
-            </div>
-          ` : this._customRepoUrl.trim() ? html`
-            <div style="margin-top:4px;font-size:11px;color:#f44336;">${t('invalidRepoUrl')}</div>
-          ` : ''}
-
-          <!-- 组织/用户批量添加 -->
-          <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--divider-color);">
-            <div style="font-size:12px;font-weight:600;margin-bottom:6px;">${t('batchAddOrg') || '批量添加组织/用户仓库'}</div>
-            <div style="display:flex;gap:6px;margin-bottom:8px;">
-              <input class="form-input" type="text" style="flex:1;" .value=${this._orgUrl} @input=${e => this._orgUrl = e.target.value} @keydown=${e => e.key === 'Enter' && this._loadMgmtOrgRepos()} placeholder="GitHub 组织名或 URL（如 C3H3-AI）">
-              <button class="btn" style="white-space:nowrap;" @click=${this._loadMgmtOrgRepos} ?disabled=${this._orgLoading || !this._orgUrl.trim()}>
-                ${this._orgLoading ? '加载中...' : (t('load') || '加载')}
+            <input class="form-input" type="text" style="flex:1;min-width:200px;" .value=${this._customRepoUrl} @input=${e => { this._customRepoUrl = e.target.value; clearTimeout(this._orgLoadTimer); if (!this._isRepoUrl(this._customRepoUrl) && this._customRepoUrl.trim()) { this._orgLoadTimer = setTimeout(() => this._loadMgmtOrgRepos(), 300); }} } placeholder="owner/repo、GitHub URL 或组织名" @keydown=${e => {
+              if (e.key === 'Enter') {
+                if (this._orgRepos.length > 0) this._syncSelectedMgmtOrg();
+                else this._addCustomRepo();
+              }
+            }}>
+            ${this._customRepoUrl.trim() && this._parseRepoUrl(this._customRepoUrl) ? html`
+              <select class="form-select" .value=${this._customRepoCategory} @change=${e => this._customRepoCategory = e.target.value}>
+                ${['integration','plugin','theme','dashboard','python_script','template','appdaemon','netdaemon'].map(c => html`<option value=${c}>${this._getCategoryLabel(c)}</option>`)}
+              </select>
+              <button class="btn primary" @click=${this._addCustomRepo} ?disabled=${this._addingCustom}>
+                ${this._addingCustom ? html`<svg class="mini-icon spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> ${t('add')}` : html`<svg class="mini-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg> ${t('add')}`}
               </button>
-            </div>
-
-            ${this._orgLoading ? html`
-              <div style="padding:10px;text-align:center;color:var(--secondary-text-color);font-size:12px;">
-                <svg class="mini-icon spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;vertical-align:middle;margin-right:4px;"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> 加载中...
+              <div style="margin-top:4px;font-size:11px;color:var(--secondary-text-color);display:flex;align-items:center;gap:4px;width:100%;">
+                <svg class="mini-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg> ${this._parseRepoUrl(this._customRepoUrl)}
               </div>
-            ` : this._orgRepos.length > 0 ? html`
-              <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">
-                <label style="display:flex;align-items:center;gap:3px;font-size:11px;cursor:pointer;">
-                  <input type="checkbox" .checked=${this._mgmtOrgFilteredCount > 0 && Object.keys(this._selectedOrgRepos).length === this._mgmtOrgFilteredCount}
-                    ?indeterminate=${Object.keys(this._selectedOrgRepos).length > 0 && Object.keys(this._selectedOrgRepos).length < this._mgmtOrgFilteredCount}
-                    @change=${e => this._toggleSelectAllMgmtOrg(e.target.checked)}>
-                  全选
-                </label>
-                <span style="font-size:12px;font-weight:600;">${this._orgRepos.length} 个仓库</span>
-                <input type="text" placeholder="筛选..." .value=${this._orgFilter}
-                  @input=${e => { this._orgFilter = e.target.value; this.requestUpdate(); }}
-                  style="flex:1;padding:4px 6px;border:1px solid var(--divider-color);border-radius:4px;font-size:11px;background:var(--card-background-color);color:var(--primary-text-color);">
-                <button class="btn primary" style="font-size:10px;padding:3px 8px;" @click=${this._syncSelectedMgmtOrg} ?disabled=${this._orgSyncing || Object.keys(this._selectedOrgRepos).length === 0}>
-                  ${this._orgSyncing ? '同步中...' : `同步选中 (${Object.keys(this._selectedOrgRepos).length})`}
-                </button>
-              </div>
-              ${this._orgSyncResult ? html`<div style="font-size:11px;margin-bottom:4px;color:${this._orgSyncResult.includes('失败') ? '#f44336' : 'var(--primary-text-color)'};">${this._orgSyncResult}</div>` : ''}
-              <div style="max-height:200px;overflow-y:auto;border:1px solid var(--divider-color);border-radius:4px;">
-                ${this._orgRepos.filter(r => !this._orgFilter || r.full_name.toLowerCase().includes(this._orgFilter.toLowerCase())).map(r => html`
-                  <div style="display:flex;align-items:center;gap:6px;padding:4px 8px;border-bottom:1px solid var(--divider-color);font-size:11px;cursor:pointer;" @click=${() => this._toggleSelectMgmtOrg(r.full_name)}>
-                    <input type="checkbox" .checked=${!!this._selectedOrgRepos[r.full_name]}
-                      @click=${(e) => { e.stopPropagation(); this._toggleSelectMgmtOrg(r.full_name); }}
-                      style="cursor:pointer;">
-                    <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
-                      <strong>${r.full_name}</strong>
-                      <span style="color:var(--secondary-text-color);margin-left:4px;">⭐${r.stars?.toLocaleString() || 0}</span>
-                      ${r.category ? html`<span style="margin-left:4px;padding:0 4px;border-radius:3px;background:var(--primary-color);color:#fff;font-size:9px;">${r.category}</span>` : ''}
-                    </span>
-                  </div>
-                `)}
-              </div>
+            ` : this._customRepoUrl.trim() && !this._isRepoUrl(this._customRepoUrl) ? html`
+              ${this._orgLoading ? html`
+                <div style="padding:10px;text-align:center;color:var(--secondary-text-color);font-size:12px;width:100%;">
+                  <svg class="mini-icon spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;vertical-align:middle;margin-right:4px;"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> 加载中...
+                </div>
+              ` : this._orgRepos.length > 0 ? html`
+                <div style="display:flex;align-items:center;gap:6px;margin:6px 0;width:100%;">
+                  <label style="display:flex;align-items:center;gap:3px;font-size:11px;cursor:pointer;">
+                    <input type="checkbox" .checked=${this._mgmtOrgFilteredCount > 0 && Object.keys(this._selectedOrgRepos).length === this._mgmtOrgFilteredCount}
+                      ?indeterminate=${Object.keys(this._selectedOrgRepos).length > 0 && Object.keys(this._selectedOrgRepos).length < this._mgmtOrgFilteredCount}
+                      @change=${e => this._toggleSelectAllMgmtOrg(e.target.checked)}>
+                    全选
+                  </label>
+                  <span style="font-size:12px;font-weight:600;">${this._orgRepos.length} 个仓库</span>
+                  <input type="text" placeholder="筛选..." .value=${this._orgFilter}
+                    @input=${e => { this._orgFilter = e.target.value; this.requestUpdate(); }}
+                    style="flex:1;padding:4px 6px;border:1px solid var(--divider-color);border-radius:4px;font-size:11px;background:var(--card-background-color);color:var(--primary-text-color);">
+                  <button class="btn primary" style="font-size:10px;padding:3px 8px;" @click=${this._syncSelectedMgmtOrg} ?disabled=${this._orgSyncing || Object.keys(this._selectedOrgRepos).length === 0}>
+                    ${this._orgSyncing ? '同步中...' : `同步选中 (${Object.keys(this._selectedOrgRepos).length})`}
+                  </button>
+                </div>
+                ${this._orgSyncResult ? html`<div style="font-size:11px;margin-bottom:4px;width:100%;color:${this._orgSyncResult.includes('失败') ? '#f44336' : 'var(--primary-text-color)'};">${this._orgSyncResult}</div>` : ''}
+                <div style="max-height:200px;overflow-y:auto;border:1px solid var(--divider-color);border-radius:4px;width:100%;">
+                  ${this._orgRepos.filter(r => !this._orgFilter || r.full_name.toLowerCase().includes(this._orgFilter.toLowerCase())).map(r => html`
+                    <div style="display:flex;align-items:center;gap:6px;padding:4px 8px;border-bottom:1px solid var(--divider-color);font-size:11px;cursor:pointer;" @click=${() => this._toggleSelectMgmtOrg(r.full_name)}>
+                      <input type="checkbox" .checked=${!!this._selectedOrgRepos[r.full_name]}
+                        @click=${(e) => { e.stopPropagation(); this._toggleSelectMgmtOrg(r.full_name); }}
+                        style="cursor:pointer;">
+                      <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+                        <strong>${r.full_name}</strong>
+                        <span style="color:var(--secondary-text-color);margin-left:4px;">⭐${r.stars?.toLocaleString() || 0}</span>
+                        ${r.category ? html`<span style="margin-left:4px;padding:0 4px;border-radius:3px;background:var(--primary-color);color:#fff;font-size:9px;">${r.category}</span>` : ''}
+                      </span>
+                    </div>
+                  `)}
+                </div>
+              ` : this._customRepoUrl.trim() ? html`
+                <div style="font-size:11px;color:#f44336;width:100%;">无效的仓库地址或组织名</div>
+              ` : ''}
             ` : ''}
           </div>
-
           <div class="form-actions" style="display:flex;gap:6px;margin-top:8px;">
             <button class="btn" @click=${this._toggleAddCustom}>${t('cancel')}</button>
           </div>
