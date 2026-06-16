@@ -667,16 +667,6 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
         if (searchInput) { searchInput.focus(); searchInput.select(); }
         return;
       }
-      if (!this._showDetail && document.activeElement?.tagName !== 'INPUT'
-          && document.activeElement?.tagName !== 'SELECT'
-          && document.activeElement?.tagName !== 'TEXTAREA') {
-        const views = ['browse', 'updates', 'management', 'settings'];
-        const num = parseInt(e.key);
-        if (num >= 1 && num <= views.length) {
-          e.preventDefault();
-          this.switchView(views[num - 1]);
-        }
-      }
     };
     window.addEventListener('keydown', this._keydownHandler);
     // Check cache version only once per page visibility cycle
