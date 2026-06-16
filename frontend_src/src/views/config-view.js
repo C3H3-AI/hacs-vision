@@ -397,7 +397,7 @@ class ConfigView extends LitElement {
                 <div class="desc">${t('githubTokenDesc') || '在 GitHub Settings → Developer settings → Personal access tokens 生成'}</div>
               </div>
               <div class="setting-control" style="flex-direction:column;gap:6px;align-items:stretch;">
-                <input type="password" class="token-input" placeholder="ghp_xxxxxxxxxxxx" .value=${this._githubTokenInput || ''} @input=${e => this._githubTokenInput = e.target.value} style="padding:8px;border:1px solid var(--divider-color);border-radius:8px;font-size:13px;background:var(--card-background-color);color:var(--primary-text-color);width:100%;box-sizing:border-box;" />
+                <input type="text" class="token-input" autocomplete="off" style="-webkit-text-security:disc;padding:8px;border:1px solid var(--divider-color);border-radius:8px;font-size:13px;background:var(--card-background-color);color:var(--primary-text-color);width:100%;box-sizing:border-box;" placeholder="ghp_xxxxxxxxxxxx" .value=${this._githubTokenInput || ''} @input=${e => this._githubTokenInput = e.target.value} />
                 <div style="display:flex;gap:6px;justify-content:flex-end;">
                   <button class="btn primary" style="font-size:12px;padding:5px 14px;" @click=${this._importHacsToken}>${this._githubVerifying ? t('importing') || '导入中...' : t('importFromHacs') || '从 HACS 导入'}</button>
                   <button class="btn" style="font-size:11px;padding:4px 10px;" @click=${this._githubVerifyToken} ?disabled=${this._githubVerifying}>${t('verifyAndSave') || '验证并保存'}</button>

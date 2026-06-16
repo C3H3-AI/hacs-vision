@@ -18,30 +18,6 @@ function _saveBrowseState(state) {
   try { localStorage.setItem(BROWSE_STATE_KEY, JSON.stringify(state)); } catch {}
 }
 
-const SEARCH_HISTORY_KEY = 'hacs_vision_search_history';
-const MAX_HISTORY = 10;
-
-function _loadSearchHistory() {
-  try { return JSON.parse(localStorage.getItem(SEARCH_HISTORY_KEY) || '[]'); } catch { return []; }
-}
-
-function _addSearchHistory(term) {
-  if (!term || !term.trim()) return;
-  term = term.trim();
-  let history = _loadSearchHistory();
-  // Remove duplicate if exists
-  history = history.filter(h => h !== term);
-  // Add to front
-  history.unshift(term);
-  // Trim to max
-  if (history.length > MAX_HISTORY) history = history.slice(0, MAX_HISTORY);
-  try { localStorage.setItem(SEARCH_HISTORY_KEY, JSON.stringify(history)); } catch {}
-}
-
-function _removeSearchHistory(term) {
-  let history = _loadSearchHistory().filter(h => h !== term);
-  try { localStorage.setItem(SEARCH_HISTORY_KEY, JSON.stringify(history)); } catch {}
-}
 
 class BrowseView extends LitElement {
   static properties = {
@@ -69,7 +45,6 @@ class BrowseView extends LitElement {
     _collapsedGroups: { type: Object, state: true },
     _filterExpanded: { type: Boolean, state: true },
     _favorites: { type: Array, state: true },
-    _searchHistory: { type: Array, state: true },
     presetFilter: { type: String },
     presetTag: { type: String },
     pendingRestart: { type: Number },
@@ -124,8 +99,6 @@ class BrowseView extends LitElement {
     this._favorites = [];
     this._selectedRepos = [];
     this._tagFilters = [];
-    this._searchHistory = _loadSearchHistory();
-    this._showSearchHistory = false;
 
     this.statusOptions = [
       { value: '', label: t('statusAll') },
@@ -166,28 +139,6 @@ class BrowseView extends LitElement {
     ${getCommonStyles()}
 
     :host { display: block; touch-action: manipulation; background: var(--primary-background-color); }
-
-    .search-history {
-      position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 100;
-      background: var(--card-background-color, #fff);
-      border: 1px solid var(--divider-color, #e0e0e0);
-      border-radius: 10px; box-shadow: 0 4px 16px rgba(0,0,0,0.12);
-      max-height: 260px; overflow-y: auto;
-    }
-    .search-history-item {
-      display: flex; align-items: center; gap: 8px; padding: 8px 12px;
-      cursor: pointer; transition: background 0.1s; color: var(--primary-text-color);
-    }
-    .search-history-item:hover { background: var(--secondary-background-color, #f5f5f5); }
-    .history-text { flex: 1; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .history-remove {
-      width: 20px; height: 20px; border-radius: 50%; border: none;
-      background: transparent; color: var(--secondary-text-color); cursor: pointer;
-      font-size: 10px; display: flex; align-items: center; justify-content: center;
-      opacity: 0; transition: all 0.15s;
-    }
-    .search-history-item:hover .history-remove { opacity: 1; }
-    .history-remove:hover { background: rgba(244,67,54,0.1); color: #f44336; }
 
     .content-section {
       background: var(--card-background-color, #fff);
@@ -510,17 +461,6 @@ class BrowseView extends LitElement {
 
   async connectedCallback() {
     super.connectedCallback();
-    this._boundDocClick = (e) => {
-      if (!this._showSearchHistory) return;
-      const search = this.shadowRoot?.querySelector('.search');
-      if (search) {
-        const path = e.composedPath();
-        if (!path.includes(search)) {
-          this._showSearchHistory = false;
-        }
-      }
-    };
-    document.addEventListener('click', this._boundDocClick, true);
     await this._loadFavorites();
     await this._load();
     this.addEventListener('install', (e) => this._handleInstall(e.detail.repo));
@@ -554,9 +494,6 @@ class BrowseView extends LitElement {
 
   disconnectedCallback() {
     super.disconnectedCallback();
-    if (this._boundDocClick) {
-      document.removeEventListener('click', this._boundDocClick, true);
-    }
   }
 
   willUpdate(changedProps) {
@@ -817,47 +754,15 @@ class BrowseView extends LitElement {
 
   _onSearch(e) {
     this._searchText = e.target.value;
-    this._showSearchHistory = false;
     clearTimeout(this._searchTimer);
     this._searchTimer = setTimeout(() => {
       this.search = this._searchText; this.page = 1;
       this._persistState(); this._load();
-      if (this._searchText) _addSearchHistory(this._searchText);
     }, 300);
-  }
-
-  _onSearchFocus() {
-    const history = _loadSearchHistory();
-    if (history.length > 0) {
-      this._searchHistory = history;
-      this._showSearchHistory = true;
-    }
-  }
-
-  _onSearchFocusOut(e) {
-    // If focus moves to something inside the search container, keep history open
-    const searchEl = e.currentTarget;
-    if (searchEl.contains(e.relatedTarget)) return;
-    this._showSearchHistory = false;
-  }
-
-  _onSearchHistoryClick(term) {
-    this._showSearchHistory = false;
-    this._searchText = term;
-    this.search = term; this.page = 1;
-    this._persistState(); this._load();
-  }
-
-  _clearSearchHistory(e, term) {
-    e.stopPropagation();
-    _removeSearchHistory(term);
-    this._searchHistory = _loadSearchHistory();
-    if (this._searchHistory.length === 0) this._showSearchHistory = false;
   }
 
   _clearSearch() {
     this._searchText = ''; this.search = ''; this.page = 1;
-    this._showSearchHistory = false;
     this._persistState(); this._load();
   }
 
@@ -1279,24 +1184,12 @@ class BrowseView extends LitElement {
     return html`
       <!-- Controls: Search + Action Buttons -->
       <div class="controls">
-        <div class="search" @focusout=${this._onSearchFocusOut}>
+        <div class="search">
           <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
           </svg>
-          <input type="text" autocomplete="off" placeholder="${t('searchPlaceholder')}" .value=${this._searchText} @input=${this._onSearch} @focus=${this._onSearchFocus} />
+          <input type="text" autocomplete="off" placeholder="${t('searchPlaceholder')}" .value=${this._searchText} @input=${this._onSearch} />
           ${this.search ? html`<button class="search-clear" @click=${this._clearSearch}>✕</button>` : ''}
-          ${this.search ? html`<button class="search-clear" @click=${this._clearSearch}>✕</button>` : ''}
-          ${this._showSearchHistory && this._searchHistory.length > 0 ? html`
-            <div class="search-history">
-              ${this._searchHistory.map(h => html`
-                <div class="search-history-item" @mousedown=${() => this._onSearchHistoryClick(h)}>
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;flex-shrink:0;"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                  <span class="history-text">${h}</span>
-                  <button class="history-remove" @mousedown=${e => this._clearSearchHistory(e, h)}>✕</button>
-                </div>
-              `)}
-            </div>
-          ` : ''}
         </div>
         <div class="controls-right">
           <button class="refresh-btn" @click=${this._refresh} title="${t('refreshTitle')}">
