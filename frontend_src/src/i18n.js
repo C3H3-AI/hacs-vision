@@ -514,6 +514,8 @@ const T = {
   tokenImportFailed: { zh: 'HACS 中未找到 Token', en: 'No token found in HACS' },
   verifyAndSave: { zh: '验证并保存', en: 'Verify & Save' },
   verifying: { zh: '验证中...', en: 'Verifying...' },
+  syncFavToStar: { zh: '收藏同步点赞', en: 'Favorites → Stars' },
+  syncStarToFav: { zh: '点赞同步收藏', en: 'Stars → Favorites' },
 };
 
 /**
