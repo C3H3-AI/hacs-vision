@@ -690,7 +690,7 @@ class UpdatesView extends LitElement {
   }
 
   async _toggleFav(repo) {
-    const repoId = repo.full_name || repo.id;
+    const repoId = repo.id || repo.full_name;
     const isFav = !!this._favs[repoId];
     const newFavs = { ...this._favs };
     if (isFav) { delete newFavs[repoId]; } else { newFavs[repoId] = true; }

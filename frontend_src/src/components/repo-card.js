@@ -6,12 +6,14 @@ import { getCategoryColor } from '../shared/constants.js';
 class RepoCard extends LitElement {
   static properties = {
     repo: { type: Object },
-    starred: { type: Boolean },  // Passed from parent — source of icon state
+    _isFavorite: { type: Boolean, state: true },
+    starred: { type: Boolean },  // Passed from parent (browse)
     _starred: { type: Boolean, state: true },
     _starring: { type: Boolean, state: true },
     _installing: { type: Boolean },
     _updating: { type: Boolean, state: true },
     _removing: { type: Boolean, state: true },
+    favorites: { type: Array },  // Received from parent — no independent API call
     selected: { type: Boolean },
     showCheckbox: { type: Boolean },
     viewMode: { type: String },
@@ -22,23 +24,31 @@ class RepoCard extends LitElement {
   constructor() {
     super();
     this.repo = {};
+    this._isFavorite = false;
     this.starred = false;
     this._starred = false;
     this._starring = false;
     this._installing = false;
     this._updating = false;
     this._removing = false;
-    this.viewMode = 'store';
+    this.favorites = [];  // Set by parent component
+    this.viewMode = 'store'; // 'store' | 'installed' | 'management' | 'updates'
     this.renamedFrom = null;
     this.showRemoveBtn = false;
   }
 
+  _updateFavoriteState() {
+    if (this.repo && this.favorites) {
+      this._isFavorite = this.favorites.includes(this.repo.id || this.repo.full_name);
+    }
+  }
+
   willUpdate(changedProps) {
-    // Sync parent's starred prop to internal _starred
-    if (changedProps.has('starred') && this.starred !== undefined && this.starred !== null) {
-      this._starred = this.starred;
+    if (changedProps.has('repo') || changedProps.has('favorites')) {
+      this._updateFavoriteState();
     }
     if (changedProps.has('repo')) {
+      // Reset transient state when repo data refreshes (operation completed)
       this._updating = false;
       this._removing = false;
     }
@@ -134,19 +144,18 @@ class RepoCard extends LitElement {
       content: '✓'; color: #fff; font-size: 12px; font-weight: 700;
     }
 
-    /* ===== Star/Fav button (merged, top-right) ===== */
-    .star-fav-btn {
-      position: absolute; top: 8px; right: 8px; z-index: 2;
+    .fav-btn {
+      position: absolute; top: 10px; right: 10px;
       width: 32px; height: 32px; border-radius: 50%;
-      border: none; background: rgba(0,0,0,0.25); backdrop-filter: blur(4px);
-      display: flex; align-items: center; justify-content: center;
-      cursor: pointer; transition: transform 0.15s;
+      border: none; background: rgba(255,255,255,0.85);
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+      transition: all 0.2s; z-index: 2; padding: 0;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.12);
     }
-    .star-fav-btn:hover { transform: scale(1.15); }
-    .star-fav-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
-    .star-fav-btn svg { width: 18px; height: 18px; transition: all 0.2s; }
-    .star-fav-btn.starred svg { fill: #ff9800; color: #ff9800; }
-    .star-fav-btn:not(.starred) svg { fill: none; color: #fff; }
+    .fav-btn:hover { transform: scale(1.1); }
+    .fav-btn svg { width: 18px; height: 18px; transition: all 0.2s; }
+    .fav-btn.active svg { fill: #ff9800; color: #ff9800; }
+    .fav-btn:not(.active) svg { fill: none; color: var(--secondary-text-color, #727272); }
 
     .remove-btn {
       position: absolute; top: 10px; right: 10px;
@@ -234,6 +243,8 @@ class RepoCard extends LitElement {
     .action-btn.readme-btn:hover { background: var(--primary-color, #03a9f4); color: #fff; }
     .action-btn svg { width: 16px; height: 16px; flex-shrink: 0; }
     .action-btn .label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .action-btn.star-btn { flex: 0 0 auto; min-width: auto; padding: 8px 10px; }
+    .action-btn.star-btn.starred { background: rgba(255,152,0,0.1); border-color: #ff9800; color: #ff9800; }
 
     .action-btn.installing {
       opacity: 0.7; cursor: not-allowed;
@@ -256,8 +267,8 @@ class RepoCard extends LitElement {
         font-size: 11px;
       }
       .action-btn .label { display: none; }
-      .star-fav-btn { width: 36px; height: 36px; }
-      .star-fav-btn svg { width: 20px; height: 20px; }
+      .fav-btn { width: 36px; height: 36px; }
+      .fav-btn svg { width: 20px; height: 20px; }
       .remove-btn { width: 36px; height: 36px; font-size: 18px; }
     }
 
@@ -339,39 +350,56 @@ class RepoCard extends LitElement {
     if (this._starring) return;
     this._starring = true;
     const repo = this.repo.full_name;
-    const repoId = repo;  // Always use full_name for favorites storage (compatible with GitHub Star API)
     if (!repo) { this._starring = false; return; }
-
-    // 1. Toggle icon + update count immediately
-    this._starred = !this._starred;
-    if (this.repo) {
-      this.repo.stars = this._starred
-        ? (this.repo.stars || this.repo.stargazers_count || 0) + 1
-        : Math.max(0, (this.repo.stars || this.repo.stargazers_count || 0) - 1);
-    }
-    this.requestUpdate();
-
-    // 2. Parallel: GitHub(后端自己判断Token) + 本地收藏
     try {
-      const starOp = this._starred ? api.starRepo(repo) : api.unstarRepo(repo);
-      const [favsResp] = await Promise.allSettled([api.getFavorites(), starOp]);
-      const favsResult = favsResp.status === 'fulfilled' ? favsResp.value : { favorites: [] };
-      const favs = Array.isArray(favsResult) ? [...favsResult] : [...(favsResult?.favorites || [])];
       if (this._starred) {
-        if (!favs.includes(repoId)) favs.push(repoId);
+        await api.unstarRepo(repo);
+        this._starred = false;
+        // Update local star count
+        if (this.repo) this.repo.stars = Math.max(0, (this.repo.stars || this.repo.stargazers_count || 0) - 1);
       } else {
-        const idx = favs.indexOf(repoId);
-        if (idx >= 0) favs.splice(idx, 1);
+        await api.starRepo(repo);
+        this._starred = true;
+        // Update local star count
+        if (this.repo) this.repo.stars = (this.repo.stars || this.repo.stargazers_count || 0) + 1;
       }
-      await api.setFavorites(favs);
-    } catch(e) { /* ignore */ }
+      this.requestUpdate();
+      // Dispatch event for list view sync
+      this.dispatchEvent(new CustomEvent('star-changed', {
+        detail: { repo: this.repo, starred: this._starred },
+        bubbles: true, composed: true,
+      }));
+    } catch(e) {
+      const { showToast } = await import('../hacs-vision-panel.js');
+      showToast(`Star 失败: ${e.message}`, 'error');
+    }
+    this._starring = false;
+  }
 
-    // 3. Dispatch sync event
-    this.dispatchEvent(new CustomEvent('star-changed', {
-      detail: { repo: this.repo, starred: this._starred },
+  async _handleFavorite(e) {
+    e.stopPropagation();
+    const repoId = this.repo.id || this.repo.full_name;
+    // Toggle favorite via server
+    const favs = [...this.favorites];
+    const idx = favs.indexOf(repoId);
+    if (idx >= 0) {
+      favs.splice(idx, 1);
+      this._isFavorite = false;
+    } else {
+      favs.push(repoId);
+      this._isFavorite = true;
+    }
+    try {
+      await api.setFavorites(favs);
+      this.favorites = favs;
+    } catch(e) {
+      // Revert on failure
+      this._isFavorite = !this._isFavorite;
+    }
+    this.dispatchEvent(new CustomEvent('favorite', {
+      detail: { repo: this.repo, isFavorite: this._isFavorite },
       bubbles: true, composed: true,
     }));
-    this._starring = false;
   }
 
   _handleCardClick() {
@@ -382,15 +410,27 @@ class RepoCard extends LitElement {
   }
 
   updated(changed) {
-    // Sync parent's starred prop to internal _starred
+    if (changed.has('repo') && this.repo?.full_name) {
+      // If parent already passed known starred state, use it
+      if (this.starred !== undefined && this.starred !== null) {
+        this._starred = this.starred;
+      } else {
+        this._checkStarred();
+      }
+    }
+    // Sync parent's starred prop to internal state
     if (changed.has('starred') && this.starred !== undefined && this.starred !== null) {
       this._starred = this.starred;
     }
-    // Reset transient state on repo change
-    if (changed.has('repo')) {
-      this._updating = false;
-      this._removing = false;
-    }
+  }
+
+  async _checkStarred() {
+    try {
+      const result = await api.checkStarred(this.repo.full_name);
+      if (result?.starred === true || result?.starred === false) {
+        this._starred = result.starred;
+      }
+    } catch(e) { /* not logged in or network error */ }
   }
 
   render() {
@@ -452,9 +492,9 @@ class RepoCard extends LitElement {
             ${this.renamedFrom ? html`<span class="tag" style="background:#ff9800;color:#fff;font-weight:600;display:flex;align-items:center;gap:2px;"><svg class="mini-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:10px;height:10px;"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg> ${this.renamedFrom}</span>` : ''}
           </div>
           ${this.viewMode !== 'management' ? html`
-          <button class="star-fav-btn ${this._starred ? 'starred' : ''}"
-                  @click=${this._handleStar} ?disabled=${this._starring}
-                  title=${this._starred ? t('starred') : t('starBtn')}>
+          <button class="fav-btn ${this._isFavorite ? 'active' : ''}"
+                  @click=${this._handleFavorite}
+                  title=${this._isFavorite ? t('favOn') : t('favOff')}>
             <svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
               <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
             </svg>
@@ -510,6 +550,16 @@ class RepoCard extends LitElement {
           <button class="action-btn readme-btn" @click=${e => this._handleAction(e, 'readme')} title="README">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
           </button>
+          ` : ''}
+          ${this.viewMode === 'store' ? html`
+            <button class="action-btn star-btn ${this._starred ? 'starred' : ''}"
+              @click=${this._handleStar} ?disabled=${this._starring}
+              title=${this._starred ? t('unstar') || '取消星标' : t('star') || '星标'}>
+              ${this._starring
+                ? html`<svg class="mini-icon spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>`
+                : html`<svg viewBox="0 0 20 20" fill="${this._starred ? '#ff9800' : 'none'}" stroke="#ff9800" stroke-width="1.5"><path d="M10 1l2.39 4.84L17.6 6.7l-3.8 3.71.9 5.26L10 13.27l-4.7 2.46.9-5.26L2.4 6.7l5.2-.86L10 1z"/></svg>`}
+              <span class="label">${this._starred ? (t('starred') || '已星标') : (t('starBtn') || '星标')}</span>
+            </button>
           ` : ''}
           ${isInstalled ? html`
             ${isUpdateAvailable ? html`
