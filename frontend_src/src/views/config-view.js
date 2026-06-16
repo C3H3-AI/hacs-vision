@@ -25,6 +25,13 @@ class ConfigView extends LitElement {
     _starredSyncResult: { type: String, state: true },
     _starredFilter: { type: String, state: true },
     _selectedStarred: { type: Object, state: true },
+    _orgInput: { type: String, state: true },
+    _orgRepos: { type: Array, state: true },
+    _orgLoading: { type: Boolean, state: true },
+    _orgFilter: { type: String, state: true },
+    _selectedOrgRepos: { type: Object, state: true },
+    _orgSyncResult: { type: String, state: true },
+    _orgSyncing: { type: Boolean, state: true },
   };
 
   constructor() {
@@ -47,11 +54,23 @@ class ConfigView extends LitElement {
     this._starredSyncResult = '';
     this._starredFilter = '';
     this._selectedStarred = {};
+    this._orgInput = '';
+    this._orgRepos = [];
+    this._orgLoading = false;
+    this._orgFilter = '';
+    this._selectedOrgRepos = {};
+    this._orgSyncResult = '';
+    this._orgSyncing = false;
   }
 
   get _filteredStarredCount() {
     if (!this._starredFilter) return this._starredRepos.length;
     return this._starredRepos.filter(r => r.full_name.toLowerCase().includes(this._starredFilter.toLowerCase())).length;
+  }
+
+  get _orgFilteredCount() {
+    if (!this._orgFilter) return this._orgRepos.length;
+    return this._orgRepos.filter(r => r.full_name.toLowerCase().includes(this._orgFilter.toLowerCase())).length;
   }
 
   connectedCallback() {
@@ -435,6 +454,70 @@ class ConfigView extends LitElement {
         </div>
         ` : ''}
 
+        ${this._githubUser ? html`
+        <!-- 👥 组织/用户仓库 -->
+        <div class="section">
+          <div class="section-title">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            ${t('orgRepos') || '组织/用户仓库'}
+          </div>
+          <div style="font-size:12px;color:var(--secondary-text-color);margin-bottom:10px;">
+            ${t('orgReposDesc') || '输入 GitHub 组织或用户名（如 C3H3-AI），列出仓库后勾选添加到自定义列表'}
+          </div>
+          <div style="display:flex;gap:8px;margin-bottom:10px;">
+            <input type="text" placeholder="GitHub 组织名或 URL（如 C3H3-AI 或 https://github.com/C3H3-AI）" .value=${this._orgInput}
+              @input=${e => this._orgInput = e.target.value}
+              @keydown=${e => e.key === 'Enter' && this._loadOrgRepos()}
+              style="flex:1;padding:8px;border:1px solid var(--divider-color);border-radius:8px;font-size:13px;background:var(--card-background-color);color:var(--primary-text-color);">
+            <button class="btn primary" style="font-size:12px;padding:6px 14px;white-space:nowrap;" @click=${this._loadOrgRepos} ?disabled=${this._orgLoading}>
+              ${this._orgLoading ? '加载中...' : (t('load') || '加载')}
+            </button>
+          </div>
+
+          ${this._orgLoading ? html`
+            <div style="padding:20px;text-align:center;color:var(--secondary-text-color);font-size:13px;">
+              <svg class="mini-icon spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px;vertical-align:middle;margin-right:6px;"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+              正在加载仓库列表...
+            </div>
+          ` : this._orgRepos.length > 0 ? html`
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+              <label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer;">
+                <input type="checkbox" .checked=${this._orgFilteredCount > 0 && Object.keys(this._selectedOrgRepos).length === this._orgFilteredCount}
+                  ?indeterminate=${Object.keys(this._selectedOrgRepos).length > 0 && Object.keys(this._selectedOrgRepos).length < this._orgFilteredCount}
+                  @change=${e => this._toggleSelectAllOrgRepos(e.target.checked)}>
+                全选
+              </label>
+              <span style="font-size:13px;font-weight:600;">${this._orgRepos.length} 个仓库</span>
+              <input type="text" placeholder="筛选..." .value=${this._orgFilter}
+                @input=${e => { this._orgFilter = e.target.value; this.requestUpdate(); }}
+                style="flex:1;padding:6px 8px;border:1px solid var(--divider-color);border-radius:6px;font-size:12px;background:var(--card-background-color);color:var(--primary-text-color);">
+              <button class="btn primary" style="font-size:11px;padding:4px 10px;" @click=${this._syncSelectedOrgRepos} ?disabled=${this._orgSyncing || Object.keys(this._selectedOrgRepos).length === 0}>
+                ${this._orgSyncing ? '同步中...' : `同步选中 (${Object.keys(this._selectedOrgRepos).length})`}
+              </button>
+            </div>
+            ${this._orgSyncResult ? html`<div style="font-size:12px;margin-bottom:8px;color:${this._orgSyncResult.includes('失败') ? '#f44336' : 'var(--primary-text-color)'};">${this._orgSyncResult}</div>` : ''}
+            <div style="max-height:300px;overflow-y:auto;border:1px solid var(--divider-color);border-radius:8px;">
+              ${this._orgRepos.filter(r => !this._orgFilter || r.full_name.toLowerCase().includes(this._orgFilter.toLowerCase())).map(r => html`
+                <div style="display:flex;align-items:center;gap:8px;padding:6px 10px;border-bottom:1px solid var(--divider-color);font-size:12px;cursor:pointer;" @click=${() => this._toggleSelectOrgRepo(r.full_name)}>
+                  <input type="checkbox" .checked=${!!this._selectedOrgRepos[r.full_name]}
+                    @click=${(e) => { e.stopPropagation(); this._toggleSelectOrgRepo(r.full_name); }}
+                    style="cursor:pointer;">
+                  <span style="flex:1;">
+                    <strong>${r.full_name}</strong>
+                    <span style="color:var(--secondary-text-color);margin-left:6px;">
+                      ⭐${r.stars?.toLocaleString() || 0}
+                      ${r.category ? html`<span style="margin-left:4px;padding:1px 5px;border-radius:4px;background:var(--primary-color);color:#fff;font-size:10px;">${r.category}</span>` : ''}
+                      ${r.language ? html`<span style="margin-left:4px;color:var(--secondary-text-color);font-size:10px;">${r.language}</span>` : ''}
+                    </span>
+                    ${r.description ? html`<br><span style="color:var(--secondary-text-color);">${r.description.slice(0, 80)}</span>` : ''}
+                  </span>
+                </div>
+              `)}
+            </div>
+          ` : ''}
+        </div>
+        ` : ''}
+
         </div> <!-- config-grid -->
         <div class="version">HACS Vision${this._version ? ` v${this._version}` : ''}</div>
       </div>
@@ -559,6 +642,89 @@ class ConfigView extends LitElement {
       showToast(`同步失败: ${e.message}`, 'error');
     }
     this._starredSyncing = false;
+  }
+
+  async _loadOrgRepos() {
+    const org = this._orgInput?.trim();
+    if (!org) {
+      const { showToast } = await import('../hacs-vision-panel.js');
+      showToast('请输入 GitHub 组织名或 URL', 'warning');
+      return;
+    }
+    this._orgLoading = true;
+    this._orgRepos = [];
+    this._selectedOrgRepos = {};
+    this._orgSyncResult = '';
+    try {
+      const result = await api.listOrgRepos(org);
+      if (result?.repos) {
+        this._orgRepos = result.repos;
+        if (result.repos.length === 0) {
+          const { showToast } = await import('../hacs-vision-panel.js');
+          showToast('没有找到仓库', 'info');
+        }
+      } else {
+        const { showToast } = await import('../hacs-vision-panel.js');
+        showToast(result?.error || '加载失败', 'error');
+      }
+    } catch(e) {
+      const { showToast } = await import('../hacs-vision-panel.js');
+      showToast(`加载失败: ${e.message}`, 'error');
+    }
+    this._orgLoading = false;
+  }
+
+  _toggleSelectOrgRepo(fullName) {
+    if (this._selectedOrgRepos[fullName]) {
+      const updated = { ...this._selectedOrgRepos };
+      delete updated[fullName];
+      this._selectedOrgRepos = updated;
+    } else {
+      this._selectedOrgRepos = { ...this._selectedOrgRepos, [fullName]: true };
+    }
+  }
+
+  _toggleSelectAllOrgRepos(checked) {
+    const filtered = this._orgRepos.filter(r => !this._orgFilter || r.full_name.toLowerCase().includes(this._orgFilter.toLowerCase()));
+    if (checked) {
+      const sel = {};
+      filtered.forEach(r => sel[r.full_name] = true);
+      this._selectedOrgRepos = sel;
+    } else {
+      this._selectedOrgRepos = {};
+    }
+  }
+
+  async _syncSelectedOrgRepos() {
+    const selectedNames = Object.keys(this._selectedOrgRepos);
+    if (selectedNames.length === 0) return;
+    this._orgSyncing = true;
+    this._orgSyncResult = '';
+    try {
+      const reposToSync = this._orgRepos
+        .filter(r => this._selectedOrgRepos[r.full_name])
+        .map(r => ({
+          full_name: r.full_name,
+          category: r.category || 'integration',
+        }));
+      if (reposToSync.length === 0) {
+        this._orgSyncResult = '没有选中的仓库';
+        this._orgSyncing = false;
+        return;
+      }
+      const result = await api.syncStarred(reposToSync);
+      const results = result?.results || [];
+      const ok = results.filter(r => r.success).length;
+      const fail = results.filter(r => !r.success).length;
+      this._orgSyncResult = `同步完成: ${ok} 个成功${fail ? `, ${fail} 个失败` : ''}`;
+      const { showToast } = await import('../hacs-vision-panel.js');
+      showToast(`已添加 ${ok} 个仓库到自定义列表`, fail ? 'warning' : 'success');
+    } catch(e) {
+      this._orgSyncResult = `同步失败: ${e.message}`;
+      const { showToast } = await import('../hacs-vision-panel.js');
+      showToast(`同步失败: ${e.message}`, 'error');
+    }
+    this._orgSyncing = false;
   }
 
   async _export() {

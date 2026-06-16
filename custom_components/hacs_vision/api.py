@@ -312,6 +312,75 @@ class HACSEnhancedAPI(HomeAssistantView):
             return web.json_response({"error": str(e), "repos": repos}, status=500)
         return web.json_response({"repos": repos, "total": len(repos)})
 
+    async def _github_list_org_repos(self, query) -> web.Response:
+        """List repos of a GitHub user or organization, optionally filtering for HA-related."""
+        org = query.get("org", "").strip()
+        if not org:
+            return web.json_response({"error": "org_required", "repos": []}, status=400)
+        # Strip URL prefix if user pasted full URL
+        org = org.rstrip("/")
+        for prefix in ["https://github.com/", "http://github.com/", "github.com/"]:
+            if org.startswith(prefix):
+                org = org[len(prefix):]
+        # Remove trailing .git or /
+        org = org.replace(".git", "").rstrip("/")
+        if not org or "/" in org:
+            return web.json_response({"error": "invalid_org", "repos": []}, status=400)
+
+        token = await self._get_active_github_token()
+        headers = {"Accept": "application/vnd.github.v3+json"}
+        if token:
+            headers["Authorization"] = f"Bearer {token}"
+
+        repos = []
+        page = 1
+        per_page = 100
+        try:
+            async with aiohttp.ClientSession() as session:
+                while True:
+                    async with session.get(
+                        f"https://api.github.com/users/{org}/repos?per_page={per_page}&page={page}&sort=updated&type=owner",
+                        headers=headers,
+                        timeout=aiohttp.ClientTimeout(total=15)
+                    ) as resp:
+                        if resp.status == 404:
+                            # Try as org
+                            async with session.get(
+                                f"https://api.github.com/orgs/{org}/repos?per_page={per_page}&page={page}&sort=updated",
+                                headers=headers,
+                                timeout=aiohttp.ClientTimeout(total=15)
+                            ) as org_resp:
+                                if org_resp.status != 200:
+                                    return web.json_response({"error": f"user_or_org_not_found: {org}", "repos": []}, status=404)
+                                data = await org_resp.json()
+                        else:
+                            data = await resp.json()
+                        if not data:
+                            break
+                        for r in data:
+                            full_name = r.get("full_name", "")
+                            desc = r.get("description") or ""
+                            topics = r.get("topics") or []
+                            category = self._detect_hacs_category(r)
+                            repos.append({
+                                "full_name": full_name,
+                                "name": r.get("name", ""),
+                                "description": desc,
+                                "stars": r.get("stargazers_count", 0),
+                                "topics": topics,
+                                "language": r.get("language") or "",
+                                "category": category,
+                                "html_url": r.get("html_url", ""),
+                                "updated_at": r.get("updated_at", ""),
+                            })
+                        if len(data) < per_page:
+                            break
+                        page += 1
+        except Exception as e:
+            _LOGGER.error("_github_list_org_repos error: %s", e, exc_info=True)
+            return web.json_response({"error": str(e), "repos": repos}, status=500)
+        return web.json_response({"repos": repos, "total": len(repos)})
+
     def _detect_hacs_category(self, repo: dict) -> str:
         """Detect HACS category from a GitHub repo's metadata."""
         topics = [t.lower() for t in (repo.get("topics") or [])]
@@ -444,6 +513,8 @@ class HACSEnhancedAPI(HomeAssistantView):
             return await self._github_check_starred(repo)
         if path in ("github/starred", "github/starred/"):
             return await self._github_list_starred()
+        if path in ("github/repos", "github/repos/"):
+            return await self._github_list_org_repos(query)
 
         return web.json_response({"error": "not_found"}, status=404)
 
