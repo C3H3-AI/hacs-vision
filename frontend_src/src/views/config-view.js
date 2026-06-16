@@ -15,6 +15,7 @@ class ConfigView extends LitElement {
     _depLoading: { type: Boolean, state: true },
     _depResults: { type: Object, state: true },
     _githubUser: { type: String, state: true },
+    _githubAvatar: { type: String, state: true },
     _githubTokenInput: { type: String, state: true },
     _githubVerifying: { type: Boolean, state: true },
     _githubVerifyMsg: { type: String, state: true },
@@ -44,6 +45,7 @@ class ConfigView extends LitElement {
     this._depLoading = false;
     this._depResults = null;
     this._githubUser = '';
+    this._githubAvatar = '';
     this._githubTokenInput = '';
     this._githubVerifying = false;
     this._githubVerifyMsg = '';
@@ -69,8 +71,7 @@ class ConfigView extends LitElement {
   }
 
   get _orgFilteredCount() {
-    if (!this._orgFilter) return this._orgRepos.length;
-    return this._orgRepos.filter(r => r.full_name.toLowerCase().includes(this._orgFilter.toLowerCase())).length;
+    return this._filteredSortedOrgRepos.length;
   }
 
   connectedCallback() {
@@ -91,7 +92,10 @@ class ConfigView extends LitElement {
     } catch(e) { /* ignore */ }
     try {
       const user = await api.getGitHubUser();
-      if (user?.login) this._githubUser = user.login;
+      if (user?.login) {
+        this._githubUser = user.login;
+        this._githubAvatar = user.avatar_url || '';
+      }
     } catch(e) { /* not logged in */ }
   }
 
@@ -142,7 +146,7 @@ class ConfigView extends LitElement {
   }
 
   static styles = [getCommonStyles(), css`
-    :host { display: block; }
+    :host { display: block; color: var(--primary-text-color); }
     .container {
       margin: 0 auto; padding: 14px;
       background: var(--card-background-color, #fff);
@@ -150,17 +154,21 @@ class ConfigView extends LitElement {
       border-radius: 14px;
     }
 
+    .config-grid {
+      display: grid; grid-template-columns: 1fr; gap: 14px;
+      align-items: start;
+    }
     @media (min-width: 1024px) {
-      .config-grid {
-        display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px;
-        align-items: start;
-      }
+      .config-grid { grid-template-columns: 1fr 1fr 1fr; }
+    }
+    .config-col {
+      display: flex; flex-direction: column; gap: 14px;
     }
 
     .section {
       background: var(--card-background-color, #fff);
       border: 1px solid var(--divider-color, #e0e0e0);
-      border-radius: 14px; padding: 16px; margin-bottom: 14px;
+      border-radius: 14px; padding: 16px;
     }
     .section-title {
       font-size: 14px; font-weight: 700; color: var(--primary-text-color, #212121);
@@ -223,150 +231,150 @@ class ConfigView extends LitElement {
       <div class="container">
         <div class="config-grid">
 
-        <!-- ⚙️ 基本设置 -->
-        <div class="section">
-          <div class="section-title">
-            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-            ${t('settingsTitle')}
-          </div>
-
-          <div class="setting-row">
-            <div class="setting-info">
-              <div class="label">${t('settingsRefreshInterval')}</div>
-              <div class="desc">${t('settingsDesc')}</div>
+        <!-- 列1：⚙️ 基本设置 -->
+        <div class="config-col">
+          <div class="section">
+            <div class="section-title">
+              <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+              ${t('settingsTitle')}
             </div>
-            <div class="setting-control">
-              <input type="number" min="60" max="86400" style="width:90px;"
-                .value=${this._settings.refresh_interval ?? 3600}
-                @change=${e => this._set('refresh_interval', parseInt(e.target.value) || 3600)} />
+            <div class="setting-row">
+              <div class="setting-info">
+                <div class="label">${t('settingsRefreshInterval')}</div>
+                <div class="desc">${t('settingsDesc')}</div>
+              </div>
+              <div class="setting-control">
+                <input type="number" min="60" max="86400" style="width:90px;"
+                  .value=${this._settings.refresh_interval ?? 3600}
+                  @change=${e => this._set('refresh_interval', parseInt(e.target.value) || 3600)} />
+              </div>
             </div>
-          </div>
-
-          <div class="setting-row">
-            <div class="setting-info">
-              <div class="label">${t('settingsDefaultView')}</div>
+            <div class="setting-row">
+              <div class="setting-info">
+                <div class="label">${t('settingsDefaultView')}</div>
+              </div>
+              <div class="setting-control">
+                <select @change=${e => this._set('default_view', e.target.value)}
+                  .value=${this._settings.default_view || 'browse'}>
+                  <option value="browse">${t('tabBrowse')}</option>
+                  <option value="updates">${t('tabUpdates')}</option>
+                  <option value="management">${t('tabManagement')}</option>
+                </select>
+              </div>
             </div>
-            <div class="setting-control">
-              <select @change=${e => this._set('default_view', e.target.value)}
-                .value=${this._settings.default_view || 'browse'}>
-                <option value="browse">${t('tabBrowse')}</option>
-                <option value="updates">${t('tabUpdates')}</option>
-                <option value="management">${t('tabManagement')}</option>
-              </select>
+            <div class="setting-row">
+              <div class="setting-info">
+                <div class="label">${t('settingsNotifyUpdates')}</div>
+              </div>
+              <div class="setting-control">
+                <select @change=${e => this._set('notify_updates', e.target.value === 'true')}
+                  .value=${String(this._settings.notify_updates ?? true)}>
+                  <option value="true">${t('enabled')}</option>
+                  <option value="false">${t('disabled')}</option>
+                </select>
+              </div>
             </div>
-          </div>
-
-          <div class="setting-row">
-            <div class="setting-info">
-              <div class="label">${t('settingsNotifyUpdates')}</div>
+            <div class="setting-row">
+              <div class="setting-info">
+                <div class="label">${t('settingsNotifyRestart')}</div>
+              </div>
+              <div class="setting-control">
+                <select @change=${e => this._set('notify_restart', e.target.value === 'true')}
+                  .value=${String(this._settings.notify_restart ?? true)}>
+                  <option value="true">${t('enabled')}</option>
+                  <option value="false">${t('disabled')}</option>
+                </select>
+              </div>
             </div>
-            <div class="setting-control">
-              <select @change=${e => this._set('notify_updates', e.target.value === 'true')}
-                .value=${String(this._settings.notify_updates ?? true)}>
-                <option value="true">${t('enabled')}</option>
-                <option value="false">${t('disabled')}</option>
-              </select>
-            </div>
-          </div>
-
-          <div class="setting-row">
-            <div class="setting-info">
-              <div class="label">${t('settingsNotifyRestart')}</div>
-            </div>
-            <div class="setting-control">
-              <select @change=${e => this._set('notify_restart', e.target.value === 'true')}
-                .value=${String(this._settings.notify_restart ?? true)}>
-                <option value="true">${t('enabled')}</option>
-                <option value="false">${t('disabled')}</option>
-              </select>
-            </div>
-          </div>
-
-          <div class="save-bar">
-            <button class="btn primary" @click=${this._save} ?disabled=${this._saving}>
-              ${this._saving
-                ? html`<span class="spinner-sm" style="display:inline-block;width:14px;height:14px;border-width:2px;margin:0;vertical-align:-2px;"></span> ${t('loading')}`
-                : html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> ${t('save')}`}
-            </button>
-          </div>
-        </div>
-
-        <!-- 🛠️ 维护 -->
-        <div class="section">
-          <div class="section-title">
-            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
-            ${t('settingsMaintenance')}
-          </div>
-          <div class="action-grid">
-            <button class="btn" @click=${this._checkUpdates}>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
-              ${t('checkUpdatesNotify')}
-            </button>
-            <button class="btn" style="color:#ff9800;border-color:#ff9800;" @click=${this._reloadCore}>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 4v6h6M23 20v-6h-6"/><path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"/></svg>
-              ${t('reloadHA')}
-            </button>
-            <button class="btn danger" @click=${this._checkAndRestart}>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
-              ${t('restartHA')}
-            </button>
-            <button class="btn" style="color:#ff9800;border-color:#ff9800;" @click=${this._clearPanelCache}>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/></svg>
-              ${t('clearCache')}
-            </button>
-          </div>
-        </div>
-
-        <!-- 💾 数据管理 -->
-        <div class="section">
-          <div class="section-title">
-            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-            ${t('exportBackup')}
-          </div>
-          <div class="backup-row">
-            <button class="btn primary" @click=${this._export} ?disabled=${this._exporting}>
-              ${this._exporting
-                ? html`<span class="spinner-sm" style="display:inline-block;width:14px;height:14px;border-width:2px;margin:0;"></span> ${t('exporting')}`
-                : html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> ${t('exportBtn')}`}
-            </button>
-            <button class="btn file-input" ?disabled=${this._importing}>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-              ${this._importing ? html`${t('importing')}` : html`${t('importBackup')}`}
-              <input type="file" accept=".json" @change=${e => this._import(e)} />
-            </button>
-            <span style="font-size:11px;color:var(--secondary-text-color,#727272);">${t('importDesc')}</span>
-          </div>
-        </div>
-
-        <!-- 依赖检查 -->
-        <div class="section">
-          <div class="section-title">
-            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-            ${t('depCheck')}
-          </div>
-          <div class="setting-row">
-            <div class="setting-info">
-              <div class="label">${t('depDesc')}</div>
-            </div>
-            <div class="setting-control">
-              <button class="btn" @click=${this._checkDependencies} ?disabled=${this._depLoading}>
-                ${this._depLoading ? '⟳' : '🔗'} ${t('checkDep')}
+            <div class="save-bar">
+              <button class="btn primary" @click=${this._save} ?disabled=${this._saving}>
+                ${this._saving
+                  ? html`<span class="spinner-sm" style="display:inline-block;width:14px;height:14px;border-width:2px;margin:0;vertical-align:-2px;"></span> ${t('loading')}`
+                  : html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> ${t('save')}`}
               </button>
             </div>
           </div>
-          ${this._depResults?.dependencies?.filter(d => d.has_issues).length > 0 ? html`
-            <div style="margin-top:8px;font-size:12px;color:var(--secondary-text-color);">
-              ${this._depResults.dependencies.filter(d => d.has_issues).map(d => html`
-                <div style="padding:4px 0;display:flex;gap:6px;align-items:center;">
-                  <span style="color:#f44336;">✕</span> <span>${d.name}</span>
-                  ${d.missing_dependencies?.length ? html`<span style="color:var(--secondary-text-color);">— ${t('depMissing')}: ${d.missing_dependencies.join(', ')}</span>` : ''}
-                </div>
-              `)}
-            </div>
-          ` : this._depResults?.all_ok ? html`
-            <div style="margin-top:8px;font-size:12px;color:#4caf50;">✅ ${t('depOk')}</div>
-          ` : ''}
         </div>
+
+        <!-- 列2：🛠️ 维护 + 数据 + 依赖 -->
+        <div class="config-col">
+          <div class="section">
+            <div class="section-title">
+              <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+              ${t('settingsMaintenance')}
+            </div>
+            <div class="action-grid">
+              <button class="btn" @click=${this._checkUpdates}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
+                ${t('checkUpdatesNotify')}
+              </button>
+              <button class="btn" style="color:#ff9800;border-color:#ff9800;" @click=${this._reloadCore}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 4v6h6M23 20v-6h-6"/><path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"/></svg>
+                ${t('reloadHA')}
+              </button>
+              <button class="btn danger" @click=${this._checkAndRestart}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+                ${t('restartHA')}
+              </button>
+              <button class="btn" style="color:#ff9800;border-color:#ff9800;" @click=${this._clearPanelCache}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/></svg>
+                ${t('clearCache')}
+              </button>
+            </div>
+          </div>
+
+          <div class="section">
+            <div class="section-title">
+              <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              ${t('exportBackup')}
+            </div>
+            <div class="backup-row">
+              <button class="btn primary" @click=${this._export} ?disabled=${this._exporting}>
+                ${this._exporting
+                  ? html`<span class="spinner-sm" style="display:inline-block;width:14px;height:14px;border-width:2px;margin:0;"></span> ${t('exporting')}`
+                  : html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> ${t('exportBtn')}`}
+              </button>
+              <button class="btn file-input" ?disabled=${this._importing}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                ${this._importing ? html`${t('importing')}` : html`${t('importBackup')}`}
+                <input type="file" accept=".json" @change=${e => this._import(e)} />
+              </button>
+              <span style="font-size:11px;color:var(--secondary-text-color,#727272);">${t('importDesc')}</span>
+            </div>
+          </div>
+
+          <div class="section">
+            <div class="section-title">
+              <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+              ${t('depCheck')}
+            </div>
+            <div class="setting-row">
+              <div class="setting-info">
+                <div class="label">${t('depDesc')}</div>
+              </div>
+              <div class="setting-control">
+                <button class="btn" @click=${this._checkDependencies} ?disabled=${this._depLoading}>
+                  ${this._depLoading ? '⟳' : '🔗'} ${t('checkDep')}
+                </button>
+              </div>
+            </div>
+            ${this._depResults?.dependencies?.filter(d => d.has_issues).length > 0 ? html`
+              <div style="margin-top:8px;font-size:12px;color:var(--secondary-text-color);">
+                ${this._depResults.dependencies.filter(d => d.has_issues).map(d => html`
+                  <div style="padding:4px 0;display:flex;gap:6px;align-items:center;">
+                    <span style="color:#f44336;">✕</span> <span>${d.name}</span>
+                    ${d.missing_dependencies?.length ? html`<span style="color:var(--secondary-text-color);">— ${t('depMissing')}: ${d.missing_dependencies.join(', ')}</span>` : ''}
+                  </div>
+                `)}
+              </div>
+            ` : this._depResults?.all_ok ? html`
+              <div style="margin-top:8px;font-size:12px;color:#4caf50;">✅ ${t('depOk')}</div>
+            ` : ''}
+          </div>
+        </div>
+
+        <!-- 列3：🔑 GitHub -->
+        <div class="config-col">
 
         <!-- 🔑 GitHub 集成 -->
         <div class="section">
@@ -376,7 +384,10 @@ class ConfigView extends LitElement {
           </div>
           ${this._githubUser ? html`
             <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
-              <span style="font-size:13px;">✅ 已登录 <strong>${this._githubUser}</strong></span>
+              ${this._githubAvatar
+                ? html`<img src="${this._githubAvatar}" style="width:28px;height:28px;border-radius:50%;border:1px solid var(--divider-color);flex-shrink:0;" @error=${e => e.target.style.display='none'}>`
+                : html`<span style="width:28px;height:28px;border-radius:50%;background:var(--primary-color,#03a9f4);color:#fff;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:600;flex-shrink:0;">${this._githubUser[0].toUpperCase()}</span>`}
+              <span style="font-size:13px;">✅ HACS 用户: <strong>${this._githubUser}</strong></span>
               <button class="btn" style="font-size:11px;padding:4px 10px;" @click=${this._githubLogout}>${t('logout') || '登出'}</button>
             </div>
           ` : html`
@@ -387,7 +398,10 @@ class ConfigView extends LitElement {
               </div>
               <div class="setting-control" style="flex-direction:column;gap:6px;align-items:stretch;">
                 <input type="password" class="token-input" placeholder="ghp_xxxxxxxxxxxx" .value=${this._githubTokenInput || ''} @input=${e => this._githubTokenInput = e.target.value} style="padding:8px;border:1px solid var(--divider-color);border-radius:8px;font-size:13px;background:var(--card-background-color);color:var(--primary-text-color);width:100%;box-sizing:border-box;" />
-                <button class="btn primary" style="font-size:11px;padding:4px 10px;align-self:flex-end;" @click=${this._githubVerifyToken} ?disabled=${this._githubVerifying}>${this._githubVerifying ? '验证中...' : '验证并保存'}</button>
+                <div style="display:flex;gap:6px;justify-content:flex-end;">
+                  <button class="btn primary" style="font-size:12px;padding:5px 14px;" @click=${this._importHacsToken}>${this._githubVerifying ? t('importing') || '导入中...' : t('importFromHacs') || '从 HACS 导入'}</button>
+                  <button class="btn" style="font-size:11px;padding:4px 10px;" @click=${this._githubVerifyToken} ?disabled=${this._githubVerifying}>${t('verifyAndSave') || '验证并保存'}</button>
+                </div>
               </div>
             </div>
           `}
@@ -459,10 +473,10 @@ class ConfigView extends LitElement {
         <div class="section">
           <div class="section-title">
             <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-            ${t('orgRepos') || '组织/用户仓库'}
+            ${t('orgRepos')}
           </div>
           <div style="font-size:12px;color:var(--secondary-text-color);margin-bottom:10px;">
-            ${t('orgReposDesc') || '输入 GitHub 组织或用户名（如 C3H3-AI），列出仓库后勾选添加到自定义列表'}
+            ${t('orgReposDesc')}
           </div>
           <div style="display:flex;gap:8px;margin-bottom:10px;">
             <input type="text" placeholder="GitHub 组织名或 URL（如 C3H3-AI 或 https://github.com/C3H3-AI）" .value=${this._orgInput}
@@ -470,7 +484,7 @@ class ConfigView extends LitElement {
               @keydown=${e => e.key === 'Enter' && this._loadOrgRepos()}
               style="flex:1;padding:8px;border:1px solid var(--divider-color);border-radius:8px;font-size:13px;background:var(--card-background-color);color:var(--primary-text-color);">
             <button class="btn primary" style="font-size:12px;padding:6px 14px;white-space:nowrap;" @click=${this._loadOrgRepos} ?disabled=${this._orgLoading}>
-              ${this._orgLoading ? '加载中...' : (t('load') || '加载')}
+              ${this._orgLoading ? t('searching') : t('load')}
             </button>
           </div>
 
@@ -485,19 +499,19 @@ class ConfigView extends LitElement {
                 <input type="checkbox" .checked=${this._orgFilteredCount > 0 && Object.keys(this._selectedOrgRepos).length === this._orgFilteredCount}
                   ?indeterminate=${Object.keys(this._selectedOrgRepos).length > 0 && Object.keys(this._selectedOrgRepos).length < this._orgFilteredCount}
                   @change=${e => this._toggleSelectAllOrgRepos(e.target.checked)}>
-                全选
+              ${t('selectAll')}
               </label>
-              <span style="font-size:13px;font-weight:600;">${this._orgRepos.length} 个仓库</span>
+              <span style="font-size:13px;font-weight:600;">${this._orgRepos.length} ${t('repositories')}</span>
               <input type="text" placeholder="筛选..." .value=${this._orgFilter}
                 @input=${e => { this._orgFilter = e.target.value; this.requestUpdate(); }}
                 style="flex:1;padding:6px 8px;border:1px solid var(--divider-color);border-radius:6px;font-size:12px;background:var(--card-background-color);color:var(--primary-text-color);">
               <button class="btn primary" style="font-size:11px;padding:4px 10px;" @click=${this._syncSelectedOrgRepos} ?disabled=${this._orgSyncing || Object.keys(this._selectedOrgRepos).length === 0}>
-                ${this._orgSyncing ? '同步中...' : `同步选中 (${Object.keys(this._selectedOrgRepos).length})`}
+                ${this._orgSyncing ? t('syncing') : `${t('syncSelected')} (${Object.keys(this._selectedOrgRepos).length})`}
               </button>
             </div>
             ${this._orgSyncResult ? html`<div style="font-size:12px;margin-bottom:8px;color:${this._orgSyncResult.includes('失败') ? '#f44336' : 'var(--primary-text-color)'};">${this._orgSyncResult}</div>` : ''}
             <div style="max-height:300px;overflow-y:auto;border:1px solid var(--divider-color);border-radius:8px;">
-              ${this._orgRepos.filter(r => !this._orgFilter || r.full_name.toLowerCase().includes(this._orgFilter.toLowerCase())).map(r => html`
+              ${this._filteredSortedOrgRepos.map(r => html`
                 <div style="display:flex;align-items:center;gap:8px;padding:6px 10px;border-bottom:1px solid var(--divider-color);font-size:12px;cursor:pointer;" @click=${() => this._toggleSelectOrgRepo(r.full_name)}>
                   <input type="checkbox" .checked=${!!this._selectedOrgRepos[r.full_name]}
                     @click=${(e) => { e.stopPropagation(); this._toggleSelectOrgRepo(r.full_name); }}
@@ -518,6 +532,7 @@ class ConfigView extends LitElement {
         </div>
         ` : ''}
 
+        </div> <!-- /config-col: GitHub -->
         </div> <!-- config-grid -->
         <div class="version">HACS Vision${this._version ? ` v${this._version}` : ''}</div>
       </div>
@@ -526,7 +541,7 @@ class ConfigView extends LitElement {
 
   async _githubVerifyToken() {
     if (!this._githubTokenInput?.trim()) {
-      this._githubVerifyMsg = '请输入 Token';
+      this._githubVerifyMsg = t('githubTokenRequired') || '请输入 Token';
       this._githubVerifyOk = false;
       return;
     }
@@ -537,6 +552,7 @@ class ConfigView extends LitElement {
       const result = await api.verifyGitHubToken(this._githubTokenInput.trim());
       if (result?.ok) {
         this._githubUser = result.user;
+        this._githubAvatar = result.avatar_url || '';
         this._githubTokenInput = '';
         this._githubVerifyMsg = `已验证 ✅ 用户: ${result.user} (剩余 ${result.rate_limit_remaining}/5000 次/小时)`;
         this._githubVerifyOk = true;
@@ -556,6 +572,7 @@ class ConfigView extends LitElement {
     try {
       await api.verifyGitHubToken('');
       this._githubUser = '';
+      this._githubAvatar = '';
       this._githubVerifyMsg = '已登出';
       this._githubVerifyOk = false;
       this._starredRepos = [];
@@ -642,6 +659,43 @@ class ConfigView extends LitElement {
       showToast(`同步失败: ${e.message}`, 'error');
     }
     this._starredSyncing = false;
+  }
+
+  get _filteredSortedOrgRepos() {
+    const q = (this._orgFilter || '').trim().toLowerCase();
+    if (!q) return this._orgRepos;
+    return [...this._orgRepos]
+      .filter(r => r.full_name.toLowerCase().includes(q))
+      .sort((a, b) => {
+        const na = a.full_name.toLowerCase();
+        const nb = b.full_name.toLowerCase();
+        if (na === q && nb !== q) return -1;
+        if (nb === q && na !== q) return 1;
+        if (na.startsWith(q) && !nb.startsWith(q)) return -1;
+        if (nb.startsWith(q) && !na.startsWith(q)) return 1;
+        return na.length - nb.length;
+      });
+  }
+
+  async _importHacsToken() {
+    this._githubVerifying = true;
+    this._githubVerifyMsg = '';
+    try {
+      const { showToast } = await import('../hacs-vision-panel.js');
+      const result = await api.importHacsToken();
+      if (result?.token) {
+        this._githubTokenInput = result.token;
+        showToast(t('tokenImported') || '已从 HACS 导入 Token', 'success');
+        // Auto verify after import
+        await this._githubVerifyToken();
+      } else {
+        showToast(result?.error || t('tokenImportFailed') || 'HACS 中未找到 Token', 'warning');
+      }
+    } catch(e) {
+      this._githubVerifying = false;
+      showToast(`${t('tokenImportFailed') || '导入失败'}: ${e.message}`, 'error');
+    }
+    this._githubVerifying = false;
   }
 
   async _loadOrgRepos() {

@@ -83,6 +83,7 @@ const T = {
   noData: { zh: '暂无仓库数据', en: 'No repository data' },
   noDevicesOrEntities: { zh: '暂无设备或实体', en: 'No devices or entities' },
   entityCount: { zh: '个实体', en: ' entities' },
+  searching: { zh: '查找中...', en: 'Searching...' },
   loading: { zh: '加载中...', en: 'Loading...' },
   sort: { zh: '排序', en: 'Sort' },
   filterMore: { zh: '筛选与排序', en: 'Filter & Sort' },
@@ -113,6 +114,11 @@ const T = {
   // Card badges
   badgeConfigured: { zh: '已配置', en: 'Configured' },
   badgeLoadFailed: { zh: '加载失败', en: 'Load Failed' },
+  loadFailedSimple: { zh: '加载失败', en: 'Failed to load' },
+  loadingText: { zh: '加载中...', en: 'Loading...' },
+  adding: { zh: '添加中...', en: 'Adding...' },
+  addSelected: { zh: '添加选中', en: 'Add Selected' },
+  addedToCustomList: { zh: '已添加到自定义列表', en: 'Added to custom list' },
 
   // Installed
   canUpdate: { zh: '可更新', en: 'Updatable' },
@@ -228,6 +234,10 @@ const T = {
   totalCount: { zh: '共', en: 'Total' },
   all: { zh: '全部', en: 'All' },
   repositories: { zh: '仓库', en: 'Repositories' },
+  syncing: { zh: '同步中...', en: 'Syncing...' },
+  syncSelected: { zh: '同步选中', en: 'Sync Selected' },
+  orgRepos: { zh: '组织/用户仓库', en: 'Org/User Repos' },
+  orgReposDesc: { zh: '输入 GitHub 组织或用户名，列出仓库后勾选添加到自定义列表', en: 'Enter GitHub org or username to list repos, then select to add to custom list' },
   successSuffix: { zh: '成功', en: ' succeeded' },
   failedSuffix: { zh: '失败', en: ' failed' },
   deviceAndService: { zh: '设备与服务', en: 'Devices & Services' },
@@ -383,6 +393,7 @@ const T = {
   quickInstallDetected: { zh: '检测到 GitHub URL', en: 'Detected GitHub URL' },
   quickInstallDetectedDesc: { zh: '是否要安装此仓库？', en: 'Install this repository?' },
   quickInstallAuto: { zh: '自动识别', en: 'Auto detect' },
+  invalidOrgInput: { zh: '无效的仓库地址或组织名，请输入 owner/repo 或 GitHub 组织名', en: 'Invalid URL or org name, enter owner/repo or GitHub org name' },
 
   // Add Integration Entry
   addIntegration: { zh: '配置', en: 'Configure' },
@@ -479,6 +490,30 @@ const T = {
   flowOpenAuthPage: { zh: '打开认证页面 ↗', en: 'Open auth page ↗' },
   flowStartFailed: { zh: '配置流程启动失败', en: 'Failed to start config flow' },
   flowStartFailedOptions: { zh: '选项配置流程启动失败', en: 'Failed to start options flow' },
+
+  // GitHub Integration (used with || fallbacks in views)
+  logout: { zh: '登出', en: 'Logout' },
+  githubTokenDesc: { zh: '在 GitHub Settings → Developer settings → Personal access tokens 生成', en: 'Generate in GitHub Settings → Developer settings → Personal access tokens' },
+  syncStarred: { zh: '星标仓库同步', en: 'Starred Repos Sync' },
+  syncStarredDesc: { zh: '从 GitHub 拉取你点赞过的仓库，勾选后添加到自定义仓库列表', en: 'Fetch your starred repos from GitHub, select and add to custom list' },
+  loadStarred: { zh: '加载星标仓库', en: 'Load Starred Repos' },
+  load: { zh: '加载', en: 'Load' },
+  star: { zh: '星标', en: 'Star' },
+  unstar: { zh: '取消星标', en: 'Unstar' },
+  starred: { zh: '已星标', en: 'Starred' },
+  starBtn: { zh: '星标', en: 'Star' },
+  cloud: { zh: '需要互联网', en: 'Requires Internet' },
+  tools: { zh: '工具', en: 'Tools' },
+  expandAll: { zh: '展开全部', en: 'Expand All' },
+  collapseAll: { zh: '全部折叠', en: 'Collapse All' },
+  customBadge: { zh: '自定义', en: 'Custom' },
+  selected: { zh: '已选', en: 'Selected' },
+  batchComplete: { zh: '批量操作完成', en: 'Batch complete' },
+  importFromHacs: { zh: '从 HACS 导入', en: 'Import from HACS' },
+  tokenImported: { zh: '已从 HACS 导入 Token', en: 'Token imported from HACS' },
+  tokenImportFailed: { zh: 'HACS 中未找到 Token', en: 'No token found in HACS' },
+  verifyAndSave: { zh: '验证并保存', en: 'Verify & Save' },
+  verifying: { zh: '验证中...', en: 'Verifying...' },
 };
 
 /**

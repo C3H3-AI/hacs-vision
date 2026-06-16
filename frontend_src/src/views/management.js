@@ -627,8 +627,7 @@ export class ManagementView extends LitElement {
   }
 
   get _mgmtOrgFilteredCount() {
-    if (!this._orgFilter) return this._orgRepos.length;
-    return this._orgRepos.filter(r => r.full_name.toLowerCase().includes(this._orgFilter.toLowerCase())).length;
+    return this._getFilteredSortedOrgRepos().length;
   }
 
   _isRepoUrl(val) {
@@ -637,7 +636,7 @@ export class ManagementView extends LitElement {
 
   async _loadMgmtOrgRepos() {
     const org = this._customRepoUrl?.trim();
-    if (!org || this._isRepoUrl(org)) return;
+    if (!org || this._isRepoUrl(org) || org.length < 3) return;
     this._orgLoading = true;
     this._orgRepos = [];
     this._selectedOrgRepos = {};
@@ -647,10 +646,12 @@ export class ManagementView extends LitElement {
       if (result?.repos) {
         this._orgRepos = result.repos;
       } else {
-        showToast(result?.error || '加载失败', 'error');
+        // Backend returned but no repos — silent, not an error
       }
     } catch(e) {
-      showToast(`加载失败: ${e.message}`, 'error');
+      // 404 = backend doesn't support this endpoint, silently ignore
+      if (e.status === 404) return;
+      showToast(`${t('loadFailedSimple')}: ${e.message}`, 'error');
     }
     this._orgLoading = false;
   }
@@ -698,7 +699,7 @@ export class ManagementView extends LitElement {
       const ok = results.filter(r => r.success).length;
       const fail = results.filter(r => !r.success).length;
       this._orgSyncResult = `添加完成: ${ok} 个成功${fail ? `, ${fail} 个失败` : ''}`;
-      showToast(`已添加 ${ok} 个仓库到自定义列表`, fail ? 'warning' : 'success');
+      showToast(`${t('addedToCustomList')} (${ok})`, fail ? 'warning' : 'success');
       if (ok > 0) {
         // Reload if any succeeded
         this._load();
@@ -953,6 +954,25 @@ export class ManagementView extends LitElement {
     return getCategoryColor(cat);
   }
 
+  _getFilteredSortedOrgRepos() {
+    const q = (this._orgFilter || '').trim().toLowerCase();
+    if (!q) return this._orgRepos;
+    return this._orgRepos
+      .filter(r => r.full_name.toLowerCase().includes(q))
+      .sort((a, b) => {
+        const na = a.full_name.toLowerCase();
+        const nb = b.full_name.toLowerCase();
+        // 1: exact match (full_name == filter)
+        if (na === q && nb !== q) return -1;
+        if (nb === q && na !== q) return 1;
+        // 2: starts with filter
+        if (na.startsWith(q) && !nb.startsWith(q)) return -1;
+        if (nb.startsWith(q) && !na.startsWith(q)) return 1;
+        // 3: sort by closeness (shorter name = closer match)
+        return na.length - nb.length;
+      });
+  }
+
   _getCategoryLabel(category) {
     const labels = {
       integration: t('catIntegration'), plugin: t('catPlugin'), theme: t('catTheme'),
@@ -1111,7 +1131,7 @@ export class ManagementView extends LitElement {
       <div class="controls">
         <div class="search" style="flex:1;min-width:150px;">
           <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
-          <input type="text" placeholder="${t('search') || '搜索...'}" .value=${this._customRepoSearch} @input=${e => this._customRepoSearch = e.target.value}>
+          <input type="text" autocomplete="off" placeholder="${t('search') || '搜索...'}" .value=${this._customRepoSearch} @input=${e => this._customRepoSearch = e.target.value}>
           ${this._customRepoSearch ? html`<button class="search-clear" @click=${() => this._customRepoSearch = ''}>✕</button>` : ''}
         </div>
         <div class="controls-right">
@@ -1127,7 +1147,7 @@ export class ManagementView extends LitElement {
             <input type="checkbox" class="checkbox-sm" .checked=${this._getFilteredCustomRepos().length > 0 && this._selectedRepos.length === this._getFilteredCustomRepos().length}
                    @click=${e => e.stopPropagation()}
                    @change=${() => { if (this._selectedRepos.length > 0) { this._selectedRepos = []; } else { this._selectedRepos = this._getFilteredCustomRepos().map(r => r.full_name || r.repository).filter(Boolean); } }}>
-            ${t('selectAll') || '全选'}
+            ${t('selectAll')}
             ${this._selectedRepos.length > 0 ? html`<span style="color:var(--primary-color);font-weight:600;">(${this._selectedRepos.length})</span>` : ''}
           </label>
         </div>
@@ -1156,7 +1176,7 @@ export class ManagementView extends LitElement {
             ` : this._customRepoUrl.trim() && !this._isRepoUrl(this._customRepoUrl) ? html`
               ${this._orgLoading ? html`
                 <div style="padding:12px 0;text-align:center;color:var(--secondary-text-color);font-size:13px;width:100%;">
-                  <svg class="mini-icon spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;vertical-align:middle;margin-right:6px;"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> 加载中...
+                  <svg class="mini-icon spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;vertical-align:middle;margin-right:6px;"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> ${t('searching')}
                 </div>
               ` : this._orgRepos.length > 0 ? html`
                 <div style="display:flex;align-items:center;gap:8px;margin:8px 0;width:100%;">
@@ -1165,19 +1185,19 @@ export class ManagementView extends LitElement {
                       ?indeterminate=${Object.keys(this._selectedOrgRepos).length > 0 && Object.keys(this._selectedOrgRepos).length < this._mgmtOrgFilteredCount}
                       @change=${e => this._toggleSelectAllMgmtOrg(e.target.checked)}
                       style="width:16px;height:16px;accent-color:var(--primary-color);">
-                    全选
+                    ${t('selectAll')}
                   </label>
-                  <span style="font-size:13px;font-weight:600;color:var(--primary-text-color);white-space:nowrap;">${this._orgRepos.length} 个仓库</span>
+                  <span style="font-size:13px;font-weight:600;color:var(--primary-text-color);white-space:nowrap;">${this._orgRepos.length} ${t('repositories')}</span>
                   <input type="text" placeholder="筛选..." .value=${this._orgFilter}
                     @input=${e => { this._orgFilter = e.target.value; this.requestUpdate(); }}
                     style="flex:1;min-width:80px;padding:6px 8px;border:1px solid var(--divider-color);border-radius:6px;font-size:13px;background:var(--input-background-color,var(--card-background-color));color:var(--primary-text-color);outline:none;">
                   <button class="btn primary" style="font-size:12px;padding:6px 12px;white-space:nowrap;" @click=${this._syncSelectedMgmtOrg} ?disabled=${this._orgSyncing || Object.keys(this._selectedOrgRepos).length === 0}>
-                    ${this._orgSyncing ? '添加中...' : `添加选中 (${Object.keys(this._selectedOrgRepos).length})`}
+                    ${this._orgSyncing ? t('adding') : `${t('addSelected')} (${Object.keys(this._selectedOrgRepos).length})`}
                   </button>
                 </div>
                 ${this._orgSyncResult ? html`<div style="font-size:12px;margin-bottom:6px;width:100%;color:${this._orgSyncResult.includes('失败') ? '#f44336' : 'var(--primary-text-color)'};">${this._orgSyncResult}</div>` : ''}
                 <div style="max-height:240px;overflow-y:auto;border:1px solid var(--divider-color);border-radius:8px;width:100%;">
-                  ${this._orgRepos.filter(r => !this._orgFilter || r.full_name.toLowerCase().includes(this._orgFilter.toLowerCase())).map(r => html`
+                  ${this._getFilteredSortedOrgRepos().map(r => html`
                     <div style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-bottom:1px solid var(--divider-color);font-size:13px;cursor:pointer;transition:background 0.15s;color:var(--primary-text-color);" @click=${() => this._toggleSelectMgmtOrg(r.full_name)}>
                       <input type="checkbox" .checked=${!!this._selectedOrgRepos[r.full_name]}
                         @click=${(e) => { e.stopPropagation(); this._toggleSelectMgmtOrg(r.full_name); }}
@@ -1191,7 +1211,7 @@ export class ManagementView extends LitElement {
                   `)}
                 </div>
               ` : this._customRepoUrl.trim() ? html`
-                <div style="font-size:13px;color:var(--error-color,#f44336);width:100%;margin:4px 0;">无效的仓库地址或组织名，请输入 owner/repo 或 GitHub 组织名</div>
+                <div style="font-size:13px;color:var(--error-color,#f44336);width:100%;margin:4px 0;">${t('invalidOrgInput')}</div>
               ` : ''}
             ` : ''}
           </div>

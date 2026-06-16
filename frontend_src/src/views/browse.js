@@ -76,6 +76,13 @@ class BrowseView extends LitElement {
     _selectedRepos: { type: Array, state: true },
     _tagFilters: { type: Array, state: true },
     _starredMap: { type: Object, state: true },
+    // Org repos for add repo form
+    _orgRepos: { type: Array, state: true },
+    _orgFilter: { type: String, state: true },
+    _selectedOrgRepos: { type: Object, state: true },
+    _orgLoading: { type: Boolean, state: true },
+    _orgSyncing: { type: Boolean, state: true },
+    _orgSyncResult: { type: String, state: true },
   };
 
   constructor() {
@@ -107,6 +114,13 @@ class BrowseView extends LitElement {
     this._collapsedGroups = {};
     this._filterExpanded = false;
     this._starredMap = {};
+    this._orgRepos = [];
+    this._orgFilter = '';
+    this._selectedOrgRepos = {};
+    this._orgLoading = false;
+    this._orgSyncing = false;
+    this._orgSyncResult = '';
+    this._orgLoadTimer = null;
     this._favorites = [];
     this._selectedRepos = [];
     this._tagFilters = [];
@@ -906,6 +920,83 @@ class BrowseView extends LitElement {
     if (/^[a-zA-Z0-9_-]+\/[a-zA-Z0-9_.-]+$/.test(url)) return url;
     return null;
   }
+
+  _isRepoUrl(val) { return val?.includes('/'); }
+
+  get _browseFilteredSortedOrgRepos() {
+    const q = (this._orgFilter || '').trim().toLowerCase();
+    if (!q) return this._orgRepos;
+    return [...this._orgRepos]
+      .filter(r => r.full_name.toLowerCase().includes(q))
+      .sort((a, b) => {
+        const na = a.full_name.toLowerCase();
+        const nb = b.full_name.toLowerCase();
+        if (na === q && nb !== q) return -1;
+        if (nb === q && na !== q) return 1;
+        if (na.startsWith(q) && !nb.startsWith(q)) return -1;
+        if (nb.startsWith(q) && !na.startsWith(q)) return 1;
+        return na.length - nb.length;
+      });
+  }
+
+  get _browseOrgFilteredCount() {
+    return this._browseFilteredSortedOrgRepos.length;
+  }
+
+  async _loadBrowseOrgRepos() {
+    const org = this._newRepoUrl?.trim();
+    if (!org || this._isRepoUrl(org) || org.length < 3) return;
+    this._orgLoading = true;
+    this._orgRepos = [];
+    this._selectedOrgRepos = {};
+    this._orgSyncResult = '';
+    try {
+      const result = await api.listOrgRepos(org);
+      if (result?.repos) {
+        this._orgRepos = result.repos;
+      }
+    } catch(e) {
+      if (e.status === 404) return;
+      showToast(`${t('loadFailedSimple')}: ${e.message}`, 'error');
+    }
+    this._orgLoading = false;
+  }
+
+  _toggleBrowseOrgRepo(fullName) {
+    if (this._selectedOrgRepos[fullName]) {
+      const updated = { ...this._selectedOrgRepos };
+      delete updated[fullName];
+      this._selectedOrgRepos = updated;
+    } else {
+      this._selectedOrgRepos = { ...this._selectedOrgRepos, [fullName]: true };
+    }
+  }
+
+  _toggleSelectAllBrowseOrg(checked) {
+    const filtered = this._browseFilteredSortedOrgRepos;
+    if (checked) {
+      const sel = {};
+      filtered.forEach(r => sel[r.full_name] = true);
+      this._selectedOrgRepos = sel;
+    } else {
+      this._selectedOrgRepos = {};
+    }
+  }
+
+  async _syncSelectedBrowseOrg() {
+    const selectedNames = Object.keys(this._selectedOrgRepos);
+    if (selectedNames.length === 0) return;
+    this._orgSyncing = true;
+    try {
+      const result = await api.syncStarred(selectedNames);
+      const ok = result?.added || result?.success?.length || 0;
+      const fail = result?.failed?.length || 0;
+      this._orgSyncResult = fail ? `${t('addedToCustomList')} (${ok}), ${fail} ${t('failedSuffix')}` : `${t('addedToCustomList')} (${ok})`;
+    } catch(e) {
+      this._orgSyncResult = `${t('loadFailedSimple')}: ${e.message}`;
+    }
+    this._orgSyncing = false;
+  }
   _getRepoStatus(repo) {
     if (repo.pending_restart) return 'pending_restart';
     if (repo.installed && (repo.has_update || (repo.installed_version && repo.latest_version && repo.installed_version !== repo.latest_version))) return 'pending-upgrade';
@@ -1192,7 +1283,7 @@ class BrowseView extends LitElement {
           <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
           </svg>
-          <input type="text" placeholder="${t('searchPlaceholder')}" .value=${this._searchText} @input=${this._onSearch} @focus=${this._onSearchFocus} />
+          <input type="text" autocomplete="off" placeholder="${t('searchPlaceholder')}" .value=${this._searchText} @input=${this._onSearch} @focus=${this._onSearchFocus} />
           ${this.search ? html`<button class="search-clear" @click=${this._clearSearch}>✕</button>` : ''}
           ${this.search ? html`<button class="search-clear" @click=${this._clearSearch}>✕</button>` : ''}
           ${this._showSearchHistory && this._searchHistory.length > 0 ? html`
@@ -1227,20 +1318,72 @@ class BrowseView extends LitElement {
         </div>
       </div>
 
-      <!-- Add Custom Repo Form -->
+      <!-- Add Custom Repo Form (with org repos support) -->
       ${this._showAddRepo ? html`
         <div class="add-repo-form">
           <div class="form-row">
-            <input class="form-input" type="text" placeholder="${t('repoUrl')}" .value=${this._newRepoUrl} @input=${e => { this._newRepoUrl = e.target.value; }} @keydown=${e => { if (e.key === 'Enter') this._addRepo(); }}>
-            <select class="form-select" .value=${this._newRepoCategory} @change=${e => { this._newRepoCategory = e.target.value; }}>
+            <input class="form-input" type="text" placeholder="owner/repo、${t('repoUrl')} 或组织名" .value=${this._newRepoUrl}
+              @input=${e => { this._newRepoUrl = e.target.value; clearTimeout(this._orgLoadTimer); if (!this._isRepoUrl(this._newRepoUrl) && this._newRepoUrl.trim()) { this._orgLoadTimer = setTimeout(() => this._loadBrowseOrgRepos(), 300); }} }
+              @keydown=${e => { if (e.key === 'Enter' && this._parseRepoUrl(this._newRepoUrl)) this._addRepo(); }}
+              style="flex:1;min-width:200px;">
+            <select class="form-select" .value=${this._newRepoCategory} @change=${e => { this._newRepoCategory = e.target.value; }}
+              style="min-width:100px;">
               <option value="integration">${t('catIntegration')}</option><option value="plugin">${t('catPlugin')}</option>
               <option value="theme">${t('catTheme')}</option><option value="template">${t('catTemplate')}</option>
+              <option value="dashboard">${t('catDashboard')}</option>
             </select>
           </div>
-          <div class="form-actions">
-            <button class="btn primary" @click=${this._addRepo} ?disabled=${this._addRepoInstalling}>${this._addRepoInstalling ? t('installing') : t('add')}</button>
-            <button class="btn" @click=${() => { this._showAddRepo = false; }}>${t('cancel')}</button>
-          </div>
+          ${this._newRepoUrl.trim() && this._parseRepoUrl(this._newRepoUrl) ? html`
+            <div class="form-actions">
+              <button class="btn primary" @click=${this._addRepo} ?disabled=${this._addRepoInstalling}>
+                ${this._addRepoInstalling ? html`<svg class="mini-icon spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> ${t('installing')}` : html`<svg class="mini-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg> ${t('add')}`}
+              </button>
+              <button class="btn" @click=${() => { this._showAddRepo = false; }}>${t('cancel')}</button>
+            </div>
+          ` : this._newRepoUrl.trim() && !this._isRepoUrl(this._newRepoUrl) ? html`
+            ${this._orgLoading ? html`
+              <div style="padding:12px 0;text-align:center;color:var(--secondary-text-color);font-size:13px;">
+                <svg class="mini-icon spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;vertical-align:middle;margin-right:6px;"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> ${t('searching')}
+              </div>
+            ` : this._orgRepos.length > 0 ? html`
+              <div style="display:flex;align-items:center;gap:8px;margin:8px 0;">
+                <label style="display:flex;align-items:center;gap:4px;font-size:13px;cursor:pointer;white-space:nowrap;color:var(--primary-text-color);">
+                  <input type="checkbox" .checked=${this._browseOrgFilteredCount > 0 && Object.keys(this._selectedOrgRepos).length === this._browseOrgFilteredCount}
+                    ?indeterminate=${Object.keys(this._selectedOrgRepos).length > 0 && Object.keys(this._selectedOrgRepos).length < this._browseOrgFilteredCount}
+                    @change=${e => this._toggleSelectAllBrowseOrg(e.target.checked)}
+                    style="width:16px;height:16px;accent-color:var(--primary-color);">
+                  ${t('selectAll')}
+                </label>
+                <span style="font-size:13px;font-weight:600;color:var(--primary-text-color);white-space:nowrap;">${this._orgRepos.length} ${t('repositories')}</span>
+                <input type="text" placeholder="筛选..." .value=${this._orgFilter}
+                  @input=${e => { this._orgFilter = e.target.value; this.requestUpdate(); }}
+                  style="flex:1;min-width:80px;padding:6px 8px;border:1px solid var(--divider-color);border-radius:6px;font-size:13px;background:var(--input-background-color,var(--card-background-color));color:var(--primary-text-color);outline:none;">
+                <button class="btn primary" style="font-size:12px;padding:6px 12px;white-space:nowrap;" @click=${this._syncSelectedBrowseOrg} ?disabled=${this._orgSyncing || Object.keys(this._selectedOrgRepos).length === 0}>
+                  ${this._orgSyncing ? t('syncing') : `${t('syncSelected')} (${Object.keys(this._selectedOrgRepos).length})`}
+                </button>
+              </div>
+              ${this._orgSyncResult ? html`<div style="font-size:12px;margin-bottom:6px;color:${this._orgSyncResult.includes('失败') ? '#f44336' : 'var(--primary-text-color)'};">${this._orgSyncResult}</div>` : ''}
+              <div style="max-height:240px;overflow-y:auto;border:1px solid var(--divider-color);border-radius:8px;">
+                ${this._browseFilteredSortedOrgRepos.map(r => html`
+                  <div style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-bottom:1px solid var(--divider-color);font-size:13px;cursor:pointer;transition:background 0.15s;color:var(--primary-text-color);" @click=${() => this._toggleBrowseOrgRepo(r.full_name)}>
+                    <input type="checkbox" .checked=${!!this._selectedOrgRepos[r.full_name]}
+                      @click=${(e) => { e.stopPropagation(); this._toggleBrowseOrgRepo(r.full_name); }}
+                      style="width:16px;height:16px;cursor:pointer;accent-color:var(--primary-color);flex-shrink:0;">
+                    <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+                      <strong>${r.full_name}</strong>
+                      <span style="color:var(--secondary-text-color);margin-left:6px;">⭐${r.stars?.toLocaleString() || 0}</span>
+                      ${r.category ? html`<span style="margin-left:6px;padding:1px 6px;border-radius:4px;background:var(--primary-color);color:#fff;font-size:11px;">${r.category}</span>` : ''}
+                    </span>
+                  </div>
+                `)}
+              </div>
+            ` : ''}
+          ` : ''}
+          ${!this._newRepoUrl.trim() || this._parseRepoUrl(this._newRepoUrl) ? '' : html`
+            <div style="margin-top:8px;">
+              <button class="btn" @click=${() => { this._showAddRepo = false; }}>${t('cancel')}</button>
+            </div>
+          `}
         </div>
       ` : ''}
 

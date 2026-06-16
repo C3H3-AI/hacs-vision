@@ -9,6 +9,7 @@ export function getCommonStyles() {
   return css`
   /* ===== CSS Variables for Theming ===== */
   :host {
+    /* Semantic colors — intended fallbacks (HA cascades its own values) */
     --success-color: #4caf50;
     --error-color: #f44336;
     --warning-color: #ff9800;

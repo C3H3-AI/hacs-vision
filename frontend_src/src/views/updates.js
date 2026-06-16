@@ -10,6 +10,7 @@ class UpdatesView extends LitElement {
   static properties = {
     updates: { type: Array },
     loading: { type: Boolean },
+    refreshing: { type: Boolean },
     updating: { type: Boolean },
     search: { type: String },
     _installingIds: { type: Object, state: true },
@@ -28,6 +29,7 @@ class UpdatesView extends LitElement {
     super();
     this.updates = [];
     this.loading = false;
+    this.refreshing = false;
     this.updating = false;
     this.search = '';
     this._searchTimer = null;
@@ -374,6 +376,11 @@ class UpdatesView extends LitElement {
         background: var(--primary-color, #03a9f4);
         transition: width 0.3s ease;
       }
+      @keyframes pulse {
+        0% { opacity: 0.4; } 50% { opacity: 1; } 100% { opacity: 0.4; }
+      }
+      .refresh-btn.spinning svg { animation: spin 1s linear infinite; }
+      .refresh-btn.spinning { opacity: 0.6; }
       .progress-label {
         font-size: 12px; color: var(--secondary-text-color);
         white-space: nowrap; flex-shrink: 0;
@@ -383,7 +390,37 @@ class UpdatesView extends LitElement {
 
   async connectedCallback() {
     super.connectedCallback();
-    await this._load();
+    // 首次加载只显示已缓存的更新列表，不触发 refresh（慢）
+    this.loading = true;
+    try {
+      const result = await api.getUpdates();
+      this.updates = Array.isArray(result) ? result : (result.updates || []);
+      this._lazyLoadChangelogs();
+    } catch(e) {
+      console.error('Failed to load updates', e);
+      this.updates = [];
+    }
+    this.loading = false;
+    // 后台逐步加载 changelog（分卡片加载，已在 _lazyLoadChangelogs 中实现）
+  }
+
+  /* 检查更新：refresh + 刷新列表 + 显示进度 */
+  async _refresh() {
+    this.refreshing = true;
+    this._updateProgress = { current: 0, total: 0, currentName: t('checkingUpdates') || '正在检查更新...' };
+    try {
+      await api.refresh();
+      this._updateProgress = { ...this._updateProgress, currentName: t('loadingUpdates') || '正在加载更新列表...' };
+      const result = await api.getUpdates();
+      this.updates = Array.isArray(result) ? result : (result.updates || []);
+      this._changelogs = {};
+      this._lazyLoadChangelogs();
+      this.dispatchEvent(new CustomEvent('refresh-stats', { bubbles: true, composed: true }));
+    } catch(e) {
+      console.error('Refresh failed', e);
+    }
+    this.refreshing = false;
+    this._updateProgress = null;
   }
 
   /* Lazy load changelogs: load one at a time with gap */
@@ -402,11 +439,9 @@ class UpdatesView extends LitElement {
   async _load() {
     this.loading = true;
     try {
-      // Refresh backend data first, then fetch fresh updates list
-      await api.refresh();
+      // 只获取缓存的更新列表，不调 refresh（慢）
       const result = await api.getUpdates();
       this.updates = Array.isArray(result) ? result : (result.updates || []);
-      this._lazyLoadChangelogs();
     } catch(e) {
       console.error('Failed to load updates', e);
       this.updates = [];
@@ -743,11 +778,21 @@ class UpdatesView extends LitElement {
 
     return html`
       <div class="controls">
+        <!-- 刷新进度条 -->
+        ${this.refreshing ? html`
+          <div style="position:fixed;top:0;left:0;right:0;z-index:9999;background:var(--card-background-color,#fff);border-bottom:1px solid var(--divider-color);padding:10px 16px;display:flex;align-items:center;gap:10px;">
+            <svg class="mini-icon spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px;flex-shrink:0;"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+            <span style="font-size:13px;color:var(--primary-text-color);flex:1;">${this._updateProgress?.currentName || t('checkingUpdates') || '正在检查更新...'}</span>
+            <div style="width:120px;height:6px;background:var(--divider-color);border-radius:3px;overflow:hidden;">
+              <div class="progress-fill" style="width:100%;animation:pulse 1.5s ease-in-out infinite;"></div>
+            </div>
+          </div>
+        ` : ''}
         <div class="search">
           <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
           </svg>
-          <input type="text" placeholder="${t('searchUpdates')}" .value=${this._searchText || ''}
+          <input type="text" autocomplete="off" placeholder="${t('searchUpdates')}" .value=${this._searchText || ''}
                  @input=${e => {
                    this._searchText = e.target.value;
                    clearTimeout(this._searchTimer);
@@ -758,7 +803,7 @@ class UpdatesView extends LitElement {
           ` : ''}
         </div>
         <div class="controls-right">
-          <button class="refresh-btn" @click=${this._load} title="${t('refreshTitle')}">
+          <button class="refresh-btn ${this.refreshing ? 'spinning' : ''}" @click=${this._refresh} ?disabled=${this.refreshing} title="${t('refreshTitle')}">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
           </button>
           <div class="view-toggle">

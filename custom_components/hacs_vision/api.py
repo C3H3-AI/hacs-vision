@@ -186,7 +186,7 @@ class HACSEnhancedAPI(HomeAssistantView):
         # Store token
         await self.data.write_storage("github_token", {"token": token, "user": login})
         self._github_token = token
-        return web.json_response({"ok": True, "user": login, "rate_limit_remaining": remaining})
+        return web.json_response({"ok": True, "user": login, "avatar_url": user.get("avatar_url"), "rate_limit_remaining": remaining})
 
     async def _github_user(self) -> web.Response:
         """Get current GitHub user info — ONLY from vision-stored token, not HACS fallback."""
@@ -208,6 +208,13 @@ class HACSEnhancedAPI(HomeAssistantView):
         except Exception as e:
             return web.json_response({"error": str(e)}, status=500)
         return web.json_response({"login": user.get("login"), "avatar_url": user.get("avatar_url")})
+
+    async def _github_import_token(self) -> web.Response:
+        """Import GitHub token from HACS storage (fallback chain)."""
+        token = await self._get_active_github_token()
+        if token:
+            return web.json_response({"token": token})
+        return web.json_response({"error": "no_token_found"}, status=404)
 
     async def _github_star(self, body: dict) -> web.Response:
         """Star a repository."""
@@ -515,6 +522,8 @@ class HACSEnhancedAPI(HomeAssistantView):
             return await self._github_list_starred()
         if path in ("github/repos", "github/repos/"):
             return await self._github_list_org_repos(query)
+        if path in ("github/import_token", "github/import_token/"):
+            return await self._github_import_token()
 
         return web.json_response({"error": "not_found"}, status=404)
 

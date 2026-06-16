@@ -756,7 +756,7 @@ class IntegrationsList extends LitElement {
             <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
             </svg>
-            <input type="text"
+            <input type="text" autocomplete="off"
               .value=${this.searchText}
               @input=${e => { this.searchText = e.target.value; }}
               placeholder="${t('searchIntegration')}">
@@ -1152,7 +1152,7 @@ class IntegrationsList extends LitElement {
             </button>
           </div>
           <div class="modal-search">
-            <input type="text" class="add-search-input"
+            <input type="text" class="add-search-input" autocomplete="off"
               placeholder="${t('searchIntegration')}"
               .value=${this._handlerSearch}
               @input=${e => { this._handlerSearch = e.target.value; }}

@@ -212,6 +212,7 @@ class HACSEnhancedAPI {
 
   /* GitHub Auth */
   verifyGitHubToken(token) { return this.post('github/verify_token', { token }); }
+  importHacsToken() { return this.get('github/import_token'); }
   getGitHubUser() { return this.get('github/user'); }
   starRepo(repo) { return this.post('github/star', { repo }); }
   unstarRepo(repo) { return this.post('github/unstar', { repo }); }
