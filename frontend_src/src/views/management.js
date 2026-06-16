@@ -42,6 +42,13 @@ export class ManagementView extends LitElement {
     _selectedRepos: { type: Array, state: true },
     _favorites: { type: Array, state: true },
     _tagFilters: { type: Array, state: true },
+    _orgUrl: { type: String },
+    _orgRepos: { type: Array, state: true },
+    _orgLoading: { type: Boolean, state: true },
+    _orgFilter: { type: String, state: true },
+    _selectedOrgRepos: { type: Object, state: true },
+    _orgSyncResult: { type: String, state: true },
+    _orgSyncing: { type: Boolean, state: true },
   };
 
   constructor() {
@@ -74,6 +81,13 @@ export class ManagementView extends LitElement {
       ignored: false,
       tools: false,
     };
+    this._orgUrl = '';
+    this._orgRepos = [];
+    this._orgLoading = false;
+    this._orgFilter = '';
+    this._selectedOrgRepos = {};
+    this._orgSyncResult = '';
+    this._orgSyncing = false;
   }
 
   static styles = [getCommonStyles(), css`
@@ -579,6 +593,11 @@ export class ManagementView extends LitElement {
     if (!this._showAddCustom) {
       this._customRepoUrl = '';
       this._customRepoCategory = 'integration';
+      this._orgUrl = '';
+      this._orgRepos = [];
+      this._orgFilter = '';
+      this._selectedOrgRepos = {};
+      this._orgSyncResult = '';
     }
   }
 
@@ -606,6 +625,87 @@ export class ManagementView extends LitElement {
       } else showToast(`${t('addFailed')}: ${result.error}`, 'error');
     } catch(e) { showToast(`${t('addFailed')}: ${e.message}`, 'error'); }
     this._addingCustom = false;
+  }
+
+  get _mgmtOrgFilteredCount() {
+    if (!this._orgFilter) return this._orgRepos.length;
+    return this._orgRepos.filter(r => r.full_name.toLowerCase().includes(this._orgFilter.toLowerCase())).length;
+  }
+
+  async _loadMgmtOrgRepos() {
+    const org = this._orgUrl?.trim();
+    if (!org) return;
+    this._orgLoading = true;
+    this._orgRepos = [];
+    this._selectedOrgRepos = {};
+    this._orgSyncResult = '';
+    try {
+      const result = await api.listOrgRepos(org);
+      if (result?.repos) {
+        this._orgRepos = result.repos;
+      } else {
+        showToast(result?.error || '加载失败', 'error');
+      }
+    } catch(e) {
+      showToast(`加载失败: ${e.message}`, 'error');
+    }
+    this._orgLoading = false;
+  }
+
+  _toggleSelectMgmtOrg(fullName) {
+    if (this._selectedOrgRepos[fullName]) {
+      const updated = { ...this._selectedOrgRepos };
+      delete updated[fullName];
+      this._selectedOrgRepos = updated;
+    } else {
+      this._selectedOrgRepos = { ...this._selectedOrgRepos, [fullName]: true };
+    }
+  }
+
+  _toggleSelectAllMgmtOrg(checked) {
+    const filtered = this._orgRepos.filter(r => !this._orgFilter || r.full_name.toLowerCase().includes(this._orgFilter.toLowerCase()));
+    if (checked) {
+      const sel = {};
+      filtered.forEach(r => sel[r.full_name] = true);
+      this._selectedOrgRepos = sel;
+    } else {
+      this._selectedOrgRepos = {};
+    }
+  }
+
+  async _syncSelectedMgmtOrg() {
+    const selectedNames = Object.keys(this._selectedOrgRepos);
+    if (selectedNames.length === 0) return;
+    this._orgSyncing = true;
+    this._orgSyncResult = '';
+    try {
+      const reposToSync = this._orgRepos
+        .filter(r => this._selectedOrgRepos[r.full_name])
+        .map(r => ({
+          full_name: r.full_name,
+          category: r.category || 'integration',
+        }));
+      if (reposToSync.length === 0) {
+        this._orgSyncResult = '没有选中的仓库';
+        this._orgSyncing = false;
+        return;
+      }
+      const result = await api.syncStarred(reposToSync);
+      const results = result?.results || [];
+      const ok = results.filter(r => r.success).length;
+      const fail = results.filter(r => !r.success).length;
+      this._orgSyncResult = `同步完成: ${ok} 个成功${fail ? `, ${fail} 个失败` : ''}`;
+      showToast(`已添加 ${ok} 个仓库到自定义列表`, fail ? 'warning' : 'success');
+      if (ok > 0) {
+        // Reload if any succeeded
+        this._load();
+        this.dispatchEvent(new CustomEvent('refresh-stats', { bubbles: true, composed: true }));
+      }
+    } catch(e) {
+      this._orgSyncResult = `同步失败: ${e.message}`;
+      showToast(`同步失败: ${e.message}`, 'error');
+    }
+    this._orgSyncing = false;
   }
 
   async _removeCustomRepo(repoName, category) {
@@ -1030,20 +1130,18 @@ export class ManagementView extends LitElement {
         </div>
       </div>
 
-      <!-- Add Custom Repo Form (right after controls, before filters — matches store) -->
+      <!-- Add Custom Repo Form -->
       ${this._showAddCustom ? html`
         <div class="add-repo-form">
+          <!-- 单个添加 -->
           <div class="form-row" style="display:flex;gap:8px;flex-wrap:wrap;">
             <input class="form-input" type="text" style="flex:1;min-width:200px;" .value=${this._customRepoUrl} @input=${e => this._customRepoUrl = e.target.value} placeholder="owner/repo 或 GitHub URL" @keydown=${e => e.key === 'Enter' && this._addCustomRepo()}>
             <select class="form-select" .value=${this._customRepoCategory} @change=${e => this._customRepoCategory = e.target.value}>
               ${['integration','plugin','theme','dashboard','python_script','template','appdaemon','netdaemon'].map(c => html`<option value=${c}>${this._getCategoryLabel(c)}</option>`)}
             </select>
-          </div>
-          <div class="form-actions" style="display:flex;gap:6px;margin-top:8px;">
             <button class="btn primary" @click=${this._addCustomRepo} ?disabled=${this._addingCustom || !this._customRepoUrl.trim()}>
               ${this._addingCustom ? html`<svg class="mini-icon spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> ${t('add')}` : html`<svg class="mini-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg> ${t('add')}`}
             </button>
-            <button class="btn" @click=${this._toggleAddCustom}>${t('cancel')}</button>
           </div>
           ${this._customRepoUrl.trim() && this._parseRepoUrl(this._customRepoUrl) ? html`
             <div style="margin-top:4px;font-size:11px;color:var(--secondary-text-color);display:flex;align-items:center;gap:4px;">
@@ -1052,6 +1150,58 @@ export class ManagementView extends LitElement {
           ` : this._customRepoUrl.trim() ? html`
             <div style="margin-top:4px;font-size:11px;color:#f44336;">${t('invalidRepoUrl')}</div>
           ` : ''}
+
+          <!-- 组织/用户批量添加 -->
+          <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--divider-color);">
+            <div style="font-size:12px;font-weight:600;margin-bottom:6px;">${t('batchAddOrg') || '批量添加组织/用户仓库'}</div>
+            <div style="display:flex;gap:6px;margin-bottom:8px;">
+              <input class="form-input" type="text" style="flex:1;" .value=${this._orgUrl} @input=${e => this._orgUrl = e.target.value} @keydown=${e => e.key === 'Enter' && this._loadMgmtOrgRepos()} placeholder="GitHub 组织名或 URL（如 C3H3-AI）">
+              <button class="btn" style="white-space:nowrap;" @click=${this._loadMgmtOrgRepos} ?disabled=${this._orgLoading || !this._orgUrl.trim()}>
+                ${this._orgLoading ? '加载中...' : (t('load') || '加载')}
+              </button>
+            </div>
+
+            ${this._orgLoading ? html`
+              <div style="padding:10px;text-align:center;color:var(--secondary-text-color);font-size:12px;">
+                <svg class="mini-icon spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;vertical-align:middle;margin-right:4px;"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> 加载中...
+              </div>
+            ` : this._orgRepos.length > 0 ? html`
+              <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">
+                <label style="display:flex;align-items:center;gap:3px;font-size:11px;cursor:pointer;">
+                  <input type="checkbox" .checked=${this._mgmtOrgFilteredCount > 0 && Object.keys(this._selectedOrgRepos).length === this._mgmtOrgFilteredCount}
+                    ?indeterminate=${Object.keys(this._selectedOrgRepos).length > 0 && Object.keys(this._selectedOrgRepos).length < this._mgmtOrgFilteredCount}
+                    @change=${e => this._toggleSelectAllMgmtOrg(e.target.checked)}>
+                  全选
+                </label>
+                <span style="font-size:12px;font-weight:600;">${this._orgRepos.length} 个仓库</span>
+                <input type="text" placeholder="筛选..." .value=${this._orgFilter}
+                  @input=${e => { this._orgFilter = e.target.value; this.requestUpdate(); }}
+                  style="flex:1;padding:4px 6px;border:1px solid var(--divider-color);border-radius:4px;font-size:11px;background:var(--card-background-color);color:var(--primary-text-color);">
+                <button class="btn primary" style="font-size:10px;padding:3px 8px;" @click=${this._syncSelectedMgmtOrg} ?disabled=${this._orgSyncing || Object.keys(this._selectedOrgRepos).length === 0}>
+                  ${this._orgSyncing ? '同步中...' : `同步选中 (${Object.keys(this._selectedOrgRepos).length})`}
+                </button>
+              </div>
+              ${this._orgSyncResult ? html`<div style="font-size:11px;margin-bottom:4px;color:${this._orgSyncResult.includes('失败') ? '#f44336' : 'var(--primary-text-color)'};">${this._orgSyncResult}</div>` : ''}
+              <div style="max-height:200px;overflow-y:auto;border:1px solid var(--divider-color);border-radius:4px;">
+                ${this._orgRepos.filter(r => !this._orgFilter || r.full_name.toLowerCase().includes(this._orgFilter.toLowerCase())).map(r => html`
+                  <div style="display:flex;align-items:center;gap:6px;padding:4px 8px;border-bottom:1px solid var(--divider-color);font-size:11px;cursor:pointer;" @click=${() => this._toggleSelectMgmtOrg(r.full_name)}>
+                    <input type="checkbox" .checked=${!!this._selectedOrgRepos[r.full_name]}
+                      @click=${(e) => { e.stopPropagation(); this._toggleSelectMgmtOrg(r.full_name); }}
+                      style="cursor:pointer;">
+                    <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+                      <strong>${r.full_name}</strong>
+                      <span style="color:var(--secondary-text-color);margin-left:4px;">⭐${r.stars?.toLocaleString() || 0}</span>
+                      ${r.category ? html`<span style="margin-left:4px;padding:0 4px;border-radius:3px;background:var(--primary-color);color:#fff;font-size:9px;">${r.category}</span>` : ''}
+                    </span>
+                  </div>
+                `)}
+              </div>
+            ` : ''}
+          </div>
+
+          <div class="form-actions" style="display:flex;gap:6px;margin-top:8px;">
+            <button class="btn" @click=${this._toggleAddCustom}>${t('cancel')}</button>
+          </div>
         </div>
       ` : ''}
 
