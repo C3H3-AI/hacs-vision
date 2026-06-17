@@ -1066,11 +1066,16 @@ class HACSEnhancedAPI(HomeAssistantView):
             elif status == "pending_restart":
                 repos = [r for r in repos if r.get("pending_restart")]
 
-        # Apply tag filter (custom / new) — moved from client-side to server-side
+        # Apply tag filter (custom / new / favorites) — moved from client-side to server-side
         if tag == "custom":
             repos = [r for r in repos if r.get("custom") or r.get("is_custom")]
         elif tag == "new":
             repos = [r for r in repos if r.get("new") or r.get("status") == "new"]
+        elif tag == "favorites":
+            favs = await self.data.get_favorites()
+            fav_set = {str(f) for f in favs}
+            repos = [r for r in repos if str(r.get("full_name", "")) in fav_set]
+            tag_counts["favorites"] = len(fav_set)
 
         reverse = sort_dir == "desc"
         if sort == "stars" or sort == "stargazers_count":

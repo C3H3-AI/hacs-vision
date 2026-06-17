@@ -779,16 +779,10 @@ class BrowseView extends LitElement {
       }
       // Determine active tag filter — only one tag filter at a time
       const activeTag = this._tagFilters.length === 1 ? this._tagFilters[0] : '';
-      // When favorites filter is active, fetch generously to cover all favorites
-      // since filtering is done client-side on paginated server results.
-      const effectiveLimit = activeTag === 'favorites'
-        ? Math.max(this._favorites.length * 2, 100)
-        : this.limit;
       const result = await api.listRepositories({
         search: serverSearch,
         category: this.category, sort: this.sort,
-        sortDir: this.sortDir, page: activeTag === 'favorites' ? 1 : this.page,
-        limit: effectiveLimit,
+        sortDir: this.sortDir, page: this.page, limit: this.limit,
         status: this.statusFilter, tag: activeTag,
       });
       this.repos = result.repositories || [];
@@ -798,10 +792,9 @@ class BrowseView extends LitElement {
       this.tagCounts = result.tag_counts || {};
       // Compute favorites count from client
       this.tagCounts = { ...this.tagCounts, favorites: this._favorites.length };
-      // When favorites filter active, adjust total to client-side filtered count
-      // so pagination reflects what's actually displayed
+      // When favorites filter active, server does the filtering; adjust total from server response
       if (activeTag === 'favorites') {
-        this.total = this.repos.filter(r => this._favorites.includes(String(r.id || r.full_name))).length;
+        this.total = this.repos.length;
       }
       // Batch load star status for all visible repos
       this._batchLoadStarStatus();
