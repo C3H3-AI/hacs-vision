@@ -34,6 +34,9 @@ class IntegrationsList extends LitElement {
     _sortBy: { type: String, state: true },                // name | entries | status
     _sortDir: { type: String, state: true },               // asc | desc
     _configMenuFor: { type: Object, state: true },         // { domain, anchor } → show dropdown
+    _testIframeUrl: { type: String, state: true },          // HA config page iframe URL (B方案测试)
+    _iframeFullscreen: { type: Boolean, state: true },      // iframe全屏切换
+    _iframeZoom: { type: Number, state: true },             // iframe缩放比例
   };
 
   constructor() {
@@ -65,6 +68,7 @@ class IntegrationsList extends LitElement {
     this._toggling = {};
     this._selectedEntryIds = {};
     this._selectedDomains = {};
+    this._iframeZoom = 1;
   }
 
   _modalPointerDown(e) {
@@ -838,7 +842,8 @@ class IntegrationsList extends LitElement {
       </div>
 
       ${this._renderAddDialog()}
-      ${this._renderDetailDialog()}
+      ${this._showDetail ? this._renderDetailDialog() : ''}
+      ${this._renderTestIframe()}
     `;
   }
 
@@ -850,7 +855,7 @@ class IntegrationsList extends LitElement {
     const anyProcessing = entries.some(e => this._removing[e.entry_id] || this._reloading[e.entry_id]);
 
     return html`
-      <div class="list-row list-row-${st}" @click=${() => this._openDetail(domain, entries)}>
+      <div class="list-row list-row-${st}" @click=${() => { this._testIframeDomain = domain; this._testIframeUrl = '/config/integrations/integration/' + domain; }}>
         <span class="list-row-name">
           <span class="list-row-icon">${this._renderAvatar(domain)}</span>
           <span class="list-row-title">${this._translateDomain(domain)}</span>
@@ -887,8 +892,8 @@ class IntegrationsList extends LitElement {
     const entry0 = entries[0];
 
     return html`
-      <div class="card card-${st}" @click=${() => this._openDetail(domain, entries)} role="button" tabindex="0"
-        @keydown=${e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); this._openDetail(domain, entries); } }}>
+      <div class="card card-${st}" @click=${() => { this._testIframeDomain = domain; this._testIframeUrl = '/config/integrations/integration/' + domain; }} role="button" tabindex="0"
+        @keydown=${e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); this._testIframeDomain = domain; this._testIframeUrl = '/config/integrations/integration/' + domain; } }}>
 
           <div class="card-img">
             <div class="card-top-bar" @click=${e => e.stopPropagation()}>
@@ -1005,6 +1010,30 @@ class IntegrationsList extends LitElement {
             </div>
             ` : ''}
             ${entries.length === 0 ? html`<div class="tree-empty">${t('noData') || '暂无数据'}</div>` : entries.map(e => this._renderEntryRow(e))}
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  /* ─── B方案测试：iframe嵌入HA集成配置页 ─── */
+  _renderTestIframe() {
+    if (!this._testIframeUrl) return '';
+    return html`
+      <div class="detail-overlay" role="dialog" aria-modal="true"
+        @click=${e => { if (e.target === e.currentTarget) this._testIframeUrl = null; }}
+        @keydown=${e => { if (e.key === 'Escape') this._testIframeUrl = null; }}>
+        <div class="modal iframe-modal ${this._iframeFullscreen ? 'fullscreen' : ''}" @pointerdown=${this._modalPointerDown} @dblclick=${() => { this._iframeFullscreen = !this._iframeFullscreen; }}>
+          <div class="modal-header">
+            <div class="modal-title">${this._translateDomain(this._testIframeDomain) || this._testIframeDomain || '配置页'}</div>
+            <div class="modal-header-right">
+              <button class="modal-close" aria-label="${t('close') || '关闭'}" @click=${() => { this._testIframeUrl = null; }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
+            </div>
+          </div>
+          <div class="iframe-body">
+            <iframe src="${this._testIframeUrl}" class="config-iframe" sandbox="allow-scripts allow-same-origin allow-forms"></iframe>
           </div>
         </div>
       </div>
@@ -1505,6 +1534,22 @@ class IntegrationsList extends LitElement {
     }
     .modal-close svg { width: 16px; height: 16px; }
     .modal-close:hover { background: var(--primary-color, #03a9f4); color: #fff; }
+
+    /* iframe modal (B方案) */
+    .iframe-modal { width: 90vw; max-width: 1000px; height: 80vh; display: flex; flex-direction: column; }
+    .iframe-modal.fullscreen { width: 98vw; max-width: none; height: 95vh; }
+    .iframe-modal .modal-header { flex-shrink: 0; }
+    .iframe-body { flex: 1; overflow: hidden; padding: 0; position: relative; }
+    .config-iframe {
+      width: calc(100% + 260px); height: 100%; border: none;
+      margin-left: -260px; /* 向左偏移裁掉侧边栏 */
+      display: block;
+    }
+    /* 响应式：小屏侧边栏更窄 */
+    @media (max-width: 768px) {
+      .iframe-modal { width: 96vw; height: 85vh; }
+      .config-iframe { width: calc(100% + 200px); margin-left: -200px; }
+    }
 
     /* Tree action buttons (expand/collapse all) */
     .modal-header-right { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
