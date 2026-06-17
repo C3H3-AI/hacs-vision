@@ -26,7 +26,7 @@
 ## 功能特性 / Features
 
 <!-- zh-CN -->
-- **🛒 商店浏览** — 搜索、分类筛选、多维度排序、收藏仓库。支持卡片/列表双视图，**筛选+排序合并为一行**，提升空间利用率。支持按**收藏**过滤
+- **🛒 商店浏览** — 搜索、分类筛选、多维度排序、收藏仓库。支持卡片/列表双视图，**筛选+排序合并为一行**，提升空间利用率。支持按**收藏**过滤。版本选择器点击可见各版本更新内容
 - **⭐ 仓库点赞（Star）** — 本地收藏与 GitHub Star 独立管理，互不干扰。支持一键 Star/Unstar
 - **🔑 GitHub 登录认证** — 设置页自主输入 Token，独立存储，自动登录恢复
 - **📦 仓库批量添加** — 支持输入 GitHub 组织/用户 URL，列出所有仓库供勾选批量添加
@@ -45,6 +45,8 @@
 - **🔗 EntityRefFinder** — 查找 HA 中所有对指定 entity_id 的引用（自动化、脚本、场景、面板），支持一键替换
 - **🔄 重新下载** — 已安装仓库支持一键重新下载（先卸载再重装），用于修复损坏的安装
 - **⛔ 忽略仓库** — 将仓库加入忽略列表，不再出现在搜索结果和更新提醒中
+- **🖼️ 集成配置页内嵌** — 集成管理视图点击卡片，弹窗内 iframe 加载 HA 原生配置页，双击全屏，关闭即回
+- **🧩 配置流表单渲染** — 下拉选择改为单选按钮 + 下一步按钮，配置操作更直观
 
 <!-- en -->
 - **🛒 Store Browsing** — Search, category filter, multi-dimensional sorting, favorites. Card/list dual views, **merged filter+sort row** for better space utilization. Filter by **favorites**
@@ -66,6 +68,8 @@
 - **🔗 EntityRefFinder** — Find all references to an entity_id across HA (automations, scripts, scenes, dashboards), with one-click replace
 - **🔄 Redownload** — One-click redownload for installed repos (uninstall + reinstall), useful for fixing broken installations
 - **⛔ Ignore Repo** — Add repos to ignore list, hide from search results and update notifications
+- **🖼️ Config Page Embed** — Click integration card to open HA native config page in iframe modal, double-click to fullscreen, close to return
+- **🧩 Config Flow Form** — Dropdown select rendered as radio buttons with next-step button, more intuitive configuration
 
 ---
 
@@ -155,13 +159,13 @@ View all repositories with pending updates. Use **Update All** to upgrade everyt
 <!-- en -->
 Manage installed repos with **status** (installed/updatable/not installed), **type** (integration/plugin/theme), and **repo** (all/archived/renamed/ignored) triple filters + sort. Batch operations supported. Archived and renamed repos shown as cards with action buttons at bottom.
 
-### ⚙️ 集成配置 / Integration Config
+### 🧩 集成管理 / Integration Management
 
 <!-- zh-CN -->
-点击已安装集成的**配置**按钮，直接在面板中打开 Options Flow 配置弹窗。自动加载集成的中文翻译（如 xiaomi_home、haier、spook 等），字段标签、描述、菜单选项均显示中文。
+通过卡片网格浏览所有已安装的 HA 集成，支持中文名称搜索、状态筛选和批量操作。**点击卡片**直接弹出 HA 原生配置页（iframe 内嵌，CSS 裁剪侧边栏），可双击全屏查看。**⚙ 配置按钮**打开 Options Flow 配置弹窗，自动加载中文翻译。
 
 <!-- en -->
-Click the **Configure** button on installed integrations to open the Options Flow dialog directly in-panel. Chinese translations are auto-loaded (e.g. xiaomi_home, haier, spook), with field labels, descriptions, and menu options all localized.
+Browse all installed HA integrations in a card grid, with Chinese name search, status filter, and batch operations. **Click a card** to open the HA native config page (iframe-embedded, sidebar cropped via CSS), double-click for fullscreen. The **⚙ Configure** button opens the Options Flow dialog with auto-loaded Chinese translations.
 
 ### ⚙️ 设置 / Settings
 
@@ -174,6 +178,17 @@ Configure panel behavior, check version info, restart HA, or add new HA integrat
 ---
 
 ## 更新日志 / Changelog
+
+### v4.1.0 (2026-06-17) — 正式版
+- **New**: 🖼️ **集成配置页内嵌** — 集成管理视图点击卡片，弹窗内 iframe 加载 HA 原生配置页，CSS 裁剪侧边栏
+- **New**: 🖱️ **双击全屏** — iframe 弹窗内双击 → 框架内全屏显示配置内容，再双击还原
+- **New**: 🏷️ **中文标题** — 弹窗标题使用翻译后的中文集成名
+- **New**: 📋 **版本选择器显示更新内容** — 点击版本列表中的版本号，下方更新内容区加载该版本的 release notes
+- **Fix**: 🐛 **版本选择器只显示最新版本** — 现在点击任意版本可加载对应更新内容
+- **Fix**: 🔒 **HA 主题同步** — Light DOM 测试后回退，CSS 变量方案继续使用
+- **Chore**: 版本号升级至 v4.1.0
+- **Refactor**: 🧹 移除测试按钮和 WS 配置流表单原型代码
+- **Perf**: 📦 原详情树视图条件渲染，零性能开销
 
 ### v4.0.2 (2026-06-17) — 补丁版
 - **Refactor**: 🔄 **Star 同步从前端移到后端** — 新增 `/github/sync-favorites` API，一站式完成 Token 验证 + 拉取 GitHub Star + 对比收藏 + 追加缺失，仅同步 HACS 已知仓库，确保收藏计数与筛选一致
