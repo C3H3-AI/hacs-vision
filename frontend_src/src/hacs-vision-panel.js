@@ -1161,6 +1161,15 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
   }
 
   render() {
+    try {
+      return this._renderPanel();
+    } catch(e) {
+      console.error('Panel render error:', e);
+      return html`<div class="store"><div class="error-banner error"><svg class="mini-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> ${t('connectFailed')}: ${e.message}</div><div style="text-align:center;padding:40px;color:var(--secondary-text-color)"><p>${t('refreshPage') || '请刷新页面重试'}</p><button @click=${() => location.reload()} style="margin-top:12px;padding:8px 24px;border:1px solid var(--primary-color);border-radius:6px;background:var(--card-background-color);color:var(--primary-color);cursor:pointer">${t('refresh') || '刷新'}</button></div></div>`;
+    }
+  }
+
+  _renderPanel() {
     const tabs = [
       { view: 'browse', label: t('tabBrowse'), icon: '', count: null },
       { view: 'integrations', label: t('tabIntegrations') || '集成管理', icon: '', count: null },
