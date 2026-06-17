@@ -679,6 +679,10 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
 
   disconnectedCallback() {
     super.disconnectedCallback();
+    if (this._statsRetryTimer) {
+      clearTimeout(this._statsRetryTimer);
+      this._statsRetryTimer = null;
+    }
     this._clearFlowTimeout();
     window.removeEventListener('resize', this._resizeHandler);
     window.removeEventListener('online', this._onlineHandler);
@@ -694,6 +698,10 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
     try {
       this._error = '';
       this.stats = await api.getStats();
+      // HA is back online — clear network error banners
+      if (this._networkStatus === 'server_error') {
+        this._networkStatus = 'online';
+      }
       // Also update favorite count from server
       const favResult = await api.getFavorites();
       const favs = Array.isArray(favResult) ? favResult : (favResult.favorites || []);
@@ -702,7 +710,26 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
       console.error('Stats error:', e);
       this.stats = {};
       this._error = `API: ${e.message}`;
+      // Retry loadStats with backoff when HA is restarting
+      if (this._networkStatus === 'server_error' && !this._statsRetryTimer) {
+        this._scheduleStatsRetry();
+      }
     }
+  }
+
+  _scheduleStatsRetry() {
+    this._statsRetryTimer = setTimeout(async () => {
+      this._statsRetryTimer = null;
+      try {
+        this.stats = await api.getStats();
+        if (this._networkStatus === 'server_error') {
+          this._networkStatus = 'online';
+        }
+      } catch(e) {
+        // Still down, retry again
+        this._scheduleStatsRetry();
+      }
+    }, 5000);
   }
 
   async _checkCacheVersion() {
