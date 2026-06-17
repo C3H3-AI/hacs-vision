@@ -602,20 +602,16 @@ class ConfigView extends LitElement {
   async _syncFavToStar() {
     this._syncFavToStarResult = '';
     this._syncFavToStarring = true;
-    let ok = 0, fail = 0;
     try {
       const resp = await api.getFavorites();
       const favs = Array.isArray(resp) ? resp : (resp?.favorites || []);
-      for (const repoId of favs) {
-        if (typeof repoId !== 'string' || !repoId.includes('/')) continue;
-        try {
-          await api.starRepo(repoId);
-          ok++;
-        } catch(e) {
-          fail++;
-        }
-      }
-      this._syncFavToStarResult = fail > 0 ? `已完成: ${ok} 成功, ${fail} 失败` : `✓ ${ok} 个同步成功`;
+      const valid = favs.filter(f => typeof f === 'string' && f.includes('/'));
+      const results = await Promise.allSettled(valid.map(repoId => api.starRepo(repoId)));
+      const ok = results.filter(r => r.status === 'fulfilled').length;
+      const fail = results.filter(r => r.status === 'rejected').length;
+      this._syncFavToStarResult = fail > 0
+        ? `已完成: ${ok} 成功, ${fail} 失败`
+        : `✓ ${ok} 个同步成功`;
       if (fail > 0) {
         const { showToast } = await import('../hacs-vision-panel.js');
         showToast(`${fail} 个仓库无权限点赞`, 'warning');
