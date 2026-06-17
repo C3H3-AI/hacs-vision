@@ -624,17 +624,21 @@ class BrowseView extends LitElement {
   }
 
   async _batchLoadStarStatus() {
-    // Build starred map from local favorites
+    // Build starred map from local favorites, replacing any stale entries
     const repos = this.repos || [];
     let changed = false;
+    const newMap = {};
     for (const r of repos) {
-      if (r?.full_name && this._starredMap?.[r.full_name] === undefined) {
-        const repoId = String(r.id || r.full_name);
-        const starred = this._favorites.includes(repoId);
-        if (!changed) { changed = true; this._starredMap = { ...this._starredMap }; }
-        this._starredMap[r.full_name] = starred;
+      if (r?.full_name) {
+        const starred = this._favorites.includes(String(r.id))
+          || this._favorites.includes(r.full_name);
+        newMap[r.full_name] = starred;
+        if (!changed && this._starredMap?.[r.full_name] !== starred) {
+          changed = true;
+        }
       }
     }
+    if (changed) this._starredMap = newMap;
   }
 
   async _handleInstall(repo) {
