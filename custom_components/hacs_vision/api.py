@@ -169,18 +169,18 @@ class HACSEnhancedAPI(HomeAssistantView):
         # Verify by calling GitHub user API
         headers = {"Authorization": f"Bearer {token}", "Accept": "application/vnd.github.v3+json"}
         try:
-            async with aiohttp.ClientSession() as session:
-                async with session.get("https://api.github.com/user", headers=headers,
-                                       timeout=aiohttp.ClientTimeout(total=10)) as resp:
-                    if resp.status != 200:
-                        return web.json_response({"error": "invalid_token", "status": resp.status}, status=400)
-                    user = await resp.json()
-                    login = user.get("login", "?")
-                    # Check rate limit
-                    async with session.get("https://api.github.com/rate_limit", headers=headers,
-                                           timeout=aiohttp.ClientTimeout(total=10)) as rl_resp:
-                        rl = await rl_resp.json()
-                        remaining = rl.get("rate", {}).get("remaining", 0)
+            session = await self._get_session()
+            async with session.get("https://api.github.com/user", headers=headers,
+                                   timeout=aiohttp.ClientTimeout(total=10)) as resp:
+                if resp.status != 200:
+                    return web.json_response({"error": "invalid_token", "status": resp.status}, status=400)
+                user = await resp.json()
+                login = user.get("login", "?")
+                # Check rate limit
+                async with session.get("https://api.github.com/rate_limit", headers=headers,
+                                       timeout=aiohttp.ClientTimeout(total=10)) as rl_resp:
+                    rl = await rl_resp.json()
+                    remaining = rl.get("rate", {}).get("remaining", 0)
         except Exception as e:
             return web.json_response({"error": str(e)}, status=500)
         # Store token
@@ -199,12 +199,12 @@ class HACSEnhancedAPI(HomeAssistantView):
             return web.json_response({"error": "not_authenticated"}, status=401)
         headers = {"Authorization": f"Bearer {token}", "Accept": "application/vnd.github.v3+json"}
         try:
-            async with aiohttp.ClientSession() as session:
-                async with session.get("https://api.github.com/user", headers=headers,
-                                       timeout=aiohttp.ClientTimeout(total=10)) as resp:
-                    if resp.status != 200:
-                        return web.json_response({"error": "token_invalid"}, status=401)
-                    user = await resp.json()
+            session = await self._get_session()
+            async with session.get("https://api.github.com/user", headers=headers,
+                                   timeout=aiohttp.ClientTimeout(total=10)) as resp:
+                if resp.status != 200:
+                    return web.json_response({"error": "token_invalid"}, status=401)
+                user = await resp.json()
         except Exception as e:
             return web.json_response({"error": str(e)}, status=500)
         return web.json_response({"login": user.get("login"), "avatar_url": user.get("avatar_url")})
@@ -227,12 +227,12 @@ class HACSEnhancedAPI(HomeAssistantView):
         headers = {"Authorization": f"Bearer {token}", "Accept": "application/vnd.github.v3+json",
                    "Content-Length": "0"}
         try:
-            async with aiohttp.ClientSession() as session:
-                async with session.put(f"https://api.github.com/user/starred/{repo}", headers=headers,
-                                       timeout=aiohttp.ClientTimeout(total=10)) as resp:
-                    if resp.status == 204:
-                        return web.json_response({"ok": True})
-                    return web.json_response({"error": f"star_failed_{resp.status}"}, status=resp.status)
+            session = await self._get_session()
+            async with session.put(f"https://api.github.com/user/starred/{repo}", headers=headers,
+                                   timeout=aiohttp.ClientTimeout(total=10)) as resp:
+                if resp.status == 204:
+                    return web.json_response({"ok": True})
+                return web.json_response({"error": f"star_failed_{resp.status}"}, status=resp.status)
         except Exception as e:
             return web.json_response({"error": str(e)}, status=500)
 
@@ -246,12 +246,12 @@ class HACSEnhancedAPI(HomeAssistantView):
             return web.json_response({"error": "not_authenticated"}, status=401)
         headers = {"Authorization": f"Bearer {token}", "Accept": "application/vnd.github.v3+json"}
         try:
-            async with aiohttp.ClientSession() as session:
-                async with session.delete(f"https://api.github.com/user/starred/{repo}", headers=headers,
-                                          timeout=aiohttp.ClientTimeout(total=10)) as resp:
-                    if resp.status == 204:
-                        return web.json_response({"ok": True})
-                    return web.json_response({"error": f"unstar_failed_{resp.status}"}, status=resp.status)
+            session = await self._get_session()
+            async with session.delete(f"https://api.github.com/user/starred/{repo}", headers=headers,
+                                      timeout=aiohttp.ClientTimeout(total=10)) as resp:
+                if resp.status == 204:
+                    return web.json_response({"ok": True})
+                return web.json_response({"error": f"unstar_failed_{resp.status}"}, status=resp.status)
         except Exception as e:
             return web.json_response({"error": str(e)}, status=500)
 
@@ -264,10 +264,10 @@ class HACSEnhancedAPI(HomeAssistantView):
             return web.json_response({"starred": False})
         headers = {"Authorization": f"Bearer {token}", "Accept": "application/vnd.github.v3+json"}
         try:
-            async with aiohttp.ClientSession() as session:
-                async with session.get(f"https://api.github.com/user/starred/{repo}", headers=headers,
-                                       timeout=aiohttp.ClientTimeout(total=10)) as resp:
-                    return web.json_response({"starred": resp.status == 204})
+            session = await self._get_session()
+            async with session.get(f"https://api.github.com/user/starred/{repo}", headers=headers,
+                                   timeout=aiohttp.ClientTimeout(total=10)) as resp:
+                return web.json_response({"starred": resp.status == 204})
         except Exception as e:
             return web.json_response({"starred": False, "error": str(e)})
 
@@ -281,13 +281,13 @@ class HACSEnhancedAPI(HomeAssistantView):
         page = 1
         per_page = 100
         try:
-            async with aiohttp.ClientSession() as session:
-                while True:
-                    async with session.get(
-                        f"https://api.github.com/user/starred?per_page={per_page}&page={page}",
-                        headers=headers,
-                        timeout=aiohttp.ClientTimeout(total=15)
-                    ) as resp:
+            session = await self._get_session()
+            while True:
+                async with session.get(
+                    f"https://api.github.com/user/starred?per_page={per_page}&page={page}",
+                    headers=headers,
+                    timeout=aiohttp.ClientTimeout(total=15)
+                ) as resp:
                         if resp.status != 200:
                             break
                         data = await resp.json()
@@ -343,43 +343,43 @@ class HACSEnhancedAPI(HomeAssistantView):
         page = 1
         per_page = 100
         try:
-            async with aiohttp.ClientSession() as session:
-                while True:
-                    async with session.get(
-                        f"https://api.github.com/users/{org}/repos?per_page={per_page}&page={page}&sort=updated&type=owner",
-                        headers=headers,
-                        timeout=aiohttp.ClientTimeout(total=15)
-                    ) as resp:
-                        if resp.status == 404:
-                            # Try as org
-                            async with session.get(
-                                f"https://api.github.com/orgs/{org}/repos?per_page={per_page}&page={page}&sort=updated",
-                                headers=headers,
-                                timeout=aiohttp.ClientTimeout(total=15)
-                            ) as org_resp:
-                                if org_resp.status != 200:
-                                    return web.json_response({"error": f"user_or_org_not_found: {org}", "repos": []}, status=404)
-                                data = await org_resp.json()
-                        else:
-                            data = await resp.json()
-                        if not data:
-                            break
-                        for r in data:
-                            full_name = r.get("full_name", "")
-                            desc = r.get("description") or ""
-                            topics = r.get("topics") or []
-                            category = self._detect_hacs_category(r)
-                            repos.append({
-                                "full_name": full_name,
-                                "name": r.get("name", ""),
-                                "description": desc,
-                                "stars": r.get("stargazers_count", 0),
-                                "topics": topics,
-                                "language": r.get("language") or "",
-                                "category": category,
-                                "html_url": r.get("html_url", ""),
-                                "updated_at": r.get("updated_at", ""),
-                            })
+            session = await self._get_session()
+            while True:
+                async with session.get(
+                    f"https://api.github.com/users/{org}/repos?per_page={per_page}&page={page}&sort=updated&type=owner",
+                    headers=headers,
+                    timeout=aiohttp.ClientTimeout(total=15)
+                ) as resp:
+                    if resp.status == 404:
+                        # Try as org
+                        async with session.get(
+                            f"https://api.github.com/orgs/{org}/repos?per_page={per_page}&page={page}&sort=updated",
+                            headers=headers,
+                            timeout=aiohttp.ClientTimeout(total=15)
+                        ) as org_resp:
+                            if org_resp.status != 200:
+                                return web.json_response({"error": f"user_or_org_not_found: {org}", "repos": []}, status=404)
+                            data = await org_resp.json()
+                    else:
+                        data = await resp.json()
+                    if not data:
+                        break
+                    for r in data:
+                        full_name = r.get("full_name", "")
+                        desc = r.get("description") or ""
+                        topics = r.get("topics") or []
+                        category = self._detect_hacs_category(r)
+                        repos.append({
+                            "full_name": full_name,
+                            "name": r.get("name", ""),
+                            "description": desc,
+                            "stars": r.get("stargazers_count", 0),
+                            "topics": topics,
+                            "language": r.get("language") or "",
+                            "category": category,
+                            "html_url": r.get("html_url", ""),
+                            "updated_at": r.get("updated_at", ""),
+                        })
                         if len(data) < per_page:
                             break
                         page += 1
@@ -1674,14 +1674,19 @@ class HACSEnhancedAPI(HomeAssistantView):
                     "disabled": entity_entry.disabled_by is not None,
                 }
 
+            # Build device_id → entities index (one pass, O(n))
+            device_entities: dict[str, list] = {}
+            for entity_entry in entity_reg.entities.values():
+                seen_entity_ids.add(entity_entry.entity_id)
+                did = entity_entry.device_id
+                if did:
+                    device_entities.setdefault(did, []).append(entity_entry)
+
+            # Iterate devices matching this config entry (O(m) with O(1) entity lookup)
             for device in device_reg.devices.values():
                 if entry_id not in device.config_entries:
                     continue
-                entities = []
-                for entity_entry in entity_reg.entities.values():
-                    if entity_entry.device_id != device.id:
-                        continue
-                    entities.append(_entity_to_dict(entity_entry))
+                entities = [_entity_to_dict(e) for e in device_entities.get(device.id, [])]
                 entities.sort(key=lambda e: (e["disabled"], e["entity_id"]))
 
                 area_name = None
@@ -1700,6 +1705,8 @@ class HACSEnhancedAPI(HomeAssistantView):
                     "name": device.name_by_user or device.name,
                     "model": device.model,
                     "manufacturer": device.manufacturer,
+                    "sw_version": device.sw_version,
+                    "hw_version": device.hw_version,
                     "area": area_name,
                     "entities": entities,
                 })
@@ -1729,6 +1736,8 @@ class HACSEnhancedAPI(HomeAssistantView):
                     "name": "未关联设备的实体",
                     "model": None,
                     "manufacturer": None,
+                    "sw_version": None,
+                    "hw_version": None,
                     "entities": orphan_entities,
                 }]})
 
