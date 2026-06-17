@@ -629,7 +629,7 @@ class BrowseView extends LitElement {
     let changed = false;
     for (const r of repos) {
       if (r?.full_name && this._starredMap?.[r.full_name] === undefined) {
-        const repoId = r.id || r.full_name;
+        const repoId = String(r.id || r.full_name);
         const starred = this._favorites.includes(repoId);
         if (!changed) { changed = true; this._starredMap = { ...this._starredMap }; }
         this._starredMap[r.full_name] = starred;
@@ -804,7 +804,7 @@ class BrowseView extends LitElement {
       // When favorites filter active, adjust total to client-side filtered count
       // so pagination reflects what's actually displayed
       if (activeTag === 'favorites') {
-        this.total = this.repos.filter(r => this._favorites.includes(r.id || r.full_name)).length;
+        this.total = this.repos.filter(r => this._favorites.includes(String(r.id || r.full_name))).length;
       }
       // Batch load star status for all visible repos
       this._batchLoadStarStatus();
@@ -995,7 +995,7 @@ class BrowseView extends LitElement {
     // Status and tag filtering is done server-side.
     // Only favorites filter is client-side (no server-side equivalent).
     if (this._tagFilters.includes('favorites')) {
-      return repos.filter(r => this._favorites.includes(r.id) || this._favorites.includes(r.full_name));
+      return repos.filter(r => this._favorites.includes(String(r.id)) || this._favorites.includes(r.full_name));
     }
     return repos;
   }
