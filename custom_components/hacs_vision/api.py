@@ -141,20 +141,20 @@ class HACSEnhancedAPI(HomeAssistantView):
             headers["Authorization"] = f"Bearer {token}"
         url = f"https://api.github.com{path}"
         try:
-            async with aiohttp.ClientSession() as session:
-                kwargs = {"headers": headers, "timeout": aiohttp.ClientTimeout(total=15)}
-                if body is not None and method in ("POST", "PATCH", "PUT"):
-                    kwargs["json"] = body
-                async with session.request(method, url, **kwargs) as resp:
-                    if resp.status in (204, 304):
-                        return {"status": resp.status}
-                    if resp.status == 404:
-                        return {"error": "not_found", "status": 404}
-                    text = await resp.text()
-                    try:
-                        return {"status": resp.status, **json.loads(text)}
-                    except json.JSONDecodeError:
-                        return {"status": resp.status, "text": text}
+            session = await self._get_session()
+            kwargs = {"headers": headers, "timeout": aiohttp.ClientTimeout(total=15)}
+            if body is not None and method in ("POST", "PATCH", "PUT"):
+                kwargs["json"] = body
+            async with session.request(method, url, **kwargs) as resp:
+                if resp.status in (204, 304):
+                    return {"status": resp.status}
+                if resp.status == 404:
+                    return {"error": "not_found", "status": 404}
+                text = await resp.text()
+                try:
+                    return {"status": resp.status, **json.loads(text)}
+                except json.JSONDecodeError:
+                    return {"status": resp.status, "text": text}
         except Exception as e:
             return {"error": str(e), "status": 0}
 
@@ -462,13 +462,13 @@ class HACSEnhancedAPI(HomeAssistantView):
         page = 1
         per_page = 100
         try:
-            async with aiohttp.ClientSession() as session:
-                while True:
-                    async with session.get(
-                        f"https://api.github.com/user/starred?per_page={per_page}&page={page}",
-                        headers=headers,
-                        timeout=aiohttp.ClientTimeout(total=15)
-                    ) as resp:
+            session = await self._get_session()
+            while True:
+                async with session.get(
+                    f"https://api.github.com/user/starred?per_page={per_page}&page={page}",
+                    headers=headers,
+                    timeout=aiohttp.ClientTimeout(total=15)
+                ) as resp:
                         if resp.status != 200:
                             break
                         data = await resp.json()
@@ -496,15 +496,17 @@ class HACSEnhancedAPI(HomeAssistantView):
         current_set = {str(f) for f in current}
         # Cross-reference: starred repos not yet in favorites
         added = [name for name in sorted(starred_names) if name not in current_set]
-        if added:
-            new_favs = sorted(current_set | starred_names)
+        # Prune: remove any favorites not in known HACS set (ensures count matches browse view)
+        pruned = [name for name in sorted(current_set) if name in known_names]
+        # Final favorites: union of pruned + newly starred HACS repos
+        new_favs = sorted(set(pruned) | starred_names)
+        if added or set(new_favs) != current_set:
             await self.data.set_favorites(new_favs)
-        else:
-            new_favs = sorted(current_set)
         return web.json_response({
             "synced_total": len(starred_all),
             "synced_hacs": len(starred_names),
             "added": added,
+            "pruned": len(current_set) - len(pruned),
             "total": len(new_favs),
         })
 

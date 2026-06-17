@@ -10,6 +10,8 @@ export const themeMixin = (superClass) => class extends superClass {
   constructor() {
     super();
     this._themeReady = false;
+    /** @private cache: best source element for CSS var lookup */
+    this._cssSource = null;
   }
 
   connectedCallback() {
@@ -33,34 +35,38 @@ export const themeMixin = (superClass) => class extends superClass {
 
   _getHAVar(name, fallback = '') {
     try {
-      const root = document.querySelector('home-assistant')?.shadowRoot ||
-                   document.querySelector('ha-app')?.shadowRoot ||
-                   document.documentElement;
-      // Try cascade: element's shadow root → document root → parent window
-      const sources = [
-        this.renderRoot?.host,
-        root,
-        document.documentElement,
-        document.body,
-      ];
-      for (const el of sources) {
-        if (!el) continue;
-        try {
-          const val = getComputedStyle(el).getPropertyValue(name).trim();
-          if (val) return val;
-        } catch(e) { /* continue */ }
-      }
-      // Try parent window if in iframe
-      try {
-        if (window.parent && window.parent !== window) {
-          const pRoot = window.parent.document.querySelector('home-assistant')?.shadowRoot ||
-                       window.parent.document.documentElement;
-          if (pRoot) {
-            const val = getComputedStyle(pRoot).getPropertyValue(name).trim();
-            if (val) return val;
-          }
+      // Cache the best source element after first successful lookup
+      if (!this._cssSource) {
+        const root = document.querySelector('home-assistant')?.shadowRoot ||
+                     document.querySelector('ha-app')?.shadowRoot ||
+                     document.documentElement;
+        const candidates = [
+          this.renderRoot?.host,
+          root,
+          document.documentElement,
+          document.body,
+        ];
+        for (const el of candidates) {
+          if (!el) continue;
+          try {
+            const val = getComputedStyle(el).getPropertyValue(name).trim();
+            if (val) { this._cssSource = el; return val; }
+          } catch(e) { /* continue */ }
         }
-      } catch(e) { /* cross-origin */ }
+        // Try parent window if in iframe
+        try {
+          if (window.parent && window.parent !== window) {
+            const pRoot = window.parent.document.querySelector('home-assistant')?.shadowRoot ||
+                         window.parent.document.documentElement;
+            if (pRoot) {
+              const val = getComputedStyle(pRoot).getPropertyValue(name).trim();
+              if (val) { this._cssSource = pRoot; return val; }
+            }
+          }
+        } catch(e) { /* cross-origin */ }
+        this._cssSource = document.documentElement; // fallback
+      }
+      return getComputedStyle(this._cssSource).getPropertyValue(name).trim() || fallback;
     } catch(e) { /* ignore */ }
     return fallback;
   }
@@ -165,9 +171,10 @@ export const themeMixin = (superClass) => class extends superClass {
         this._themeObserver = new MutationObserver(() => {
           if (this._themeObserver?._debounce) return;
           this._themeObserver._debounce = true;
+          this._cssSource = null; // invalidate cache on theme change
           setTimeout(() => { if (this._themeObserver) this._themeObserver._debounce = false; this._applyTheme(); }, 200);
         });
-        this._themeObserver.observe(target, { attributes: true, attributeFilter: ['class', 'style'], subtree: true });
+        this._themeObserver.observe(target, { attributes: true, attributeFilter: ['class', 'style'] });
       }
     } catch(e) { /* ignore */ }
   }

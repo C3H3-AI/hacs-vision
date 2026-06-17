@@ -484,10 +484,17 @@ class EntityRefFinder:
 
     # ── HA Config API helpers ────────────────────────────
 
-    def _read_storage_file(self, filename: str) -> dict | None:
-        """Read a .storage JSON file directly."""
+    async def _read_storage_file(self, filename: str) -> dict | None:
+        """Read a .storage JSON file directly (async — no blocking call)."""
         try:
             path = self.hass.config.path(".storage", filename)
+            return await self.hass.async_add_executor_job(self._read_json_file, path)
+        except Exception:
+            return None
+
+    def _read_json_file(self, path: str) -> dict | None:
+        """Synchronous JSON file read — runs in executor."""
+        try:
             with open(path, "r", encoding="utf-8") as f:
                 return json.load(f)
         except Exception:
@@ -512,7 +519,7 @@ class EntityRefFinder:
         # Method 3: read .storage file directly (HA 2025.7+)
         try:
             auto_id = entity_id.split(".", 1)[1] if "." in entity_id else entity_id
-            storage_data = self._read_storage_file(f"automation.{auto_id}")
+            storage_data = await self._read_storage_file(f"automation.{auto_id}")
             if storage_data and "config" in storage_data:
                 return dict(storage_data["config"])
         except Exception:
@@ -565,7 +572,7 @@ class EntityRefFinder:
             pass
         try:
             script_id = entity_id.split(".", 1)[1] if "." in entity_id else entity_id
-            storage_data = self._read_storage_file(f"script.{script_id}")
+            storage_data = await self._read_storage_file(f"script.{script_id}")
             if storage_data and "config" in storage_data:
                 return dict(storage_data["config"])
         except Exception:
@@ -597,7 +604,7 @@ class EntityRefFinder:
             pass
         try:
             scene_id = entity_id.split(".", 1)[1] if "." in entity_id else entity_id
-            storage_data = self._read_storage_file(f"scene.{scene_id}")
+            storage_data = await self._read_storage_file(f"scene.{scene_id}")
             if storage_data and "config" in storage_data:
                 return dict(storage_data["config"])
         except Exception:

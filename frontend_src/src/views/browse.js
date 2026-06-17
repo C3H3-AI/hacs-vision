@@ -478,11 +478,11 @@ class BrowseView extends LitElement {
       if (!repo?.full_name) return;
       this._starredMap = { ...this._starredMap, [repo.full_name]: starred };
       // Sync _favorites to match merged star state
-      const repoId = repo.id || repo.full_name;
-      if (starred && !this._favorites.includes(repo.id) && !this._favorites.includes(repo.full_name)) {
-        this._favorites = [...this._favorites, repo.id || repo.full_name];
+      const repoId = String(repo.id || repo.full_name);
+      if (starred && !this._favorites.includes(repoId) && !this._favorites.includes(repo.full_name)) {
+        this._favorites = [...this._favorites, repoId];
       } else if (!starred) {
-        this._favorites = this._favorites.filter(id => id !== repo.id && id !== repo.full_name);
+        this._favorites = this._favorites.filter(id => id !== repoId && id !== repo.full_name);
       }
       // Update header count
       this.tagCounts = { ...this.tagCounts, favorites: this._favorites.length };
