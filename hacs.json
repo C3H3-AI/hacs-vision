@@ -2,6 +2,5 @@
   "name": "HACS Vision",
   "render_readme": true,
   "content_in_root": false,
-  "homeassistant": "2024.1.0",
-  "authors": ["C3H3-AI"]
+  "homeassistant": "2024.1.0"
 }
