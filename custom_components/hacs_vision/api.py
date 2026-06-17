@@ -451,6 +451,55 @@ class HACSEnhancedAPI(HomeAssistantView):
                 results.append({"full_name": full_name, "success": False, "error": str(e)})
         return web.json_response({"results": results})
 
+    async def _github_sync_favorites(self) -> web.Response:
+        """Sync GitHub starred repos to local favorites. One backend call, all internal."""
+        token = await self._get_active_github_token()
+        if not token:
+            return web.json_response({"error": "not_authenticated", "added": [], "synced": 0, "total": 0}, status=401)
+        # Fetch all starred repos from GitHub (paginated, same pattern as _github_list_starred)
+        headers = {"Authorization": f"Bearer {token}", "Accept": "application/vnd.github.v3+json"}
+        starred_names: set[str] = set()
+        page = 1
+        per_page = 100
+        try:
+            async with aiohttp.ClientSession() as session:
+                while True:
+                    async with session.get(
+                        f"https://api.github.com/user/starred?per_page={per_page}&page={page}",
+                        headers=headers,
+                        timeout=aiohttp.ClientTimeout(total=15)
+                    ) as resp:
+                        if resp.status != 200:
+                            break
+                        data = await resp.json()
+                        if not data:
+                            break
+                        for r in data:
+                            fn = r.get("full_name", "")
+                            if fn:
+                                starred_names.add(fn)
+                        if len(data) < per_page:
+                            break
+                        page += 1
+        except Exception as e:
+            _LOGGER.error("_github_sync_favorites fetch error: %s", e, exc_info=True)
+            return web.json_response({"error": str(e), "added": [], "synced": 0, "total": 0}, status=502)
+        # Get current favorites
+        current = await self.data.get_favorites()
+        current_set = {str(f) for f in current}
+        # Cross-reference: starred repos not yet in favorites
+        added = [name for name in sorted(starred_names) if name not in current_set]
+        if added:
+            new_favs = sorted(current_set | starred_names)
+            await self.data.set_favorites(new_favs)
+        else:
+            new_favs = sorted(current_set)
+        return web.json_response({
+            "synced": len(starred_names),
+            "added": added,
+            "total": len(new_favs),
+        })
+
     # ── GET ──────────────────────────────────────────────
 
     async def get(self, request, path: str = "") -> web.Response:
@@ -589,6 +638,8 @@ class HACSEnhancedAPI(HomeAssistantView):
             return await self._github_unstar(body)
         if path in ("github/sync-starred", "github/sync-starred/"):
             return await self._github_sync_starred(body)
+        if path in ("github/sync-favorites", "github/sync-favorites/"):
+            return await self._github_sync_favorites()
 
         # ── Config Flow proxy ──
         if path == "config_flow/start":

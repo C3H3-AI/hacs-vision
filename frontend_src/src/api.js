@@ -219,6 +219,7 @@ class HACSEnhancedAPI {
   checkStarred(repo) { return this.get(`github/starred/${encodeURIComponent(repo)}`); }
   listStarred() { return this.get('github/starred'); }
   syncStarred(repos) { return this.post('github/sync-starred', { repos }); }
+  syncStarsToFavorites() { return this.post('github/sync-favorites'); }
   listOrgRepos(org) { return this.get(`github/repos?org=${encodeURIComponent(org)}`); }
 
   /* Version selector: get releases for a repo */

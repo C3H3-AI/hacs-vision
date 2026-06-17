@@ -544,29 +544,22 @@ class BrowseView extends LitElement {
   }
 
   async _syncGitHubStarsToFavs() {
+    // Backend-driven sync; one call does token check + list starred + cross-reference + save
     try {
-      const hasToken = await api.hasGitHubToken();
-      if (!hasToken) return;
-      const starredResp = await api.listStarred();
-      const starred = starredResp?.repos || [];
-      // Only add stars that exist in the current repos list (HACS catalog + custom repos)
-      const knownNames = new Set((this.repos || []).map(r => r.full_name).filter(Boolean));
-      if (knownNames.size === 0) return;  // repos not loaded yet, skip
-      let changed = false;
-      for (const r of starred) {
-        const name = r.full_name || r.fullName || r.name || '';
-        if (name && knownNames.has(name) && !this._favorites.includes(name)) {
-          this._favorites.push(name);
-          changed = true;
-        }
-      }
-      if (changed) {
-        await api.setFavorites(this._favorites);
+      const result = await api.syncStarsToFavorites();
+      if (!result || result.added?.length > 0) {
+        // Reload favorites and refresh UI
+        await this._loadFavorites();
         this.tagCounts = { ...this.tagCounts, favorites: this._favorites.length };
         try {
           const panel = document.querySelector('hacs-vision-panel');
           if (panel) { panel._favoriteCount = this._favorites.length; panel.requestUpdate(); }
         } catch(e) {}
+        if (this._activeTag === 'favorites' || this._tagFilters?.includes('favorites')) {
+          await this._load();
+        } else {
+          this.requestUpdate();
+        }
       }
     } catch(e) { /* silent — no token or network error */ }
   }
