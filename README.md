@@ -4,8 +4,8 @@
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://github.com/hacs/integration)
 [![GitHub Release](https://img.shields.io/github/v/release/C3H3-AI/hacs-vision)](https://github.com/C3H3-AI/hacs-vision/releases)
 
-> **当前版本**: v4.0.1 | **最低 HA 版本**: 2024.1.0
-> **Current version**: v4.0.1 | **Minimum HA**: 2024.1.0
+> **当前版本**: v4.0.2 | **最低 HA 版本**: 2024.1.0
+> **Current version**: v4.0.2 | **Minimum HA**: 2024.1.0
 
 [![Downloads](https://img.shields.io/github/downloads/C3H3-AI/hacs-vision/total)](https://github.com/C3H3-AI/hacs-vision/releases)
 
@@ -174,6 +174,14 @@ Configure panel behavior, check version info, restart HA, or add new HA integrat
 ---
 
 ## 更新日志 / Changelog
+
+### v4.0.2 (2026-06-17) — 补丁版
+- **Refactor**: 🔄 **Star 同步从前端移到后端** — 新增 `/github/sync-favorites` API，一站式完成 Token 验证 + 拉取 GitHub Star + 对比收藏 + 追加缺失，仅同步 HACS 已知仓库，确保收藏计数与筛选一致
+- **Fix**: 🐛 **收藏星标状态类型不匹配** — String vs Number 导致五角星图标全灰
+- **Fix**: 🐛 **星星状态脏缓存** — `_starredMap` 旧值不刷新
+- **Fix**: 🐛 **render 异常黑屏** — 错误边界兜底
+- **Fix**: 🐛 **HA 重启后 "正在重启" 横幅不消失** — `_loadStats` 成功时重置 + 5s 轮询重试
+- **Fix**: 🔒 **GitHub Star 同步从未生效** — `hasGitHubToken()` 不存在被静默吞掉
 
 ### v4.0.1 (2026-06-17) — 补丁版
 - **Fix**: 收藏筛选客户端分页导致显示不全（显示 26 个，筛选只有 4 个）
