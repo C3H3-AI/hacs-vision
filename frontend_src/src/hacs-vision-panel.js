@@ -1027,6 +1027,23 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
     }
   }
 
+  async _selectVersion(release) {
+    const tag = release.tag_name || release.tag;
+    if (!tag) return;
+    this._changelogLoading = true;
+    this._changelogData = null;
+    try {
+      const fullName = this._detailRepo?.full_name;
+      if (fullName) {
+        const data = await api.getChangelog(fullName, tag);
+        this._changelogData = data?.body ? { ...data, tag } : { tag, body: '(No release notes)' };
+      }
+    } catch(e) {
+      this._changelogData = { tag, body: t('noChangelog') || '暂无更新日志' };
+    }
+    this._changelogLoading = false;
+  }
+
   async _installVersion(version) {
     const repoId = this._detailRepo?.id || this._detailRepo?.full_name;
     if (!repoId || !version) return;
@@ -1387,7 +1404,7 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
                       return filtered.length === 0 ? html`
                         <div class="releases-empty">${t('noReleases')}</div>
                       ` : filtered.map(release => html`
-                        <div class="release-item">
+                        <div class="release-item ${this._changelogData?.tag === (release.tag_name || release.tag) ? 'active' : ''}" @click=${() => this._selectVersion(release)}>
                           <div class="release-info">
                             <div class="release-tag">
                               ${release.tag_name || release.tag || '?'}
@@ -1398,7 +1415,7 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
                             ` : ''}
                           </div>
                           <button class="release-install-btn"
-                                  @click=${() => this._installVersion(release.tag_name || release.tag)}
+                                  @click=${(e) => { e.stopPropagation(); this._installVersion(release.tag_name || release.tag); }}
                                   ?disabled=${this._installingVersion}>
                             ${t('installVersion')}
                           </button>
@@ -1409,10 +1426,10 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
                 ` : ''}
               </div>
 
-              <!-- Changelog (What's New) — shown when update is available -->
-              ${isUpdateAvailable ? html`
+              <!-- Changelog (What's New) — shown when update is available or version selected -->
+              ${isUpdateAvailable || this._changelogData ? html`
                 <div class="detail-changelog">
-                  <div class="detail-changelog-title">${t('changelogTitle') || '更新内容'}</div>
+                  <div class="detail-changelog-title">${t('changelogTitle') || '更新内容'}${this._changelogData?.tag ? html` <span style="font-weight:400;font-size:12px;color:var(--secondary-text-color);">— ${this._changelogData.tag}</span>` : ''}</div>
                   ${this._changelogLoading ? html`
                     <div class="readme-loading">
                       <div class="spinner-sm"></div>
