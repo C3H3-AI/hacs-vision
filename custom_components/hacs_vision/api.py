@@ -458,7 +458,7 @@ class HACSEnhancedAPI(HomeAssistantView):
             return web.json_response({"error": "not_authenticated", "added": [], "synced": 0, "total": 0}, status=401)
         # Fetch all starred repos from GitHub (paginated, same pattern as _github_list_starred)
         headers = {"Authorization": f"Bearer {token}", "Accept": "application/vnd.github.v3+json"}
-        starred_names: set[str] = set()
+        starred_all: set[str] = set()
         page = 1
         per_page = 100
         try:
@@ -477,13 +477,20 @@ class HACSEnhancedAPI(HomeAssistantView):
                         for r in data:
                             fn = r.get("full_name", "")
                             if fn:
-                                starred_names.add(fn)
+                                starred_all.add(fn)
                         if len(data) < per_page:
                             break
                         page += 1
         except Exception as e:
             _LOGGER.error("_github_sync_favorites fetch error: %s", e, exc_info=True)
             return web.json_response({"error": str(e), "added": [], "synced": 0, "total": 0}, status=502)
+        # Get known HACS repos (catalog + custom) to filter — ensures favorites match what browse view can display
+        hacs_repos = await self.operator.get_all_repos_from_hacs()
+        if not hacs_repos:
+            hacs_repos = await self.data.get_all_repositories()
+        known_names = {r.get("full_name", "") for r in hacs_repos if r.get("full_name")}
+        # Only sync starred repos that are known to HACS
+        starred_names = {n for n in starred_all if n in known_names}
         # Get current favorites
         current = await self.data.get_favorites()
         current_set = {str(f) for f in current}
@@ -495,7 +502,8 @@ class HACSEnhancedAPI(HomeAssistantView):
         else:
             new_favs = sorted(current_set)
         return web.json_response({
-            "synced": len(starred_names),
+            "synced_total": len(starred_all),
+            "synced_hacs": len(starred_names),
             "added": added,
             "total": len(new_favs),
         })
