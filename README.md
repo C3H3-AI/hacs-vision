@@ -4,8 +4,8 @@
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://github.com/hacs/integration)
 [![GitHub Release](https://img.shields.io/github/v/release/C3H3-AI/hacs-vision)](https://github.com/C3H3-AI/hacs-vision/releases)
 
-> **当前版本**: v3.0.0 | **最低 HA 版本**: 2024.1.0
-> **Current version**: v3.0.0 | **Minimum HA**: 2024.1.0
+> **当前版本**: v4.0.0 | **最低 HA 版本**: 2024.1.0
+> **Current version**: v4.0.0 | **Minimum HA**: 2024.1.0
 
 [![Downloads](https://img.shields.io/github/downloads/C3H3-AI/hacs-vision/total)](https://github.com/C3H3-AI/hacs-vision/releases)
 
@@ -26,7 +26,10 @@
 ## 功能特性 / Features
 
 <!-- zh-CN -->
-- **🛒 商店浏览** — 搜索、分类筛选、多维度排序、收藏仓库。支持卡片/列表双视图，**筛选+排序合并为一行**，提升空间利用率
+- **🛒 商店浏览** — 搜索、分类筛选、多维度排序、收藏仓库。支持卡片/列表双视图，**筛选+排序合并为一行**，提升空间利用率。支持按**收藏**过滤
+- **⭐ 仓库点赞（Star）** — 本地收藏与 GitHub Star 独立管理，互不干扰。支持一键 Star/Unstar
+- **🔑 GitHub 登录认证** — 设置页自主输入 Token，独立存储，自动登录恢复
+- **📦 仓库批量添加** — 支持输入 GitHub 组织/用户 URL，列出所有仓库供勾选批量添加
 - **🔄 更新管理** — 一览所有待更新仓库，支持单个或批量更新，带进度追踪。支持**忽略**不需要更新的仓库
 - **📦 仓库管理** — 管理已安装仓库、查看版本历史、重新下载（修复安装）或移除（删除下载文件，**不影响**已添加的 HA 配置条目）。支持**状态/类型/仓库**三维筛选+排序
 - **⚙️ 集成配置** — 直接在面板中配置任意 HA 已安装集成的 Options Flow（如 xiaomi_home、xiaomi_miot、haier 等），自动加载中文本地化翻译
@@ -44,7 +47,10 @@
 - **⛔ 忽略仓库** — 将仓库加入忽略列表，不再出现在搜索结果和更新提醒中
 
 <!-- en -->
-- **🛒 Store Browsing** — Search, category filter, multi-dimensional sorting, favorites. Card/list dual views, **merged filter+sort row** for better space utilization
+- **🛒 Store Browsing** — Search, category filter, multi-dimensional sorting, favorites. Card/list dual views, **merged filter+sort row** for better space utilization. Filter by **favorites**
+- **⭐ Repository Star** — Local favorites and GitHub Stars managed independently. One-click Star/Unstar
+- **🔑 GitHub Login** — Input Token in settings, standalone storage, auto-login recovery
+- **📦 Batch Add Repos** — Input GitHub org/user URL to list all repos for batch multi-select add
 - **🔄 Update Management** — View all pending updates with progress tracking, batch or single update. **Ignore** repos you don't want to see
 - **📦 Repo Management** — Manage installed repos, version history, **redownload** (fix broken installs), or remove. **Status/type/repo** triple filter + sort
 - **⚙️ Integration Config** — Configure any installed HA integration's Options Flow directly in-panel (e.g. xiaomi_home, xiaomi_miot, haier, etc.), with automatic Chinese localization
@@ -168,6 +174,21 @@ Configure panel behavior, check version info, restart HA, or add new HA integrat
 ---
 
 ## 更新日志 / Changelog
+
+### v4.0.0 (2026-06-17) — 正式版
+- **New**: 📦 **组织/用户仓库批量添加** — 输入 GitHub 组织或用户 URL，列出仓库供勾选批量添加
+- **New**: 🔑 **GitHub HACS Token 导入** — 设置页支持导入已有 HACS Token，自动登录恢复
+- **New**: 👤 **GitHub 头像显示** — 已登录用户显示头像
+- **New**: ⭐ **仓库点赞（Star）系统** — 本地收藏与 GitHub Star 独立管理，互不干扰
+- **New**: 🚀 **更新页秒开** — 缓存加速 + 手动刷新 + 分卡片延迟加载
+- **New**: ⚡ **批量 Star 加载** — 并行请求，减少 API 调用
+- **New**: 🖼️ **三列网格布局** — 充分利用宽屏空间
+- **New**: 🌐 **i18n 全覆盖** — 30+ 国际化文案键值
+- **New**: 📱 **响应式适配** — 手机/平板/桌面自适应
+- **UI**: 🎨 **颜色系统优化** — 暗色模式兼容、过滤标签 UI 统一
+- **UI**: 🖼️ **CSS 遮罩 Token 输入框** — 替代 type=password，更安全美观
+- **Chore**: 版本号升级至 v4.0.0
+- **Fix**: 🐛 收藏筛选客户端分页导致显示不全（显示 26 个，筛选只有 4 个）
 
 ### v3.0.0 (2026-06-13) — 正式版
 - **New**: 🖼️ **集成实体/设备概览** — 集成详情弹窗顶部显示「N 个设备 · M 个实体」汇总统计
