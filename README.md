@@ -4,8 +4,8 @@
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://github.com/hacs/integration)
 [![GitHub Release](https://img.shields.io/github/v/release/C3H3-AI/hacs-vision)](https://github.com/C3H3-AI/hacs-vision/releases)
 
-> **当前版本**: v4.0.0 | **最低 HA 版本**: 2024.1.0
-> **Current version**: v4.0.0 | **Minimum HA**: 2024.1.0
+> **当前版本**: v4.0.1 | **最低 HA 版本**: 2024.1.0
+> **Current version**: v4.0.1 | **Minimum HA**: 2024.1.0
 
 [![Downloads](https://img.shields.io/github/downloads/C3H3-AI/hacs-vision/total)](https://github.com/C3H3-AI/hacs-vision/releases)
 
@@ -174,6 +174,10 @@ Configure panel behavior, check version info, restart HA, or add new HA integrat
 ---
 
 ## 更新日志 / Changelog
+
+### v4.0.1 (2026-06-17) — 补丁版
+- **Fix**: 收藏筛选客户端分页导致显示不全（显示 26 个，筛选只有 4 个）
+- **Chore**: 版本号升级至 v4.0.1
 
 ### v4.0.0 (2026-06-17) — 正式版
 - **New**: 📦 **组织/用户仓库批量添加** — 输入 GitHub 组织或用户 URL，列出仓库供勾选批量添加
