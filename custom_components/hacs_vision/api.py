@@ -494,19 +494,23 @@ class HACSEnhancedAPI(HomeAssistantView):
         # Get current favorites
         current = await self.data.get_favorites()
         current_set = {str(f) for f in current}
-        # Cross-reference: starred repos not yet in favorites
-        added = [name for name in sorted(starred_names) if name not in current_set]
-        # Prune: remove any favorites not in known HACS set (ensures count matches browse view)
-        pruned = [name for name in sorted(current_set) if name in known_names]
-        # Final favorites: union of pruned + newly starred HACS repos
-        new_favs = sorted(set(pruned) | starred_names)
-        if added or set(new_favs) != current_set:
+        # Split: manual non-HACS favorites (keep untouched) vs HACS-known favorites (mirror GitHub)
+        non_hacs_favs = {f for f in current_set if f not in known_names}
+        # HACS favorites = only those still starred on GitHub (auto-remove unstarred)
+        hacs_favs_new = {f for f in current_set if f in known_names and f in starred_names}
+        # New stars from GitHub not yet in favorites
+        added = sorted(starred_names - {f for f in current_set})
+        # HACS repos unstarred on GitHub → remove from favorites
+        removed = sorted({f for f in current_set if f in known_names} - starred_names)
+        # Final: non-HACS (manual) + HACS repos still starred
+        new_favs = sorted(non_hacs_favs | hacs_favs_new | starred_names)
+        if added or removed:
             await self.data.set_favorites(new_favs)
         return web.json_response({
             "synced_total": len(starred_all),
             "synced_hacs": len(starred_names),
             "added": added,
-            "pruned": len(current_set) - len(pruned),
+            "removed": removed,
             "total": len(new_favs),
         })
 
