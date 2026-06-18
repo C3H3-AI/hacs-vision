@@ -46,6 +46,22 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigType) -> bool:
     # Register services
     _register_services(hass, operator)
 
+    # Pre-warm config entries cache + live rebuild on changes
+    try:
+        await shared_data.get_config_entries_map()
+
+        async def _rebuild_cache(event):
+            """Rebuild config entries cache immediately on any change."""
+            try:
+                await shared_data.get_config_entries_map(force_refresh=True)
+            except Exception as exc:
+                _LOGGER.warning("Config cache rebuild error: %s", exc)
+
+        hass.bus.async_listen("config_entry_updated", _rebuild_cache)
+        hass.bus.async_listen("config_entry_removed", _rebuild_cache)
+    except Exception as exc:
+        _LOGGER.warning("Config entries cache init error: %s", exc)
+
     return True
 
 async def _register_panel(hass: HomeAssistant) -> None:

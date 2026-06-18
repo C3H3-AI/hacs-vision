@@ -490,6 +490,7 @@ const T = {
   flowOpenAuthPage: { zh: '打开认证页面 ↗', en: 'Open auth page ↗' },
   flowStartFailed: { zh: '配置流程启动失败', en: 'Failed to start config flow' },
   flowStartFailedOptions: { zh: '选项配置流程启动失败', en: 'Failed to start options flow' },
+  flowStep: { zh: '步骤', en: 'Step' },
 
   // GitHub Integration (used with || fallbacks in views)
   logout: { zh: '登出', en: 'Logout' },
@@ -516,6 +517,40 @@ const T = {
   verifying: { zh: '验证中...', en: 'Verifying...' },
   syncFavToStar: { zh: '收藏同步点赞', en: 'Favorites → Stars' },
   syncStarToFav: { zh: '点赞同步收藏', en: 'Stars → Favorites' },
+  addIntegration: { zh: '添加集成', en: 'Add Integration' },
+
+  // === Missing keys for i18n completeness ===
+  githubToken: { zh: 'GitHub Token', en: 'GitHub Token' },
+  githubSection: { zh: 'GitHub', en: 'GitHub' },
+  hacsUser: { zh: 'HACS 用户: {user}', en: 'HACS User: {user}' },
+  loadingStarred: { zh: '正在从 GitHub 加载星标仓库...', en: 'Loading starred repos from GitHub...' },
+  loadingOrgRepos: { zh: '正在加载仓库列表...', en: 'Loading repository list...' },
+  filterPlaceholder: { zh: '筛选...', en: 'Filter...' },
+  syncSelectedCount: { zh: '同步选中 ({n})', en: 'Sync Selected ({n})' },
+  starredCount: { zh: '{n} 个星标仓库', en: '{n} starred repos' },
+  gitHubOrgInput: { zh: 'GitHub 组织名或 URL（如 C3H3-AI 或 https://github.com/C3H3-AI）', en: 'GitHub org name or URL (e.g. C3H3-AI or https://github.com/C3H3-AI)' },
+  noSelectedRepos: { zh: '没有选中的仓库', en: 'No repos selected' },
+  syncResultSuccess: { zh: '✓ {n} 个同步成功', en: '✓ {n} synced' },
+  syncResultPartial: { zh: '已完成: {ok} 成功, {fail} 失败', en: 'Done: {ok} succeeded, {fail} failed' },
+  syncFavToStarAdded: { zh: '✓ 新增 {n} 个收藏', en: '✓ {n} favorites added' },
+  syncFavToStarNone: { zh: '无新增', en: 'Nothing new' },
+  syncingShort: { zh: '同步中...', en: 'Syncing...' },
+  refreshPage: { zh: '请刷新页面重试', en: 'Please refresh and try again' },
+  tokenPlaceholder: { zh: 'ghp_xxxxxxxxxxxx', en: 'ghp_xxxxxxxxxxxx' },
+  noStarredRepos: { zh: '没有找到星标仓库', en: 'No starred repos found' },
+  noOrgRepos: { zh: '没有找到仓库', en: 'No repos found' },
+  loggedOut: { zh: '已登出', en: 'Logged out' },
+  githubLoginSuccess: { zh: 'GitHub 登录成功: {user}', en: 'GitHub login: {user}' },
+  checkUpdateFailed: { zh: '检查更新失败: {err}', en: 'Update check failed: {err}' },
+  // === Config system redesign keys ===
+  reconfigure: { zh: '重配置', en: 'Reconfigure' },
+  addSubentry: { zh: '添加服务', en: 'Add service' },
+  enable: { zh: '启用', en: 'Enable' },
+  viewLogs: { zh: '查看日志', en: 'View logs' },
+  confirmEnable: { zh: '确认启用此集成?', en: 'Enable this integration?' },
+  enabled: { zh: '已启用', en: 'Enabled' },
+  enableFailed: { zh: '启用失败', en: 'Enable failed' },
+  restartRequired: { zh: '需要重启才能生效', en: 'Restart required to apply' },
 };
 
 /**

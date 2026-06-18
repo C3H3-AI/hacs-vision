@@ -23,6 +23,7 @@ class ConfigFlowDialog extends LitElement {
     domain: { type: String },
     entryId: { type: String },
     configEntries: { type: Object },
+    isReconfigure: { type: Boolean },
     open: { type: Boolean, reflect: true },
     _loading: { type: Boolean, state: true },
     _flowId: { type: String, state: true },
@@ -37,6 +38,7 @@ class ConfigFlowDialog extends LitElement {
     _existingSubentries: { type: Array, state: true },
     _isSubentryReconfigure: { type: Boolean, state: true },
     _subentryReconfigureId: { type: String, state: true },
+    _passwordVisible: { type: Boolean, state: true },
   };
 
   constructor() {
@@ -140,19 +142,31 @@ class ConfigFlowDialog extends LitElement {
 
   updated(changed) {
     if (changed.has('open') && this.open) {
-      if (this.entryId) {
-        this._isOptions = false;
-        this._isSubentry = false;
-        this._subentryTypes = [];
-        this._subentryType = '';
-        this._existingSubentries = [];
-        this._isSubentryReconfigure = false;
-        this._subentryReconfigureId = '';
+      this._startFlowWithEntryCheck();
+    } else if (this.open && (changed.has('entryId') || changed.has('domain'))) {
+      // Already open but entryId/domain changed → restart flow
+      this._startFlowWithEntryCheck();
+    }
+  }
 
+  /** Prepare subentry/options state based on current entryId, then start the flow */
+  _startFlowWithEntryCheck() {
+    if (this.entryId) {
+      this._isOptions = false;
+      this._isSubentry = false;
+      this._subentryTypes = [];
+      this._subentryType = '';
+      this._existingSubentries = [];
+      this._isSubentryReconfigure = false;
+      this._subentryReconfigureId = '';
+
+      if (this.isReconfigure) {
+        // Reconfigure flow: start a new config flow with entry_id
+        this._isOptions = false;
+        this._startFlow();
+      } else {
         const entry = this._findEntry(this.entryId);
         if (entry && entry.supported_subentry_types && entry.supported_subentry_types.length > 0) {
-          // Has subentry types → show subentry management directly
-          // (the "添加服务" feature: add conversation, TTS, STT, translation etc.)
           this._isSubentry = true;
           this._subentryTypes = entry.supported_subentry_types;
           this._loadExistingSubentries();
@@ -161,11 +175,11 @@ class ConfigFlowDialog extends LitElement {
           this._isOptions = true;
           this._startFlow();
         }
-      } else if (this.domain) {
-        this._isOptions = false;
-        this.entryId = null;
-        this._startFlow();
       }
+    } else if (this.domain) {
+      this._isOptions = false;
+      this.entryId = null;
+      this._startFlow();
     }
   }
 
@@ -395,7 +409,10 @@ class ConfigFlowDialog extends LitElement {
       }
 
       let result;
-      if (this._isSubentryReconfigure && this._subentryType && this.entryId) {
+      if (this.isReconfigure && this.entryId) {
+        // Reconfigure: start config flow with domain (user re-enters config)
+        result = await api.startConfigFlow(this.domain);
+      } else if (this._isSubentryReconfigure && this._subentryType && this.entryId) {
         result = await api.startSubentryFlow(
           this.entryId, this._subentryType,
           { source: 'reconfigure', subentry_id: this._subentryReconfigureId }
@@ -410,7 +427,13 @@ class ConfigFlowDialog extends LitElement {
 
       await this._handleFlowResponse(result);
     } catch (e) {
-      console.error('HACS Vision: config flow start error:', e);
+      // 404 from options flow means the integration doesn't support configuration — expected, not an error
+      const is404 = e?.message?.includes('404');
+      if (is404) {
+        console.warn('HACS Vision: config flow 404 (expected for non-configurable integrations):', e?.message);
+      } else {
+        console.error('HACS Vision: config flow start error:', e);
+      }
       this._clearLoadingTimeout();
       this._finished = true;
       this._result = { type: 'error', message: this._getFlowErrorMessage(e) };
@@ -696,6 +719,10 @@ class ConfigFlowDialog extends LitElement {
       white-space: pre-wrap;
       line-height: 1.6;
     }
+    .step-desc a { color: var(--primary-color, #03a9f4); text-decoration: underline; word-break: break-all; }
+    .step-indicator {
+      font-size: 11px; color: var(--secondary-text-color, #727272); margin-top: 1px;
+    }
 
     /* Form Fields — match store card style */
     .form-field { margin-bottom: 16px; }
@@ -798,6 +825,10 @@ class ConfigFlowDialog extends LitElement {
       ? (this._getFlowDomain() || t('flowTitleOptions'))
       : (this._step?.title || this._localizeTitle() || this._step?.handler || this.domain || t('flowTitle'));
 
+    // Step progress indicator
+    const totalSteps = this._step?.step_id ? 1 : 0; // HA doesn't expose total step count, just show "step X"
+    const hasStepInfo = this._step?.step_id && this._flowId && !this._loading && !this._finished;
+
     return html`
       <div class="overlay" role="dialog" aria-modal="true" aria-label="${this._flowTitle || t('flowTitle')}" @keydown=${(e) => { if (e.key === 'Escape') this._cancelFlow(); }} @click=${(e) => { if (e.target === e.currentTarget) this._cancelFlow(); }}>
         <div class="dialog" @pointerdown=${this._dialogPointerDown}>
@@ -817,7 +848,10 @@ class ConfigFlowDialog extends LitElement {
                   <span class="cfg-avatar-letter" style="display:none">${this.domain.charAt(0).toUpperCase()}</span>
                 </div>
               ` : ''}
-              <span class="title">${title}</span>
+              <div>
+                <span class="title">${title}</span>
+                ${hasStepInfo ? html`<div class="step-indicator">${t('flowStep') || '步骤'} ${this._step.step_id}</div>` : ''}
+              </div>
             </div>
             <button class="close-btn" aria-label="${t('close')}" @click=${this._cancelFlow}>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
@@ -906,7 +940,7 @@ class ConfigFlowDialog extends LitElement {
     const options = step.menu_options || [];
 
     return html`
-      ${descText ? html`<div class="step-desc">${descText}</div>` : ''}
+      ${descText ? html`<div class="step-desc" .innerHTML=${descText}></div>` : ''}
       <div class="menu-list">
         ${options.map((opt, i) => {
           const isSimple = typeof opt === 'string';
@@ -938,7 +972,7 @@ class ConfigFlowDialog extends LitElement {
     const baseError = this._errors?.base || '';
 
     return html`
-      ${descText ? html`<div class="step-desc">${descText}</div>` : ''}
+      ${descText ? html`<div class="step-desc" .innerHTML=${descText}></div>` : ''}
       ${baseError ? html`<div class="form-error" style="margin-bottom:12px">${baseError}</div>` : ''}
       <form @submit=${this._handleSubmit}>
         ${schema.map(s => this._renderField(s))}
@@ -972,10 +1006,15 @@ class ConfigFlowDialog extends LitElement {
     // Substitute description_placeholders (e.g. {note_url} → "http://...")
     const placeholders = step.description_placeholders || {};
     for (const [key, val] of Object.entries(placeholders)) {
-      // val could be a string, number, or object — only substitute primitives
       const strVal = (val !== null && val !== undefined && typeof val !== 'object') ? String(val) : '';
       desc = desc.replace(new RegExp(`\\{${key}\\}`, 'g'), strVal);
     }
+
+    // Auto-link URLs in the description text
+    desc = desc.replace(
+      /(https?:\/\/[^\s<]+)/g,
+      '<a href="$1" target="_blank" rel="noopener" style="color:var(--primary-color,#03a9f4);text-decoration:underline">$1</a>'
+    );
 
     // If still no description, show placeholder values (primitives only)
     if (!desc && Object.keys(placeholders).length > 0) {
@@ -1285,8 +1324,18 @@ class ConfigFlowDialog extends LitElement {
       <div class="form-field">
         <label>${label}${required ? ' *' : ''}</label>
         ${fieldDesc && fieldDesc !== placeholder ? html`<div class="field-desc">${fieldDesc}</div>` : ''}
-        <input type=${isPassword ? 'password' : 'text'} name=${name}
-               .value=${defaultValue} ?required=${required} placeholder=${placeholder}>
+        <div style="position:relative;display:flex;align-items:center;">
+          <input type=${isPassword ? (this._passwordVisible ? 'text' : 'password') : 'text'} name=${name}
+                 .value=${defaultValue} ?required=${required} placeholder=${placeholder}
+                 style="padding-right:36px;">
+          ${isPassword ? html`
+            <button type="button" @click=${() => { this._passwordVisible = !this._passwordVisible; this.requestUpdate(); }}
+                    style="position:absolute;right:8px;background:none;border:none;cursor:pointer;padding:4px;color:var(--secondary-text-color,#727272);font-size:14px;line-height:1;"
+                    title="${this._passwordVisible ? '隐藏' : '显示'}">
+              ${this._passwordVisible ? '🙈' : '👁'}
+            </button>
+          ` : ''}
+        </div>
         ${error ? html`<div class="form-error">${error}</div>` : ''}
       </div>
     `;

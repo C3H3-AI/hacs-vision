@@ -47,6 +47,7 @@ class BrowseView extends LitElement {
     _favorites: { type: Array, state: true },
     presetFilter: { type: String },
     presetTag: { type: String },
+    configEntries: { type: Object },
     pendingRestart: { type: Number },
     _selectedRepos: { type: Array, state: true },
     _tagFilters: { type: Array, state: true },
@@ -1143,6 +1144,7 @@ class BrowseView extends LitElement {
       <repo-card .repo=${r} ._installing=${!!this._installingIds?.[r.id || r.full_name]}
         ?showCheckbox=${true} ?selected=${this._selectedRepos.includes(r.full_name)}
         .starred=${this._starredMap?.[r.full_name] ?? false}
+        .configEntries=${this.configEntries}
         @check-change=${(e) => { if (e.detail?.fullName) this._toggleSelect(e.detail.fullName); }}>
       </repo-card>
     `)}</div>`;

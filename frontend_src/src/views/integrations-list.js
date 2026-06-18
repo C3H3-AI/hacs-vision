@@ -853,7 +853,7 @@ class IntegrationsList extends LitElement {
     const anyProcessing = entries.some(e => this._removing[e.entry_id] || this._reloading[e.entry_id]);
 
     return html`
-      <div class="list-row list-row-${st}" @click=${() => { window.location.href = '/config/integrations/integration/' + domain; }}>
+      <div class="list-row list-row-${st}" @click=${() => this._openDetail(domain, entries)}>
         <span class="list-row-name">
           <span class="list-row-icon">${this._renderAvatar(domain)}</span>
           <span class="list-row-title">${this._translateDomain(domain)}</span>
@@ -890,8 +890,8 @@ class IntegrationsList extends LitElement {
     const entry0 = entries[0];
 
     return html`
-      <div class="card card-${st}" @click=${() => { window.location.href = '/config/integrations/integration/' + domain; }} role="button" tabindex="0"
-        @keydown=${e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); window.location.href = '/config/integrations/integration/' + domain; } }}>
+      <div class="card card-${st}" @click=${() => this._openDetail(domain, entries)} role="button" tabindex="0"
+        @keydown=${e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); this._openDetail(domain, entries); } }}>
 
           <div class="card-img">
             <div class="card-top-bar" @click=${e => e.stopPropagation()}>
@@ -1079,6 +1079,16 @@ class IntegrationsList extends LitElement {
           ${entry.supports_options ? html`
           <button class="entry-btn" @click=${e => this._configureEntry(entry, e)} title="${t('configureEntry')}" ?disabled=${isProcessing}>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          </button>
+          ` : ''}
+          ${entry.supports_reconfigure ? html`
+          <button class="entry-btn" @click=${e => { e.stopPropagation(); this.dispatchEvent(new CustomEvent('configure-integration', { bubbles: true, composed: true, detail: { domain: entry.domain, entry_id: entry.entry_id } })); this._closeDetail(); }} title="${t('reconfigure') || '重配置'}" ?disabled=${isProcessing}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M21 2v6h-6M3 22v-6h6"/><path d="M21 8a9 9 0 1 1-3.64-6.36L21 2"/></svg>
+          </button>
+          ` : ''}
+          ${entry.supported_subentry_types && entry.supported_subentry_types.length > 0 ? html`
+          <button class="entry-btn sub" @click=${e => { e.stopPropagation(); this.dispatchEvent(new CustomEvent('configure-integration', { bubbles: true, composed: true, detail: { domain: entry.domain, entry_id: entry.entry_id } })); this._closeDetail(); }} title="${t('addSubentry') || '添加服务'}" ?disabled=${isProcessing}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
           </button>
           ` : ''}
           <button class="entry-btn reload" @click=${e => this._reloadEntry(entry, e)} title="${t('reloadEntry')}" ?disabled=${isProcessing}>

@@ -80,8 +80,8 @@ export function getCommonStyles() {
   .btn:hover { border-color: var(--primary-color, #03a9f4); color: var(--primary-color, #03a9f4); }
   .btn.primary { background: var(--primary-color, #03a9f4); border-color: var(--primary-color, #03a9f4); color: #fff; }
   .btn.primary:hover { opacity: 0.9; }
-  .btn.danger { color: #f44336; border-color: #f44336; }
-  .btn.danger:hover { background: #f44336; color: #fff; }
+  .btn.danger { color: var(--error-color, #f44336); border-color: var(--error-color, #f44336); }
+  .btn.danger:hover { background: var(--error-color, #f44336); color: #fff; }
   .btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
   /* ===== Search ===== */

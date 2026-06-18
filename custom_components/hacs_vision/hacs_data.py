@@ -13,6 +13,8 @@ class HACSData:
 
     def __init__(self, hass) -> None:
         self.hass = hass
+        self._config_cache = None  # cached config entries map
+        self._cache_ready = False
 
     @staticmethod
     def _read_json_sync(path: str) -> dict | None:
@@ -222,8 +224,15 @@ class HACSData:
         """Save user settings for HACS Vision."""
         return await self.write_storage("settings", {"data": settings})
 
-    async def get_config_entries_map(self) -> list[dict]:
-        """Get all config entries with subentry_type info and translated names."""
+    async def get_config_entries_map(self, force_refresh=False) -> list[dict]:
+        """Get all config entries with subentry_type info and translated names.
+        
+        Results are cached in-memory for the lifetime of the component.
+        Call with force_refresh=True to rebuild.
+        """
+        if self._cache_ready and not force_refresh and self._config_cache is not None:
+            return self._config_cache
+
         result = []
         domains = set()
         for entry in self.hass.config_entries.async_entries():
@@ -316,7 +325,8 @@ class HACSData:
             if entry.domain:
                 entry_state = None
                 try:
-                    entry_state = str(entry.state) if hasattr(entry, 'state') else None
+                    if hasattr(entry, 'state') and entry.state is not None:
+                        entry_state = entry.state.name.lower()
                 except Exception:
                     pass
                 subentry_types = None
@@ -331,6 +341,24 @@ class HACSData:
                 try:
                     if hasattr(entry, 'supports_options'):
                         supports_options = entry.supports_options
+                except Exception:
+                    pass
+                supports_reconfigure = None
+                try:
+                    if hasattr(entry, 'supports_reconfigure'):
+                        supports_reconfigure = entry.supports_reconfigure
+                except Exception:
+                    pass
+                supports_remove_device = None
+                try:
+                    if hasattr(entry, 'supports_remove_device'):
+                        supports_remove_device = entry.supports_remove_device
+                except Exception:
+                    pass
+                num_subentries = 0
+                try:
+                    if hasattr(entry, 'num_subentries'):
+                        num_subentries = entry.num_subentries
                 except Exception:
                     pass
                 # Read manifest for iot_class
@@ -361,13 +389,23 @@ class HACSData:
                     "translated_name": translations.get(entry.domain),
                     "source": entry.source,
                     "state": entry_state or "loaded",
-                    "disabled_by": entry.disabled_by,
+                    "disabled_by": entry.disabled_by.value if hasattr(entry.disabled_by, 'value') else entry.disabled_by,
                     "supports_options": supports_options,
+                    "supports_reconfigure": supports_reconfigure,
+                    "supports_remove_device": supports_remove_device,
                     "supported_subentry_types": subentry_types,
+                    "num_subentries": num_subentries,
                     "is_custom": is_custom,
                     "iot_class": iot_class,
                 })
+        self._config_cache = result
+        self._cache_ready = True
         return result
+
+    def invalidate_config_cache(self) -> None:
+        """Invalidate the config entries cache on changes."""
+        self._cache_ready = False
+        self._config_cache = None
 
     async def send_persistent_notification(self, title: str, message: str) -> None:
         """Send a persistent notification to HA."""

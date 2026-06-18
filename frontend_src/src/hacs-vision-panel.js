@@ -34,6 +34,8 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
     // Config Flow
     _configFlowDomain: { type: String, state: true },
     _configFlowEntryId: { type: String, state: true },
+    _configFlowSubentryType: { type: String, state: true },
+    _configFlowIsReconfigure: { type: Boolean, state: true },
     _showConfigFlow: { type: Boolean, state: true },
     _configEntries: { type: Object, state: true },
     // Entry selector (multiple entries for same domain)
@@ -70,7 +72,7 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
     this._configFlowDomain = '';
     this._configFlowEntryId = null;
     this._showConfigFlow = false;
-    this._configEntries = null;
+    this._configEntries = {};
     this._showEntrySelector = false;
     this._entrySelectorDomain = '';
     this._entrySelectorEntries = [];
@@ -972,7 +974,7 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
       }
       this._configEntries = map;
     } catch {
-      this._configEntries = null;
+      this._configEntries = {};
     }
   }
 
@@ -1032,6 +1034,8 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
     this._showConfigFlow = false;
     this._configFlowDomain = '';
     this._configFlowEntryId = null;
+    this._configFlowSubentryType = '';
+    this._configFlowIsReconfigure = false;
     this._showEntrySelector = false;
   }
 
@@ -1164,6 +1168,115 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
     `;
   }
 
+  /** Render store detail action buttons based on integration state + capabilities */
+  _renderStoreActionButtons(r) {
+    const isInstalled = r.installed;
+    const domain = r.domain;
+    const entries = domain ? this._configEntries?.[domain] : null;
+    const hasEntry = entries && entries.length > 0;
+    const entry = hasEntry ? entries[0] : null;
+    const isUpdateAvailable = r.installed_version && r.available_version && r.installed_version !== r.available_version;
+
+    // Not installed → install button
+    if (!isInstalled) {
+      return html`
+        <button class="modal-btn primary" @click=${() => this._modalAction('install')}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          ${t('install')}
+        </button>`;
+    }
+
+    // Installed buttons
+    const buttons = [];
+
+    // Update available?
+    if (isUpdateAvailable) {
+      buttons.push(html`
+        <button class="modal-btn primary" @click=${() => this._modalAction('update')}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
+          ${t('update')}
+        </button>`);
+    }
+
+    // Redownload
+    buttons.push(html`
+      <button class="modal-btn" style="color:#ff9800;border-color:#ff9800;" @click=${() => this._modalAction('redownload')}>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
+        ${t('redownload')}
+      </button>`);
+
+    // Has config entry → check capabilities
+    if (domain && hasEntry && entry) {
+      const opts = entry.supports_options;
+      const reconf = entry.supports_reconfigure;
+      const subTypes = entry.supported_subentry_types && entry.supported_subentry_types.length > 0
+        ? entry.supported_subentry_types : null;
+      const disabled = entry.disabled_by;
+      const state = entry.state;
+
+      // Disabled → show enable button
+      if (disabled === 'user') {
+        buttons.push(html`
+          <button class="modal-btn" @click=${() => this._modalAction('enable')}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+            ${t('enable') || '启用'}
+          </button>`);
+      }
+
+      // Error states → show retry/logs
+      if (state === 'setup_error' || state === 'setup_retry') {
+        buttons.push(html`
+          <button class="modal-btn" style="color:#ff9800;border-color:#ff9800;" @click=${() => this._modalAction('view-logs')}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+            ${t('viewLogs') || '查看日志'}
+          </button>`);
+      }
+
+      // Normal loaded state → show action buttons
+      if (state === 'loaded' || !state) {
+        if (opts) {
+          buttons.push(html`
+            <button class="modal-btn" @click=${() => this._modalAction('configure')}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+              ${t('configure')}
+            </button>`);
+        }
+        if (reconf) {
+          buttons.push(html`
+            <button class="modal-btn" @click=${() => this._modalAction('reconfigure')}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2v6h-6M3 22v-6h6"/><path d="M21 8a9 9 0 1 1-3.64-6.36L21 2"/></svg>
+              ${t('reconfigure') || '重配置'}
+            </button>`);
+        }
+        if (subTypes) {
+          buttons.push(html`
+            <button class="modal-btn" style="background:var(--primary-color, #03a9f4);color:#fff;border-color:var(--primary-color, #03a9f4);" @click=${() => this._modalAction('add-subentry')}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              ${t('addSubentry') || '添加服务'}
+            </button>`);
+        }
+      }
+    } else if (domain && !hasEntry) {
+      // Installed but no config entry → show "Add Integration"
+      buttons.push(html`
+        <button class="modal-btn" @click=${() => this._modalAction('configure')}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          ${t('addIntegration')}
+        </button>`);
+    }
+
+    // Only show remove button for non-system entries
+    if (!domain || entry?.source !== 'system') {
+      buttons.push(html`
+        <button class="modal-btn danger" @click=${() => this._modalAction('uninstall')}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+          ${t('remove')}
+        </button>`);
+    }
+
+    return html`${buttons}`;
+  }
+
   async _modalAction(action) {
     const repo = this._detailRepo;
     if (!repo) return;
@@ -1197,6 +1310,73 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
       } else if (action === 'github') {
         const url = repo.html_url || `https://github.com/${repo.full_name}`;
         window.open(url, '_blank');
+        return;
+      } else if (action === 'enable') {
+        this._closeDetail();
+        const { showToast } = await import('./hacs-vision-panel.js');
+        const entries = this._configEntries?.[repo.domain];
+        if (entries && entries.length > 0) {
+          const { ConfirmDialog } = await import('./shared/confirm-dialog.js');
+          const ok = await ConfirmDialog.show(this, {
+            message: `${t('confirmEnable') || '确认启用集成?'}`,
+            confirmText: t('enable') || '启用',
+            danger: false,
+          });
+          if (!ok) return;
+          // Call HA API to enable - use hass connection directly
+          try {
+            const token = this.hass?.auth?.data?.access_token;
+            const haUrl = this.hass?.auth?.data?.ha_url || window.location.origin;
+            const resp = await fetch(`${haUrl}/api/config/config_entries/entry/${entries[0].entry_id}/enable`, {
+              method: 'POST',
+              headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
+            });
+            if (resp.ok) {
+              showToast(t('enabled') || '已启用', 'success');
+              this._loadConfigEntries();
+            } else {
+              const errData = await resp.json().catch(() => ({}));
+              showToast(errData.message || (t('enableFailed') || '启用失败'), 'error');
+            }
+          } catch(e) {
+            showToast(`${t('enableFailed') || '启用失败'}: ${e.message}`, 'error');
+          }
+        }
+        return;
+      } else if (action === 'reconfigure') {
+        this._closeDetail();
+        const entries = this._configEntries?.[repo.domain];
+        if (entries && entries.length > 0) {
+          // Open config flow for the domain with entry_id → dialog handles reconfigure mode
+          this._configFlowDomain = repo.domain;
+          this._configFlowEntryId = entries[0].entry_id;
+          this._configFlowIsReconfigure = true;
+          this._showConfigFlow = true;
+        }
+        return;
+      } else if (action === 'add-subentry') {
+        this._closeDetail();
+        const entries = this._configEntries?.[repo.domain];
+        if (entries && entries.length > 0) {
+          const entry = entries[0];
+          const subTypes = entry.supported_subentry_types || [];
+          if (subTypes.length === 1) {
+            // Single subentry type → open subentry flow directly
+            this._configFlowDomain = repo.domain;
+            this._configFlowEntryId = entry.entry_id;
+            this._configFlowSubentryType = subTypes[0];
+            this._showConfigFlow = true;
+          } else if (subTypes.length > 1) {
+            // Multiple types → show selector first
+            this._entrySelectorDomain = repo.domain;
+            this._entrySelectorEntries = entries;
+            this._entrySelectorCurrentId = entries[0].entry_id;
+            this._showEntrySelector = true;
+          }
+        }
+        return;
+      } else if (action === 'view-logs') {
+        window.location.href = `/config/logs?filter=${encodeURIComponent(repo.domain || '')}`;
         return;
       } else if (action === 'configure') {
         this._closeDetail();
@@ -1365,7 +1545,7 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
 
         <!-- Content with fade transition -->
         <div class="content ${this._viewTransition ? 'transitioning' : ''}">
-          <browse-view .hass=${this.hass} .presetFilter=${this._presetFilter} .presetTag=${this._presetTag} .pendingRestart=${this.stats.pending_restart ?? 0} ?hidden=${this.currentView !== 'browse'}></browse-view>
+          <browse-view .hass=${this.hass} .presetFilter=${this._presetFilter} .presetTag=${this._presetTag} .configEntries=${this._configEntries} .pendingRestart=${this.stats.pending_restart ?? 0} ?hidden=${this.currentView !== 'browse'}></browse-view>
           <integrations-list .hass=${this.hass} ?hidden=${this.currentView !== 'integrations'} @configure-integration=${this._onConfigureIntegration} @add-integration=${this._onAddIntegration}></integrations-list>
           <updates-view .hass=${this.hass} ?hidden=${this.currentView !== 'updates'}></updates-view>
           <management-view .hass=${this.hass} ?hidden=${this.currentView !== 'management'}></management-view>
@@ -1519,37 +1699,11 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
               ` : ''}
 
               <div class="modal-actions">
-                ${isInstalled ? html`
-                  ${isUpdateAvailable ? html`
-                    <button class="modal-btn primary" @click=${() => this._modalAction('update')}>
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
-                      ${t('update')}
-                    </button>
-                  ` : ''}
-                  <button class="modal-btn" style="color:#ff9800;border-color:#ff9800;" @click=${() => this._modalAction('redownload')}>
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
-                    ${t('redownload')}
+                  ${this._renderStoreActionButtons(r)}
+                  <button class="modal-btn" @click=${() => this._modalAction('github')}>
+                    <svg viewBox="0 0 20 20" fill="currentColor"><path d="M10 0C4.477 0 0 4.477 0 10c0 4.42 2.865 8.166 6.839 9.489.5.092.682-.217.682-.482 0-.237-.009-.866-.013-1.7-2.782.604-3.369-1.34-3.369-1.34-.454-1.156-1.11-1.464-1.11-1.464-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.087 2.91.831.092-.646.35-1.086.636-1.336-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.578 9.578 0 0110 4.836a9.59 9.59 0 012.504.337c1.909-1.294 2.747-1.025 2.747-1.025.546 1.377.203 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.842-2.339 4.687-4.566 4.935.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.743 0 .267.18.578.688.48C17.138 18.163 20 14.418 20 10c0-5.523-4.477-10-10-10z"/></svg>
+                    ${t('openGithub')}
                   </button>
-                  ${r.domain ? html`
-                    <button class="modal-btn" @click=${() => this._modalAction('configure')}>
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-                      ${t('configure')}
-                    </button>
-                  ` : ''}
-                  <button class="modal-btn danger" @click=${() => this._modalAction('uninstall')}>
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-                    ${t('remove')}
-                  </button>
-                ` : html`
-                  <button class="modal-btn primary" @click=${() => this._modalAction('install')}>
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                    ${t('install')}
-                  </button>
-                `}
-                <button class="modal-btn" @click=${() => this._modalAction('github')}>
-                  <svg viewBox="0 0 20 20" fill="currentColor"><path d="M10 0C4.477 0 0 4.477 0 10c0 4.42 2.865 8.166 6.839 9.489.5.092.682-.217.682-.482 0-.237-.009-.866-.013-1.7-2.782.604-3.369-1.34-3.369-1.34-.454-1.156-1.11-1.464-1.11-1.464-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.087 2.91.831.092-.646.35-1.086.636-1.336-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.578 9.578 0 0110 4.836a9.59 9.59 0 012.504.337c1.909-1.294 2.747-1.025 2.747-1.025.546 1.377.203 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.842-2.339 4.687-4.566 4.935.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.743 0 .267.18.578.688.48C17.138 18.163 20 14.418 20 10c0-5.523-4.477-10-10-10z"/></svg>
-                  ${t('openGithub')}
-                </button>
               </div>
 
               <!-- README Section — no max-height, single scroll via modal-body -->
@@ -1602,6 +1756,7 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
         .domain=${this._configFlowDomain}
         .entryId=${this._configFlowEntryId}
         .configEntries=${this._configEntries}
+        .isReconfigure=${this._configFlowIsReconfigure}
         .open=${this._showConfigFlow}
         @close=${this._onFlowClose}>
       </config-flow-dialog>
