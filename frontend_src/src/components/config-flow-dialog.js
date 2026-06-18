@@ -24,6 +24,7 @@ class ConfigFlowDialog extends LitElement {
     entryId: { type: String },
     configEntries: { type: Object },
     isReconfigure: { type: Boolean },
+    flowAction: { type: String },
     open: { type: Boolean, reflect: true },
     _loading: { type: Boolean, state: true },
     _flowId: { type: String, state: true },
@@ -164,17 +165,17 @@ class ConfigFlowDialog extends LitElement {
         // Reconfigure flow: start a new config flow with entry_id
         this._isOptions = false;
         this._startFlow();
-      } else {
+      } else if (this.flowAction === 'add-subentry') {
         const entry = this._findEntry(this.entryId);
         if (entry && entry.supported_subentry_types && entry.supported_subentry_types.length > 0) {
           this._isSubentry = true;
           this._subentryTypes = entry.supported_subentry_types;
           this._loadExistingSubentries();
-          this._startFlow();
-        } else {
-          this._isOptions = true;
-          this._startFlow();
         }
+        this._startFlow();
+      } else {
+        this._isOptions = true;
+        this._startFlow();
       }
     } else if (this.domain) {
       this._isOptions = false;
@@ -404,6 +405,7 @@ class ConfigFlowDialog extends LitElement {
       const flowDomain = this._isOptions || this._isSubentry
         ? this._getFlowDomain()
         : this.domain;
+      console.debug('HACS Vision: _startFlow', { isOptions: this._isOptions, isSubentry: this._isSubentry, entryId: this.entryId, domain: this.domain, flowAction: this.flowAction, flowDomain });
       if (flowDomain) {
         await this._loadTranslations(flowDomain);
       }

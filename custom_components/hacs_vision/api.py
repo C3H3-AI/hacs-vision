@@ -1677,10 +1677,11 @@ class HACSEnhancedAPI(HomeAssistantView):
             # Build device_id → entities index (one pass, O(n))
             device_entities: dict[str, list] = {}
             for entity_entry in entity_reg.entities.values():
-                seen_entity_ids.add(entity_entry.entity_id)
                 did = entity_entry.device_id
                 if did:
                     device_entities.setdefault(did, []).append(entity_entry)
+                if entity_entry.config_entry_id == entry_id:
+                    seen_entity_ids.add(entity_entry.entity_id)
 
             # Iterate devices matching this config entry (O(m) with O(1) entity lookup)
             for device in device_reg.devices.values():

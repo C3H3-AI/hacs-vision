@@ -231,6 +231,8 @@ class HACSData:
         Call with force_refresh=True to rebuild.
         """
         if self._cache_ready and not force_refresh and self._config_cache is not None:
+            # Refresh state & capabilities from live entries before returning cache
+            await self._refresh_dynamic_fields(self._config_cache)
             return self._config_cache
 
         result = []
@@ -376,9 +378,11 @@ class HACSData:
                             manifest_path = os.path.join(builtin_base, entry.domain, "manifest.json")
                     if os.path.isfile(manifest_path):
                         try:
-                            with open(manifest_path, 'r', encoding='utf-8') as f:
-                                manifest = json.load(f)
-                            iot_class = manifest.get("iot_class")
+                            manifest = await self.hass.async_add_executor_job(
+                                self._read_json_sync, manifest_path
+                            )
+                            if manifest:
+                                iot_class = manifest.get("iot_class")
                         except Exception:
                             pass
 
@@ -400,7 +404,59 @@ class HACSData:
                 })
         self._config_cache = result
         self._cache_ready = True
+        # After building cache, refresh state & capabilities from live entries
+        # (state and capabilities are cheap to read and change frequently)
+        await self._refresh_dynamic_fields(result)
         return result
+
+    async def _refresh_dynamic_fields(self, cached: list[dict]) -> None:
+        """Refresh state and capability fields from live config entries.
+        These fields change dynamically (entry load/unload, etc.) and
+        should not be stale even when the cache is valid.
+        """
+        try:
+            live_entries = {e.entry_id: e for e in self.hass.config_entries.async_entries()}
+            for item in cached:
+                eid = item.get("entry_id")
+                entry = live_entries.get(eid)
+                if not entry:
+                    continue
+                # State
+                try:
+                    item["state"] = entry.state.name.lower() if entry.state else "loaded"
+                except Exception:
+                    item["state"] = "loaded"
+                # Supports options
+                try:
+                    item["supports_options"] = entry.supports_options if hasattr(entry, 'supports_options') else None
+                except Exception:
+                    item["supports_options"] = None
+                # Supports reconfigure
+                try:
+                    item["supports_reconfigure"] = entry.supports_reconfigure if hasattr(entry, 'supports_reconfigure') else None
+                except Exception:
+                    item["supports_reconfigure"] = None
+                # Supports remove device
+                try:
+                    item["supports_remove_device"] = entry.supports_remove_device if hasattr(entry, 'supports_remove_device') else None
+                except Exception:
+                    item["supports_remove_device"] = None
+                # Subentry types + count
+                try:
+                    st = entry.supported_subentry_types if hasattr(entry, 'supported_subentry_types') else None
+                    if st:
+                        item["supported_subentry_types"] = list(st.keys()) if isinstance(st, dict) else list(st)
+                    else:
+                        item["supported_subentry_types"] = None
+                except Exception:
+                    pass
+                try:
+                    if hasattr(entry, 'num_subentries'):
+                        item["num_subentries"] = entry.num_subentries
+                except Exception:
+                    pass
+        except Exception as exc:
+            _LOGGER.warning("Dynamic field refresh error: %s", exc)
 
     def invalidate_config_cache(self) -> None:
         """Invalidate the config entries cache on changes."""

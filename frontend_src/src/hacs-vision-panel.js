@@ -36,6 +36,7 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
     _configFlowEntryId: { type: String, state: true },
     _configFlowSubentryType: { type: String, state: true },
     _configFlowIsReconfigure: { type: Boolean, state: true },
+    _configFlowAction: { type: String, state: true },
     _showConfigFlow: { type: Boolean, state: true },
     _configEntries: { type: Object, state: true },
     // Entry selector (multiple entries for same domain)
@@ -127,7 +128,7 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
     .store { --fs: var(--fs-body); }
 
     .store {
-      padding: 16px;
+      padding: 0 16px 16px;
       padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px));
       min-height: 100vh;
       background: var(--primary-background-color, #f5f5f5);
@@ -136,6 +137,7 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
     }
     .store-content {
       flex: 1; overflow-y: auto; min-height: 0;
+      padding-top: 12px;
     }
 
     /* ===== Error Banner ===== */
@@ -208,7 +210,7 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
       position: sticky; top: 0; z-index: 100;
       background: var(--primary-background-color, #f5f5f5);
       margin: 0 -16px 12px; padding: 0 16px 12px;
-      padding-top: env(safe-area-inset-top, 0px);
+      padding-top: 12px;
     }
     .store-content {
       flex: 1; overflow-y: auto; min-height: 0;
@@ -251,11 +253,14 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
 
     /* ===== Content with transition ===== */
     .content {
-      transition: opacity 0.15s ease;
+      transition: opacity 0.12s ease;
+      position: relative;
     }
     .content.transitioning { opacity: 0; }
-    /* Force hidden views to not display (child :host display overrides [hidden]) */
-    .content > [hidden] { display: none !important; }
+    /* Smooth view transitions: hidden views are invisible but stay rendered */
+    .content > [hidden] {
+      display: none !important;
+    }
 
     /* ===== Network Banner (F2) ===== */
     .network-banner {
@@ -571,7 +576,7 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
 
     /* ===== Responsive ===== */
     @media (max-width: 768px) {
-      .store { padding: 8px 10px; padding-top: calc(8px + env(safe-area-inset-top, 0px)); padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px)); }
+      .store { padding: 0 10px 8px; padding-top: calc(0px + env(safe-area-inset-top, 0px)); padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px)); }
       .header {
         flex-direction: row; align-items: center; justify-content: space-between;
         padding: 8px 12px; margin-bottom: 8px; border-radius: 12px;
@@ -588,7 +593,7 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
       .stat-label { font-size: 10px; white-space: nowrap; }
       .restart-btn { font-size: 10px; padding: 2px 8px; }
       .restart-btn svg { width: 12px; height: 12px; }
-      .sticky-header { margin: 0 -10px 8px; padding: 0 10px 8px; }
+      .sticky-header { margin: 0 -10px 8px; padding: 0 10px 8px; padding-top: 8px; }
       .tab { padding: 8px 12px; font-size: 12px; min-height: 44px; display: flex; align-items: center; }
       .controls-right { gap: 4px; }
       .controls .search { min-width: 80px; }
@@ -996,11 +1001,23 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
   }
 
   _onConfigureIntegration(e) {
-    const { domain, entry_id } = e.detail;
+    const { domain, entry_id, action } = e.detail;
+    console.debug('HACS Vision: _onConfigureIntegration', domain, entry_id, 'action:', action);
     this._configFlowDomain = domain;
     this._configFlowEntryId = entry_id;
-    this._showConfigFlow = true;
-    this._scheduleFlowTimeout();
+    this._configFlowAction = action || 'configure';
+    // Reset + re-open to ensure Lit detects the change even if already open
+    if (this._showConfigFlow) {
+      this._showConfigFlow = false;
+      this._configFlowEntryId = null;
+    }
+    this.requestUpdate();
+    setTimeout(() => {
+      this._configFlowDomain = domain;
+      this._configFlowEntryId = entry_id;
+      this._showConfigFlow = true;
+      this._scheduleFlowTimeout();
+    }, 10);
   }
 
   _onAddIntegration(e) {
@@ -1036,6 +1053,7 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
     this._configFlowEntryId = null;
     this._configFlowSubentryType = '';
     this._configFlowIsReconfigure = false;
+    this._configFlowAction = '';
     this._showEntrySelector = false;
   }
 
@@ -1757,6 +1775,7 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
         .entryId=${this._configFlowEntryId}
         .configEntries=${this._configEntries}
         .isReconfigure=${this._configFlowIsReconfigure}
+        .flowAction=${this._configFlowAction}
         .open=${this._showConfigFlow}
         @close=${this._onFlowClose}>
       </config-flow-dialog>

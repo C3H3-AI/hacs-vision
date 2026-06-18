@@ -265,19 +265,23 @@ class HACSOperator:
         if not self.available:
             return []
         result = []
-        try:
-            for repo in self._hacs.repositories.list_all:
+        for repo in self._hacs.repositories.list_all:
+            try:
                 if not repo.data.installed:
                     continue
                 installed = repo.data.installed_version
                 available = repo.display_available_version
                 has_update = installed and available and installed != available
                 domain = getattr(repo.data, 'domain', None)
+                manifest = getattr(repo.data, 'repository_manifest', None)
+                manifest_name = getattr(repo.data, 'manifest_name', None) or (
+                    getattr(manifest, 'name', None) if manifest else None
+                ) or repo.data.full_name.split("/")[-1]
                 result.append({
                     "id": str(repo.data.id),
                     "full_name": repo.data.full_name,
                     "name": repo.data.name or repo.data.full_name.split("/")[-1],
-                    "manifest_name": getattr(repo.data, 'manifest_name', None) or (repo.data.repository_manifest and repo.data.repository_manifest.name or None) or repo.data.full_name.split("/")[-1],
+                    "manifest_name": manifest_name,
                     "installed_version": repo.display_installed_version,
                     "category": repo.data.category,
                     "has_update": has_update,
@@ -285,8 +289,10 @@ class HACSOperator:
                     "pending_restart": getattr(repo, 'pending_restart', False),
                     "domain": domain,
                 })
-        except (AttributeError, KeyError, TypeError) as e:
-            _LOGGER.error("get_installed_list error: %s", e, exc_info=True)
+            except (AttributeError, KeyError, TypeError) as e:
+                _LOGGER.warning("Skipping repo %s (data incomplete): %s",
+                                getattr(repo.data, 'full_name', 'unknown'), e)
+                continue
         return result
 
     def get_version_map(self) -> dict[str, dict]:
@@ -294,8 +300,8 @@ class HACSOperator:
         if not self.available:
             return {}
         result = {}
-        try:
-            for repo in self._hacs.repositories.list_all:
+        for repo in self._hacs.repositories.list_all:
+            try:
                 if repo.data.installed:
                     installed_ver = (
                         repo.data.installed_version
@@ -318,8 +324,10 @@ class HACSOperator:
                         "category": repo.data.category,
                         "name": repo.data.name or repo.data.full_name.split("/")[-1],
                     }
-        except (AttributeError, KeyError, TypeError) as e:
-            _LOGGER.error("get_version_map error: %s", e, exc_info=True)
+            except (AttributeError, KeyError, TypeError) as e:
+                _LOGGER.warning("Skipping version for repo %s (data incomplete): %s",
+                                getattr(repo.data, 'full_name', 'unknown'), e)
+                continue
         return result
 
     def get_available_updates(self) -> list[dict]:

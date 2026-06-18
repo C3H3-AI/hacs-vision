@@ -34,6 +34,11 @@ class IntegrationsList extends LitElement {
     _sortBy: { type: String, state: true },                // name | entries | status
     _sortDir: { type: String, state: true },               // asc | desc
     _configMenuFor: { type: Object, state: true },         // { domain, anchor } → show dropdown
+    _showOperationDialog: { type: Boolean, state: true },   // Unified operation dialog
+    _activeAction: { type: String, state: true },              // Current active operation in right panel
+    _activeActionResult: { type: String, state: true },        // Result message for active action
+    _configureEntry: { type: Object, state: true },         // Entry for operation dialog
+    _configureGroup: { type: Object, state: true },         // Group for operation dialog
     _testIframeUrl: { type: String, state: true },          // HA config page iframe URL (保留兼容)
   };
 
@@ -155,16 +160,18 @@ class IntegrationsList extends LitElement {
     this._handlersLoading = false;
   }
 
-  async _removeEntry(entry, e) {
+  async _removeEntry(entry, e, skipConfirm) {
     e.stopPropagation();
-    const { ConfirmDialog } = await import('../shared/confirm-dialog.js');
-    const ok = await ConfirmDialog.show(this, {
-      title: entry.domain,
-      message: t('confirmDelete', { domain: entry.domain }),
-      confirmText: t('delete'),
-      danger: true,
-    });
-    if (!ok) return;
+    if (!skipConfirm) {
+      const { ConfirmDialog } = await import('../shared/confirm-dialog.js');
+      const ok = await ConfirmDialog.show(this, {
+        title: entry.domain,
+        message: t('confirmDelete', { domain: entry.domain }),
+        confirmText: t('delete'),
+        danger: true,
+      });
+      if (!ok) return;
+    }
     this._removing = { ...this._removing, [entry.entry_id]: true };
     try {
       const headers = api._getHeaders();
@@ -194,9 +201,12 @@ class IntegrationsList extends LitElement {
       });
       if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
       showToast(`${entry.domain} ${t('reloaded')}`, 'success');
+      this._activeActionResult = `${t('reloaded') || '已重载'} ✅`;
+      setTimeout(() => this._closeOperationDialog(), 1200);
       setTimeout(() => this._load(), 1500);
     } catch(e) {
       showToast(`${t('reloadFailed')}: ${e.message}`, 'error');
+      this._activeActionResult = `${t('reloadFailed') || '重载失败'}: ${e.message}`;
     }
     const r = { ...this._reloading };
     delete r[entry.entry_id];
@@ -217,13 +227,16 @@ class IntegrationsList extends LitElement {
       });
       if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
       showToast(`${entry.domain} ${actionLabel}${t('successSuffix') || '成功'}`, 'success');
+      this._activeActionResult = `${actionLabel}${t('successSuffix') || '成功'} ✅`;
+      setTimeout(() => this._closeOperationDialog(), 1200);
       setTimeout(() => this._load(), 1500);
     } catch(err) {
       showToast(`${actionLabel}${t('failedSuffix') || '失败'}: ${err.message}`, 'error');
+      this._activeActionResult = `${actionLabel}${t('failedSuffix') || '失败'}: ${err.message}`;
     }
   }
 
-  _configureEntry(entry, e) {
+  _openEntryOptions(entry, e) {
     e.stopPropagation();
     this._closeDetail();
     this.dispatchEvent(new CustomEvent('configure-integration', {
@@ -244,17 +257,11 @@ class IntegrationsList extends LitElement {
   }
 
   _onConfigure(entry, group) {
-    // Single entry → open options/subentry config directly
-    if (group.entries.length === 1) {
-      this._closeDetail();
-      this.dispatchEvent(new CustomEvent('configure-integration', {
-        bubbles: true, composed: true,
-        detail: { domain: entry.domain, entry_id: entry.entry_id },
-      }));
-      return;
-    }
-    // Multiple entries → show dropdown to pick which entry to configure
-    this._configMenuFor = this._configMenuFor?.domain === group.domain ? null : { domain: group.domain, entries: group.entries, mode: 'configure' };
+    // Open a unified operation dialog for this entry
+    console.debug('HACS Vision: _onConfigure called for', entry?.domain, 'entry_id:', entry?.entry_id);
+    this._configureEntry = entry;
+    this._configureGroup = group;
+    this._showOperationDialog = true;
   }
 
   _onAddEntry(domain) {
@@ -326,6 +333,44 @@ class IntegrationsList extends LitElement {
     // Reset drag offset for next open
     const modal = this.shadowRoot?.querySelector('.modal');
     if (modal) modal.style.transform = '';
+  }
+
+  _closeOperationDialog() {
+    this._showOperationDialog = false;
+    this._activeAction = '';
+    this._activeActionResult = '';
+    this._configureEntry = null;
+    this._configureGroup = null;
+  }
+
+  _triggerOperation(action, entry) {
+    if (action === 'configure' || action === 'reconfigure' || action === 'add-subentry') {
+      // For config flow actions: close operation dialog, dispatch event to parent
+      // Parent opens config-flow-dialog which handles the full flow
+      this._closeOperationDialog();
+      this.dispatchEvent(new CustomEvent('configure-integration', {
+        bubbles: true, composed: true,
+        detail: { domain: entry.domain, entry_id: entry.entry_id, action: action },
+      }));
+      return;
+    }
+    // For non-config actions: show result in right panel
+    this._activeAction = action;
+    this._activeActionResult = '';
+    if (action === 'enable') {
+      this._showActionProgress();
+      this._toggleDisabled(entry, { stopPropagation: () => {} });
+    } else if (action === 'reload') {
+      this._showActionProgress();
+      this._reloadEntry(entry, { stopPropagation: () => {} });
+    } else if (action === 'remove') {
+      // Show confirmation in right panel
+      this._activeActionResult = t('confirmDelete') || '确认删除此集成?';
+    }
+  }
+
+  _showActionProgress() {
+    this._activeActionResult = t('processing') || '处理中...';
   }
 
   /* ─── Tree expand/collapse ─── */
@@ -841,7 +886,8 @@ class IntegrationsList extends LitElement {
 
       ${this._renderAddDialog()}
       ${this._showDetail ? this._renderDetailDialog() : ''}
-      <!-- iframe 弹窗已废弃 (v5.0)，跳转直接使用 window.location.href -->
+      ${this._showOperationDialog ? this._renderOperationDialog() : ''}
+      <!-- 跳转到 HA 原生配置页 (使用 hass.navigate 保持侧边栏同步) -->
     `;
   }
 
@@ -853,7 +899,7 @@ class IntegrationsList extends LitElement {
     const anyProcessing = entries.some(e => this._removing[e.entry_id] || this._reloading[e.entry_id]);
 
     return html`
-      <div class="list-row list-row-${st}" @click=${() => this._openDetail(domain, entries)}>
+      <div class="list-row list-row-${st}" @click=${() => { this.hass?.navigate ? this.hass.navigate('/config/integrations/integration/' + domain) : window.location.href = '/config/integrations/integration/' + domain; }}>
         <span class="list-row-name">
           <span class="list-row-icon">${this._renderAvatar(domain)}</span>
           <span class="list-row-title">${this._translateDomain(domain)}</span>
@@ -864,12 +910,8 @@ class IntegrationsList extends LitElement {
           ${multiEntry ? html`<span class="list-entry-count">${entries.length} ${t('entryCount')}</span>` : ''}
         </span>
         <span class="list-row-actions">
-          ${group._has_subentry ? html`
+          ${group._has_subentry || group._supports_options || group._state === 'not-loaded' ? html`
           <button class="list-action-btn manage" @click=${e => { e.stopPropagation(); this._onConfigure(entry0 || entries[0], group); }} title="${t('configureEntry')}">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-          </button>
-          ` : group._can_add ? html`
-          <button class="list-action-btn" @click=${e => { e.stopPropagation(); this._onAddEntry(domain); }} title="${t('configureEntry')}">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
           </button>
           ` : ''}
@@ -890,8 +932,8 @@ class IntegrationsList extends LitElement {
     const entry0 = entries[0];
 
     return html`
-      <div class="card card-${st}" @click=${() => this._openDetail(domain, entries)} role="button" tabindex="0"
-        @keydown=${e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); this._openDetail(domain, entries); } }}>
+      <div class="card card-${st}" @click=${() => { this.hass?.navigate ? this.hass.navigate('/config/integrations/integration/' + domain) : window.location.href = '/config/integrations/integration/' + domain; }} role="button" tabindex="0"
+        @keydown=${e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); this.hass?.navigate ? this.hass.navigate('/config/integrations/integration/' + domain) : window.location.href = '/config/integrations/integration/' + domain; } }}>
 
           <div class="card-img">
             <div class="card-top-bar" @click=${e => e.stopPropagation()}>
@@ -921,14 +963,8 @@ class IntegrationsList extends LitElement {
         </div>
 
         <div class="card-footer" @click=${e => e.stopPropagation()}>
-          ${group._has_subentry ? html`
+          ${group._has_subentry || group._supports_options || group._state === 'not-loaded' ? html`
           <button class="footer-btn manage" @click=${() => this._onConfigure(entry0 || entries[0], group)}
-            title="${t('configureEntry')}">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-            <span class="btn-label">${t('configure') || '配置'}</span>
-          </button>
-          ` : group._can_add ? html`
-          <button class="footer-btn configure" @click=${() => this._onAddEntry(domain)}
             title="${t('configureEntry')}">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
             <span class="btn-label">${t('configure') || '配置'}</span>
@@ -1038,6 +1074,120 @@ class IntegrationsList extends LitElement {
     `;
   }
 
+  _renderOperationDialog() {
+    const entry = this._configureEntry;
+    const group = this._configureGroup;
+    if (!entry) return '';
+    const domain = entry.domain;
+    const isDisabled = !!entry.disabled_by;
+    const st = this._getState(entry);
+    const active = this._activeAction;
+    const result = this._activeActionResult;
+
+    const opts = entry.supports_options;
+    const reconf = entry.supports_reconfigure;
+    const subTypes = entry.supported_subentry_types;
+
+    // Right panel content based on active action
+    const renderRightPanel = () => {
+      if (!active) {
+        return html`<div class="op-prompt">${t('selectAction') || '选择一个操作'}</div>`;
+      }
+      if (result) {
+        if (active === 'remove') {
+          return html`
+            <div class="op-confirm">
+              <div class="op-result-text">${result}</div>
+              <div class="op-confirm-actions">
+                <button class="op-btn-confirm danger" @click=${() => { this._activeActionResult = t('processing') || '处理中...'; this._removeEntry(entry, { stopPropagation: () => {} }, true); }}>${t('confirm') || '确认'}</button>
+                <button class="op-btn-cancel" @click=${() => { this._activeAction = ''; this._activeActionResult = ''; }}>${t('cancel') || '取消'}</button>
+              </div>
+            </div>
+          `;
+        }
+        return html`<div class="op-result"><div class="op-spinner"></div><div class="op-result-text">${result}</div></div>`;
+      }
+      // Nothing to show yet
+      return html`<div class="op-prompt">${t('selectAction') || '选择一个操作'}</div>`;
+    };
+
+    return html`
+      <div class="detail-overlay" role="dialog" aria-modal="true"
+        @click=${e => { if (e.target === e.currentTarget) this._closeOperationDialog(); }}
+        @keydown=${e => { if (e.key === 'Escape') this._closeOperationDialog(); }}>
+        <div class="modal op-modal" @pointerdown=${this._modalPointerDown}>
+          <div class="modal-header">
+            <div class="modal-header-left">
+              ${this._renderAvatar(domain)}
+              <div>
+                <div class="modal-title">${this._translateDomain(domain)}</div>
+                <div class="modal-subtitle" style="display:flex;align-items:center;gap:8px;">
+                  <span class="entry-dot" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${st.dot}"></span>
+                  <span>${st.label}</span>
+                  <span style="color:var(--secondary-text-color);font-size:11px;">· ${domain}</span>
+                </div>
+              </div>
+            </div>
+            <div class="modal-header-right">
+              <button class="modal-close" aria-label="${t('close') || '关闭'}" @click=${this._closeOperationDialog}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
+            </div>
+          </div>
+          <div class="op-body">
+            <!-- Left: vertical action buttons -->
+            <div class="op-left">
+              ${opts ? html`
+                <button class="op-btn ${active === 'configure' ? 'active' : ''}" @click=${() => this._triggerOperation('configure', entry)}
+                  title="${t('configure')}">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                  <span class="op-btn-label">${t('configure')}</span>
+                </button>
+              ` : ''}
+              ${reconf ? html`
+                <button class="op-btn ${active === 'reconfigure' ? 'active' : ''}" @click=${() => this._triggerOperation('reconfigure', entry)}
+                  title="${t('reconfigure') || '重配置'}">
+                  🔄 <span class="op-btn-label">${t('reconfigure') || '重配置'}</span>
+                </button>
+              ` : ''}
+              ${subTypes && subTypes.length > 0 ? html`
+                <button class="op-btn ${active === 'add-subentry' ? 'active' : ''}" @click=${() => this._triggerOperation('add-subentry', entry)}
+                  title="${t('addSubentry') || '添加服务'}">
+                  ➕ <span class="op-btn-label">${t('addSubentry') || '添加服务'}</span>
+                </button>
+              ` : ''}
+              ${!isDisabled ? html`
+                <button class="op-btn ${active === 'disable' ? 'active' : ''}" @click=${() => this._triggerOperation('disable', entry)}
+                  title="${t('disableEntry') || '禁用'}">
+                  ⏹ <span class="op-btn-label">${t('disableEntry') || '禁用'}</span>
+                </button>
+              ` : html`
+                <button class="op-btn enable ${active === 'enable' ? 'active' : ''}" @click=${() => this._triggerOperation('enable', entry)}
+                  title="${t('enableEntry') || '启用'}">
+                  ▶️ <span class="op-btn-label">${t('enableEntry') || '启用'}</span>
+                </button>
+              `}
+              <button class="op-btn ${active === 'reload' ? 'active' : ''}" @click=${() => this._triggerOperation('reload', entry)}
+                title="${t('reloadEntry') || '重载'}">
+                🔁 <span class="op-btn-label">${t('reloadEntry') || '重载'}</span>
+              </button>
+              ${entry.source !== 'system' ? html`
+                <button class="op-btn danger ${active === 'remove' ? 'active' : ''}" @click=${() => this._triggerOperation('remove', entry)}
+                  title="${t('removeEntry') || '删除'}">
+                  🗑 <span class="op-btn-label">${t('removeEntry') || '删除'}</span>
+                </button>
+              ` : ''}
+            </div>
+            <!-- Right: content panel -->
+            <div class="op-right">
+              ${renderRightPanel()}
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
   _renderEntryRow(entry) {
     const state = this._getState(entry);
     const isProcessing = this._removing[entry.entry_id] || this._reloading[entry.entry_id];
@@ -1077,7 +1227,7 @@ class IntegrationsList extends LitElement {
             `}
           </button>
           ${entry.supports_options ? html`
-          <button class="entry-btn" @click=${e => this._configureEntry(entry, e)} title="${t('configureEntry')}" ?disabled=${isProcessing}>
+          <button class="entry-btn" @click=${e => this._openEntryOptions(entry, e)} title="${t('configureEntry')}" ?disabled=${isProcessing}>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
           </button>
           ` : ''}
@@ -1237,6 +1387,61 @@ class IntegrationsList extends LitElement {
       background: var(--primary-color, #03a9f4); color: #fff; border-color: var(--primary-color, #03a9f4);
     }
     .action-btn.primary:hover { opacity: 0.9; }
+
+    /* ===== Operation Dialog — Left/Right Layout ===== */
+    .op-modal { max-width: 680px; max-height: 80vh; }
+    .op-body {
+      display: flex; flex: 1; overflow: hidden;
+    }
+    .op-left {
+      width: 160px; flex-shrink: 0;
+      display: flex; flex-direction: column; gap: 4px;
+      padding: 12px 8px; overflow-y: auto;
+      border-right: 1px solid var(--divider-color, #e0e0e0);
+    }
+    .op-btn {
+      display: flex; align-items: center; gap: 8px;
+      padding: 10px 12px; border: none; border-radius: 8px;
+      background: transparent; color: var(--primary-text-color);
+      cursor: pointer; font-size: 13px; text-align: left;
+      transition: all 0.12s; white-space: nowrap;
+    }
+    .op-btn:hover { background: rgba(0,0,0,0.05); }
+    .op-btn.active { background: var(--primary-color, #03a9f4); color: #fff; }
+    .op-btn.danger { color: #f44336; }
+    .op-btn.danger.active { background: #f44336; color: #fff; }
+    .op-btn.danger:hover:not(.active) { background: rgba(244,67,54,0.08); }
+    .op-btn.enable { color: #4caf50; }
+    .op-btn.enable.active { background: #4caf50; color: #fff; }
+    .op-btn-label { font-weight: 500; }
+
+    .op-right {
+      flex: 1; min-width: 0;
+      display: flex; align-items: center; justify-content: center;
+      padding: 24px; overflow-y: auto;
+    }
+    .op-prompt {
+      color: var(--secondary-text-color); font-size: 14px;
+    }
+    .op-result {
+      display: flex; flex-direction: column; align-items: center; gap: 12px;
+    }
+    .op-result-text { font-size: 14px; color: var(--primary-text-color); text-align: center; }
+    .op-spinner {
+      width: 24px; height: 24px; border: 3px solid var(--divider-color);
+      border-top-color: var(--primary-color); border-radius: 50%;
+      animation: op-spin 0.8s linear infinite;
+    }
+    @keyframes op-spin { to { transform: rotate(360deg); } }
+    .op-confirm { text-align: center; }
+    .op-confirm-actions { display: flex; gap: 12px; margin-top: 16px; justify-content: center; }
+    .op-btn-confirm, .op-btn-cancel {
+      padding: 8px 20px; border-radius: 8px; border: none;
+      font-size: 13px; font-weight: 600; cursor: pointer;
+    }
+    .op-btn-confirm { background: var(--primary-color); color: #fff; }
+    .op-btn-confirm.danger { background: #f44336; }
+    .op-btn-cancel { background: var(--divider-color); color: var(--primary-text-color); }
 
     /* ===== View Toggle ===== */
     .view-toggle {
