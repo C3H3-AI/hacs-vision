@@ -9,60 +9,21 @@ class HACSEnhancedAPI {
   /** Call this when hass becomes available — primary token source */
   setHass(hass) {
     this._hassRef = hass;
-    // Primary: HassAuth token from HA frontend
+    // HassAuth token from HA frontend
     try {
       if (hass?.auth?.data?.access_token) {
         this._token = hass.auth.data.access_token;
-        return;
-      }
-    } catch(e) { /* ignore */ }
-    // Fallback: older HA versions
-    try {
-      if (hass?.connection?.accessToken) {
-        this._token = hass.connection.accessToken;
-      } else if (hass?.authToken) {
-        this._token = hass.authToken;
       }
     } catch(e) { /* ignore */ }
   }
 
   _getHeaders() {
     const headers = { 'Content-Type': 'application/json' };
-    // Try to get token from hass ref (setHass called)
-    if (!this._token) {
-      try {
-        if (this._hassRef?.auth?.data?.access_token) {
-          this._token = this._hassRef.auth.data.access_token;
-        }
-      } catch(e) {}
-    }
-    // Fallback: iframe embed mode → HA is in parent frame
-    if (!this._token) {
-      try {
-        const parentDoc = window.parent?.document;
-        if (parentDoc) {
-          const haEl = parentDoc.querySelector('home-assistant');
-          const hass = haEl?.hass;
-          if (hass?.auth?.data?.access_token) {
-            this._token = hass.auth.data.access_token;
-          }
-        }
-      } catch(e) {
-        // Cross-origin iframe — skip token from parent
-        console.warn('[HACS Vision] Cross-origin iframe context: cannot extract token from parent frame');
-      }
-    }
-    // Final fallback: direct document (non-panel context)
-    if (!this._token) {
-      try {
-        const haEl = document.querySelector('home-assistant');
-        const hass = haEl?.hass;
-        if (hass?.auth?.data?.access_token) {
-          this._token = hass.auth.data.access_token;
-        }
-      } catch(e) {}
-    }
+    // Token from hass ref (set via setHass)
     if (this._token) {
+      headers['Authorization'] = `Bearer ${this._token}`;
+    } else if (this._hassRef?.auth?.data?.access_token) {
+      this._token = this._hassRef.auth.data.access_token;
       headers['Authorization'] = `Bearer ${this._token}`;
     }
     return headers;
