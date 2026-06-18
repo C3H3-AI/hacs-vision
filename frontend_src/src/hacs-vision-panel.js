@@ -127,9 +127,13 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
     .store {
       padding: 16px;
       padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px));
-      min-height: 60vh;
+      min-height: 100vh;
       background: var(--primary-background-color, #f5f5f5);
       font-family: var(--paper-font-body1_-_font-family, 'Roboto', sans-serif);
+      display: flex; flex-direction: column;
+    }
+    .store-content {
+      flex: 1; overflow-y: auto; min-height: 0;
     }
 
     /* ===== Error Banner ===== */
@@ -154,6 +158,14 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
       background: var(--primary-color, #03a9f4); border-radius: 12px; color: #fff;
       font-size: 22px; font-weight: 700;
     }
+    .sidebar-toggle {
+      display: none; align-items: center; justify-content: center;
+      width: 36px; height: 36px; border: none; background: transparent;
+      color: var(--primary-text-color); cursor: pointer; border-radius: 8px;
+      flex-shrink: 0; touch-action: manipulation;
+    }
+    .sidebar-toggle:hover { background: rgba(var(--rgb-primary-color, 3,169,244), 0.1); }
+    @media (max-width: 768px) { .sidebar-toggle { display: flex; } }
     .title-group h1 { font-size: 19px; font-weight: 700; color: var(--primary-text-color, #212121); margin: 0; }
     .title-group p { font-size: 12px; color: var(--secondary-text-color, #727272); margin: 4px 0 0; }
     .header-right { display: flex; gap: 24px; flex-wrap: wrap; }
@@ -195,6 +207,9 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
       background: var(--primary-background-color, #f5f5f5);
       margin: 0 -16px 12px; padding: 0 16px 12px;
       padding-top: env(safe-area-inset-top, 0px);
+    }
+    .store-content {
+      flex: 1; overflow-y: auto; min-height: 0;
     }
     .tabs-wrapper { position: relative; }
     .tabs {
@@ -1024,6 +1039,38 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
     this._detailExpanded = !this._detailExpanded;
   }
 
+  _toggleSidebar() {
+    // Approach 1: Dispatch hass-toggle-menu from component (standard method)
+    try {
+      this.dispatchEvent(new Event('hass-toggle-menu', { bubbles: true, composed: true }));
+    } catch(e) {}
+
+    // Approach 2: Direct DOM - find ha-sidebar and toggle its opened state
+    // In panel_custom(embed_iframe=False) mode, this component's document
+    // IS the main HA document, so document.querySelector works.
+    try {
+      const ha = document.querySelector('home-assistant');
+      if (!ha) return;
+      // Try accessing shadowRoot
+      const root = ha.shadowRoot;
+      if (!root) return;
+      // Try ha-sidebar toggle method
+      const sidebar = root.querySelector('ha-sidebar');
+      if (sidebar && typeof sidebar.toggle === 'function') {
+        sidebar.toggle();
+        return;
+      }
+      // Fallback: set opened property directly
+      if (sidebar && sidebar.hasAttribute('opened')) {
+        sidebar.removeAttribute('opened');
+      } else if (sidebar) {
+        sidebar.setAttribute('opened', '');
+      }
+    } catch(e) {
+      console.warn('[HACS Vision] Sidebar DOM approach failed:', e);
+    }
+  }
+
   async _toggleVersionSelector() {
     this._showVersionSelector = !this._showVersionSelector;
     if (this._showVersionSelector && this._releases.length === 0) {
@@ -1239,8 +1286,14 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
           <div class="network-banner warning">${t('haRestarting')}</div>
         ` : ''}
 
+        <!-- Sticky Header + Tabs -->
+        <div class="sticky-header">
+
         <!-- Header -->
           <div class="header">
+          ${this.narrow ? html`<button class="sidebar-toggle" @click=${this._toggleSidebar} aria-label="切换侧边栏">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22" height="22"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+          </button>` : ''}
           <div class="header-left">
             <div class="header-icon">
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -1292,8 +1345,6 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
         </div>
         ` : ''}
 
-        <!-- Sticky Tabs -->
-        <div class="sticky-header">
           <div class="tabs-wrapper">
             <div class="tabs" role="tablist">
               ${tabs.map(tab => html`
@@ -1308,6 +1359,9 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
             </div>
           </div>
         </div>
+
+        <!-- Scrollable content -->
+        <div class="store-content">
 
         <!-- Content with fade transition -->
         <div class="content ${this._viewTransition ? 'transitioning' : ''}">

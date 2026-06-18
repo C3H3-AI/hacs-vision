@@ -49,11 +49,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigType) -> bool:
     return True
 
 async def _register_panel(hass: HomeAssistant) -> None:
-    """Register HACS Vision as a native frontend panel.
+    """Register HACS Vision as a frontend panel.
 
-    Uses panel_custom embed_iframe=False so the component loads directly
-    in HA's main document (not iframe), giving access to SPA routing,
-    document.title, and full CSS inheritance.
+    Uses panel_custom embed_iframe=False for native frontend rendering.
+    Sidebar toggling uses hass-toggle-menu event dispatched from
+    the component's shadow DOM (bubbles + composed).
     """
     from homeassistant.components.frontend import async_remove_panel
 
@@ -64,7 +64,7 @@ async def _register_panel(hass: HomeAssistant) -> None:
         except Exception:
             pass
 
-    # 2. Register via panel_custom for native frontend loading
+    # 2. Register via panel_custom (same as hassbox store etc.)
     from homeassistant.components import panel_custom
     await panel_custom.async_register_panel(
         hass=hass,
@@ -77,7 +77,7 @@ async def _register_panel(hass: HomeAssistant) -> None:
         require_admin=True,
         config={},
     )
-    _LOGGER.debug("Registered native frontend panel: %s (embed_iframe=False via panel_custom)", URL_PATH)
+    _LOGGER.debug("Registered panel: %s (panel_custom embed_iframe=False)", URL_PATH)
 
 
 def _register_services(hass: HomeAssistant, operator) -> None:
