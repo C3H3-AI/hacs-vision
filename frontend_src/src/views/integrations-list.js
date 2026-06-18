@@ -1550,6 +1550,12 @@ class IntegrationsList extends LitElement {
       .iframe-modal { width: 96vw; height: 85vh; }
       .config-iframe { width: calc(100% + 200px); margin-left: -200px; }
     }
+    @media (max-width: 500px) {
+      .iframe-modal { width: 100vw; height: 100vh; border-radius: 0; max-width: none; }
+      .iframe-modal .modal-header { padding: 8px 12px; }
+      .config-iframe { width: 100%; margin-left: 0; }
+      .iframe-body { overflow: auto; -webkit-overflow-scrolling: touch; }
+    }
 
     /* Tree action buttons (expand/collapse all) */
     .modal-header-right { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
