@@ -100,6 +100,8 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
       api.setHass(this.hass);
       if (!this._apiReady) {
         this._apiReady = true;
+        // Set page title on first load
+        this._updatePageTitle(this.currentView);
         // Parallel init: stats (includes favorites) + config entries
         Promise.all([this._loadStats(), this._loadConfigEntries()]).catch(e => console.error('Init error:', e));
         // F2: Register network status callback once
@@ -777,6 +779,19 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
       bubbles: true, composed: true,
     }));
     setTimeout(() => { this._viewTransition = false; }, 150);
+    // Update page title for current view
+    this._updatePageTitle(view);
+  }
+
+  _updatePageTitle(view) {
+    const titles = {
+      browse: t('tabBrowse') || '商店',
+      integrations: t('tabIntegrations') || '集成管理',
+      updates: t('tabUpdates') || '更新',
+      management: t('tabManagement') || '管理',
+      settings: t('tabSettings') || '设置',
+    };
+    document.title = `${titles[view] || view} · HACS Vision`;
   }
 
   _openDetail(repo) {

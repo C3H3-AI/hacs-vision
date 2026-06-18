@@ -34,9 +34,7 @@ class IntegrationsList extends LitElement {
     _sortBy: { type: String, state: true },                // name | entries | status
     _sortDir: { type: String, state: true },               // asc | desc
     _configMenuFor: { type: Object, state: true },         // { domain, anchor } → show dropdown
-    _testIframeUrl: { type: String, state: true },          // HA config page iframe URL (B方案测试)
-    _iframeFullscreen: { type: Boolean, state: true },      // iframe全屏切换
-    _iframeZoom: { type: Number, state: true },             // iframe缩放比例
+    _testIframeUrl: { type: String, state: true },          // HA config page iframe URL (保留兼容)
   };
 
   constructor() {
@@ -843,7 +841,7 @@ class IntegrationsList extends LitElement {
 
       ${this._renderAddDialog()}
       ${this._showDetail ? this._renderDetailDialog() : ''}
-      ${this._renderTestIframe()}
+      <!-- iframe 弹窗已废弃 (v5.0)，跳转直接使用 window.location.href -->
     `;
   }
 
@@ -855,7 +853,7 @@ class IntegrationsList extends LitElement {
     const anyProcessing = entries.some(e => this._removing[e.entry_id] || this._reloading[e.entry_id]);
 
     return html`
-      <div class="list-row list-row-${st}" @click=${() => { this._testIframeDomain = domain; this._testIframeUrl = '/config/integrations/integration/' + domain; }}>
+      <div class="list-row list-row-${st}" @click=${() => { window.location.href = '/config/integrations/integration/' + domain; }}>
         <span class="list-row-name">
           <span class="list-row-icon">${this._renderAvatar(domain)}</span>
           <span class="list-row-title">${this._translateDomain(domain)}</span>
@@ -892,8 +890,8 @@ class IntegrationsList extends LitElement {
     const entry0 = entries[0];
 
     return html`
-      <div class="card card-${st}" @click=${() => { this._testIframeDomain = domain; this._testIframeUrl = '/config/integrations/integration/' + domain; }} role="button" tabindex="0"
-        @keydown=${e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); this._testIframeDomain = domain; this._testIframeUrl = '/config/integrations/integration/' + domain; } }}>
+      <div class="card card-${st}" @click=${() => { window.location.href = '/config/integrations/integration/' + domain; }} role="button" tabindex="0"
+        @keydown=${e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); window.location.href = '/config/integrations/integration/' + domain; } }}>
 
           <div class="card-img">
             <div class="card-top-bar" @click=${e => e.stopPropagation()}>
@@ -1535,27 +1533,7 @@ class IntegrationsList extends LitElement {
     .modal-close svg { width: 16px; height: 16px; }
     .modal-close:hover { background: var(--primary-color, #03a9f4); color: #fff; }
 
-    /* iframe modal (B方案) */
-    .iframe-modal { width: 90vw; max-width: 1000px; height: 80vh; display: flex; flex-direction: column; }
-    .iframe-modal.fullscreen { width: 98vw; max-width: none; height: 95vh; }
-    .iframe-modal .modal-header { flex-shrink: 0; }
-    .iframe-body { flex: 1; overflow: hidden; padding: 0; position: relative; }
-    .config-iframe {
-      width: calc(100% + 260px); height: 100%; border: none;
-      margin-left: -260px; /* 向左偏移裁掉侧边栏 */
-      display: block;
-    }
-    /* 响应式：小屏侧边栏更窄 */
-    @media (max-width: 768px) {
-      .iframe-modal { width: 96vw; height: 85vh; }
-      .config-iframe { width: calc(100% + 200px); margin-left: -200px; }
-    }
-    @media (max-width: 500px) {
-      .iframe-modal { width: 100vw; height: 100vh; border-radius: 0; max-width: none; }
-      .iframe-modal .modal-header { padding: 8px 12px; }
-      .config-iframe { width: 100%; margin-left: 0; }
-      .iframe-body { overflow: auto; -webkit-overflow-scrolling: touch; }
-    }
+    /* iframe modal 已废弃 (v5.0 改用直接跳转) */
 
     /* Tree action buttons (expand/collapse all) */
     .modal-header-right { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
