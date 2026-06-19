@@ -20,7 +20,6 @@ URL_PATH = "hacs-vision"
 STORE_KEY = "hacs_vision"
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
-    hass.data.setdefault(DOMAIN, {})
     return True
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigType) -> bool:
@@ -38,10 +37,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigType) -> bool:
     checker = DependencyChecker(hass, shared_data=shared_data)
 
     hass.http.register_view(HACSEnhancedStaticView(hass))
-    hass.http.register_view(HACSEnhancedAPI(hass, data=shared_data, operator=operator, backup=backup, checker=checker))
+    api_view = HACSEnhancedAPI(hass, data=shared_data, operator=operator, backup=backup, checker=checker)
+    hass.http.register_view(api_view)
     hass.http.register_view(HACSBrandIconView(hass))
     await _register_panel(hass)
-    hass.data.setdefault(DOMAIN, {})["entry"] = entry
+
+    hass.data.setdefault(DOMAIN, {})
+    hass.data[DOMAIN]["entry"] = entry
+    hass.data[DOMAIN]["api"] = api_view
+    hass.data[DOMAIN]["listeners"] = []
 
     # Register services
     _register_services(hass, operator)
@@ -57,8 +61,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigType) -> bool:
             except Exception as exc:
                 _LOGGER.warning("Config cache rebuild error: %s", exc)
 
-        hass.bus.async_listen("config_entry_updated", _rebuild_cache)
-        hass.bus.async_listen("config_entry_removed", _rebuild_cache)
+        unsub1 = hass.bus.async_listen("config_entry_updated", _rebuild_cache)
+        unsub2 = hass.bus.async_listen("config_entry_removed", _rebuild_cache)
+        hass.data[DOMAIN]["listeners"] = [unsub1, unsub2]
     except Exception as exc:
         _LOGGER.warning("Config entries cache init error: %s", exc)
 
@@ -82,6 +87,7 @@ async def _register_panel(hass: HomeAssistant) -> None:
 
     # 2. Register via panel_custom (same as hassbox store etc.)
     from homeassistant.components import panel_custom
+    
     await panel_custom.async_register_panel(
         hass=hass,
         frontend_url_path=URL_PATH,
@@ -102,11 +108,21 @@ def _register_services(hass: HomeAssistant, operator) -> None:
 
     async def handle_refresh(call: ServiceCall) -> None:
         """Handle refresh service call."""
-        if operator.available:
-            try:
-                await operator.refresh_repositories()
-            except Exception as e:
-                _LOGGER.error("Refresh service failed: %s", e, exc_info=True)
+        if not operator.available:
+            _LOGGER.warning("Refresh service called but HACS is not available")
+            return
+        try:
+            result = await operator.refresh_repositories()
+            updated = result.get("updated", 0)
+            errors = result.get("errors", [])
+            rate_limited = result.get("rate_limited", False)
+            if errors:
+                _LOGGER.warning("Refresh service: updated %d repos, %d errors, rate_limited=%s",
+                                updated, len(errors), rate_limited)
+            else:
+                _LOGGER.info("Refresh service: updated %d repos successfully", updated)
+        except Exception as e:
+            _LOGGER.error("Refresh service failed: %s", e, exc_info=True)
 
     async def handle_install_repository(call: ServiceCall) -> None:
         """Handle install_repository service call."""
@@ -234,6 +250,21 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigType) -> bool:
     hass.services.async_remove(DOMAIN, "find_entity_refs")
     hass.services.async_remove(DOMAIN, "replace_entity_refs")
 
-    # 3. Clean up data
+    # 3. Remove event listeners
+    for listener in hass.data.get(DOMAIN, {}).get("listeners", []):
+        try:
+            listener()
+        except Exception:
+            pass
+
+    # 4. Close shared aiohttp session
+    api = hass.data.get(DOMAIN, {}).get("api")
+    if api and hasattr(api, 'async_close'):
+        try:
+            await api.async_close()
+        except Exception:
+            pass
+
+    # 5. Clean up data
     hass.data.pop(DOMAIN, None)
     return True

@@ -914,32 +914,29 @@ class HACSEnhancedAPI(HomeAssistantView):
 
         import asyncio
 
-        # Use a shared session for efficiency
-        async def _fetch_all():
-            async with aiohttp.ClientSession() as session:
-                sem = asyncio.Semaphore(5)
-                async def _fetch_one(full_name: str) -> tuple[str, int]:
-                    url = f"https://api.github.com/repos/{full_name}/releases/latest"
-                    async with sem:
-                        try:
-                            async with session.get(url, timeout=aiohttp.ClientTimeout(total=10)) as resp:
-                                if resp.status == 200:
-                                    data = await resp.json()
-                                    total = sum(
-                                        asset.get("download_count", 0)
-                                        for asset in data.get("assets", [])
-                                    )
-                                    _DOWNLOAD_CACHE[full_name] = {"count": total, "timestamp": now}
-                                    return full_name, total
-                        except Exception:
-                            pass
-                        _DOWNLOAD_CACHE[full_name] = {"count": 0, "timestamp": now}
-                        return full_name, 0
+        session = await self._get_session()
+        sem = asyncio.Semaphore(5)
 
-                tasks = [_fetch_one(fn) for fn in need_fetch]
-                return await asyncio.gather(*tasks, return_exceptions=True)
+        async def _fetch_one(full_name: str) -> tuple[str, int]:
+            url = f"https://api.github.com/repos/{full_name}/releases/latest"
+            async with sem:
+                try:
+                    async with session.get(url, timeout=aiohttp.ClientTimeout(total=10)) as resp:
+                        if resp.status == 200:
+                            data = await resp.json()
+                            total = sum(
+                                asset.get("download_count", 0)
+                                for asset in data.get("assets", [])
+                            )
+                            _DOWNLOAD_CACHE[full_name] = {"count": total, "timestamp": now}
+                            return full_name, total
+                except Exception:
+                    pass
+                _DOWNLOAD_CACHE[full_name] = {"count": 0, "timestamp": now}
+                return full_name, 0
 
-        results = await _fetch_all()
+        tasks = [_fetch_one(fn) for fn in need_fetch]
+        results = await asyncio.gather(*tasks, return_exceptions=True)
         result_map = {}
         for res in results:
             if isinstance(res, tuple):
@@ -1204,6 +1201,12 @@ class HACSEnhancedAPI(HomeAssistantView):
         if self._session is None or self._session.closed:
             self._session = aiohttp.ClientSession()
         return self._session
+
+    async def async_close(self) -> None:
+        """Close shared aiohttp session."""
+        if self._session is not None and not self._session.closed:
+            await self._session.close()
+            self._session = None
 
     async def _get_readme(self, full_name: str) -> web.Response:
         """Proxy GitHub README request with rate limit awareness and server-side cache."""
