@@ -41,7 +41,6 @@ class ConfigFlowDialog extends LitElement {
     _subentryReconfigureId: { type: String, state: true },
     _forceFlowType: { type: String },  // 'options' | 'reconfigure' | 'subentry' | null — test override
     _passwordVisible: { type: Boolean, state: true },
-    _debugMsg: { type: String, state: true },
   };
 
   constructor() {
@@ -68,7 +67,6 @@ class ConfigFlowDialog extends LitElement {
     this._lang = 'zh-Hans';
     this._dialogDrag = { offsetX: 0, offsetY: 0, startX: 0, startY: 0, dragging: false };
     this._cleanedUp = false;
-    this._debugMsg = '';
   }
 
   /** Get hass object — from prop or directly from parent HA iframe */
@@ -147,10 +145,8 @@ class ConfigFlowDialog extends LitElement {
   updated(changed) {
     try {
       if (changed.has('open') && this.open) {
-        this._debugMsg = 'opened, starting flow...';
         this._startFlowWithEntryCheck();
       } else if (this.open && (changed.has('entryId') || changed.has('domain'))) {
-        this._debugMsg = 'entryId/domain changed, restarting flow...';
         this._startFlowWithEntryCheck();
       }
       if (changed.has('open') && !this.open && changed.get('open') === true) {
@@ -169,7 +165,6 @@ class ConfigFlowDialog extends LitElement {
     }
     } catch(e) {
       console.error('HACS Vision: updated() error:', e);
-      this._debugMsg = `updated error: ${e.message}`;
     }
   }
 
@@ -442,8 +437,6 @@ class ConfigFlowDialog extends LitElement {
   }
 
   async _startFlow() {
-    this._debugMsg = '_startFlow() called';
-    console.log('HACS Vision: _startFlow', { domain: this.domain, entryId: this.entryId, isOptions: this._isOptions, isSubentry: this._isSubentry, forceFlowType: this._forceFlowType, flowAction: this.flowAction });
     if (this._isSubentry && !this._subentryType && !this._isSubentryReconfigure) {
       this._loading = false;
       this._finished = false;
@@ -458,12 +451,6 @@ class ConfigFlowDialog extends LitElement {
     this._result = null;
     this._step = null;
     this._errors = {};
-    this._flowTimeout2 = setTimeout(() => {
-      // Safety net: if dialog never got a result in 10s, force show "waiting" state
-      if (this._loading && !this._finished) {
-        this._debugMsg = 'TIMEOUT: no response in 10s';
-      }
-    }, 10000);
     this.requestUpdate();
 
     this._startLoadingTimeout();
@@ -472,8 +459,6 @@ class ConfigFlowDialog extends LitElement {
       const flowDomain = this._isOptions || this._isSubentry
         ? this._getFlowDomain()
         : this.domain;
-      this._debugMsg = `flow:${flowDomain} opts:${this._isOptions} sub:${this._isSubentry} eid:${this.entryId}`;
-      console.debug('HACS Vision: _startFlow', { isOptions: this._isOptions, isSubentry: this._isSubentry, entryId: this.entryId, domain: this.domain, flowAction: this.flowAction, flowDomain });
       if (flowDomain) {
         await this._loadTranslations(flowDomain);
       }
@@ -493,9 +478,7 @@ class ConfigFlowDialog extends LitElement {
       }
 
       await this._handleFlowResponse(result);
-      this._debugMsg = `API OK: ${result?.type} step:${result?.step_id}`;
     } catch (e) {
-      this._debugMsg = `ERROR: ${e?.message?.slice(0,80)}`;
       console.error('HACS Vision: _startFlow caught error:', e?.message, e?.stack);
       const is404 = e?.message?.includes('404');
       console.warn('HACS Vision: _startFlow error', { is404, isOptions: this._isOptions, entryId: this.entryId, domain: this.domain });
@@ -994,7 +977,6 @@ class ConfigFlowDialog extends LitElement {
             </div>
           ` : ''}
         </div>
-        ${this._debugMsg ? html`<div style="padding:8px 16px;font-size:12px;color:#ff5722;background:#fff3e0;border-top:2px solid #ff9800;text-align:center;word-break:break-all;">🔍 ${this._debugMsg}</div>` : ''}
       </div>
     `;
   }
