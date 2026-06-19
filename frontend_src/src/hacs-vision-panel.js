@@ -1485,13 +1485,23 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
       { view: 'settings', label: t('tabSettings'), icon: '', count: null },
     ];
 
-    const r = this._detailRepo;
-    const isInstalled = r?.installed || false;
-    const isUpdateAvailable = isInstalled && (
-      r?.has_update ||
-      (r?.installed_version && r?.latest_version && r.installed_version !== r.latest_version)
-    );
-    const categoryColor = r ? getCategoryColor(r.category) : '#03a9f4';
+    return html`
+      <div class="store">
+        <!-- ⚠️: modals must render OUTSIDE this .store container.
+             .store uses display:flex; modals use position:fixed — placing
+             them as flex children causes browser rendering anomalies
+             (overlay fails to cover viewport, clicks blocked).
+             Render them below, after </div>. -->
+
+        ${this._renderStoreContent(tabs)}
+      </div>
+
+      ${this._renderModals(tabs)}
+    `;
+  }
+
+  /** Store header, tabs, scrollable content (inside flex container) */
+  _renderStoreContent(tabs) {
 
     return html`
       <div class="store">
@@ -1629,7 +1639,14 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
           <config-view .hass=${this.hass} @refresh-stats=${this._loadStats} ?hidden=${this.currentView !== 'settings'}></config-view>
         </div>
       </div>
+    `;
+  }
 
+  /** Modals rendered outside .store flex container to prevent position:fixed anomalies. */
+  _renderModals(tabs) {
+    const r = this._detailRepo;
+
+    return html`
       <!-- Detail Modal -->
       ${this._showDetail && r ? html`
         <div class="modal-overlay" role="dialog" aria-modal="true" aria-label="${r.manifest_name || r.full_name || t('detail')}" @click=${(e) => { if (e.target === e.currentTarget) this._closeDetail(); }}>
