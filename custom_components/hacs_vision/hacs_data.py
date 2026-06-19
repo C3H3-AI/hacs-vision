@@ -59,21 +59,32 @@ class HACSData:
             return False
 
     def _write_file(self, path: str, content: str) -> None:
-        """Atomic write: write to temp file, then rename."""
+        """Atomic write: write to temp file, fsync, then rename (no intermediate backup).
+
+        Correct atomic write sequence:
+          1. Write content to a .tmp file with fsync
+          2. os.replace(.tmp → target) — atomic on same filesystem
+          3. Clean up any stale .bak from previous runs
+
+        Do NOT create a .bak before replacing — that introduces a window where
+        crash between os.replace(old→bak) and os.replace(tmp→old) loses the file.
+        """
         import os
         temp_path = f"{path}.tmp"
-        backup_path = f"{path}.bak"
-        # Write to temp file first
+        # Write to temp file, then fsync for crash safety
         with open(temp_path, "w", encoding="utf-8") as f:
             f.write(content)
-        # Backup existing file
-        if os.path.exists(path):
+            f.flush()
+            os.fsync(f.fileno())
+        # Atomic replace (same filesystem) — no intermediate backup
+        os.replace(temp_path, path)
+        # Clean up stale backup from previous runs
+        backup_path = f"{path}.bak"
+        if os.path.isfile(backup_path):
             try:
-                os.replace(path, backup_path)
+                os.remove(backup_path)
             except OSError:
                 pass
-        # Move temp to target (atomic on same filesystem)
-        os.replace(temp_path, path)
 
     async def read_storage(self, key: str) -> dict | None:
         """Read a .storage file, return parsed JSON."""

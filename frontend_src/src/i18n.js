@@ -87,7 +87,6 @@ const T = {
   loading: { zh: '加载中...', en: 'Loading...' },
   sort: { zh: '排序', en: 'Sort' },
   filterMore: { zh: '筛选与排序', en: 'Filter & Sort' },
-  tagNew: { zh: '新', en: 'New' },
   prevPage: { zh: '← 上一页', en: '← Previous' },
   nextPage: { zh: '下一页 →', en: 'Next →' },
   page: { zh: '第', en: 'Page' },
@@ -178,7 +177,6 @@ const T = {
   removeArchived: { zh: '移除归档', en: 'Remove Archived' },
   removeRenamed: { zh: '移除重命名', en: 'Remove Renamed' },
   replace: { zh: '替换', en: 'Replace' },
-  viewDetail: { zh: '查看详情', en: 'View Detail' },
   confirmRemoveArchived: { zh: '确定要移除 {repo} 的归档状态吗？将重新出现在搜索结果中。', en: 'Unarchive {repo}? It will reappear in search results.' },
   confirmRemoveRenamed: { zh: '确定要删除仓库 {old} 的重命名映射记录吗？仓库将使用旧名，若旧名无效则更新可能失败。', en: 'Delete rename mapping for {old}? The repository will use the old name. If the old name is invalid, updates may fail.' },
   confirmReplaceRenamed: { zh: '将替换仓库 {old} → {new}？将卸载旧仓库并安装新仓库。', en: 'Replace {old} → {new}? Old repo will be uninstalled, new one will be installed.' },
@@ -230,7 +228,7 @@ const T = {
   search: { zh: '搜索', en: 'Search' },
   refreshTitle: { zh: '刷新', en: 'Refresh' },
   totalPrefix: { zh: '共', en: 'Total' },
-  selected: { zh: '已选', en: 'selected' },
+  selected: { zh: '已选', en: 'Selected' },
   totalCount: { zh: '共', en: 'Total' },
   all: { zh: '全部', en: 'All' },
   repositories: { zh: '仓库', en: 'Repositories' },
@@ -259,13 +257,11 @@ const T = {
   deleted: { zh: '已删除', en: 'Deleted' },
   deleteFailed: { zh: '删除失败', en: 'Delete failed' },
   confirmUpdate: { zh: '确认更新', en: 'Confirm Update' },
-  enabled: { zh: '启用', en: 'Enabled' },
   disabled: { zh: '禁用', en: 'Disabled' },
   configure: { zh: '配置', en: 'Configure' },
   enableEntry: { zh: '启用', en: 'Enable' },
   disableEntry: { zh: '禁用', en: 'Disable' },
   subentryConfig: { zh: '子项配置', en: 'Sub-entry Config' },
-  addSubentry: { zh: '添加新子项', en: 'Add Sub-entry' },
   addSubentryHint: { zh: '点击添加新的子项配置', en: 'Click to add a new sub-entry' },
   save: { zh: '保存', en: 'Save' },
 
@@ -396,7 +392,6 @@ const T = {
   invalidOrgInput: { zh: '无效的仓库地址或组织名，请输入 owner/repo 或 GitHub 组织名', en: 'Invalid URL or org name, enter owner/repo or GitHub org name' },
 
   // Add Integration Entry
-  addIntegration: { zh: '配置', en: 'Configure' },
   addIntegrationHint: { zh: '配置此 HA 集成', en: 'Configure this HA integration' },
   addHAIntegration: { zh: '添加 HA 集成', en: 'Add HA Integration' },
   addHAIntegrationDesc: { zh: '搜索并添加 Home Assistant 内置或自定义集成', en: 'Search and add Home Assistant built-in or custom integrations' },
@@ -504,12 +499,6 @@ const T = {
   starred: { zh: '已星标', en: 'Starred' },
   starBtn: { zh: '星标', en: 'Star' },
   cloud: { zh: '需要互联网', en: 'Requires Internet' },
-  tools: { zh: '工具', en: 'Tools' },
-  expandAll: { zh: '展开全部', en: 'Expand All' },
-  collapseAll: { zh: '全部折叠', en: 'Collapse All' },
-  customBadge: { zh: '自定义', en: 'Custom' },
-  selected: { zh: '已选', en: 'Selected' },
-  batchComplete: { zh: '批量操作完成', en: 'Batch complete' },
   importFromHacs: { zh: '从 HACS 导入', en: 'Import from HACS' },
   tokenImported: { zh: '已从 HACS 导入 Token', en: 'Token imported from HACS' },
   tokenImportFailed: { zh: 'HACS 中未找到 Token', en: 'No token found in HACS' },
@@ -518,6 +507,15 @@ const T = {
   syncFavToStar: { zh: '收藏同步点赞', en: 'Favorites → Stars' },
   syncStarToFav: { zh: '点赞同步收藏', en: 'Stars → Favorites' },
   addIntegration: { zh: '添加集成', en: 'Add Integration' },
+  orgInputRequired: { zh: '请输入 GitHub 组织名或 URL', en: 'Please enter a GitHub org name or URL' },
+  addStarredToCustomList: { zh: '已添加 {n} 个星标仓库到自定义列表', en: 'Added {n} starred repos to custom list' },
+  addReposToCustomList: { zh: '已添加 {n} 个仓库到自定义列表', en: 'Added {n} repos to custom list' },
+  syncDoneResult: { zh: '同步完成: {ok} 个成功{failPart}', en: 'Sync done: {ok} succeeded{failPart}' },
+  failPartSuffix: { zh: ', {fail} 个失败', en: ', {fail} failed' },
+  noPermissionMsg: { zh: '{n} 个仓库无权限点赞', en: '{n} repos without star permission' },
+  logoutGithub: { zh: '已登出 GitHub', en: 'Logged out of GitHub' },
+  githubVerifyResult: { zh: '已验证 ✅ 用户: {user} (剩余 {remaining}/5000 次/小时)', en: 'Verified ✅ User: {user} ({remaining}/5000 remaining)' },
+  errorPrefix: { zh: '{action}失败: {err}', en: '{action} failed: {err}' },
 
   // === Missing keys for i18n completeness ===
   githubToken: { zh: 'GitHub Token', en: 'GitHub Token' },
@@ -565,7 +563,7 @@ export function t(key, params) {
   let text = entry[_LANG] || entry.zh || entry.en || key;
   if (params) {
     for (const [k, v] of Object.entries(params)) {
-      text = text.replace(new RegExp(`\\{${k}\\}`, 'g'), v);
+      text = text.split(`{${k}}`).join(v);
     }
   }
   return text;

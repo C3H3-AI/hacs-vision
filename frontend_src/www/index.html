@@ -9,7 +9,7 @@
     html, body {
       width: 100%; min-height: 100%;
       overflow-x: hidden;
-      background: #1c1c1c;
+      background: var(--primary-background-color, transparent);
     }
     hacs-vision-panel {
       display: block;
@@ -57,8 +57,8 @@
             return;
           }
         } catch(e) {}
-        document.body.style.backgroundColor = '#1c1c1c';
-        document.documentElement.style.setProperty('--primary-background-color', '#1c1c1c');
+        document.body.style.backgroundColor = 'transparent';
+        document.documentElement.style.setProperty('--primary-background-color', 'inherit');
       }
       // Try immediately, then poll up to 10s
       syncIframeBg();

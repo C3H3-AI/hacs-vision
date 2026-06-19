@@ -233,6 +233,13 @@ class ConfigView extends LitElement {
   render() {
     return html`
       <div class="container">
+
+        <!-- 🚨 DEBUG BAR - 直接静态文本，不需要任何状态 -->
+        <div style="background:#ff0000;color:#fff;padding:12px;margin-bottom:16px;border-radius:8px;font-size:16px;font-weight:700;text-align:center;">
+          🔧 DEBUG MODE ACTIVE 🔧
+          <div style="font-size:12px;font-weight:400;margin-top:4px;">如果你看到这行字，config-view 渲染正常</div>
+        </div>
+
         <div class="config-grid">
 
         <!-- 列1：🔑 GitHub -->
@@ -249,17 +256,17 @@ class ConfigView extends LitElement {
               ${this._githubAvatar
                 ? html`<img src="${this._githubAvatar}" style="width:28px;height:28px;border-radius:50%;border:1px solid var(--divider-color);flex-shrink:0;" @error=${e => e.target.style.display='none'}>`
                 : html`<span style="width:28px;height:28px;border-radius:50%;background:var(--primary-color,#03a9f4);color:#fff;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:600;flex-shrink:0;">${this._githubUser[0].toUpperCase()}</span>`}
-              <span style="font-size:13px;">✅ HACS 用户: <strong>${this._githubUser}</strong></span>
+              <span style="font-size:13px;">${t('hacsUser', { user: this._githubUser })}</span>
               <button class="btn" style="font-size:11px;padding:4px 10px;" @click=${this._githubLogout}>${t('logout') || '登出'}</button>
             </div>
             <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;">
               <button class="btn" style="font-size:11px;padding:6px 12px;" @click=${this._syncFavToStar} ?disabled=${this._syncFavToStarring}>
-                ${this._syncFavToStarring ? html`<svg class="mini-icon spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;vertical-align:middle;"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> 同步中...`
+                ${this._syncFavToStarring ? html`<svg class="mini-icon spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;vertical-align:middle;"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> ${t('syncingShort')}`
                 : this._syncFavToStarResult ? html`<span style="color:var(--primary-color,#03a9f4)">${this._syncFavToStarResult}</span>`
                 : html`📤 ${t('syncFavToStar') || '收藏同步点赞'}`}
               </button>
               <button class="btn" style="font-size:11px;padding:6px 12px;" @click=${this._syncStarToFav} ?disabled=${this._syncStarToFaving}>
-                ${this._syncStarToFaving ? html`<svg class="mini-icon spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;vertical-align:middle;"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> 同步中...`
+                ${this._syncStarToFaving ? html`<svg class="mini-icon spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;vertical-align:middle;"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> ${t('syncingShort')}`
                 : this._syncStarToFavResult ? html`<span style="color:var(--primary-color,#03a9f4)">${this._syncStarToFavResult}</span>`
                 : html`📥 ${t('syncStarToFav') || '点赞同步收藏'}`}
               </button>
@@ -295,7 +302,7 @@ class ConfigView extends LitElement {
           ${this._starredLoading ? html`
             <div style="padding:20px;text-align:center;color:var(--secondary-text-color);font-size:13px;">
               <svg class="mini-icon spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px;vertical-align:middle;margin-right:6px;"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
-              正在从 GitHub 加载星标仓库...
+              ${t('loadingStarred')}
             </div>
           ` : this._starredRepos.length > 0 ? html`
             <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
@@ -303,20 +310,20 @@ class ConfigView extends LitElement {
                 <input type="checkbox" .checked=${this._filteredStarredCount > 0 && Object.keys(this._selectedStarred).length === this._filteredStarredCount}
                   ?indeterminate=${Object.keys(this._selectedStarred).length > 0 && Object.keys(this._selectedStarred).length < this._filteredStarredCount}
                   @change=${e => this._toggleSelectAllStarred(e.target.checked)}>
-                全选
+                ${t('selectAll')}
               </label>
-              <span style="font-size:13px;font-weight:600;">${this._starredRepos.length} 个星标仓库</span>
-              <input type="text" placeholder="筛选..." .value=${this._starredFilter}
+              <span style="font-size:13px;font-weight:600;">${t('starredCount', { n: this._starredRepos.length })}</span>
+              <input type="text" placeholder="${t('filterPlaceholder')}" .value=${this._starredFilter}
                 @input=${e => { this._starredFilter = e.target.value; this.requestUpdate(); }}
                 style="flex:1;padding:6px 8px;border:1px solid var(--divider-color);border-radius:6px;font-size:12px;background:var(--card-background-color);color:var(--primary-text-color);">
               <button class="btn primary" style="font-size:11px;padding:4px 10px;" @click=${this._syncSelectedStarred} ?disabled=${this._starredSyncing || Object.keys(this._selectedStarred).length === 0}>
-                ${this._starredSyncing ? '同步中...' : `同步选中 (${Object.keys(this._selectedStarred).length})`}
+                ${this._starredSyncing ? t('syncingShort') : t('syncSelectedCount', { n: Object.keys(this._selectedStarred).length })}
               </button>
               <button class="btn" style="font-size:11px;padding:4px 10px;" @click=${this._refreshStarred}>
-                刷新
+                ${t('refresh')}
               </button>
             </div>
-            ${this._starredSyncResult ? html`<div style="font-size:12px;margin-bottom:8px;color:${this._starredSyncResult.includes('失败') ? '#f44336' : 'var(--primary-text-color)'};">${this._starredSyncResult}</div>` : ''}
+            ${this._starredSyncResult ? html`<div style="font-size:12px;margin-bottom:8px;color:${this._starredSyncResult.includes(t('failedSuffix').trim()) ? '#f44336' : 'var(--primary-text-color)'};">${this._starredSyncResult}</div>` : ''}
             <div style="max-height:300px;overflow-y:auto;border:1px solid var(--divider-color);border-radius:8px;">
               ${this._starredRepos.filter(r => !this._starredFilter || r.full_name.toLowerCase().includes(this._starredFilter.toLowerCase())).map(r => html`
                 <div style="display:flex;align-items:center;gap:8px;padding:6px 10px;border-bottom:1px solid var(--divider-color);font-size:12px;cursor:pointer;" @click=${() => this._toggleSelectStarred(r.full_name)}>
@@ -353,7 +360,7 @@ class ConfigView extends LitElement {
             ${t('orgReposDesc')}
           </div>
           <div style="display:flex;gap:8px;margin-bottom:10px;">
-            <input type="text" placeholder="GitHub 组织名或 URL（如 C3H3-AI 或 https://github.com/C3H3-AI）" .value=${this._orgInput}
+            <input type="text" placeholder="${t('gitHubOrgInput')}" .value=${this._orgInput}
               @input=${e => this._orgInput = e.target.value}
               @keydown=${e => e.key === 'Enter' && this._loadOrgRepos()}
               style="flex:1;padding:8px;border:1px solid var(--divider-color);border-radius:8px;font-size:13px;background:var(--card-background-color);color:var(--primary-text-color);">
@@ -364,7 +371,7 @@ class ConfigView extends LitElement {
           ${this._orgLoading ? html`
             <div style="padding:20px;text-align:center;color:var(--secondary-text-color);font-size:13px;">
               <svg class="mini-icon spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px;vertical-align:middle;margin-right:6px;"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
-              正在加载仓库列表...
+              ${t('loadingOrgRepos')}
             </div>
           ` : this._orgRepos.length > 0 ? html`
             <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
@@ -375,14 +382,14 @@ class ConfigView extends LitElement {
               ${t('selectAll')}
               </label>
               <span style="font-size:13px;font-weight:600;">${this._orgRepos.length} ${t('repositories')}</span>
-              <input type="text" placeholder="筛选..." .value=${this._orgFilter}
+              <input type="text" placeholder="${t('filterPlaceholder')}" .value=${this._orgFilter}
                 @input=${e => { this._orgFilter = e.target.value; this.requestUpdate(); }}
                 style="flex:1;padding:6px 8px;border:1px solid var(--divider-color);border-radius:6px;font-size:12px;background:var(--card-background-color);color:var(--primary-text-color);">
               <button class="btn primary" style="font-size:11px;padding:4px 10px;" @click=${this._syncSelectedOrgRepos} ?disabled=${this._orgSyncing || Object.keys(this._selectedOrgRepos).length === 0}>
                 ${this._orgSyncing ? t('syncing') : `${t('syncSelected')} (${Object.keys(this._selectedOrgRepos).length})`}
               </button>
             </div>
-            ${this._orgSyncResult ? html`<div style="font-size:12px;margin-bottom:8px;color:${this._orgSyncResult.includes('失败') ? '#f44336' : 'var(--primary-text-color)'};">${this._orgSyncResult}</div>` : ''}
+            ${this._orgSyncResult ? html`<div style="font-size:12px;margin-bottom:8px;color:${this._orgSyncResult.includes(t('failedSuffix').trim()) ? '#f44336' : 'var(--primary-text-color)'};">${this._orgSyncResult}</div>` : ''}
             <div style="max-height:300px;overflow-y:auto;border:1px solid var(--divider-color);border-radius:8px;">
               ${this._filteredSortedOrgRepos.map(r => html`
                 <div style="display:flex;align-items:center;gap:8px;padding:6px 10px;border-bottom:1px solid var(--divider-color);font-size:12px;cursor:pointer;" @click=${() => this._toggleSelectOrgRepo(r.full_name)}>
@@ -550,6 +557,7 @@ class ConfigView extends LitElement {
 
         </div> <!-- /config-col: 维护 -->
         </div> <!-- config-grid -->
+
         <div class="version">HACS Vision${this._version ? ` v${this._version}` : ''}</div>
       </div>
     `;
@@ -570,15 +578,15 @@ class ConfigView extends LitElement {
         this._githubUser = result.user;
         this._githubAvatar = result.avatar_url || '';
         this._githubTokenInput = '';
-        this._githubVerifyMsg = `已验证 ✅ 用户: ${result.user} (剩余 ${result.rate_limit_remaining}/5000 次/小时)`;
+        this._githubVerifyMsg = t('githubVerifyResult', { user: result.user, remaining: result.rate_limit_remaining });
         this._githubVerifyOk = true;
-        showToast(`GitHub 登录成功: ${result.user}`, 'success');
+        showToast(t('githubLoginSuccess', { user: result.user }), 'success');
       } else {
-        this._githubVerifyMsg = result?.error || '验证失败';
+        this._githubVerifyMsg = result?.error || t('verifing');
         this._githubVerifyOk = false;
       }
     } catch(e) {
-      this._githubVerifyMsg = `验证失败: ${e.message}`;
+      this._githubVerifyMsg = t('errorPrefix', { action: t('verifing'), err: e.message });
       this._githubVerifyOk = false;
     }
     this._githubVerifying = false;
@@ -589,13 +597,13 @@ class ConfigView extends LitElement {
       await api.verifyGitHubToken('');
       this._githubUser = '';
       this._githubAvatar = '';
-      this._githubVerifyMsg = '已登出';
+      this._githubVerifyMsg = t('loggedOut');
       this._githubVerifyOk = false;
       this._starredRepos = [];
       this._syncFavToStarResult = '';
       this._syncStarToFavResult = '';
       const { showToast } = await import('../hacs-vision-panel.js');
-      showToast('已登出 GitHub', 'info');
+      showToast(t('logoutGithub'), 'info');
     } catch(e) { /* ignore */ }
   }
 
@@ -610,16 +618,16 @@ class ConfigView extends LitElement {
       const ok = results.filter(r => r.status === 'fulfilled').length;
       const fail = results.filter(r => r.status === 'rejected').length;
       this._syncFavToStarResult = fail > 0
-        ? `已完成: ${ok} 成功, ${fail} 失败`
-        : `✓ ${ok} 个同步成功`;
+        ? t('syncResultPartial', { ok, fail })
+        : t('syncResultSuccess', { n: ok });
       if (fail > 0) {
         const { showToast } = await import('../hacs-vision-panel.js');
-        showToast(`${fail} 个仓库无权限点赞`, 'warning');
+        showToast(t('noPermissionMsg', { n: fail }), 'warning');
       }
     } catch(e) {
-      this._syncFavToStarResult = `同步失败: ${e.message}`;
+      this._syncFavToStarResult = t('errorPrefix', { action: t('syncFavToStar'), err: e.message });
       const { showToast } = await import('../hacs-vision-panel.js');
-      showToast(`同步失败: ${e.message}`, 'error');
+      showToast(t('errorPrefix', { action: t('syncFavToStar'), err: e.message }), 'error');
     }
     this._syncFavToStarring = false;
   }
@@ -642,14 +650,14 @@ class ConfigView extends LitElement {
       }
       if (added > 0) {
         await api.setFavorites(existing);
-        this._syncStarToFavResult = `✓ 新增 ${added} 个收藏`;
+        this._syncStarToFavResult = t('syncFavToStarAdded', { n: added });
       } else {
-        this._syncStarToFavResult = '无新增';
+        this._syncStarToFavResult = t('syncFavToStarNone');
       }
     } catch(e) {
-      this._syncStarToFavResult = `同步失败: ${e.message}`;
+      this._syncStarToFavResult = t('errorPrefix', { action: t('syncStarToFav'), err: e.message });
       const { showToast } = await import('../hacs-vision-panel.js');
-      showToast(`同步失败: ${e.message}`, 'error');
+      showToast(t('errorPrefix', { action: t('syncStarToFav'), err: e.message }), 'error');
     }
     this._syncStarToFaving = false;
   }
@@ -664,15 +672,15 @@ class ConfigView extends LitElement {
         this._starredRepos = result.repos;
         if (result.repos.length === 0) {
           const { showToast } = await import('../hacs-vision-panel.js');
-          showToast('没有找到星标仓库', 'info');
+          showToast(t('noStarredRepos'), 'info');
         }
       } else {
         const { showToast } = await import('../hacs-vision-panel.js');
-        showToast(result?.error || '加载失败', 'error');
+        showToast(result?.error || t('loadFailedSimple'), 'error');
       }
     } catch(e) {
       const { showToast } = await import('../hacs-vision-panel.js');
-      showToast(`加载失败: ${e.message}`, 'error');
+      showToast(t('errorPrefix', { action: t('loadStarred'), err: e.message }), 'error');
     }
     this._starredLoading = false;
   }
@@ -715,7 +723,7 @@ class ConfigView extends LitElement {
           category: r.category || 'integration',
         }));
       if (reposToSync.length === 0) {
-        this._starredSyncResult = '没有选中的仓库';
+        this._starredSyncResult = t('noSelectedRepos');
         this._starredSyncing = false;
         return;
       }
@@ -723,13 +731,14 @@ class ConfigView extends LitElement {
       const results = result?.results || [];
       const ok = results.filter(r => r.success).length;
       const fail = results.filter(r => !r.success).length;
-      this._starredSyncResult = `同步完成: ${ok} 个成功${fail ? `, ${fail} 个失败` : ''}`;
+      const failPart = fail ? t('failPartSuffix', { fail }) : '';
+      this._starredSyncResult = t('syncDoneResult', { ok, failPart });
       const { showToast } = await import('../hacs-vision-panel.js');
-      showToast(`已添加 ${ok} 个星标仓库到自定义列表`, fail ? 'warning' : 'success');
+      showToast(t('addStarredToCustomList', { n: ok }), fail ? 'warning' : 'success');
     } catch(e) {
-      this._starredSyncResult = `同步失败: ${e.message}`;
+      this._starredSyncResult = t('errorPrefix', { action: t('syncing'), err: e.message });
       const { showToast } = await import('../hacs-vision-panel.js');
-      showToast(`同步失败: ${e.message}`, 'error');
+      showToast(t('errorPrefix', { action: t('syncing'), err: e.message }), 'error');
     }
     this._starredSyncing = false;
   }
@@ -762,11 +771,11 @@ class ConfigView extends LitElement {
         // Auto verify after import
         await this._githubVerifyToken();
       } else {
-        showToast(result?.error || t('tokenImportFailed') || 'HACS 中未找到 Token', 'warning');
+        showToast(result?.error || t('tokenImportFailed'), 'warning');
       }
     } catch(e) {
       this._githubVerifying = false;
-      showToast(`${t('tokenImportFailed') || '导入失败'}: ${e.message}`, 'error');
+      showToast(t('errorPrefix', { action: t('importFromHacs'), err: e.message }), 'error');
     }
     this._githubVerifying = false;
   }
@@ -775,7 +784,7 @@ class ConfigView extends LitElement {
     const org = this._orgInput?.trim();
     if (!org) {
       const { showToast } = await import('../hacs-vision-panel.js');
-      showToast('请输入 GitHub 组织名或 URL', 'warning');
+      showToast(t('orgInputRequired'), 'warning');
       return;
     }
     this._orgLoading = true;
@@ -788,15 +797,15 @@ class ConfigView extends LitElement {
         this._orgRepos = result.repos;
         if (result.repos.length === 0) {
           const { showToast } = await import('../hacs-vision-panel.js');
-          showToast('没有找到仓库', 'info');
+          showToast(t('noOrgRepos'), 'info');
         }
       } else {
         const { showToast } = await import('../hacs-vision-panel.js');
-        showToast(result?.error || '加载失败', 'error');
+        showToast(result?.error || t('loadFailedSimple'), 'error');
       }
     } catch(e) {
       const { showToast } = await import('../hacs-vision-panel.js');
-      showToast(`加载失败: ${e.message}`, 'error');
+      showToast(t('errorPrefix', { action: t('load'), err: e.message }), 'error');
     }
     this._orgLoading = false;
   }
@@ -835,7 +844,7 @@ class ConfigView extends LitElement {
           category: r.category || 'integration',
         }));
       if (reposToSync.length === 0) {
-        this._orgSyncResult = '没有选中的仓库';
+        this._orgSyncResult = t('noSelectedRepos');
         this._orgSyncing = false;
         return;
       }
@@ -843,13 +852,14 @@ class ConfigView extends LitElement {
       const results = result?.results || [];
       const ok = results.filter(r => r.success).length;
       const fail = results.filter(r => !r.success).length;
-      this._orgSyncResult = `同步完成: ${ok} 个成功${fail ? `, ${fail} 个失败` : ''}`;
+      const failPart = fail ? t('failPartSuffix', { fail }) : '';
+      this._orgSyncResult = t('syncDoneResult', { ok, failPart });
       const { showToast } = await import('../hacs-vision-panel.js');
-      showToast(`已添加 ${ok} 个仓库到自定义列表`, fail ? 'warning' : 'success');
+      showToast(t('addReposToCustomList', { n: ok }), fail ? 'warning' : 'success');
     } catch(e) {
-      this._orgSyncResult = `同步失败: ${e.message}`;
+      this._orgSyncResult = t('errorPrefix', { action: t('syncing'), err: e.message });
       const { showToast } = await import('../hacs-vision-panel.js');
-      showToast(`同步失败: ${e.message}`, 'error');
+      showToast(t('errorPrefix', { action: t('syncing'), err: e.message }), 'error');
     }
     this._orgSyncing = false;
   }
@@ -914,7 +924,7 @@ class ConfigView extends LitElement {
         if (result.notified) showToast(t('notifySent'), 'success');
       }
     } catch(e) {
-      showToast(`Update check failed: ${e.message}`, 'error');
+      showToast(t('errorPrefix', { action: t('checkUpdates'), err: e.message }), 'error');
     }
   }
 

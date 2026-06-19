@@ -698,7 +698,8 @@ export class ManagementView extends LitElement {
       const results = result?.results || [];
       const ok = results.filter(r => r.success).length;
       const fail = results.filter(r => !r.success).length;
-      this._orgSyncResult = `添加完成: ${ok} 个成功${fail ? `, ${fail} 个失败` : ''}`;
+      const failPart = fail ? t('failPartSuffix', { fail }) : '';
+      this._orgSyncResult = t('syncDoneResult', { ok, failPart });
       showToast(`${t('addedToCustomList')} (${ok})`, fail ? 'warning' : 'success');
       if (ok > 0) {
         // Reload if any succeeded
@@ -706,8 +707,8 @@ export class ManagementView extends LitElement {
         this.dispatchEvent(new CustomEvent('refresh-stats', { bubbles: true, composed: true }));
       }
     } catch(e) {
-      this._orgSyncResult = `添加失败: ${e.message}`;
-      showToast(`添加失败: ${e.message}`, 'error');
+      this._orgSyncResult = `${t('addFailed')}: ${e.message}`;
+      showToast(`${t('addFailed')}: ${e.message}`, 'error');
     }
     this._orgSyncing = false;
   }
@@ -1195,7 +1196,7 @@ export class ManagementView extends LitElement {
                     ${this._orgSyncing ? t('adding') : `${t('addSelected')} (${Object.keys(this._selectedOrgRepos).length})`}
                   </button>
                 </div>
-                ${this._orgSyncResult ? html`<div style="font-size:12px;margin-bottom:6px;width:100%;color:${this._orgSyncResult.includes('失败') ? '#f44336' : 'var(--primary-text-color)'};">${this._orgSyncResult}</div>` : ''}
+                ${this._orgSyncResult ? html`<div style="font-size:12px;margin-bottom:6px;width:100%;color:${this._orgSyncResult.includes(t('failedSuffix').trim()) ? '#f44336' : 'var(--primary-text-color)'};">${this._orgSyncResult}</div>` : ''}
                 <div style="max-height:240px;overflow-y:auto;border:1px solid var(--divider-color);border-radius:8px;width:100%;">
                   ${this._getFilteredSortedOrgRepos().map(r => html`
                     <div style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-bottom:1px solid var(--divider-color);font-size:13px;cursor:pointer;transition:background 0.15s;color:var(--primary-text-color);" @click=${() => this._toggleSelectMgmtOrg(r.full_name)}>
