@@ -1034,9 +1034,10 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
 
   /** Open a config flow dialog for testing, forcing a specific flow type */
   _openTestDialog(domain, type) {
-    const entries = this._configEntries || [];
-    const entry = entries.find(e => e.domain === domain);
-    if (!entry) { console.warn('HACS Vision: test dialog - no entry found for', domain); return; }
+    const configMap = this._configEntries || {};
+    const entries = configMap[domain];
+    if (!entries || entries.length === 0) { console.warn('HACS Vision: test dialog - no entry found for', domain); return; }
+    const entry = entries[0];
     if (this._showConfigFlow) {
       this._showConfigFlow = false;
       this._configFlowEntryId = null;
