@@ -39,7 +39,9 @@ class ConfigFlowDialog extends LitElement {
     _existingSubentries: { type: Array, state: true },
     _isSubentryReconfigure: { type: Boolean, state: true },
     _subentryReconfigureId: { type: String, state: true },
+    _forceFlowType: { type: String },  // 'options' | 'reconfigure' | 'subentry' | null — test override
     _passwordVisible: { type: Boolean, state: true },
+    _debugMsg: { type: String, state: true },
   };
 
   constructor() {
@@ -66,6 +68,7 @@ class ConfigFlowDialog extends LitElement {
     this._lang = 'zh-Hans';
     this._dialogDrag = { offsetX: 0, offsetY: 0, startX: 0, startY: 0, dragging: false };
     this._cleanedUp = false;
+    this._debugMsg = '';
   }
 
   /** Get hass object — from prop or directly from parent HA iframe */
@@ -142,11 +145,31 @@ class ConfigFlowDialog extends LitElement {
   }
 
   updated(changed) {
-    if (changed.has('open') && this.open) {
-      this._startFlowWithEntryCheck();
-    } else if (this.open && (changed.has('entryId') || changed.has('domain'))) {
-      // Already open but entryId/domain changed → restart flow
-      this._startFlowWithEntryCheck();
+    try {
+      if (changed.has('open') && this.open) {
+        this._debugMsg = 'opened, starting flow...';
+        this._startFlowWithEntryCheck();
+      } else if (this.open && (changed.has('entryId') || changed.has('domain'))) {
+        this._debugMsg = 'entryId/domain changed, restarting flow...';
+        this._startFlowWithEntryCheck();
+      }
+      if (changed.has('open') && !this.open && changed.get('open') === true) {
+        // Dialog was closed — log state
+        console.warn('HACS Vision: dialog closed unexpectedly', {
+        flowId: this._flowId,
+        loading: this._loading,
+        finished: this._finished,
+        step: this._step?.step_id,
+        isOptions: this._isOptions,
+        isReconfigure: this.isReconfigure,
+        isSubentry: this._isSubentry,
+        result: this._result?.type,
+        errorMsg: this._result?.message?.slice(0, 80),
+      });
+    }
+    } catch(e) {
+      console.error('HACS Vision: updated() error:', e);
+      this._debugMsg = `updated error: ${e.message}`;
     }
   }
 
@@ -162,7 +185,7 @@ class ConfigFlowDialog extends LitElement {
       this._subentryReconfigureId = '';
 
       if (this.isReconfigure) {
-        // Reconfigure flow: start a new config flow with entry_id
+        // Reconfigure flow: start a new config flow with domain
         this._isOptions = false;
         this._startFlow();
       } else if (this.flowAction === 'add-subentry') {
@@ -174,8 +197,44 @@ class ConfigFlowDialog extends LitElement {
         }
         this._startFlow();
       } else {
-        this._isOptions = true;
-        this._startFlow();
+        // Use backend-provided capability flags to determine flow type
+        // Priority: force override > options > subentry > none
+        if (this._forceFlowType === 'options') {
+          this._isOptions = true;
+          this._startFlow();
+          return;
+        }
+        if (this._forceFlowType === 'reconfigure') {
+          this.isReconfigure = true;
+          this._startFlow();
+          return;
+        }
+        if (this._forceFlowType === 'subentry') {
+          const entry = this._findEntry(this.entryId);
+          if (entry && entry.supported_subentry_types && entry.supported_subentry_types.length > 0) {
+            this._isSubentry = true;
+            this._subentryTypes = entry.supported_subentry_types;
+            this._loadExistingSubentries();
+          }
+          this._startFlow();
+          return;
+        }
+        const entry = this._findEntry(this.entryId);
+        if (entry?.supports_options) {
+          this._isOptions = true;
+          this._startFlow();
+        } else if (entry?.supported_subentry_types?.length > 0) {
+          this._isSubentry = true;
+          this._subentryTypes = entry.supported_subentry_types;
+          this._loadExistingSubentries();
+          this._startFlow();
+        } else {
+          // No configuration options available — show "no config" result
+          this._loading = false;
+          this._finished = true;
+          this._result = { type: 'abort', reason: 'no_config' };
+          this.requestUpdate();
+        }
       }
     } else if (this.domain) {
       this._isOptions = false;
@@ -383,6 +442,8 @@ class ConfigFlowDialog extends LitElement {
   }
 
   async _startFlow() {
+    this._debugMsg = '_startFlow() called';
+    console.log('HACS Vision: _startFlow', { domain: this.domain, entryId: this.entryId, isOptions: this._isOptions, isSubentry: this._isSubentry, forceFlowType: this._forceFlowType, flowAction: this.flowAction });
     if (this._isSubentry && !this._subentryType && !this._isSubentryReconfigure) {
       this._loading = false;
       this._finished = false;
@@ -397,6 +458,12 @@ class ConfigFlowDialog extends LitElement {
     this._result = null;
     this._step = null;
     this._errors = {};
+    this._flowTimeout2 = setTimeout(() => {
+      // Safety net: if dialog never got a result in 10s, force show "waiting" state
+      if (this._loading && !this._finished) {
+        this._debugMsg = 'TIMEOUT: no response in 10s';
+      }
+    }, 10000);
     this.requestUpdate();
 
     this._startLoadingTimeout();
@@ -405,16 +472,14 @@ class ConfigFlowDialog extends LitElement {
       const flowDomain = this._isOptions || this._isSubentry
         ? this._getFlowDomain()
         : this.domain;
+      this._debugMsg = `flow:${flowDomain} opts:${this._isOptions} sub:${this._isSubentry} eid:${this.entryId}`;
       console.debug('HACS Vision: _startFlow', { isOptions: this._isOptions, isSubentry: this._isSubentry, entryId: this.entryId, domain: this.domain, flowAction: this.flowAction, flowDomain });
       if (flowDomain) {
         await this._loadTranslations(flowDomain);
       }
 
       let result;
-      if (this.isReconfigure && this.entryId) {
-        // Reconfigure: start config flow with domain (user re-enters config)
-        result = await api.startConfigFlow(this.domain);
-      } else if (this._isSubentryReconfigure && this._subentryType && this.entryId) {
+      if (this._isSubentryReconfigure && this._subentryType && this.entryId) {
         result = await api.startSubentryFlow(
           this.entryId, this._subentryType,
           { source: 'reconfigure', subentry_id: this._subentryReconfigureId }
@@ -428,9 +493,12 @@ class ConfigFlowDialog extends LitElement {
       }
 
       await this._handleFlowResponse(result);
+      this._debugMsg = `API OK: ${result?.type} step:${result?.step_id}`;
     } catch (e) {
-      // 404 from options flow means the integration doesn't support configuration — expected, not an error
+      this._debugMsg = `ERROR: ${e?.message?.slice(0,80)}`;
+      console.error('HACS Vision: _startFlow caught error:', e?.message, e?.stack);
       const is404 = e?.message?.includes('404');
+      console.warn('HACS Vision: _startFlow error', { is404, isOptions: this._isOptions, entryId: this.entryId, domain: this.domain });
       if (is404) {
         console.warn('HACS Vision: config flow 404 (expected for non-configurable integrations):', e?.message);
       } else {
@@ -650,13 +718,16 @@ class ConfigFlowDialog extends LitElement {
   static styles = [getCommonStyles(), css`
     :host { display: block; }
     :host([open]) {
+      /* Use position:fixed with inset:0 for full-viewport coverage.
+         Note: In shadow DOM, fixed position is relative to the shadow host's
+         containing block, not the viewport. Use vw/vh as cross-check. */
       position: fixed;
       top: 0; left: 0; right: 0; bottom: 0;
       z-index: 9999;
       pointer-events: none;
     }
     .overlay {
-      position: fixed; inset: 0;
+      position: fixed; top: 0; left: 0; right: 0; bottom: 0;
       background: rgba(0,0,0,0.6);
       z-index: 9999;
       display: grid; place-items: center;
@@ -819,7 +890,16 @@ class ConfigFlowDialog extends LitElement {
   `];
 
   render() {
-    if (!this.open) return '';
+    try {
+      if (!this.open) return '';
+      return this._renderContent();
+    } catch(e) {
+      console.error('HACS Vision: render crash:', e, e?.stack);
+      return html`<div class="overlay" style="display:flex;align-items:center;justify-content:center;"><div class="dialog" style="padding:40px;color:red;background:#fff;">渲染崩溃: ${e?.message}<br><br><button class="btn primary" @click=${this._close}>关闭</button></div></div>`;
+    }
+  }
+
+  _renderContent() {
 
     const title = this._isSubentry
       ? (this._getFlowDomain() || '') + ' - ' + t('subentryTitle')
@@ -832,7 +912,7 @@ class ConfigFlowDialog extends LitElement {
     const hasStepInfo = this._step?.step_id && this._flowId && !this._loading && !this._finished;
 
     return html`
-      <div class="overlay" role="dialog" aria-modal="true" aria-label="${this._flowTitle || t('flowTitle')}" @keydown=${(e) => { if (e.key === 'Escape') this._cancelFlow(); }} @click=${(e) => { if (e.target === e.currentTarget) this._cancelFlow(); }}>
+      <div class="overlay" role="dialog" aria-modal="true" aria-label="${this._flowTitle || t('flowTitle')}" @click=${(e) => { if (e.target.classList.contains('overlay')) this._cancelFlow(); }} @keydown=${(e) => { if (e.key === 'Escape') this._cancelFlow(); }}>
         <div class="dialog" @pointerdown=${this._dialogPointerDown}>
           <div class="header">
             <div class="header-left">
@@ -914,6 +994,7 @@ class ConfigFlowDialog extends LitElement {
             </div>
           ` : ''}
         </div>
+        ${this._debugMsg ? html`<div style="padding:8px 16px;font-size:12px;color:#ff5722;background:#fff3e0;border-top:2px solid #ff9800;text-align:center;word-break:break-all;">🔍 ${this._debugMsg}</div>` : ''}
       </div>
     `;
   }
@@ -1012,11 +1093,14 @@ class ConfigFlowDialog extends LitElement {
       desc = desc.replace(new RegExp(`\\{${key}\\}`, 'g'), strVal);
     }
 
-    // Auto-link URLs in the description text
-    desc = desc.replace(
-      /(https?:\/\/[^\s<]+)/g,
-      '<a href="$1" target="_blank" rel="noopener" style="color:var(--primary-color,#03a9f4);text-decoration:underline">$1</a>'
-    );
+    // Auto-link URLs in the description text (skip if description already contains HTML)
+    const _hasHTML = /<[a-z][\s\S]*>/i.test(desc);
+    if (!_hasHTML) {
+      desc = desc.replace(
+        /(https?:\/\/[^\s<]+)/g,
+        '<a href="$1" target="_blank" rel="noopener" style="color:var(--primary-color,#03a9f4);text-decoration:underline">$1</a>'
+      );
+    }
 
     // If still no description, show placeholder values (primitives only)
     if (!desc && Object.keys(placeholders).length > 0) {
@@ -1172,6 +1256,11 @@ class ConfigFlowDialog extends LitElement {
   /* ── Single form field renderer ── */
 
   _renderField(schema) {
+    try { return this._renderFieldSafe(schema); }
+    catch(e) { console.error('HACS Vision: field render error:', schema?.name, e); return html`<div style="color:red;padding:8px;">字段 "${schema?.name}" 渲染错误: ${e?.message}</div>`; }
+  }
+
+  _renderFieldSafe(schema) {
     const name = schema.name;
     const label = this._getFieldLabel(schema);
     const type = schema.type || 'string';
@@ -1205,11 +1294,9 @@ class ConfigFlowDialog extends LitElement {
         rawOptions = selector.select.options;
       }
       const isMulti = type === 'multi_select' || selector.select?.multiple === true;
-      // Debug: log select field schema for troubleshooting
+      // Debug: log select field schema for troubleshooting (only once per field name)
       if (!rawOptions.length) {
         console.warn(`HACS Vision: select field "${name}" has empty options`, schema);
-      } else {
-        console.debug(`HACS Vision: select field "${name}" options:`, JSON.stringify(rawOptions).slice(0, 200));
       }
       // multi_select options can be an object: {"add": "新增", "del": "不可用", ...}
       // Also handle edge case where rawOptions is falsy or empty
@@ -1371,6 +1458,7 @@ class ConfigFlowDialog extends LitElement {
         'single_instance_allowed': t('flowAbortSingleInstance'),
         'no_devices_found': t('flowAbortNoDevices'),
         'already_in_progress': t('flowAbortInProgress'),
+        'no_config': t('flowOptionsNotSupported'),
       };
       return html`
         <div class="result">

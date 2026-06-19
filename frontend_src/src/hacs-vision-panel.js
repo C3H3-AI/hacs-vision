@@ -40,6 +40,7 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
     _configFlowAction: { type: String, state: true },
     _showConfigFlow: { type: Boolean, state: true },
     _configEntries: { type: Object, state: true },
+    _testDebug: { type: String, state: true },
     // Entry selector (multiple entries for same domain)
     _showEntrySelector: { type: Boolean, state: true },
     _entrySelectorDomain: { type: String, state: true },
@@ -1036,23 +1037,23 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
   _openTestDialog(domain, type) {
     const configMap = this._configEntries || {};
     const entries = configMap[domain];
-    if (!entries || entries.length === 0) { console.warn('HACS Vision: test dialog - no entry found for', domain); return; }
-    const entry = entries[0];
-    if (this._showConfigFlow) {
-      this._showConfigFlow = false;
-      this._configFlowEntryId = null;
+    if (!entries || entries.length === 0) {
+      this._testDebug = `NO ENTRY: ${domain}`;
+      console.warn('HACS Vision: test dialog - no entry found for', domain);
+      return;
     }
+    const entry = entries[0];
+    // Close any existing flow first
+    if (this._showConfigFlow) {
+      this._onFlowClose();
+    }
+    this._testDebug = `OPEN: ${domain} type=${type} eid=${type === 'config' ? null : entry.entry_id}`;
     this._configForceFlowType = type;
     this._configFlowDomain = domain;
-    this._configFlowEntryId = entry.entry_id;
+    this._configFlowEntryId = type === 'config' ? null : entry.entry_id;
     this._configFlowAction = 'configure';
-    this.requestUpdate();
-    setTimeout(() => {
-      this._configFlowDomain = domain;
-      this._configFlowEntryId = entry.entry_id;
-      this._showConfigFlow = true;
-      this._scheduleFlowTimeout();
-    }, 10);
+    this._showConfigFlow = true;
+    this._scheduleFlowTimeout();
   }
 
   _scheduleFlowTimeout() {
@@ -1074,6 +1075,7 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
   }
 
   _onFlowClose() {
+    console.log('HACS Vision: _onFlowClose called');
     this._clearFlowTimeout();
     this._showConfigFlow = false;
     this._configFlowDomain = '';
@@ -1503,8 +1505,9 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
         <div style="background:#ff0000;color:#fff;padding:16px;margin-bottom:8px;border-radius:8px;font-size:18px;font-weight:700;text-align:center;position:relative;z-index:999;">
           🔧 GLOBAL DEBUG — panel.js v${this._panelHash || '?'} 🔧
           <div style="font-size:13px;font-weight:400;margin-top:6px;">
-            视图: ${this.currentView} | API: ${this._apiReady ? '✅' : '❌'} | Hash: ${this._panelHash || 'N/A'}
+            视图: ${this.currentView} | API: ${this._apiReady ? '✅' : '❌'} | Hash: ${this._panelHash || 'N/A'} | CF: ${this._showConfigFlow ? '🟢开' : '⚪关'}
           </div>
+          ${this._testDebug ? html`<div style="font-size:12px;font-weight:400;margin-top:4px;background:rgba(255,255,255,0.2);padding:4px 8px;border-radius:4px;word-break:break-all;">${this._testDebug}</div>` : ''}
         </div>
 
         <!-- 🔧 配置弹窗测试按钮 — 点击直接弹对应集成的配置窗口 -->
