@@ -640,7 +640,7 @@ class HACSEnhancedAPI(HomeAssistantView):
         if path in ("check_updates", "check_updates/"):
             return await self._check_updates_with_notification()
         if path in ("entity_refs/replace", "entity_refs/replace/"):
-            return await self._entity_refs_replace(body)
+            return await self._entity_refs_replace(body, request)
         if path in ("entity_refs/reload", "entity_refs/reload/"):
             return await self._entity_refs_reload()
         # ── GitHub Auth ──
@@ -701,7 +701,7 @@ class HACSEnhancedAPI(HomeAssistantView):
             return web.json_response({"error": str(e)}, status=500)
 
     async def _config_flow_start(self, request: web.Request, body: dict) -> web.Response:
-        """Start a new config flow — proxy to HA native REST API."""
+        """Start a config flow (initial or reconfigure) — proxy to HA native REST API."""
         handler = body.get("handler")
         if not handler:
             return web.json_response({"error": "handler required"}, status=400)
@@ -1920,7 +1920,7 @@ class HACSEnhancedAPI(HomeAssistantView):
             _LOGGER.error("Entity refs find failed: %s", e, exc_info=True)
             return web.json_response({"success": False, "error": str(e)}, status=500)
 
-    async def _entity_refs_replace(self, body: dict) -> web.Response:
+    async def _entity_refs_replace(self, body: dict, request: web.Request | None = None) -> web.Response:
         """Replace entity_id references (preview or execute)."""
         old_id = body.get("old_id", "")
         new_id = body.get("new_id", "")
@@ -1928,7 +1928,8 @@ class HACSEnhancedAPI(HomeAssistantView):
         if not old_id or not new_id:
             return web.json_response({"error": "old_id and new_id required"}, status=400)
         try:
-            finder = EntityRefFinder(self.hass)
+            token = self._extract_token(request) if request else self._current_token
+            finder = EntityRefFinder(self.hass, hass_token=token)
             result = await finder.replace(old_id, new_id, preview=preview)
             if not preview and result.get("total_updated", 0) > 0:
                 # Auto-reload affected components

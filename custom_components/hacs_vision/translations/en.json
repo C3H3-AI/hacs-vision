@@ -18,5 +18,53 @@
         "description": "Current version: {version}\n\nNo additional configuration is needed for this integration."
       }
     }
+  },
+  "services": {
+    "refresh": {
+      "name": "Refresh HACS data",
+      "description": "Force refresh of HACS repository data."
+    },
+    "install_repository": {
+      "name": "Install repository",
+      "description": "Install a repository from HACS.",
+      "fields": {
+        "repository": {
+          "name": "Repository",
+          "description": "Full name of the repository (author/repo)."
+        },
+        "category": {
+          "name": "Category",
+          "description": "Repository category."
+        }
+      }
+    },
+    "find_entity_refs": {
+      "name": "Find entity references",
+      "description": "Find all references to an entity_id across HA (automations, scripts, scenes, dashboards, blueprints).",
+      "fields": {
+        "entity_id": {
+          "name": "Entity ID",
+          "description": "The entity identifier to search for (e.g. sensor.temperature)."
+        }
+      }
+    },
+    "replace_entity_refs": {
+      "name": "Replace entity references",
+      "description": "Replace all references to an old entity_id with a new one across HA.",
+      "fields": {
+        "old_id": {
+          "name": "Old Entity ID",
+          "description": "The old entity identifier to be replaced."
+        },
+        "new_id": {
+          "name": "New Entity ID",
+          "description": "The new entity identifier to replace with."
+        },
+        "preview": {
+          "name": "Preview mode",
+          "description": "True to preview only, false to execute the replacement."
+        }
+      }
+    }
   }
 }

@@ -12,6 +12,8 @@ class HACSEnhancedConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         """Handle the initial step — zero-config, create entry immediately."""
         if self._async_current_entries():
             return self.async_abort(reason="single_instance_allowed")
+        if "hacs" not in self.hass.config.components:
+            return self.async_abort(reason="hacs_not_found")
         return self.async_create_entry(title=PANEL_TITLE, data={})
 
     async_step_import = async_step_user

@@ -12,34 +12,36 @@ from homeassistant.core import HomeAssistant
 _LOGGER = logging.getLogger(__name__)
 
 # 匹配标准 entity_id 格式：domain.object_id
+# 包含 HA 官方所有标准 entity domain，按字母序排列便于维护
+# 参见: https://www.home-assistant.io/integrations/#entity
 _ENTITY_ID_RE = re.compile(
     r"\b(?:"
-    r"ai_light|air_quality|alarm_control_panel|alert|angle|animation|application|"
-    r"area|assist_satellite|automation|battery|bed|bed_activity|binary_sensor|"
+    r"air_quality|alarm_control_panel|angle|animation|application|area|"
+    r"assist_satellite|automation|battery|bed|bed_activity|binary_sensor|"
     r"birthday|button|calendar|camera|carbon_dioxide|carbon_monoxide|"
-    r"climate|cold|cover|curtain|device_tracker|dishwasher|door|dryer|"
-    r"event|exhaust_fan|fan|favorite|fence|fingerprint|fireplace|"
-    r"flower|food|freezer|fridge|front_door|garage|garage_door|gas|"
-    r"gate|generator|geo_location|gps|group|hass|health|heater|"
-    r"home|humidifier|humidity|illuminance|image|input_boolean|input_button|"
-    r"input_datetime|input_number|input_select|input_text|irrigation|"
-    r"keyboard|kitchen|knob|label|lake|landscape|laundry|lawn|leak|"
-    r"light|lighting|lightness|livestock|living_room|load|load_center|"
-    r"load_shed|lock|locker|locket|mattress|media_player|medicine|"
-    r"moisture|motion|mower|music|neighbors|noise|notifications|number|"
-    r"occupancy|outlet|oven|pantry|parking|particle|person|pet|phone|"
-    r"plant|plug|pollen|pool|power|power_outage|presence|pressure|"
-    r"printer|proximity|pump|purifier|radon|rain|range|rate|reading|"
-    r"receiver|refrigerator|region|remote|robot|roof|room|routine|"
-    r"scene|schedule|screen|script|sensor|shelter|shower|shutter|"
-    r"signal|siren|snow|soil|solar|solar_radiation|sound|speaker|"
-    r"sprinkler|stair|states|step|stove|subwoofer|sun|switch|tank|"
-    r"task|temperature|thermostat|timer|toggle|touch|towel|tracker|"
-    r"traffic|train|trash|tree|trend|tv|u_v|update|vacuum|valve|"
-    r"vent|ventilation|vibration|video_doorbell|view|visitor|voice|"
-    r"voltage|volume|walk|wall|warm|washing_machine|watch|water|"
-    r"water_heater|water_pump|weather|weight|welcome|wheel|"
-    r"wind|window|wine|work|zone"
+    r"climate|cold|conversation|counter|cover|curtain|date|datetime|"
+    r"device_tracker|dishwasher|door|dryer|duration|event|exhaust_fan|fan|"
+    r"favorite|fence|fingerprint|fireplace|flower|food|freezer|fridge|"
+    r"front_door|garage|garage_door|gas|gate|generator|geo_location|gps|"
+    r"group|hass|health|heater|home|humidifier|humidity|illuminance|image|"
+    r"image_processing|input_boolean|input_button|input_datetime|input_number|"
+    r"input_select|input_text|irrigation|keyboard|kitchen|knob|label|lake|"
+    r"landscape|laundry|lawn|lawn_mower|leak|light|lighting|lightness|"
+    r"livestock|living_room|load|load_center|load_shed|lock|locker|locket|"
+    r"mail|mailbox|mattress|media_player|medicine|moisture|motion|mower|"
+    r"mqtt|music|neighbors|noise|notifications|notify|number|occupancy|"
+    r"outlet|oven|pantry|parking|particle|person|pet|phone|plant|plug|"
+    r"pollen|pool|power|power_outage|presence|pressure|printer|proximity|"
+    r"pump|purifier|radon|rain|range|rate|reading|receiver|refrigerator|"
+    r"region|remote|robot|roof|room|routine|scene|schedule|screen|script|"
+    r"select|sensor|shelter|shower|shutter|signal|siren|snow|soil|solar|"
+    r"solar_radiation|sound|speaker|sprinkler|stair|states|step|stove|"
+    r"stt|subwoofer|sun|switch|tank|task|temperature|text|thermostat|time|"
+    r"timer|todo|toggle|touch|towel|tracker|traffic|train|trash|tree|trend|"
+    r"tts|tv|u_v|update|vacuum|valve|vent|ventilation|vibration|"
+    r"video_doorbell|view|visitor|voice|voltage|volume|wake_word|walk|wall|"
+    r"warm|washing_machine|watch|water|water_heater|water_pump|weather|"
+    r"weight|welcome|wheel|wind|window|wine|work|zone"
     r")\.[a-z][a-z0-9]*(?:_[a-z0-9]+)*\b",
 )
 
@@ -124,8 +126,9 @@ class EntityRefResult:
 class EntityRefFinder:
     """查找 HA 中所有对指定 entity_id 的引用."""
 
-    def __init__(self, hass: HomeAssistant):
+    def __init__(self, hass: HomeAssistant, hass_token: str | None = None):
         self.hass = hass
+        self._hass_token = hass_token
         self._target: str = ""
         self._results: list[EntityRefResult] = []
 
@@ -546,21 +549,20 @@ class EntityRefFinder:
             return True
         except Exception:
             pass
-        # Method 2: REST API fallback (HA 2025.9+)
-        try:
-            import requests as req
-            token = self.hass.data.get("hacs_vision_token", "")
-            headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
-            api_config = dict(config)
-            api_config["id"] = auto_id
-            resp = req.post(
-                f"http://localhost:8123/api/config/automation/config/{auto_id}",
-                json=config, headers=headers, timeout=10
-            )
-            return resp.status_code == 200
-        except Exception as e:
-            _LOGGER.error("Save auto config failed: %s", e, exc_info=True)
-            return False
+        # Method 2: REST API fallback (HA 2025.9+) — use the token passed from API handler
+        if self._hass_token:
+            try:
+                import aiohttp
+                headers = {"Authorization": f"Bearer {self._hass_token}", "Content-Type": "application/json"}
+                async with aiohttp.ClientSession() as session:
+                    async with session.post(
+                        f"http://localhost:8123/api/config/automation/config/{auto_id}",
+                        json=config, headers=headers, timeout=aiohttp.ClientTimeout(total=10)
+                    ) as resp:
+                        return resp.status == 200
+            except Exception as e:
+                _LOGGER.error("Save auto config failed: %s", e, exc_info=True)
+                return False
 
     async def _get_script_config(self, entity_id: str) -> dict | None:
         """Get script config via HA API."""

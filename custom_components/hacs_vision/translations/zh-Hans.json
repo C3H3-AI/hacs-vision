@@ -37,6 +37,34 @@
           "description": "仓库分类。"
         }
       }
+    },
+    "find_entity_refs": {
+      "name": "查找实体引用",
+      "description": "查找 HA 中所有引用指定 entity_id 的位置（自动化、脚本、场景、仪表盘、蓝图）。",
+      "fields": {
+        "entity_id": {
+          "name": "实体 ID",
+          "description": "要查找的实体标识符（如 sensor.temperature）。"
+        }
+      }
+    },
+    "replace_entity_refs": {
+      "name": "替换实体引用",
+      "description": "替换 HA 中所有对旧 entity_id 的引用为新 entity_id。",
+      "fields": {
+        "old_id": {
+          "name": "旧实体 ID",
+          "description": "要被替换的旧实体标识符。"
+        },
+        "new_id": {
+          "name": "新实体 ID",
+          "description": "替换后的新实体标识符。"
+        },
+        "preview": {
+          "name": "预览模式",
+          "description": "为 true 时只预览不执行，为 false 时执行替换。"
+        }
+      }
     }
   }
 }
