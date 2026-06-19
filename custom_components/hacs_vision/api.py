@@ -712,7 +712,13 @@ class HACSEnhancedAPI(HomeAssistantView):
             session = await self._get_session()
             url = f"{self._ha_base_url}/api/config/config_entries/flow"
             headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
-            payload = {"handler": handler, "show_advanced_options": body.get("show_advanced_options", False)}
+            payload = {"handler": handler}
+            # Pass through optional fields (source, entry_id, show_advanced_options)
+            for key in ("source", "entry_id", "show_advanced_options"):
+                if key in body:
+                    payload[key] = body[key]
+            if "show_advanced_options" not in payload:
+                payload["show_advanced_options"] = False
             async with session.post(url, headers=headers, json=payload) as resp:
                 data = await resp.json()
                 return web.Response(text=json.dumps(data), content_type="application/json", status=resp.status)

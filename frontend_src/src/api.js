@@ -146,7 +146,7 @@ class HACSEnhancedAPI {
 
   /* Config Flow (proxied through backend) */
   getFlowHandlers() { return this.get('config_flow/handlers'); }
-  startConfigFlow(domain) { return this.post('config_flow/start', { handler: domain }); }
+  startConfigFlow(domain, opts = {}) { return this.post('config_flow/start', { handler: domain, ...opts }); }
   stepConfigFlow(flowId, data) { return this.post(`config_flow/step/${flowId}`, data); }
   cancelConfigFlow(flowId) { return this.request('DELETE', `config_flow/flow/${flowId}`); }
   startOptionsFlow(entryId) { return this.post('config_flow/options/start', { handler: entryId }); }

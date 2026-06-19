@@ -473,6 +473,8 @@ class ConfigFlowDialog extends LitElement {
         result = await api.startSubentryFlow(this.entryId, this._subentryType);
       } else if (this._isOptions && this.entryId) {
         result = await api.startOptionsFlow(this.entryId);
+      } else if (this.isReconfigure && this.entryId) {
+        result = await api.startConfigFlow(this.domain, { source: 'reconfigure', entry_id: this.entryId });
       } else {
         result = await api.startConfigFlow(this.domain);
       }
@@ -593,7 +595,7 @@ class ConfigFlowDialog extends LitElement {
         result = await api.stepConfigFlow(this._flowId, data);
       }
 
-      this._handleFlowResponse(result);
+      await this._handleFlowResponse(result);
     } catch (e) {
       console.error('HACS Vision: flow step error:', e);
       this._errors = { base: e.message || t('flowSubmitFailed') };
