@@ -36,6 +36,7 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
     _configFlowEntryId: { type: String, state: true },
     _configFlowSubentryType: { type: String, state: true },
     _configFlowIsReconfigure: { type: Boolean, state: true },
+    _configForceFlowType: { type: String },
     _configFlowAction: { type: String, state: true },
     _showConfigFlow: { type: Boolean, state: true },
     _configEntries: { type: Object, state: true },
@@ -56,6 +57,7 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
     this._detailRepo = null;
     this._showDetail = false;
     this._favoriteCount = 0;
+    this._panelHash = ''; // will be set from build.json
     this._readmeHtml = null;
     this._readmeLoading = false;
     this._viewTransition = false;
@@ -103,6 +105,8 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
       api.setHass(this.hass);
       if (!this._apiReady) {
         this._apiReady = true;
+        // Fetch build hash for debug display
+        fetch('/api/hacs_vision/static/build.json').then(r => r.json()).then(d => { if (d?.hash) this._panelHash = d.hash; }).catch(() => {});
         // Set page title on first load
         this._updatePageTitle(this.currentView);
         // Parallel init: stats (includes favorites) + config entries
@@ -180,7 +184,7 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
       display: inline-flex; align-items: center; gap: 4px;
       padding: 4px 12px; border: 1px solid #f44336; border-radius: 4px;
       background: rgba(244,67,54,0.1); color: #f44336;
-      line-height: 1.3; white-space: nowrap; cursor: pointer; font-size: 12px; font-weight: 600; white-space: nowrap;
+      line-height: 1.3; white-space: nowrap; cursor: pointer; font-size: 12px; font-weight: 600;
       transition: background 0.15s;
     }
     .restart-btn:hover { background: rgba(244,67,54,0.25); }
@@ -1028,6 +1032,28 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
     this._scheduleFlowTimeout();
   }
 
+  /** Open a config flow dialog for testing, forcing a specific flow type */
+  _openTestDialog(domain, type) {
+    const entries = this._configEntries || [];
+    const entry = entries.find(e => e.domain === domain);
+    if (!entry) { console.warn('HACS Vision: test dialog - no entry found for', domain); return; }
+    if (this._showConfigFlow) {
+      this._showConfigFlow = false;
+      this._configFlowEntryId = null;
+    }
+    this._configForceFlowType = type;
+    this._configFlowDomain = domain;
+    this._configFlowEntryId = entry.entry_id;
+    this._configFlowAction = 'configure';
+    this.requestUpdate();
+    setTimeout(() => {
+      this._configFlowDomain = domain;
+      this._configFlowEntryId = entry.entry_id;
+      this._showConfigFlow = true;
+      this._scheduleFlowTimeout();
+    }, 10);
+  }
+
   _scheduleFlowTimeout() {
     this._clearFlowTimeout();
     this._flowTimeout = setTimeout(() => {
@@ -1054,6 +1080,7 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
     this._configFlowSubentryType = '';
     this._configFlowIsReconfigure = false;
     this._configFlowAction = '';
+    this._configForceFlowType = null;
     this._showEntrySelector = false;
   }
 
@@ -1470,6 +1497,34 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
             <svg class="mini-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> ${t('connectFailed')}: <code>${this._error}</code>
           </div>
         ` : ''}
+
+        <!-- 🚨🚨🚨 全局调试条 — 如果看到这行字，说明面板模块加载成功 🚨🚨🚨 -->
+        <div style="background:#ff0000;color:#fff;padding:16px;margin-bottom:8px;border-radius:8px;font-size:18px;font-weight:700;text-align:center;position:relative;z-index:999;">
+          🔧 GLOBAL DEBUG — panel.js v${this._panelHash || '?'} 🔧
+          <div style="font-size:13px;font-weight:400;margin-top:6px;">
+            视图: ${this.currentView} | API: ${this._apiReady ? '✅' : '❌'} | Hash: ${this._panelHash || 'N/A'}
+          </div>
+        </div>
+
+        <!-- 🔧 配置弹窗测试按钮 — 点击直接弹对应集成的配置窗口 -->
+        <div style="background:#fff3cd;color:#856404;padding:12px;margin-bottom:8px;border-radius:8px;font-size:12px;border:2px solid #ffc107;">
+          <div style="font-weight:700;margin-bottom:8px;font-size:14px;">🔧 配置弹窗测试（点按钮直接弹窗）</div>
+          <div style="display:flex;flex-wrap:wrap;gap:6px;">
+            <button class="btn" style="font-size:10px;padding:4px 8px;background:#e3f2fd;color:#1565c0;" @click=${() => this._openTestDialog('wenzhou_water', 'options')}>💧 WW ⚙选项</button>
+            <button class="btn" style="font-size:10px;padding:4px 8px;background:#fce4ec;color:#c62828;" @click=${() => this._openTestDialog('wenzhou_water', 'config')}>💧 WW 🔄配置</button>
+            <button class="btn" style="font-size:10px;padding:4px 8px;background:#e3f2fd;color:#1565c0;" @click=${() => this._openTestDialog('crcgas', 'options')}>🔥 CRCGAS ⚙选项</button>
+            <button class="btn" style="font-size:10px;padding:4px 8px;background:#fce4ec;color:#c62828;" @click=${() => this._openTestDialog('crcgas', 'config')}>🔥 CRCGAS 🔄配置</button>
+            <button class="btn" style="font-size:10px;padding:4px 8px;background:#e3f2fd;color:#1565c0;" @click=${() => this._openTestDialog('cn_im_hub', 'options')}>💬 IM ⚙选项</button>
+            <button class="btn" style="font-size:10px;padding:4px 8px;background:#e8f5e9;color:#2e7d32;" @click=${() => this._openTestDialog('cn_im_hub', 'subentry')}>💬 IM 📋子条目</button>
+            <button class="btn" style="font-size:10px;padding:4px 8px;background:#e3f2fd;color:#1565c0;" @click=${() => this._openTestDialog('xiaomi_home', 'options')}>🏠 Xiaomi ⚙选项</button>
+            <button class="btn" style="font-size:10px;padding:4px 8px;background:#e3f2fd;color:#1565c0;" @click=${() => this._openTestDialog('bemfa', 'options')}>🔌 Bemfa ⚙选项</button>
+            <button class="btn" style="font-size:10px;padding:4px 8px;background:#e8f5e9;color:#2e7d32;" @click=${() => this._openTestDialog('ai_hub', 'subentry')}>🤖 AI Hub 📋子条目</button>
+          </div>
+          <div style="margin-top:6px;font-size:11px;color:#856404;">
+            ⚙选项 = Options Flow | 🔄配置 = Config/Reconfigure Flow | 📋子条目 = Subentry Flow
+          </div>
+        </div>
+
         ${!this._apiReady ? html`
           <div class="error-banner">
             ${t('waitingHA')}
@@ -1776,6 +1831,7 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
         .configEntries=${this._configEntries}
         .isReconfigure=${this._configFlowIsReconfigure}
         .flowAction=${this._configFlowAction}
+        ._forceFlowType=${this._configForceFlowType}
         .open=${this._showConfigFlow}
         @close=${this._onFlowClose}>
       </config-flow-dialog>

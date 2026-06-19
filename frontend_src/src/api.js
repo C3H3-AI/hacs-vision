@@ -185,65 +185,12 @@ class HACSEnhancedAPI {
 
   /* Version selector: get releases for a repo */
   getRepoReleases(repoId) {
-    return this._fetch(`/repos/releases?id=${encodeURIComponent(repoId)}`);
+    return this.get(`repos/releases?id=${encodeURIComponent(repoId)}`);
   }
 
   /* Version selector: install a specific version */
   installVersion(repoId, version) {
-    return this._post('/repos/install_version', { id: repoId, version });
-  }
-
-  /* Internal fetch helpers for version endpoints */
-  async _fetch(path) {
-    const opts = {
-      method: 'GET',
-      headers: this._getHeaders(),
-      credentials: 'include',
-    };
-    try {
-      const resp = await fetch(`${API_BASE}${path}`, opts);
-      if (!resp.ok) {
-        const err = new Error(`API error: ${resp.status}`);
-        err.status = resp.status;
-        throw err;
-      }
-      return resp.json();
-    } catch(e) {
-      if (!navigator.onLine && this._onNetworkStatus) {
-        this._onNetworkStatus('offline');
-      }
-      throw e;
-    }
-  }
-
-  async _post(path, body) {
-    const opts = {
-      method: 'POST',
-      headers: this._getHeaders(),
-      credentials: 'include',
-      body: JSON.stringify(body),
-    };
-    try {
-      const resp = await fetch(`${API_BASE}${path}`, opts);
-      const data = await resp.json().catch(() => ({}));
-      if (!resp.ok) {
-        const msg = data?.error || data?.message || `API error: ${resp.status}`;
-        const err = new Error(msg);
-        err.status = resp.status;
-        if (this._onNetworkStatus) {
-          if (resp.status === 429) this._onNetworkStatus('rate_limited');
-          else if (resp.status >= 500) this._onNetworkStatus('server_error');
-        }
-        throw err;
-      }
-      if (this._onNetworkStatus) this._onNetworkStatus('online');
-      return data;
-    } catch(e) {
-      if (!navigator.onLine && this._onNetworkStatus) {
-        this._onNetworkStatus('offline');
-      }
-      throw e;
-    }
+    return this.post('repos/install_version', { id: repoId, version });
   }
 
   /* F6: Get changelog with localStorage cache — tag optional, omit for latest stable */
