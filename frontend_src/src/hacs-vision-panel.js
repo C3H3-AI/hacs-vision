@@ -368,6 +368,15 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
       touch-action: manipulation;
     }
     .modal-close:hover { background: var(--divider-color, #e0e0e0); }
+    .modal-expand-btn {
+      width: 36px; height: 36px; border-radius: 50%; border: none;
+      background: var(--secondary-background-color, #f0f0f0);
+      color: var(--secondary-text-color, #727272); cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px; transition: all 0.2s; flex-shrink: 0;
+      touch-action: manipulation;
+    }
+    .modal-expand-btn:hover { background: var(--divider-color, #e0e0e0); }
 
     .modal-header-left {
       display: flex; align-items: center; gap: 12px; min-width: 0; flex: 1;
@@ -1604,7 +1613,10 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
                   <div class="modal-title">${r.manifest_name || r.repository_manifest?.name || r.full_name || r.name || 'unknown'}</div>
                 </div>
               </div>
-              <button class="modal-close" aria-label="${t('close') || '关闭'}" @click=${this._closeDetail}>✕</button>
+              <div style="display:flex;align-items:center;gap:8px;">
+                <button class="modal-expand-btn" aria-label="${t('zoom') || '放大'}" @click=${this._toggleDetailExpand}>${this._detailExpanded ? '⤡' : '⤢'}</button>
+                <button class="modal-close" aria-label="${t('close') || '关闭'}" @click=${this._closeDetail}>✕</button>
+              </div>
             </div>
             <div class="modal-body">
               <div class="detail-category" style="background: ${categoryColor}">

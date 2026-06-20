@@ -40,6 +40,7 @@ class IntegrationsList extends LitElement {
     _configureEntry: { type: Object, state: true },         // Entry for operation dialog
     _configureGroup: { type: Object, state: true },         // Group for operation dialog
     _testIframeUrl: { type: String, state: true },          // HA config page iframe URL (保留兼容)
+    _expanded: { type: Boolean, state: true },                // Modal maximize toggle
   };
 
   constructor() {
@@ -70,6 +71,7 @@ class IntegrationsList extends LitElement {
     this._entryDeviceLoading = {};
     this._toggling = {};
     this._selectedEntryIds = {};
+    this._expanded = false;
     this._selectedDomains = {};
     this._iframeZoom = 1;
   }
@@ -106,6 +108,10 @@ class IntegrationsList extends LitElement {
     modal.addEventListener('pointermove', onMove);
     modal.addEventListener('pointerup', onUp);
     modal.addEventListener('pointercancel', onUp);
+  }
+
+  _toggleExpand() {
+    this._expanded = !this._expanded;
   }
 
   connectedCallback() {
@@ -1005,7 +1011,7 @@ class IntegrationsList extends LitElement {
 
     return html`
       <div class="detail-overlay" role="dialog" aria-modal="true" aria-label="${this._translateDomain(domain)}" @click=${e => { if (e.target === e.currentTarget) this._closeDetail(); }} @keydown=${e => { if (e.key === 'Escape') this._closeDetail(); }}>
-        <div class="modal" @pointerdown=${this._modalPointerDown}>
+        <div class="modal ${this._expanded ? 'expanded' : ''}" @pointerdown=${this._modalPointerDown} @dblclick=${this._toggleExpand}>
           <div class="modal-header">
             <div class="modal-header-left">
               ${this._renderAvatar(domain)}
@@ -1023,6 +1029,7 @@ class IntegrationsList extends LitElement {
               </div>
             </div>
             <div class="modal-header-right">
+              <button class="tree-action-btn" @click=${this._toggleExpand} title="${t('zoom') || '放大'}">${this._expanded ? '⤡' : '⤢'}</button>
               <button class="tree-action-btn" @click=${this._expandAll} title="${t('expandAll') || '展开全部'}">⊕</button>
               <button class="tree-action-btn" @click=${this._collapseAll} title="${t('collapseAll') || '全部折叠'}">⊖</button>
               <button class="modal-close" aria-label="${t('close') || '关闭'}" @click=${this._closeDetail}>
@@ -1057,10 +1064,11 @@ class IntegrationsList extends LitElement {
       <div class="detail-overlay" role="dialog" aria-modal="true"
         @click=${e => { if (e.target === e.currentTarget) this._testIframeUrl = null; }}
         @keydown=${e => { if (e.key === 'Escape') this._testIframeUrl = null; }}>
-        <div class="modal iframe-modal ${this._iframeFullscreen ? 'fullscreen' : ''}" @pointerdown=${this._modalPointerDown} @dblclick=${() => { this._iframeFullscreen = !this._iframeFullscreen; }}>
+        <div class="modal iframe-modal ${this._expanded ? 'expanded' : ''}" @pointerdown=${this._modalPointerDown} @dblclick=${this._toggleExpand}>
           <div class="modal-header">
             <div class="modal-title">${this._translateDomain(this._testIframeDomain) || this._testIframeDomain || '配置页'}</div>
             <div class="modal-header-right">
+              <button class="tree-action-btn" @click=${this._toggleExpand} title="${t('zoom') || '放大'}">${this._expanded ? '⤡' : '⤢'}</button>
               <button class="modal-close" aria-label="${t('close') || '关闭'}" @click=${() => { this._testIframeUrl = null; }}>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
               </button>
@@ -1115,7 +1123,7 @@ class IntegrationsList extends LitElement {
       <div class="detail-overlay" role="dialog" aria-modal="true"
         @click=${e => { if (e.target === e.currentTarget) this._closeOperationDialog(); }}
         @keydown=${e => { if (e.key === 'Escape') this._closeOperationDialog(); }}>
-        <div class="modal op-modal" @pointerdown=${this._modalPointerDown}>
+        <div class="modal op-modal ${this._expanded ? 'expanded' : ''}" @pointerdown=${this._modalPointerDown} @dblclick=${this._toggleExpand}>
           <div class="modal-header">
             <div class="modal-header-left">
               ${this._renderAvatar(domain)}
@@ -1129,6 +1137,7 @@ class IntegrationsList extends LitElement {
               </div>
             </div>
             <div class="modal-header-right">
+              <button class="tree-action-btn" @click=${this._toggleExpand} title="${t('zoom') || '放大'}">${this._expanded ? '⤡' : '⤢'}</button>
               <button class="modal-close" aria-label="${t('close') || '关闭'}" @click=${this._closeOperationDialog}>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
               </button>
@@ -1331,12 +1340,15 @@ class IntegrationsList extends LitElement {
     const filtered = this._filteredHandlers;
     return html`
       <div class="detail-overlay" role="dialog" aria-modal="true" aria-label="${t('addHAIntegration')}" @click=${e => { if (e.target === e.currentTarget) this._closeAddDialog(); }}>
-        <div class="modal add-modal" @pointerdown=${this._modalPointerDown}>
+        <div class="modal add-modal ${this._expanded ? 'expanded' : ''}" @pointerdown=${this._modalPointerDown} @dblclick=${this._toggleExpand}>
           <div class="modal-header">
             <span class="modal-title">${t('addHAIntegration')}</span>
-            <button class="modal-close" aria-label="${t('close') || '关闭'}" @click=${this._closeAddDialog}>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-            </button>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <button class="tree-action-btn" @click=${this._toggleExpand} title="${t('zoom') || '放大'}">${this._expanded ? '⤡' : '⤢'}</button>
+              <button class="modal-close" aria-label="${t('close') || '关闭'}" @click=${this._closeAddDialog}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
+            </div>
           </div>
           <div class="modal-search">
             <input type="text" class="add-search-input" autocomplete="off"
@@ -1722,7 +1734,9 @@ class IntegrationsList extends LitElement {
       overflow: hidden;
       user-select: text;
       -webkit-user-select: text;
+      transition: all 0.3s ease;
     }
+    .modal.expanded { max-width: 95vw; max-height: 95vh; width: 95vw; height: 95vh; }
     @media (min-width: 1024px) {
       .modal { max-width: 860px; }
       .modal.two-col { max-width: 960px; }
