@@ -26,7 +26,6 @@ class HACSOperator:
         self._install_locks: dict[str, asyncio.Lock] = {}
         # F1: Track whether custom repos have been verified from config in this session
         self._custom_repos_verified: bool = False
-        self.version_map = {}
 
     @property
     def _hacs(self):
@@ -291,41 +290,6 @@ class HACSOperator:
                 })
             except (AttributeError, KeyError, TypeError) as e:
                 _LOGGER.warning("Skipping repo %s (data incomplete): %s",
-                                getattr(repo.data, 'full_name', 'unknown'), e)
-                continue
-        return result
-
-    def get_version_map(self) -> dict[str, dict]:
-        """Get version info for all installed repos from HACS in-memory data."""
-        if not self.available:
-            return {}
-        result = {}
-        for repo in self._hacs.repositories.list_all:
-            try:
-                if repo.data.installed:
-                    installed_ver = (
-                        repo.data.installed_version
-                        or repo.display_installed_version
-                        or (repo.data.installed_commit[:7] if repo.data.installed_commit else None)
-                    )
-                    latest_ver = (
-                        repo.display_available_version
-                        or repo.data.available_version
-                        or (repo.data.last_commit[:7] if repo.data.last_commit else None)
-                    )
-                    result[str(repo.data.id)] = {
-                        "installed_version": installed_ver,
-                        "latest_version": latest_ver,
-                        "installed": True,
-                        "has_update": bool(
-                            installed_ver and latest_ver and installed_ver != latest_ver
-                        ),
-                        "full_name": repo.data.full_name,
-                        "category": repo.data.category,
-                        "name": repo.data.name or repo.data.full_name.split("/")[-1],
-                    }
-            except (AttributeError, KeyError, TypeError) as e:
-                _LOGGER.warning("Skipping version for repo %s (data incomplete): %s",
                                 getattr(repo.data, 'full_name', 'unknown'), e)
                 continue
         return result

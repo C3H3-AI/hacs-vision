@@ -23,10 +23,23 @@ FRONTEND_DIR = os.path.join(os.path.dirname(__file__), "frontend")
 # Server-side README cache: {full_name: {html, timestamp}}
 _README_CACHE: dict[str, dict] = {}
 _README_CACHE_TTL = 3600  # 1 hour
+_README_CACHE_MAX = 200
 
 # GitHub release download count cache: {full_name: {count, timestamp}}
 _DOWNLOAD_CACHE: dict[str, dict] = {}
 _DOWNLOAD_CACHE_TTL = 7200  # 2 hours
+_DOWNLOAD_CACHE_MAX = 500
+
+def _cache_put(cache: dict, key: str, value: dict, max_size: int) -> None:
+    """Put into cache with size limit — evict oldest entry if full."""
+    if len(cache) >= max_size:
+        try:
+            oldest = min(cache, key=lambda k: cache[k].get("timestamp", 0))
+            del cache[oldest]
+        except (ValueError, KeyError):
+            # Empty or invalid cache
+            cache.clear()
+    cache[key] = value
 
 
 class HACSEnhancedStaticView(HomeAssistantView):
@@ -88,6 +101,7 @@ class HACSEnhancedAPI(HomeAssistantView):
         self.backup = backup or BackupManager(hass, shared_data=self.data, operator=self.operator)
         self.checker = checker or DependencyChecker(hass, shared_data=self.data)
         self._github_token: str | None = None
+        self._current_token: str | None = None
 
     @property
     def _ha_base_url(self) -> str:
@@ -379,9 +393,9 @@ class HACSEnhancedAPI(HomeAssistantView):
                             "html_url": r.get("html_url", ""),
                             "updated_at": r.get("updated_at", ""),
                         })
-                        if len(data) < per_page:
-                            break
-                        page += 1
+                    if len(data) < per_page:
+                        break
+                    page += 1
         except Exception as e:
             _LOGGER.error("_github_list_org_repos error: %s", e, exc_info=True)
             return web.json_response({"error": str(e), "repos": repos}, status=500)
@@ -899,7 +913,7 @@ class HACSEnhancedAPI(HomeAssistantView):
     async def _enrich_download_counts(self, repos: list[dict]) -> None:
         """Enrich repos with GitHub release download counts where HACS data is 0."""
         import aiohttp
-        now = time.time()
+        now = time.monotonic()
         need_fetch = []
         for r in repos:
             if r.get("downloads", 0) > 0:
@@ -933,11 +947,13 @@ class HACSEnhancedAPI(HomeAssistantView):
                                 asset.get("download_count", 0)
                                 for asset in data.get("assets", [])
                             )
-                            _DOWNLOAD_CACHE[full_name] = {"count": total, "timestamp": now}
+                            _cache_put(_DOWNLOAD_CACHE, full_name,
+                           {"count": total, "timestamp": now}, _DOWNLOAD_CACHE_MAX)
                             return full_name, total
                 except Exception:
                     pass
-                _DOWNLOAD_CACHE[full_name] = {"count": 0, "timestamp": now}
+                _cache_put(_DOWNLOAD_CACHE, full_name,
+                           {"count": 0, "timestamp": now}, _DOWNLOAD_CACHE_MAX)
                 return full_name, 0
 
         tasks = [_fetch_one(fn) for fn in need_fetch]
@@ -1213,7 +1229,7 @@ class HACSEnhancedAPI(HomeAssistantView):
         """Proxy GitHub README request with rate limit awareness and server-side cache."""
         # Check server-side cache first
         cached = _README_CACHE.get(full_name)
-        if cached and (time.time() - cached["timestamp"] < _README_CACHE_TTL):
+        if cached and (time.monotonic() - cached["timestamp"] < _README_CACHE_TTL):
             return web.Response(text=cached["html"], content_type="text/html")
 
         session = await self._get_session()
@@ -1237,7 +1253,8 @@ class HACSEnhancedAPI(HomeAssistantView):
                 if resp.status == 200:
                     content = await resp.text()
                     # Cache on server side
-                    _README_CACHE[full_name] = {"html": content, "timestamp": time.time()}
+                    _cache_put(_README_CACHE, full_name,
+                               {"html": content, "timestamp": time.monotonic()}, _README_CACHE_MAX)
                     return web.Response(text=content, content_type="text/html")
                 elif resp.status == 404:
                     return web.json_response({"error": "not_found"}, status=404)
@@ -1300,6 +1317,9 @@ class HACSEnhancedAPI(HomeAssistantView):
     async def _install(self, body: dict) -> web.Response:
         repo = body.get("repository", "")
         category = body.get("category", "integration")
+        VALID_CATEGORIES = {"integration", "plugin", "python_script", "theme", "appdaemon", "netdaemon", "template"}
+        if category not in VALID_CATEGORIES:
+            return web.json_response({"error": f"invalid_category: {category}"}, status=400)
         result = await self.operator.install_repository(repo, category)
         if result.get("success"):
             # Record install time
@@ -1442,6 +1462,39 @@ class HACSEnhancedAPI(HomeAssistantView):
 
     # ── Management: destructive repo operations ─────────
 
+    async def _purge_from_repos_storage(self, repo_name: str) -> list[str]:
+        """Purge a repo entry from .storage/hacs.repositories by full_name."""
+        repos_data = await self.data.read_storage("repositories")
+        purged_ids = []
+        if repos_data and "data" in repos_data:
+            to_delete = [
+                rid for rid, info in repos_data["data"].items()
+                if info.get("full_name") == repo_name
+            ]
+            for rid in to_delete:
+                del repos_data["data"][rid]
+                purged_ids.append(rid)
+            if to_delete:
+                await self.data.write_storage("repositories", repos_data)
+        return purged_ids
+
+    async def _purge_from_data_storage(self, repo_name: str) -> bool:
+        """Remove repo from .storage/hacs.data installed lists by name."""
+        hacs_data = await self.data.read_storage("data")
+        if not hacs_data or "data" not in hacs_data:
+            return False
+        cat_dict = hacs_data["data"].get("repositories", {})
+        changed = False
+        for cat, repos_list in cat_dict.items():
+            if isinstance(repos_list, list):
+                filtered = [r for r in repos_list if r != repo_name]
+                if len(filtered) != len(repos_list):
+                    cat_dict[cat] = filtered
+                    changed = True
+        if changed:
+            await self.data.write_storage("data", hacs_data)
+        return changed
+
     async def _remove_archived(self, body: dict) -> web.Response:
         """Completely purge an archived repository from HACS storage."""
         repo_name = body.get("repository", "")
@@ -1470,35 +1523,11 @@ class HACSEnhancedAPI(HomeAssistantView):
             except Exception as e:
                 _LOGGER.warning("Failed to update HACS memory state: %s", e, exc_info=True)
 
-        # 3. Purge from hacs.repositories (the master repo data dict)
-        repos_data = await self.data.read_storage("repositories")
-        purged_ids = []
-        if repos_data and "data" in repos_data:
-            to_delete = [
-                rid for rid, info in repos_data["data"].items()
-                if info.get("full_name") == repo_name
-            ]
-            for rid in to_delete:
-                del repos_data["data"][rid]
-                purged_ids.append(rid)
-            if to_delete:
-                await self.data.write_storage("repositories", repos_data)
+        # 3-4. Purge from hacs.repositories + hacs.data
+        purged_ids = await self._purge_from_repos_storage(repo_name)
+        await self._purge_from_data_storage(repo_name)
 
-        # 4. Purge from hacs.data installed-repo lists
-        hacs_data = await self.data.read_storage("data")
-        if hacs_data and "data" in hacs_data:
-            cat_dict = hacs_data["data"].get("repositories", {})
-            changed = False
-            for cat, repos_list in cat_dict.items():
-                if isinstance(repos_list, list):
-                    filtered = [r for r in repos_list if r != repo_name]
-                    if len(filtered) != len(repos_list):
-                        cat_dict[cat] = filtered
-                        changed = True
-            if changed:
-                await self.data.write_storage("data", hacs_data)
-
-        # 4. Try HACS in-memory uninstall if still tracked
+        # 5. Try HACS in-memory uninstall if still tracked
         await self.operator.remove_repository(repo_name)
 
         # 5. Invalidate operator index so it re-reads from storage
@@ -1542,30 +1571,9 @@ class HACSEnhancedAPI(HomeAssistantView):
         # 2. Uninstall old repo via HACS API
         await self.operator.remove_repository(old_name)
 
-        # 3. Purge old repo from hacs.repositories
-        if repos_data and "data" in repos_data:
-            to_delete = [
-                rid for rid, info in repos_data["data"].items()
-                if info.get("full_name") == old_name
-            ]
-            for rid in to_delete:
-                del repos_data["data"][rid]
-            if to_delete:
-                await self.data.write_storage("repositories", repos_data)
-
-        # 4. Purge old repo from hacs.data installed lists
-        hacs_data = await self.data.read_storage("data")
-        if hacs_data and "data" in hacs_data:
-            cat_dict = hacs_data["data"].get("repositories", {})
-            changed = False
-            for cat, repos_list in cat_dict.items():
-                if isinstance(repos_list, list):
-                    filtered = [r for r in repos_list if r != old_name]
-                    if len(filtered) != len(repos_list):
-                        cat_dict[cat] = filtered
-                        changed = True
-            if changed:
-                await self.data.write_storage("data", hacs_data)
+        # 3-4. Purge old repo from storage
+        await self._purge_from_repos_storage(old_name)
+        await self._purge_from_data_storage(old_name)
 
         # 5. Install new repo
         install_result = await self.operator.install_repository(new_name, category)
@@ -1599,33 +1607,9 @@ class HACSEnhancedAPI(HomeAssistantView):
             config["renamed_repositories"] = renamed
             await self.data.update_config(config)
 
-        # 2. Purge from hacs.repositories
-        repos_data = await self.data.read_storage("repositories")
-        purged_ids = []
-        if repos_data and "data" in repos_data:
-            to_delete = [
-                rid for rid, info in repos_data["data"].items()
-                if info.get("full_name") == old_name
-            ]
-            for rid in to_delete:
-                del repos_data["data"][rid]
-                purged_ids.append(rid)
-            if to_delete:
-                await self.data.write_storage("repositories", repos_data)
-
-        # 3. Purge from hacs.data installed lists
-        hacs_data = await self.data.read_storage("data")
-        if hacs_data and "data" in hacs_data:
-            cat_dict = hacs_data["data"].get("repositories", {})
-            changed = False
-            for cat, repos_list in cat_dict.items():
-                if isinstance(repos_list, list):
-                    filtered = [r for r in repos_list if r != old_name]
-                    if len(filtered) != len(repos_list):
-                        cat_dict[cat] = filtered
-                        changed = True
-            if changed:
-                await self.data.write_storage("data", hacs_data)
+        # 2-3. Purge old repo from storage
+        purged_ids = await self._purge_from_repos_storage(old_name)
+        await self._purge_from_data_storage(old_name)
 
         # 4. HACS in-memory uninstall
         await self.operator.remove_repository(old_name)
@@ -1847,7 +1831,7 @@ class HACSEnhancedAPI(HomeAssistantView):
             trans_path = self.hass.config.path(
                 "custom_components", safe_domain, "translations", lang_file
             )
-            if os.path.isfile(trans_path):
+            if await self.hass.async_add_executor_job(os.path.isfile, trans_path):
                 try:
                     data = await self.hass.async_add_executor_job(
                         _read_json_text, trans_path
@@ -2050,7 +2034,7 @@ class HACSBrandIconView(HomeAssistantView):
         base = self.hass.config.path("custom_components", actual_domain, "brand")
         for ext in ("png", "svg"):
             path = os.path.join(base, f"{asset_type}.{ext}")
-            if os.path.isfile(path):
+            if await self.hass.async_add_executor_job(os.path.isfile, path):
                 content_type = "image/svg+xml" if ext == "svg" else "image/png"
                 body = await self.hass.async_add_executor_job(
                     _read_file_binary, path

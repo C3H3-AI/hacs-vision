@@ -41,7 +41,8 @@ _ENTITY_ID_RE = re.compile(
     r"tts|tv|u_v|update|vacuum|valve|vent|ventilation|vibration|"
     r"video_doorbell|view|visitor|voice|voltage|volume|wake_word|walk|wall|"
     r"warm|washing_machine|watch|water|water_heater|water_pump|weather|"
-    r"weight|welcome|wheel|wind|window|wine|work|zone"
+    r"weight|welcome|wheel|wind|window|wine|work|zone|"
+    r"[a-z][a-z0-9_]{1,63}"
     r")\.[a-z][a-z0-9]*(?:_[a-z0-9]+)*\b",
 )
 

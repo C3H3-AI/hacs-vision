@@ -2,6 +2,7 @@
 from __future__ import annotations
 import json
 import logging
+import time
 from typing import Any
 
 from .const import STORAGE_PATHS
@@ -482,7 +483,7 @@ class HACSData:
                 {
                     "title": title,
                     "message": message,
-                    "notification_id": f"hacs_vision_{int(__import__('time').time())}",
+                    "notification_id": f"hacs_vision_{int(time.monotonic())}",
                 },
                 blocking=False,
             )

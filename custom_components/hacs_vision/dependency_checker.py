@@ -7,6 +7,40 @@ from .hacs_data import HACSData
 
 _LOGGER = logging.getLogger(__name__)
 
+# pip 包名 → Python import 名映射（处理命名不一致的情况）
+_PACKAGE_IMPORT_MAP = {
+    "pillow": "PIL",
+    "scikit-learn": "sklearn",
+    "beautifulsoup4": "bs4",
+    "python-slugify": "slugify",
+    "pyyaml": "yaml",
+    "python-dotenv": "dotenv",
+    "Pillow": "PIL",
+    "scikit_image": "skimage",
+    "opencv-python": "cv2",
+    "opencv-contrib-python": "cv2",
+    "protobuf": "google.protobuf",
+    "paho-mqtt": "paho.mqtt.client",
+}
+
+
+def _check_import(pkg_name: str) -> bool:
+    """Check if a package is importable, handling name mismatches."""
+    import_name = _PACKAGE_IMPORT_MAP.get(pkg_name, pkg_name.replace("-", "_"))
+    try:
+        importlib.import_module(import_name)
+        return True
+    except ImportError:
+        pass
+    # Try top-level module for dotted import names (e.g. google.protobuf)
+    if "." in import_name:
+        try:
+            importlib.import_module(import_name.split(".")[0])
+            return True
+        except ImportError:
+            pass
+    return False
+
 class DependencyChecker:
     def __init__(self, hass, shared_data: HACSData | None = None) -> None:
         self.data = shared_data or HACSData(hass)
@@ -30,13 +64,11 @@ class DependencyChecker:
             # Actually check if each requirement is importable
             missing = []
             for req in requirements:
-                # Extract package name from requirement string (e.g., "aiohttp>=3.0" -> "aiohttp")
-                pkg_name = req.split(">=")[0].split("==")[0].split("<=")[0].split("<")[0].split(">")[0].split("[")[0].strip()
-                if pkg_name:
-                    try:
-                        importlib.import_module(pkg_name.replace("-", "_"))
-                    except ImportError:
-                        missing.append(req)
+                # Extract package name from requirement string
+                # Handles: aiohttp>=3.0, foo==1.0, bar<2.0, baz>1.0, qux[extra]>=1.0
+                pkg_name = req.split(">=")[0].split("==")[0].split("<=")[0].split("<")[0].split(">")[0].split("[")[0].split("!=")[0].split("~=")[0].strip()
+                if pkg_name and not _check_import(pkg_name):
+                    missing.append(req)
 
             results.append({
                 "repository": repo.get("full_name", ""),
