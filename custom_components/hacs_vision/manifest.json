@@ -1,7 +1,7 @@
 {
   "domain": "hacs_vision",
   "name": "HACS Vision",
-  "version": "5.0.0-beta.2",
+  "version": "5.0.0-beta.3",
   "requirements": [],
   "dependencies": ["hacs"],
   "codeowners": ["@C3H3-AI"],
