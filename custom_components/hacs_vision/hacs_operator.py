@@ -275,18 +275,21 @@ class HACSOperator:
 
     async def _get_available_with_prerelease(self, repo, installed: str | None, available: str | None) -> str | None:
         """Get latest available version, falling back to GitHub API for pre-release detection.
-        
-        When the installed version is a pre-release but HACS's available version
-        is not (because HACS filters pre-releases by default), fetch from GitHub
-        Releases API directly to find the latest pre-release.
+
+        Rules:
+        - Stable → Stable only (use HACS as-is)
+        - Pre-release → Any newer version from GitHub (pre-release OR stable).
+          Beta testers want to know when the stable release ships.
         """
         if not installed or not available:
             return available
         installed_prerelease = _is_prerelease_version(installed)
         available_prerelease = _is_prerelease_version(available)
+        if not installed_prerelease:
+            return available  # Stable user: no override needed
         if installed_prerelease == available_prerelease:
-            return available  # Same channel, no override needed
-        # Installed is pre-release but available is not → HACS filtered it out
+            return available  # Same channel, HACS already has it right
+        # Pre-release installed but HACS returned stable — may be missing newer pre-release
         full_name = getattr(repo.data, 'full_name', '')
         if not full_name or '/' not in full_name:
             return available
@@ -294,10 +297,8 @@ class HACSOperator:
             releases = await self._fetch_github_releases(full_name)
             for r in releases:
                 tag = r.get("tag_name", "").lstrip("vV")
-                if tag and _is_prerelease_version(tag):
-                    if tag != installed:
-                        return tag
-                    break  # Latest pre-release is the same as installed, no update
+                if tag and tag != installed:
+                    return tag  # Latest release (stable or pre-release), any upgrade is fair game
         except Exception:
             pass
         return available
