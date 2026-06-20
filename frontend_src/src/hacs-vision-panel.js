@@ -1588,6 +1588,8 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
   _renderModals(tabs) {
     const r = this._detailRepo;
     const categoryColor = r ? getCategoryColor(r.category || 'integration') : '';
+    const isInstalled = r?.installed || false;
+    const isUpdateAvailable = isInstalled && r?.installed_version && r?.latest_version && r.installed_version !== r.latest_version;
 
     return html`
       <!-- Detail Modal -->

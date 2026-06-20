@@ -924,7 +924,7 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
           <config-view .hass=${this.hass} @refresh-stats=${this._loadStats} ?hidden=${"settings"!==this.currentView}></config-view>
         </div>
       </div>
-    `}_renderModals(e){const t=this._detailRepo,i=t?fe(t.category||"integration"):"";return N`
+    `}_renderModals(e){const t=this._detailRepo,i=t?fe(t.category||"integration"):"",o=t?.installed||!1,r=o&&t?.installed_version&&t?.latest_version&&t.installed_version!==t.latest_version;return N`
       <!-- Detail Modal -->
       ${this._showDetail&&t?N`
         <div class="modal-overlay" role="dialog" aria-modal="true" aria-label="${t.manifest_name||t.full_name||ge("detail")}" @click=${e=>{e.target===e.currentTarget&&this._closeDetail()}}>
@@ -980,13 +980,13 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
                 </div>
               `:""}
 
-              ${isInstalled?N`
+              ${o?N`
                 <div class="detail-version">
                   <div class="detail-version-row">
                     <span class="detail-version-label">${ge("currentVersion")}</span>
                     <span class="detail-version-value">${t.installed_version||ge("unknown")}</span>
                   </div>
-                  ${isUpdateAvailable?N`
+                  ${r?N`
                     <div class="detail-version-row" style="margin-top:8px;">
                       <span class="detail-version-label">${ge("availableVersion")}</span>
                       <span class="detail-version-value" style="color:var(--success-color, #0f9d58);">${t.latest_version||ge("unknown")}</span>
@@ -1043,7 +1043,7 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
               </div>
 
               <!-- Changelog (What's New) — shown when update is available or version selected -->
-              ${isUpdateAvailable||this._changelogData?N`
+              ${r||this._changelogData?N`
                 <div class="detail-changelog">
                   <div class="detail-changelog-title">${ge("changelogTitle")||"更新内容"}${this._changelogData?.tag?N` <span style="font-weight:400;font-size:12px;color:var(--secondary-text-color);">— ${this._changelogData.tag}</span>`:""}</div>
                   ${this._changelogLoading?N`
