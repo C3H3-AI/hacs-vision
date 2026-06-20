@@ -273,6 +273,35 @@ class HACSOperator:
             finally:
                 self._cleanup_lock(repo_id_or_name)
 
+    async def _get_available_with_prerelease(self, repo, installed: str | None, available: str | None) -> str | None:
+        """Get latest available version, falling back to GitHub API for pre-release detection.
+        
+        When the installed version is a pre-release but HACS's available version
+        is not (because HACS filters pre-releases by default), fetch from GitHub
+        Releases API directly to find the latest pre-release.
+        """
+        if not installed or not available:
+            return available
+        installed_prerelease = _is_prerelease_version(installed)
+        available_prerelease = _is_prerelease_version(available)
+        if installed_prerelease == available_prerelease:
+            return available  # Same channel, no override needed
+        # Installed is pre-release but available is not → HACS filtered it out
+        full_name = getattr(repo.data, 'full_name', '')
+        if not full_name or '/' not in full_name:
+            return available
+        try:
+            releases = await self._fetch_github_releases(full_name)
+            for r in releases:
+                tag = r.get("tag_name", "").lstrip("vV")
+                if tag and _is_prerelease_version(tag):
+                    if tag != installed:
+                        return tag
+                    break  # Latest pre-release is the same as installed, no update
+        except Exception:
+            pass
+        return available
+
     def get_installed_list(self) -> list[dict]:
         """Get actually installed repos from HACS in-memory data."""
         if not self.available:
@@ -312,7 +341,7 @@ class HACSOperator:
                 continue
         return result
 
-    def get_available_updates(self) -> list[dict]:
+    async def get_available_updates(self) -> list[dict]:
         """Get list of repositories with available updates from HACS."""
         if not self.available:
             return []
@@ -322,7 +351,7 @@ class HACSOperator:
                 if not repo.data.installed:
                     continue
                 installed = repo.data.installed_version
-                available = repo.display_available_version
+                available = await self._get_available_with_prerelease(repo, installed, repo.display_available_version)
                 same_channel = _is_prerelease_version(installed) == _is_prerelease_version(available)
                 if installed and available and installed != available and same_channel:
                     updates.append({
@@ -376,7 +405,10 @@ class HACSOperator:
             for i, repo in enumerate(repo_list):
                 try:
                     installed_ver = repo.data.installed_version
-                    latest_ver = repo.display_available_version or getattr(repo.data, 'available_version', None) or getattr(repo.data, 'last_version', None)
+                    latest_ver = await self._get_available_with_prerelease(
+                        repo, installed_ver,
+                        repo.display_available_version or getattr(repo.data, 'available_version', None) or getattr(repo.data, 'last_version', None)
+                    )
                     # Channel detection: prevent cross-channel updates
                     installed_prerelease = _is_prerelease_version(installed_ver)
                     latest_prerelease = _is_prerelease_version(latest_ver)

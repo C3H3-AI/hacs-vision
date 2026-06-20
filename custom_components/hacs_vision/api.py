@@ -1191,7 +1191,7 @@ class HACSEnhancedAPI(HomeAssistantView):
         })
 
     async def _get_updates(self) -> web.Response:
-        updates = self.operator.get_available_updates()
+        updates = await self.operator.get_available_updates()
         return web.json_response({"updates": updates})
 
     async def _get_config(self) -> web.Response:
