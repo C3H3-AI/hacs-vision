@@ -881,6 +881,16 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
     setTimeout(() => { this._presetTag = ''; }, 100);
   }
 
+  /** Auto-link bare URLs in text, return HTML-safe string (uses DOMPurify) */
+  _linkify(text) {
+    if (!text) return '';
+    let html = String(text);
+    // Auto-link bare URLs
+    html = html.replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener" style="color:var(--primary-color,#03a9f4);text-decoration:underline">$1</a>');
+    // Sanitize to prevent XSS
+    return DOMPurify.sanitize(html, { ALLOWED_TAGS: ['a'], ALLOWED_ATTR: ['href', 'target', 'rel', 'style'] });
+  }
+
   _closeDetail() {
     this._showDetail = false;
     this._detailRepo = null;
@@ -1624,7 +1634,7 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
                 ${this._getCategoryLabel(r.category || 'integration')}
               </div>
 
-              <div class="detail-desc">${r.description || t('noDesc')}</div>
+              <div class="detail-desc" .innerHTML=${this._linkify(r.description) || t('noDesc')}></div>
 
               ${r.authors && r.authors.length ? html`
                 <div class="detail-authors">
@@ -1737,7 +1747,7 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
                       ${t('loading') || '加载中...'}
                     </div>
                   ` : this._changelogData ? html`
-                    <div class="changelog-body">${this._changelogData.body}</div>
+                    <div class="changelog-body" .innerHTML=${this._linkify(this._changelogData.body)}></div>
                     ${this._changelogData.tag ? html`
                       <div class="changelog-tag">${this._changelogData.tag}</div>
                     ` : ''}

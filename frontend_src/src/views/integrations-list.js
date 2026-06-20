@@ -1241,12 +1241,12 @@ class IntegrationsList extends LitElement {
           </button>
           ` : ''}
           ${entry.supports_reconfigure ? html`
-          <button class="entry-btn" @click=${e => { e.stopPropagation(); this.dispatchEvent(new CustomEvent('configure-integration', { bubbles: true, composed: true, detail: { domain: entry.domain, entry_id: entry.entry_id } })); this._closeDetail(); }} title="${t('reconfigure') || '重配置'}" ?disabled=${isProcessing}>
+          <button class="entry-btn" @click=${e => { e.stopPropagation(); this.dispatchEvent(new CustomEvent('configure-integration', { bubbles: true, composed: true, detail: { domain: entry.domain, entry_id: entry.entry_id, action: 'reconfigure' } })); this._closeDetail(); }} title="${t('reconfigure') || '重配置'}" ?disabled=${isProcessing}>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M21 2v6h-6M3 22v-6h6"/><path d="M21 8a9 9 0 1 1-3.64-6.36L21 2"/></svg>
           </button>
           ` : ''}
           ${entry.supported_subentry_types && entry.supported_subentry_types.length > 0 ? html`
-          <button class="entry-btn sub" @click=${e => { e.stopPropagation(); this.dispatchEvent(new CustomEvent('configure-integration', { bubbles: true, composed: true, detail: { domain: entry.domain, entry_id: entry.entry_id } })); this._closeDetail(); }} title="${t('addSubentry') || '添加服务'}" ?disabled=${isProcessing}>
+          <button class="entry-btn sub" @click=${e => { e.stopPropagation(); this.dispatchEvent(new CustomEvent('configure-integration', { bubbles: true, composed: true, detail: { domain: entry.domain, entry_id: entry.entry_id, action: 'add-subentry' } })); this._closeDetail(); }} title="${t('addSubentry') || '添加服务'}" ?disabled=${isProcessing}>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
           </button>
           ` : ''}

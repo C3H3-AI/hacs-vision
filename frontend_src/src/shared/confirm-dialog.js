@@ -1,6 +1,12 @@
 import { LitElement, html, css } from 'lit';
 import { t } from '../i18n.js';
 
+/** Auto-link bare URLs in text, return HTML-safe string */
+function _linkify(text) {
+  if (!text) return '';
+  return String(text).replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener" style="color:var(--primary-color,#03a9f4);text-decoration:underline">$1</a>');
+}
+
 /**
  * Custom confirm dialog component to replace native confirm()
  *
@@ -237,7 +243,7 @@ class ConfirmDialog extends LitElement {
               <span class="title-text">${this._title}</span>
             </div>
           ` : ''}
-          <div class="message">${this._message}</div>
+          <div class="message" .innerHTML=${_linkify(this._message)}></div>
           <div class="actions">
             <button class="btn" @click=${this._onCancel}>${this._cancelText}</button>
             ${this._thirdText ? html`

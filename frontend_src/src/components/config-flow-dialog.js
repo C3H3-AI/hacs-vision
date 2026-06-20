@@ -1159,9 +1159,16 @@ class ConfigFlowDialog extends LitElement {
       desc = desc.replace(new RegExp(`\\{${key}\\}`, 'g'), strVal);
     }
 
-    // Auto-link URLs in the description text (skip if description already contains HTML)
-    const _hasHTML = /<[a-z][\s\S]*>/i.test(desc);
-    if (!_hasHTML) {
+    // Convert Markdown images ![alt](url) to <img> tags
+    desc = desc.replace(
+      /!\[([^\]]*)\]\(([^)]+)\)/g,
+      '<img src="$2" alt="$1" style="max-width:100%;height:auto;display:block;margin:8px 0" loading="lazy">'
+    );
+
+    // Auto-link bare URLs in the description text.
+    // Only skip if description ALREADY contains <a> links (to avoid double-linking),
+    // NOT if it just has other HTML tags like <img> (which we just added above).
+    if (!/<\s*a\b[\s\S]*?<\/a>/i.test(desc)) {
       desc = desc.replace(
         /(https?:\/\/[^\s<]+)/g,
         '<a href="$1" target="_blank" rel="noopener" style="color:var(--primary-color,#03a9f4);text-decoration:underline">$1</a>'
