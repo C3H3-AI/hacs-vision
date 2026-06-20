@@ -82,11 +82,11 @@ export class ManagementView extends LitElement {
       tools: false,
     };
     this._orgRepos = [];
-    this._orgRepos = [];
     this._orgLoading = false;
     this._orgFilter = '';
     this._selectedOrgRepos = {};
     this._orgSyncResult = '';
+    this._orgSyncFailed = false;
     this._orgSyncing = false;
   }
 
@@ -690,7 +690,8 @@ export class ManagementView extends LitElement {
           category: r.category || 'integration',
         }));
       if (reposToSync.length === 0) {
-        this._orgSyncResult = '没有选中的仓库';
+        this._orgSyncResult = t('noSelectedRepos');
+        this._orgSyncFailed = false;
         this._orgSyncing = false;
         return;
       }
@@ -708,6 +709,7 @@ export class ManagementView extends LitElement {
       }
     } catch(e) {
       this._orgSyncResult = `${t('addFailed')}: ${e.message}`;
+      this._orgSyncFailed = true;
       showToast(`${t('addFailed')}: ${e.message}`, 'error');
     }
     this._orgSyncing = false;
@@ -1196,7 +1198,7 @@ export class ManagementView extends LitElement {
                     ${this._orgSyncing ? t('adding') : `${t('addSelected')} (${Object.keys(this._selectedOrgRepos).length})`}
                   </button>
                 </div>
-                ${this._orgSyncResult ? html`<div style="font-size:12px;margin-bottom:6px;width:100%;color:${this._orgSyncResult.includes(t('failedSuffix').trim()) ? '#f44336' : 'var(--primary-text-color)'};">${this._orgSyncResult}</div>` : ''}
+                ${this._orgSyncResult ? html`<div style="font-size:12px;margin-bottom:6px;width:100%;color:${this._orgSyncFailed ? '#f44336' : 'var(--primary-text-color)'};">${this._orgSyncResult}</div>` : ''}
                 <div style="max-height:240px;overflow-y:auto;border:1px solid var(--divider-color);border-radius:8px;width:100%;">
                   ${this._getFilteredSortedOrgRepos().map(r => html`
                     <div style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-bottom:1px solid var(--divider-color);font-size:13px;cursor:pointer;transition:background 0.15s;color:var(--primary-text-color);" @click=${() => this._toggleSelectMgmtOrg(r.full_name)}>

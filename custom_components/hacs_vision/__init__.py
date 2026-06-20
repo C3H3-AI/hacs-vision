@@ -42,6 +42,16 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigType) -> bool:
     hass.http.register_view(HACSBrandIconView(hass))
     await _register_panel(hass)
 
+    # Auto-hide original HACS sidebar if setting is enabled
+    try:
+        hacs_settings = await shared_data.get_settings()
+        if hacs_settings.get("hide_hacs_panel"):
+            from homeassistant.components.frontend import async_remove_panel
+            async_remove_panel(hass, "hacs")
+            _LOGGER.info("Auto-hid HACS sidebar from settings")
+    except Exception as exc:
+        _LOGGER.debug("HACS panel auto-hide skipped: %s", exc)
+
     hass.data.setdefault(DOMAIN, {})
     hass.data[DOMAIN]["entry"] = entry
     hass.data[DOMAIN]["api"] = api_view

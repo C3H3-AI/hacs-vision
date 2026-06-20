@@ -96,6 +96,7 @@ class BrowseView extends LitElement {
     this._orgLoading = false;
     this._orgSyncing = false;
     this._orgSyncResult = '';
+    this._orgSyncFailed = false;
     this._orgLoadTimer = null;
     this._favorites = [];
     this._selectedRepos = [];
@@ -951,8 +952,10 @@ class BrowseView extends LitElement {
       const ok = result?.added || result?.success?.length || 0;
       const fail = result?.failed?.length || 0;
       this._orgSyncResult = fail ? `${t('addedToCustomList')} (${ok}), ${fail} ${t('failedSuffix')}` : `${t('addedToCustomList')} (${ok})`;
+      this._orgSyncFailed = !!fail;
     } catch(e) {
       this._orgSyncResult = `${t('loadFailedSimple')}: ${e.message}`;
+      this._orgSyncFailed = true;
     }
     this._orgSyncing = false;
   }
@@ -1309,7 +1312,7 @@ class BrowseView extends LitElement {
                   ${this._orgSyncing ? t('syncing') : `${t('syncSelected')} (${Object.keys(this._selectedOrgRepos).length})`}
                 </button>
               </div>
-              ${this._orgSyncResult ? html`<div style="font-size:12px;margin-bottom:6px;color:${this._orgSyncResult.includes('失败') ? '#f44336' : 'var(--primary-text-color)'};">${this._orgSyncResult}</div>` : ''}
+              ${this._orgSyncResult ? html`<div style="font-size:12px;margin-bottom:6px;color:${this._orgSyncFailed ? '#f44336' : 'var(--primary-text-color)'};">${this._orgSyncResult}</div>` : ''}
               <div style="max-height:240px;overflow-y:auto;border:1px solid var(--divider-color);border-radius:8px;">
                 ${this._browseFilteredSortedOrgRepos.map(r => html`
                   <div style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-bottom:1px solid var(--divider-color);font-size:13px;cursor:pointer;transition:background 0.15s;color:var(--primary-text-color);" @click=${() => this._toggleBrowseOrgRepo(r.full_name)}>

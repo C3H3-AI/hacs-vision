@@ -58,6 +58,7 @@ class ConfigView extends LitElement {
     this._starredLoading = false;
     this._starredSyncing = false;
     this._starredSyncResult = '';
+    this._starredSyncFailed = false;
     this._starredFilter = '';
     this._selectedStarred = {};
     this._orgInput = '';
@@ -66,6 +67,7 @@ class ConfigView extends LitElement {
     this._orgFilter = '';
     this._selectedOrgRepos = {};
     this._orgSyncResult = '';
+    this._orgSyncFailed = false;
     this._orgSyncing = false;
   }
 
@@ -103,11 +105,35 @@ class ConfigView extends LitElement {
     } catch(e) { /* not logged in */ }
   }
 
+  async _toggleImmediate(key, val) {
+    this._settings = { ...this._settings, [key]: val };
+    await this._save();
+    if (key === 'hide_hacs_panel') {
+      this._toggleSidebarHacs(!val);
+    }
+  }
+
+  _toggleSidebarHacs(visible) {
+    // Find HACS sidebar item and toggle visibility immediately
+    const hacsItem = document.querySelector('ha-sidebar-item a[href*="hacs"], ha-sidebar-item a[href*="HACS"]');
+    if (hacsItem) {
+      const item = hacsItem.closest('ha-sidebar-item');
+      if (item) item.style.display = visible ? '' : 'none';
+      return;
+    }
+    // Fallback: search sidebar for HACS text
+    document.querySelectorAll('ha-sidebar-item').forEach(el => {
+      if (el.textContent.toLowerCase().includes('hacs')) {
+        el.style.display = visible ? '' : 'none';
+      }
+    });
+  }
+
   async _save() {
     this._saving = true;
+    const { showToast } = await import('../hacs-vision-panel.js');
     try {
       await api.updateSettings(this._settings);
-      const { showToast } = await import('../hacs-vision-panel.js');
       showToast(t('settingsSaved'), 'success');
     } catch(e) {
       showToast(`${t('settingsSaveFailed')}: ${e.message}`, 'error');
@@ -198,6 +224,22 @@ class ConfigView extends LitElement {
     .setting-control select:focus, .setting-control input:focus {
       border-color: var(--primary-color, #03a9f4); outline: none;
     }
+    /* Toggle switch */
+    .toggle {
+      position: relative; display: inline-block; width: 44px; height: 24px; flex-shrink: 0;
+    }
+    .toggle input { opacity: 0; width: 0; height: 0; position: absolute; }
+    .toggle .slider {
+      position: absolute; cursor: pointer; inset: 0;
+      background: var(--secondary-background-color, #bdbdbd);
+      border-radius: 24px; transition: 0.3s;
+    }
+    .toggle .slider::before {
+      content: ''; position: absolute; width: 18px; height: 18px;
+      left: 3px; bottom: 3px; background: #fff; border-radius: 50%; transition: 0.3s;
+    }
+    .toggle input:checked + .slider { background: var(--primary-color, #03a9f4); }
+    .toggle input:checked + .slider::before { transform: translateX(20px); }
 
     .save-bar {
       display: flex; justify-content: flex-end; padding-top: 14px;
@@ -233,12 +275,6 @@ class ConfigView extends LitElement {
   render() {
     return html`
       <div class="container">
-
-        <!-- 🚨 DEBUG BAR - 直接静态文本，不需要任何状态 -->
-        <div style="background:#ff0000;color:#fff;padding:12px;margin-bottom:16px;border-radius:8px;font-size:16px;font-weight:700;text-align:center;">
-          🔧 DEBUG MODE ACTIVE 🔧
-          <div style="font-size:12px;font-weight:400;margin-top:4px;">如果你看到这行字，config-view 渲染正常</div>
-        </div>
 
         <div class="config-grid">
 
@@ -323,7 +359,7 @@ class ConfigView extends LitElement {
                 ${t('refresh')}
               </button>
             </div>
-            ${this._starredSyncResult ? html`<div style="font-size:12px;margin-bottom:8px;color:${this._starredSyncResult.includes(t('failedSuffix').trim()) ? '#f44336' : 'var(--primary-text-color)'};">${this._starredSyncResult}</div>` : ''}
+            ${this._starredSyncResult ? html`<div style="font-size:12px;margin-bottom:8px;color:${this._starredSyncFailed ? '#f44336' : 'var(--primary-text-color)'};">${this._starredSyncResult}</div>` : ''}
             <div style="max-height:300px;overflow-y:auto;border:1px solid var(--divider-color);border-radius:8px;">
               ${this._starredRepos.filter(r => !this._starredFilter || r.full_name.toLowerCase().includes(this._starredFilter.toLowerCase())).map(r => html`
                 <div style="display:flex;align-items:center;gap:8px;padding:6px 10px;border-bottom:1px solid var(--divider-color);font-size:12px;cursor:pointer;" @click=${() => this._toggleSelectStarred(r.full_name)}>
@@ -389,7 +425,7 @@ class ConfigView extends LitElement {
                 ${this._orgSyncing ? t('syncing') : `${t('syncSelected')} (${Object.keys(this._selectedOrgRepos).length})`}
               </button>
             </div>
-            ${this._orgSyncResult ? html`<div style="font-size:12px;margin-bottom:8px;color:${this._orgSyncResult.includes(t('failedSuffix').trim()) ? '#f44336' : 'var(--primary-text-color)'};">${this._orgSyncResult}</div>` : ''}
+            ${this._orgSyncResult ? html`<div style="font-size:12px;margin-bottom:8px;color:${this._orgSyncFailed ? '#f44336' : 'var(--primary-text-color)'};">${this._orgSyncResult}</div>` : ''}
             <div style="max-height:300px;overflow-y:auto;border:1px solid var(--divider-color);border-radius:8px;">
               ${this._filteredSortedOrgRepos.map(r => html`
                 <div style="display:flex;align-items:center;gap:8px;padding:6px 10px;border-bottom:1px solid var(--divider-color);font-size:12px;cursor:pointer;" @click=${() => this._toggleSelectOrgRepo(r.full_name)}>
@@ -449,11 +485,11 @@ class ConfigView extends LitElement {
                 <div class="label">${t('settingsNotifyUpdates')}</div>
               </div>
               <div class="setting-control">
-                <select @change=${e => this._set('notify_updates', e.target.value === 'true')}
-                  .value=${String(this._settings.notify_updates ?? true)}>
-                  <option value="true">${t('enabled')}</option>
-                  <option value="false">${t('disabled')}</option>
-                </select>
+                <label class="toggle">
+                  <input type="checkbox" .checked=${this._settings.notify_updates ?? true}
+                    @change=${e => this._toggleImmediate('notify_updates', e.target.checked)}>
+                  <span class="slider"></span>
+                </label>
               </div>
             </div>
             <div class="setting-row">
@@ -461,11 +497,24 @@ class ConfigView extends LitElement {
                 <div class="label">${t('settingsNotifyRestart')}</div>
               </div>
               <div class="setting-control">
-                <select @change=${e => this._set('notify_restart', e.target.value === 'true')}
-                  .value=${String(this._settings.notify_restart ?? true)}>
-                  <option value="true">${t('enabled')}</option>
-                  <option value="false">${t('disabled')}</option>
-                </select>
+                <label class="toggle">
+                  <input type="checkbox" .checked=${this._settings.notify_restart ?? true}
+                    @change=${e => this._toggleImmediate('notify_restart', e.target.checked)}>
+                  <span class="slider"></span>
+                </label>
+              </div>
+            </div>
+            <div class="setting-row">
+              <div class="setting-info">
+                <div class="label">${t('hideHacsPanel')}</div>
+                <div class="desc">${t('hideHacsPanelDesc')}</div>
+              </div>
+              <div class="setting-control">
+                <label class="toggle">
+                  <input type="checkbox" .checked=${this._settings.hide_hacs_panel ?? false}
+                    @change=${e => this._toggleImmediate('hide_hacs_panel', e.target.checked)}>
+                  <span class="slider"></span>
+                </label>
               </div>
             </div>
             <div class="save-bar">
@@ -737,6 +786,7 @@ class ConfigView extends LitElement {
       showToast(t('addStarredToCustomList', { n: ok }), fail ? 'warning' : 'success');
     } catch(e) {
       this._starredSyncResult = t('errorPrefix', { action: t('syncing'), err: e.message });
+      this._starredSyncFailed = true;
       const { showToast } = await import('../hacs-vision-panel.js');
       showToast(t('errorPrefix', { action: t('syncing'), err: e.message }), 'error');
     }
@@ -845,6 +895,7 @@ class ConfigView extends LitElement {
         }));
       if (reposToSync.length === 0) {
         this._orgSyncResult = t('noSelectedRepos');
+        this._orgSyncFailed = false;
         this._orgSyncing = false;
         return;
       }
@@ -858,6 +909,7 @@ class ConfigView extends LitElement {
       showToast(t('addReposToCustomList', { n: ok }), fail ? 'warning' : 'success');
     } catch(e) {
       this._orgSyncResult = t('errorPrefix', { action: t('syncing'), err: e.message });
+      this._orgSyncFailed = true;
       const { showToast } = await import('../hacs-vision-panel.js');
       showToast(t('errorPrefix', { action: t('syncing'), err: e.message }), 'error');
     }

@@ -549,6 +549,9 @@ const T = {
   enabled: { zh: '已启用', en: 'Enabled' },
   enableFailed: { zh: '启用失败', en: 'Enable failed' },
   restartRequired: { zh: '需要重启才能生效', en: 'Restart required to apply' },
+  // Hide original HACS panel
+  hideHacsPanel: { zh: '隐藏 HACS 侧边栏', en: 'Hide HACS sidebar' },
+  hideHacsPanelDesc: { zh: '隐藏/恢复原版 HACS 侧边栏图标，即时生效无需重启', en: 'Show/hide original HACS sidebar icon, applies immediately' },
 };
 
 /**

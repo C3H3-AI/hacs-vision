@@ -78,12 +78,6 @@ class ConfigFlowDialog extends LitElement {
     } catch(e) { return null; }
   }
 
-  disconnectedCallback() {
-    super.disconnectedCallback();
-    this._clearLoadingTimeout();
-    this._cleanedUp = true;
-  }
-
   _clearLoadingTimeout() {
     if (this._loadingTimeout) {
       clearTimeout(this._loadingTimeout);
@@ -106,7 +100,51 @@ class ConfigFlowDialog extends LitElement {
 
   connectedCallback() {
     super.connectedCallback();
-    // Don't auto-start here — updated() handles it
+    this._boundDelegatedClick = this._delegatedClick.bind(this);
+    this._boundDelegatedSubmit = this._delegatedSubmit.bind(this);
+  }
+
+  firstUpdated() {
+    // Use event delegation on shadow root (most reliable event handling)
+    // Catches all click/submit events regardless of LitElement template binding
+    if (this.shadowRoot) {
+      this.shadowRoot.addEventListener('click', this._boundDelegatedClick);
+      this.shadowRoot.addEventListener('submit', this._boundDelegatedSubmit);
+    }
+  }
+
+  disconnectedCallback() {
+    super.disconnectedCallback();
+    this._clearLoadingTimeout();
+    this._cleanedUp = true;
+    if (this.shadowRoot) {
+      this.shadowRoot.removeEventListener('click', this._boundDelegatedClick);
+      this.shadowRoot.removeEventListener('submit', this._boundDelegatedSubmit);
+    }
+  }
+
+  _delegatedClick(e) {
+    // Handle primary/submit button clicks via event delegation
+    // This is a reliable fallback for @click template bindings
+    const btn = e.target?.closest?.('.btn.primary');
+    if (!btn || btn.type !== 'submit' || btn.disabled) return;
+    if (this._loading || this._finished) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const form = btn.closest('form');
+    if (form) this._submitStep(this._collectFormData(form));
+  }
+
+  _delegatedSubmit(e) {
+    // Handle form submit via event delegation
+    // ⚠️ e.preventDefault() MUST be called FIRST before any state check
+    // to prevent native form submit (which causes page reload) in all scenarios
+    const form = e.target?.closest?.('form');
+    if (!form) return;
+    e.preventDefault();  // Always prevent native submit FIRST
+    e.stopPropagation();
+    if (this._loading || this._finished) return;
+    this._submitStep(this._collectFormData(form));
   }
 
   _dialogPointerDown(e) {
@@ -511,6 +549,8 @@ class ConfigFlowDialog extends LitElement {
       this._result = { type: 'create_entry', title: result.title || this.domain || t('flowDone') };
       this._loading = false;
       this.requestUpdate();
+      // Auto-close after a brief delay so user can see the success state
+      setTimeout(() => { try { this._close(); } catch(e) {} }, 600);
       return;
     }
 
@@ -604,9 +644,7 @@ class ConfigFlowDialog extends LitElement {
     }
   }
 
-  _handleSubmit(e) {
-    e.preventDefault();
-    const form = e.target;
+  _collectFormData(form) {
     const data = {};
     // Track which checkbox names are multi-select (appear more than once)
     const checkboxCounts = {};
@@ -632,7 +670,22 @@ class ConfigFlowDialog extends LitElement {
         }
       }
     }
-    this._submitStep(data);
+    return data;
+  }
+
+  _handleSubmit(e) {
+    e.preventDefault();
+    this._submitStep(this._collectFormData(e.target));
+  }
+
+  _handlePrimaryClick(e) {
+    // Direct click handler for the submit button, bypassing form submit event
+    // Fallback in case @submit event doesn't fire (e.g. shadow DOM issues)
+    if (this._loading) return;
+    const form = e.currentTarget?.closest?.('form');
+    if (form) {
+      this._submitStep(this._collectFormData(form));
+    }
   }
 
   _handleMenuSelect(value) {
@@ -872,6 +925,22 @@ class ConfigFlowDialog extends LitElement {
       .dialog { padding: 16px; }
       .dialog { max-width: 100%; max-height: 92vh; border-radius: 16px; padding-bottom: 24px; }
     }
+
+    /* Loading overlay for form submission */
+    .submit-overlay {
+      position: fixed; inset: 0; z-index: 9999;
+      background: rgba(0,0,0,0.45); display: flex;
+      align-items: center; justify-content: center;
+      flex-direction: column; gap: 16px;
+    }
+    .submit-spinner {
+      width: 36px; height: 36px;
+      border: 3px solid rgba(255,255,255,0.3);
+      border-top-color: #fff; border-radius: 50%;
+      animation: submit-spin 0.8s linear infinite;
+    }
+    @keyframes submit-spin { to { transform: rotate(360deg); } }
+    .submit-text { color: #fff; font-size: 15px; font-weight: 500; }
   `];
 
   render() {
@@ -935,6 +1004,13 @@ class ConfigFlowDialog extends LitElement {
           ${this._finished && this._result ? this._renderResult() : ''}
 
           ${!this._loading && !this._finished && this._step ? this._renderStep() : ''}
+
+          ${this._loading && this._step && !this._finished ? html`
+            <div class="submit-overlay">
+              <div class="submit-spinner"></div>
+              <div class="submit-text">${t('flowProcessing')}</div>
+            </div>
+          ` : ''}
 
           ${!this._loading && !this._finished && !this._step && !this._result && this._isSubentry && !this._subentryType ? html`
             <div class="subentry-list">
@@ -1041,12 +1117,12 @@ class ConfigFlowDialog extends LitElement {
     return html`
       ${descText ? html`<div class="step-desc" .innerHTML=${descText}></div>` : ''}
       ${baseError ? html`<div class="form-error" style="margin-bottom:12px">${baseError}</div>` : ''}
-      <form @submit=${this._handleSubmit}>
+      <form>
         ${schema.map(s => this._renderField(s))}
         <div class="actions">
-          <button type="button" class="btn" @click=${this._cancelFlow}>${t('flowCancel')}</button>
+          <button type="button" class="btn" @click=${this._cancelFlow} ?disabled=${this._loading}>${t('flowCancel')}</button>
           <button type="submit" class="btn primary" ?disabled=${this._loading}>
-            ${this._loading ? t('flowProcessing') : (step.last_step ? t('flowStepFinish') : t('flowStepNext'))}
+            ${this._loading ? t('flowProcessing') : (this._isOptions || step.last_step ? t('flowSubmit') : t('flowStepNext'))}
           </button>
         </div>
       </form>

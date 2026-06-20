@@ -1653,6 +1653,36 @@ class HACSEnhancedAPI(HomeAssistantView):
 
     async def _update_settings(self, body: dict) -> web.Response:
         """Save user settings."""
+        # Handle hide_hacs_panel toggle
+        if "hide_hacs_panel" in body:
+            hide = body["hide_hacs_panel"]
+            try:
+                from homeassistant.components.frontend import (
+                    async_remove_panel,
+                    async_register_built_in_panel,
+                )
+                if hide:
+                    async_remove_panel(self.hass, "hacs")
+                else:
+                    # Re-register exactly as HACS does in frontend.py
+                    async_register_built_in_panel(
+                        self.hass,
+                        component_name="custom",
+                        sidebar_title="HACS",
+                        sidebar_icon="hacs:hacs",
+                        frontend_url_path="hacs",
+                        config={
+                            "_panel_custom": {
+                                "name": "hacs-frontend",
+                                "embed_iframe": True,
+                                "trust_external": False,
+                                "js_url": "/hacsfiles/frontend/entrypoint.js",
+                            }
+                        },
+                        require_admin=True,
+                    )
+            except Exception as exc:
+                _LOGGER.warning("Failed to toggle HACS panel: %s", exc)
         ok = await self.data.set_settings(body)
         return web.json_response({"success": ok})
 

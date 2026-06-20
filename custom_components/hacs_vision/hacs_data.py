@@ -380,22 +380,21 @@ class HACSData:
                     "custom_components", entry.domain, "manifest.json"
                 )
                 is_custom = os.path.isfile(manifest_path)
-                if is_custom or not is_custom:
-                    # Also try built-in components manifest
-                    if not is_custom:
-                        import homeassistant.components as ha_comp
-                        builtin_base = os.path.dirname(ha_comp.__file__) if hasattr(ha_comp, '__file__') and ha_comp.__file__ else None
-                        if builtin_base and os.path.isdir(builtin_base):
-                            manifest_path = os.path.join(builtin_base, entry.domain, "manifest.json")
-                    if os.path.isfile(manifest_path):
-                        try:
-                            manifest = await self.hass.async_add_executor_job(
-                                self._read_json_sync, manifest_path
-                            )
-                            if manifest:
-                                iot_class = manifest.get("iot_class")
-                        except Exception:
-                            pass
+                # Also try built-in components manifest
+                if not is_custom:
+                    import homeassistant.components as ha_comp
+                    builtin_base = os.path.dirname(ha_comp.__file__) if hasattr(ha_comp, '__file__') and ha_comp.__file__ else None
+                    if builtin_base and os.path.isdir(builtin_base):
+                        manifest_path = os.path.join(builtin_base, entry.domain, "manifest.json")
+                if os.path.isfile(manifest_path):
+                    try:
+                        manifest = await self.hass.async_add_executor_job(
+                            self._read_json_sync, manifest_path
+                        )
+                        if manifest:
+                            iot_class = manifest.get("iot_class")
+                    except Exception:
+                        pass
 
                 result.append({
                     "domain": entry.domain,
