@@ -1015,6 +1015,7 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
     this._configFlowDomain = domain;
     this._configFlowEntryId = entry_id;
     this._configFlowAction = action || 'configure';
+    this._configFlowIsReconfigure = (action === 'reconfigure');
     // Reset + re-open to ensure Lit detects the change even if already open
     if (this._showConfigFlow) {
       this._showConfigFlow = false;
