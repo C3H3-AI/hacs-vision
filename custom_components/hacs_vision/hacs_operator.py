@@ -310,21 +310,23 @@ class HACSOperator:
         available_prerelease = _is_prerelease_version(available)
         if not installed_prerelease:
             return available  # Stable user: no override needed
-        if installed_prerelease == available_prerelease:
-            return available  # Same channel, HACS already has it right
-        # Pre-release installed but HACS returned stable — may be missing newer pre-release
+
+        # Pre-release user: always check GitHub for ANY newer version
+        # Handles two scenarios:
+        #   A. installed=beta.3, available=beta.3 (same version) → check if v5.0.0 stable exists
+        #   B. installed=beta.3, available=v5.0.0 (HACS says stable only) → check if newer pre-release exists
         full_name = getattr(repo.data, 'full_name', '')
-        if not full_name or '/' not in full_name:
-            return available
-        try:
-            releases = await self._fetch_github_releases(full_name)
-            installed_clean = installed.lstrip("vV")
-            for r in releases:
-                tag = r.get("tag_name", "")
-                if tag and tag.lstrip("vV") != installed_clean and _compare_versions(tag.lstrip("vV"), installed_clean) > 0:
-                    return tag  # Return full tag (with v prefix) for changelog API
-        except Exception:
-            pass
+        if '/' in full_name:
+            try:
+                releases = await self._fetch_github_releases(full_name)
+                installed_clean = installed.lstrip("vV")
+                for r in releases:
+                    tag = r.get("tag_name", "")
+                    clean_tag = tag.lstrip("vV")
+                    if clean_tag and clean_tag != installed_clean and _compare_versions(clean_tag, installed_clean) > 0:
+                        return tag  # Return full tag (with v prefix) for changelog API
+            except Exception:
+                pass
         return available
 
     def get_installed_list(self) -> list[dict]:
