@@ -924,7 +924,7 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
           <config-view .hass=${this.hass} @refresh-stats=${this._loadStats} ?hidden=${"settings"!==this.currentView}></config-view>
         </div>
       </div>
-    `}_renderModals(e){const t=this._detailRepo;return N`
+    `}_renderModals(e){const t=this._detailRepo,i=t?fe(t.category||"integration"):"";return N`
       <!-- Detail Modal -->
       ${this._showDetail&&t?N`
         <div class="modal-overlay" role="dialog" aria-modal="true" aria-label="${t.manifest_name||t.full_name||ge("detail")}" @click=${e=>{e.target===e.currentTarget&&this._closeDetail()}}>
@@ -940,7 +940,7 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
               <button class="modal-close" aria-label="${ge("close")||"关闭"}" @click=${this._closeDetail}>✕</button>
             </div>
             <div class="modal-body">
-              <div class="detail-category" style="background: ${categoryColor}">
+              <div class="detail-category" style="background: ${i}">
                 ${this._getCategoryLabel(t.category||"integration")}
               </div>
 
@@ -1370,7 +1370,7 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
               <img class="repo-icon" src="${c[0]}"
                 data-fallback-chain="${c.slice(1).join(",")}"
                 data-fb-idx="0"
-                @error=${e=>{const t=(e.target.dataset.fallbackChain||"").split(",");let i=parseInt(e.target.dataset.fbIdx||"0");if(i++,i<t.length&&t[i])e.target.dataset.fbIdx=String(i),e.target.src=t[i];else{e.target.style.display="none";const t=e.target.parentElement.querySelector(".initials");t&&(t.style.display="flex",t.style.background="${categoryColor}")}}} alt="">
+                @error=${e=>{const t=(e.target.dataset.fallbackChain||"").split(",");let i=parseInt(e.target.dataset.fbIdx||"0");if(i++,i<t.length&&t[i])e.target.dataset.fbIdx=String(i),e.target.src=t[i];else{e.target.style.display="none";const t=e.target.parentElement.querySelector(".initials");t&&(t.style.display="flex",t.style.background=l)}}} alt="">
               <span class="initials" style="display:none">${this._getInitials(t)}</span>
             `:N`
               <span class="initials" style="display:flex;background:${l}">${this._getInitials(t)}</span>

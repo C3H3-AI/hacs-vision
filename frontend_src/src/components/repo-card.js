@@ -467,7 +467,7 @@ class RepoCard extends LitElement {
                   } else {
                     e.target.style.display = 'none';
                     const el = e.target.parentElement.querySelector('.initials');
-                    if (el) { el.style.display = 'flex'; el.style.background = '${categoryColor}'; }
+                    if (el) { el.style.display = 'flex'; el.style.background = categoryColor; }
                   }
                 }} alt="">
               <span class="initials" style="display:none">${this._getInitials(name)}</span>
