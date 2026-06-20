@@ -682,11 +682,21 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
     /* ===== Responsive ===== */
     @media (max-width: 768px) {
       .store { padding: 0 10px 8px; padding-top: calc(0px + env(safe-area-inset-top, 0px)); padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px)); }
+      .sticky-header { position: relative; margin: 0 -10px 8px; padding: 0 10px 8px; padding-top: 8px; }
+      .sidebar-toggle {
+        position: absolute; left: max(0px, env(safe-area-inset-left, 0px)); top: 10px; z-index: 10;
+        width: 48px; height: 48px;
+        display: flex; align-items: center; justify-content: center;
+        border: none; background: transparent;
+        color: var(--primary-text-color); cursor: pointer;
+        touch-action: manipulation;
+      }
+      .sidebar-toggle svg { width: 24px; height: 24px; }
       .header {
         flex-direction: row; align-items: center; justify-content: space-between;
-        padding: 8px 12px; margin-bottom: 8px; border-radius: 12px;
+        padding: 8px 10px 8px 30px; margin-bottom: 8px; border-radius: 12px;
       }
-      .header-left { gap: 6px; align-items: center; }
+      .header-left { gap: 2px; align-items: center; }
       .header-icon { width: 28px; height: 28px; font-size: 14px; border-radius: 8px; flex-shrink: 0; }
       .title-group h1 { font-size: 14px; text-align: left; }
       .title-group p { display: none; }
@@ -698,7 +708,6 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
       .stat-label { font-size: 10px; white-space: nowrap; }
       .restart-btn { font-size: 10px; padding: 2px 8px; }
       .restart-btn svg { width: 12px; height: 12px; }
-      .sticky-header { margin: 0 -10px 8px; padding: 0 10px 8px; padding-top: 8px; }
       .tab { padding: 8px 12px; font-size: 12px; min-height: 44px; display: flex; align-items: center; }
       .controls-right { gap: 4px; }
       .controls .search { min-width: 80px; }
@@ -849,12 +858,12 @@ const w=globalThis,$=e=>e,k=w.trustedTypes,S=k?k.createPolicy("lit-html",{create
 
         <!-- Sticky Header + Tabs -->
         <div class="sticky-header">
+          ${this.narrow?N`<button class="sidebar-toggle" @click=${this._toggleSidebar} aria-label="切换侧边栏">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="24" height="24"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+          </button>`:""}
 
         <!-- Header -->
           <div class="header">
-          ${this.narrow?N`<button class="sidebar-toggle" @click=${this._toggleSidebar} aria-label="切换侧边栏">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22" height="22"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
-          </button>`:""}
           <div class="header-left">
             <div class="header-icon">
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
