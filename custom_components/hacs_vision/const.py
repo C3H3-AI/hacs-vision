@@ -3,7 +3,7 @@ from homeassistant.const import Platform
 
 DOMAIN = "hacs_vision"
 DOMAIN_HACS = "hacs"
-VERSION = "5.0.0-beta.3"
+VERSION = "5.0.0"
 
 PANEL_TITLE = "HACS Vision"
 PANEL_ICON = "mdi:store"

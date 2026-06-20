@@ -4,8 +4,8 @@
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://github.com/hacs/integration)
 [![GitHub Release](https://img.shields.io/github/v/release/C3H3-AI/hacs-vision)](https://github.com/C3H3-AI/hacs-vision/releases)
 
-> **当前版本**: v5.0.0-beta.3 | **最低 HA 版本**: 2024.1.0
-> **Current version**: v5.0.0-beta.3 | **Minimum HA**: 2024.1.0
+> **当前版本**: v5.0.0 | **最低 HA 版本**: 2024.1.0
+> **Current version**: v5.0.0 | **Minimum HA**: 2024.1.0
 
 [![Downloads](https://img.shields.io/github/downloads/C3H3-AI/hacs-vision/total)](https://github.com/C3H3-AI/hacs-vision/releases)
 
@@ -178,6 +178,17 @@ Configure panel behavior, check version info, restart HA, or add new HA integrat
 ---
 
 ## 更新日志 / Changelog
+
+### v5.0.0 (2026-06-20) — 正式版
+- **New**: 📱 **手机端全界面适配** — 四个视图统一手机端布局：搜索框+图标按钮单行排列，折叠区收纳操作按钮
+- **New**: 🔲 **侧边栏按钮贴左** — 手机端 ☰ 按钮 48px 标准触摸目标，贴合屏幕左边缘
+- **New**: 🗂️ **卡片/列表单按钮切换** — 两个按钮合并为一个，点击切换，节省空间
+- **New**: 🔍 **智能搜索框** — 默认显示图标，聚焦时撑满全行并隐藏其他按钮
+- **Fix**: ⭐ **收藏计数同步** — 点击卡片收藏按钮后，抬头收藏数字立即更新
+- **Fix**: 🔄 **版本通道隔离** — 预发布版与正式版各自独立更新通道，互不干扰
+- **Fix**: 🎨 **统一图标按钮样式** — 所有视图图标按钮 36x36px，统一边框和圆角
+- **Fix**: 🐛 **重复折叠键** — 移除仓库管理视图多余的 ≡ 折叠按钮
+- **Chore**: 版本号升级至 v5.0.0
 
 ### v4.1.0 (2026-06-17) — 正式版
 - **New**: 🖼️ **集成配置页内嵌** — 集成管理视图点击卡片，弹窗内 iframe 加载 HA 原生配置页，CSS 裁剪侧边栏
