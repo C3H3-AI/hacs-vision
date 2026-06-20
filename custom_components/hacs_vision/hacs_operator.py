@@ -16,6 +16,29 @@ _LOGGER = logging.getLogger(__name__)
 _PRERELEASE_RE = re.compile(r'(?i)(?:[-_.]?(?:alpha|beta|pre|rc|dev)\d*|b\d+)')
 
 
+def _compare_versions(v1: str, v2: str) -> int:
+    """Compare two stripped version strings. Returns 1 if v1 > v2, -1 if v1 < v2, 0 if equal.
+    Handles semver-like versions: '5.0.0' > '4.1.0', '5.0.0-beta.3' > '5.0.0-beta.2'."""
+    def _split(v: str) -> list:
+        parts = []
+        for segment in v.split('.'):
+            try:
+                parts.append(int(segment))
+            except ValueError:
+                # Non-numeric segment (e.g. 'beta', '3' in 'beta.3')
+                for sub in segment.split('-'):
+                    try:
+                        parts.append(int(sub))
+                    except ValueError:
+                        parts.append(ord(sub[0]) if sub else 0)
+        return parts
+    p1, p2 = _split(v1), _split(v2)
+    for a, b in zip(p1, p2):
+        if a > b: return 1
+        if a < b: return -1
+    return 0 if len(p1) == len(p2) else (1 if len(p1) > len(p2) else -1)
+
+
 def _is_prerelease_version(version: str | None) -> bool:
     """Check if a version string indicates a pre-release (alpha/beta/rc/dev).
 
@@ -278,7 +301,7 @@ class HACSOperator:
 
         Rules:
         - Stable → Stable only (use HACS as-is)
-        - Pre-release → Any newer version from GitHub (pre-release OR stable).
+        - Pre-release → Any NEWER version from GitHub (pre-release OR stable).
           Beta testers want to know when the stable release ships.
         """
         if not installed or not available:
@@ -295,10 +318,11 @@ class HACSOperator:
             return available
         try:
             releases = await self._fetch_github_releases(full_name)
+            installed_clean = installed.lstrip("vV")
             for r in releases:
                 tag = r.get("tag_name", "").lstrip("vV")
-                if tag and tag != installed:
-                    return tag  # Latest release (stable or pre-release), any upgrade is fair game
+                if tag and tag != installed_clean and _compare_versions(tag, installed_clean) > 0:
+                    return tag
         except Exception:
             pass
         return available
