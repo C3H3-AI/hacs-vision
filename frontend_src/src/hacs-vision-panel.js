@@ -586,7 +586,7 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
     /* ===== Responsive ===== */
     @media (max-width: 768px) {
       .store { padding: 0 10px 8px; padding-top: calc(0px + env(safe-area-inset-top, 0px)); padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px)); }
-      .sticky-header { position: relative; margin: 0 -10px 8px; padding: 0 10px 8px; padding-top: 8px; }
+      .sticky-header { position: relative; margin: 0 -10px 0; padding: 0 10px 0; padding-top: 6px; }
       .sidebar-toggle {
         position: absolute; left: max(0px, env(safe-area-inset-left, 0px)); top: 10px; z-index: 10;
         width: 48px; height: 48px;
@@ -598,7 +598,7 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
       .sidebar-toggle svg { width: 24px; height: 24px; }
       .header {
         flex-direction: row; align-items: center; justify-content: space-between;
-        padding: 8px 10px 8px 30px; margin-bottom: 8px; border-radius: 12px;
+        padding: 6px 10px 6px 30px; margin-bottom: 0; border-radius: 12px;
       }
       .header-left { gap: 2px; align-items: center; }
       .header-icon { width: 28px; height: 28px; font-size: 14px; border-radius: 8px; flex-shrink: 0; }
@@ -612,7 +612,7 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
       .stat-label { font-size: 10px; white-space: nowrap; }
       .restart-btn { font-size: 10px; padding: 2px 8px; }
       .restart-btn svg { width: 12px; height: 12px; }
-      .tab { padding: 8px 12px; font-size: 12px; min-height: 44px; display: flex; align-items: center; }
+      .tab { padding: 4px 12px; font-size: 12px; min-height: 44px; display: flex; align-items: center; }
       .controls-right { gap: 4px; }
       .controls .search { min-width: 80px; }
       .chip { font-size: 11px; padding: 5px 10px; }

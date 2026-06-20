@@ -23,6 +23,7 @@ class IntegrationsList extends LitElement {
     _showDetail: { type: Boolean, state: true },
     _domainNames: { type: Object, state: true },
     _viewMode: { type: String, state: true },
+    _filterExpanded: { type: Boolean, state: true },
     // Tree expand/collapse state
     _toggledEntries: { type: Object, state: true },  // Set-like Map: entry_id → true
     _entryDevices: { type: Object, state: true },     // Map: entry_id → groups[]
@@ -63,6 +64,7 @@ class IntegrationsList extends LitElement {
     const sortSaved = (localStorage.getItem('hacs_int_sort_by') || '').split(':');
     this._sortBy = sortSaved[0] || 'name';
     this._sortDir = sortSaved[1] || (sortSaved[0] === 'name' ? 'asc' : 'desc');
+    this._filterExpanded = false;
     this._detailOpenedAt = 0;
     this._modalDrag = { offsetX: 0, offsetY: 0, startX: 0, startY: 0, dragging: false, cleanup: null };
     this._toggledEntries = {};
@@ -804,8 +806,11 @@ class IntegrationsList extends LitElement {
     const cc = this._chipCounts;
     return html`
       <div class="integrations">
-        <div class="controls">
-          <div class="search" style="flex:1;min-width:120px;">
+      <div class="controls">
+        <button class="filter-toggle-sm" @click=${() => { this._filterExpanded = !this._filterExpanded; }} title="${t('filterMore') || '筛选/排序'}">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;"><line x1="4" y1="6" x2="20" y2="6"/><line x1="8" y1="12" x2="20" y2="12"/><line x1="12" y1="18" x2="20" y2="18"/></svg>
+        </button>
+        <div class="search">
             <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
             </svg>
@@ -819,15 +824,18 @@ class IntegrationsList extends LitElement {
             <button class="refresh-btn" @click=${this._load} title="${t('refresh')}" style="width:36px;height:36px;padding:8px;border:1px solid var(--divider-color);border-radius:10px;background:var(--card-background-color);color:var(--primary-text-color);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
             </button>
-            <div class="view-toggle">
-              <button class="view-toggle-btn ${this._viewMode === 'card' ? 'active' : ''}" @click=${() => this._setViewMode('card')} title="${t('viewCard')}">${t('viewCard')}</button>
-              <button class="view-toggle-btn ${this._viewMode === 'list' ? 'active' : ''}" @click=${() => this._setViewMode('list')} title="${t('viewList')}">${t('viewList')}</button>
-            </div>
-            <button class="action-btn primary" @click=${this._openAddDialog}>
+            <button class="view-toggle-btn" @click=${() => this._setViewMode(this._viewMode === 'card' ? 'list' : 'card')} title="${this._viewMode === 'card' ? t('viewList') : t('viewCard')}">
+            ${this._viewMode === 'card' ? html`
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+            ` : html`
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+            `}
+          </button>
+            <button class="action-btn primary desktop-only" @click=${this._openAddDialog}>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
               ${t('addHAIntegration')}
             </button>
-            <label class="sel-all-label">
+            <label class="sel-all-label desktop-only">
               <input type="checkbox" class="checkbox-sm"
                 .checked=${this._isAllDomainsSelected(groups)}
                 @change=${() => this._toggleSelectAllDomains(groups)}>
@@ -837,7 +845,8 @@ class IntegrationsList extends LitElement {
         </div>
 
         <!-- Filter chips -->
-        <div class="filter-bar">
+        <div class="filter-bar ${this._filterExpanded ? 'expanded' : ''}">
+          <div class="fs-chips">
           ${['all','loaded','failed','disabled','not-loaded'].map(key => html`
             <button class="filter-chip ${this._statusFilter === key ? 'active' : ''}"
               @click=${() => { this._statusFilter = key; }}>
@@ -852,6 +861,19 @@ class IntegrationsList extends LitElement {
               ${s.label}${this._sortBy === s.key ? html`<span class="sort-dir">${this._sortDir === 'desc' ? '▼' : '▲'}</span>` : ''}
             </button>
           `)}
+          </div>
+          <div class="fs-actions">
+            <button class="action-btn primary" style="padding:4px 10px;font-size:11px;min-height:32px;" @click=${this._openAddDialog}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              ${t('addHAIntegration')}
+            </button>
+            <label class="sel-all-label">
+              <input type="checkbox" class="checkbox-sm"
+                .checked=${this._isAllDomainsSelected(groups)}
+                @change=${() => this._toggleSelectAllDomains(groups)}>
+              ${t('selectAll') || '全选'} ${this._selectedDomainCount() > 0 ? html`<span style="color:var(--primary-color);font-weight:600;">(${this._selectedDomainCount()})</span>` : ''}
+            </label>
+          </div>
         </div>
 
         ${this._selectedDomainCount() > 0 ? html`
@@ -1387,7 +1409,7 @@ class IntegrationsList extends LitElement {
     .controls-right { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
 
     .action-btn {
-      padding: 9px 18px; border-radius: 10px; font-size: 14px; font-weight: 600;
+      padding: 9px 18px; border-radius: 10px; font-size: 12px; font-weight: 600;
       border: 1px solid var(--divider-color, #e0e0e0);
       background: var(--card-background-color, #fff);
       color: var(--primary-text-color); cursor: pointer;
@@ -1461,15 +1483,14 @@ class IntegrationsList extends LitElement {
       border-radius: 8px; overflow: hidden; flex-shrink: 0;
     }
     .view-toggle-btn {
-      padding: 6px 10px; border: none; background: var(--card-background-color);
+      padding: 6px 10px; border: 1px solid var(--divider-color); border-radius: 10px;
+      background: var(--card-background-color);
       color: var(--secondary-text-color); cursor: pointer; font-size: 14px;
       transition: all 0.2s; min-width: 36px; min-height: 36px;
       display: flex; align-items: center; justify-content: center;
       touch-action: manipulation;
     }
-    .view-toggle-btn + .view-toggle-btn { border-left: 1px solid var(--divider-color); }
-    .view-toggle-btn.active { background: var(--primary-color); color: #fff; }
-    .view-toggle-btn:hover:not(.active) { color: var(--primary-color); }
+    .view-toggle-btn:hover { border-color: var(--primary-color); color: var(--primary-color); }
 
     /* ===== Filter/Sort row (matching browse.js exactly) ===== */
     .filter-bar {
@@ -1495,7 +1516,17 @@ class IntegrationsList extends LitElement {
     }
     .filter-chip:hover { border-color: var(--primary-color); color: var(--primary-color); }
     .filter-chip.active { background: var(--primary-color); border-color: var(--primary-color); color: #fff; }
+    .filter-chip.active { background: var(--primary-color); border-color: var(--primary-color); color: #fff; }
     .filter-chip .chip-count { font-size: 10px; opacity: 0.7; margin-left: 3px; }
+
+    .filter-toggle-sm {
+      display: none; width: 36px; height: 36px; flex-shrink: 0;
+      border: 1px solid var(--divider-color); border-radius: 10px;
+      background: var(--card-background-color); color: var(--secondary-text-color);
+      cursor: pointer; align-items: center; justify-content: center; padding: 0;
+      touch-action: manipulation;
+    }
+    .filter-toggle-sm:hover { border-color: var(--primary-color); color: var(--primary-color); }
     .sort-inline { opacity: 0.85; }
     .sort-inline.active { opacity: 1; }
     .sort-dir { font-size: 9px; margin-left: 2px; }
@@ -1719,6 +1750,19 @@ class IntegrationsList extends LitElement {
       animation: overlayFadeIn 0.15s ease;
     }
     @media (max-width: 768px) {
+      .controls { flex-wrap: nowrap; gap: 4px; margin-bottom: 0; }
+      .search { flex: 1; min-width: 0; height: 36px; box-sizing: border-box; border: 1px solid var(--divider-color); border-radius: 10px; }
+      .search input { padding: 7px 10px 7px 30px; font-size: 13px; border: none; background: transparent; height: 100%; }
+      .search-icon { left: 10px; }
+      .controls-right { flex-shrink: 0; }
+      .desktop-only { display: none; }
+      .filter-bar { padding: 6px 10px; flex-wrap: nowrap; overflow: hidden; }
+      .filter-bar .fs-chips { display: none; }
+      .filter-bar.expanded .fs-chips { display: flex; }
+      .filter-bar.expanded { flex-wrap: wrap; }
+      .filter-bar .fs-actions { display: none; }
+      .filter-bar.expanded .fs-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 11px; }
+      .filter-toggle-sm { display: flex; }
       .detail-overlay { padding: 16px; }
       .filter-chip { padding: 4px 8px; font-size: 11px; }
     }
@@ -2040,14 +2084,10 @@ class IntegrationsList extends LitElement {
     }
 
     @media (max-width: 600px) {
-      .controls { flex-direction: column; align-items: flex-start; }
-      .controls-right { width: 100%; }
-      .search input { width: 100%; }
       .card-img { height: 100px; }
       .avatar { width: 44px; height: 44px; font-size: 20px; }
       .card-footer .footer-btn { min-height: 44px; font-size: 12px; }
       .card-footer .footer-btn .btn-label { display: inline; }
-      .filter-chip { padding: 4px 8px; font-size: 10px; }
       .detail-overlay { padding: 12px; }
       .modal { max-width: 100%; max-height: 92vh; }
       /* Tree mobile */

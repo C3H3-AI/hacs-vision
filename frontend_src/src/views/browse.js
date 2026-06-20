@@ -196,15 +196,14 @@ class BrowseView extends LitElement {
       overflow: hidden; flex-shrink: 0;
     }
     .view-toggle-btn {
-      padding: 6px 10px; border: none; background: var(--card-background-color);
+      padding: 6px 10px; border: 1px solid var(--divider-color); border-radius: 10px;
+      background: var(--card-background-color);
       color: var(--secondary-text-color); cursor: pointer; font-size: 14px;
       transition: all 0.2s; min-width: 36px; min-height: 36px;
       display: flex; align-items: center; justify-content: center;
       touch-action: manipulation;
     }
-    .view-toggle-btn + .view-toggle-btn { border-left: 1px solid var(--divider-color); }
-    .view-toggle-btn.active { background: var(--primary-color); color: #fff; }
-    .view-toggle-btn:hover:not(.active) { color: var(--primary-color); }
+    .view-toggle-btn:hover { border-color: var(--primary-color); color: var(--primary-color); }
 
     /* ===== Group By Select ===== */
     .group-select {
@@ -233,8 +232,8 @@ class BrowseView extends LitElement {
       user-select: none; flex-shrink: 0;
     }
     .filter-toggle-sm {
-      display: none; width: 32px; height: 32px; flex-shrink: 0;
-      border: 1px solid var(--divider-color); border-radius: 8px;
+      display: none; width: 36px; height: 36px; flex-shrink: 0;
+      border: 1px solid var(--divider-color); border-radius: 10px;
       background: var(--card-background-color); color: var(--secondary-text-color);
       cursor: pointer; align-items: center; justify-content: center; padding: 0;
       touch-action: manipulation;
@@ -242,6 +241,8 @@ class BrowseView extends LitElement {
     .sort-inline { opacity: 0.85; }
     .sort-inline.active { opacity: 1; }
     .sort-inline .sort-dir { font-size: 9px; margin-left: 2px; }
+
+    .fs-actions { display: none; }
 
     /* ===== Search box responsive ===== */
     /* ===== Filter Groups ===== */
@@ -409,14 +410,18 @@ class BrowseView extends LitElement {
 
     /* ===== Responsive ===== */
     @media (max-width: 768px) {
-      .controls { gap: 4px; margin-bottom: 6px; flex-wrap: wrap; }
-      .search { flex: 1; min-width: 0; }
-      .search input { padding: 7px 10px 7px 30px; font-size: 13px; border-radius: 8px; }
-      .controls-right { flex-wrap: wrap; }
+      .controls { gap: 4px; margin-bottom: 0; flex-wrap: nowrap; }
+      .search { flex: 1; min-width: 0; height: 36px; box-sizing: border-box; border: 1px solid var(--divider-color); border-radius: 10px; }
+      .search input { padding: 7px 10px 7px 30px; font-size: 13px; border: none; background: transparent; height: 100%; }
+      .search-icon { left: 10px; }
+      .controls-right { flex-shrink: 0; }
+      .desktop-only { display: none; }
       .filter-sort-row { padding: 6px 10px; flex-wrap: nowrap; overflow: hidden; }
       .filter-sort-row .fs-chips { display: none; }
       .filter-sort-row.expanded .fs-chips { display: flex; }
       .filter-sort-row.expanded { flex-wrap: wrap; }
+      .filter-sort-row .fs-actions { display: none; }
+      .filter-sort-row.expanded .fs-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 11px; }
       .filter-toggle-sm { display: flex; }
       .filter-row:not(.expanded) { display: none; }
       .filter-row.expanded { display: flex; }
@@ -1241,6 +1246,9 @@ class BrowseView extends LitElement {
     return html`
       <!-- Controls: Search + Action Buttons -->
       <div class="controls">
+        <button class="filter-toggle-sm" @click=${() => { this._filterExpanded = !this._filterExpanded; }} title="${t('filterMore') || '筛选/排序'}">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;"><line x1="4" y1="6" x2="20" y2="6"/><line x1="8" y1="12" x2="20" y2="12"/><line x1="12" y1="18" x2="20" y2="18"/></svg>
+        </button>
         <div class="search">
           <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
@@ -1254,12 +1262,15 @@ class BrowseView extends LitElement {
               <path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/>
             </svg>
           </button>
-          <div class="view-toggle">
-            <button class="view-toggle-btn ${this.viewMode === 'card' ? 'active' : ''}" @click=${() => this._onViewModeChange('card')} title="${t('viewCard')}">${t('viewCard')}</button>
-            <button class="view-toggle-btn ${this.viewMode === 'list' ? 'active' : ''}" @click=${() => this._onViewModeChange('list')} title="${t('viewList')}">${t('viewList')}</button>
-          </div>
-          <button class="btn primary" style="padding:6px 12px;font-size:12px;min-height:36px;" @click=${() => { this._showAddRepo = !this._showAddRepo; }}>+ ${t('addRepo')}</button>
-          <label class="sel-all-label">
+          <button class="view-toggle-btn" @click=${() => this._onViewModeChange(this.viewMode === 'card' ? 'list' : 'card')} title="${this.viewMode === 'card' ? t('viewList') : t('viewCard')}">
+            ${this.viewMode === 'card' ? html`
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+            ` : html`
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+            `}
+          </button>
+          <button class="btn primary desktop-only" style="padding:6px 12px;font-size:12px;min-height:36px;" @click=${() => { this._showAddRepo = !this._showAddRepo; }}>+ ${t('addRepo')}</button>
+          <label class="sel-all-label desktop-only">
             <input type="checkbox" class="checkbox-sm" .checked=${this._isAllSelected()}
                    @click=${e => e.stopPropagation()} @change=${this._toggleSelectAll}>
             ${t('selectAll') || '全选'}
@@ -1374,9 +1385,15 @@ class BrowseView extends LitElement {
             </button>
           `)}
         </div>
-        <button class="filter-toggle-sm" @click=${() => { this._filterExpanded = !this._filterExpanded; }} title="${t('filterMore') || '筛选/排序'}">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;"><line x1="4" y1="6" x2="20" y2="6"/><line x1="8" y1="12" x2="20" y2="12"/><line x1="12" y1="18" x2="20" y2="18"/></svg>
-        </button>
+        <div class="fs-actions">
+          <button class="btn primary" style="padding:4px 10px;font-size:11px;min-height:32px;" @click=${() => { this._showAddRepo = !this._showAddRepo; }}>+ ${t('addRepo')}</button>
+          <label class="sel-all-label">
+            <input type="checkbox" class="checkbox-sm" .checked=${this._isAllSelected()}
+                   @click=${e => e.stopPropagation()} @change=${this._toggleSelectAll}>
+            ${t('selectAll') || '全选'}
+            ${this._selectedRepos.length > 0 ? html`<span style="color:var(--primary-color);font-weight:600;">(${this._selectedRepos.length})</span>` : ''}
+          </label>
+        </div>
       </div>
 
       ${this._selectedRepos.length > 0 ? html`

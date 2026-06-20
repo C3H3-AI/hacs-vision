@@ -84,6 +84,18 @@ export function getCommonStyles() {
   .btn.danger:hover { background: var(--error-color, #f44336); color: #fff; }
   .btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
+  /* ===== Icon Buttons (refresh, view-toggle, filter-toggle) ===== */
+  .icon-btn {
+    width: 36px; height: 36px; padding: 8px; flex-shrink: 0;
+    border: 1px solid var(--divider-color, #e0e0e0); border-radius: 10px;
+    background: var(--card-background-color, #fff);
+    color: var(--secondary-text-color, #727272);
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    transition: all 0.2s; touch-action: manipulation;
+  }
+  .icon-btn:hover { border-color: var(--primary-color, #03a9f4); color: var(--primary-color, #03a9f4); }
+  .icon-btn svg { width: 16px; height: 16px; }
+
   /* ===== Search ===== */
   .search { flex: 1; min-width: 120px; position: relative; }
   .search input {

@@ -47,6 +47,7 @@ export class ManagementView extends LitElement {
     _orgLoading: { type: Boolean, state: true },
     _orgFilter: { type: String, state: true },
     _selectedOrgRepos: { type: Object, state: true },
+    _filterExpanded: { type: Boolean, state: true },
     _orgSyncResult: { type: String, state: true },
     _orgSyncing: { type: Boolean, state: true },
   };
@@ -88,6 +89,7 @@ export class ManagementView extends LitElement {
     this._orgSyncResult = '';
     this._orgSyncFailed = false;
     this._orgSyncing = false;
+    this._filterExpanded = false;
   }
 
   static styles = [getCommonStyles(), css`
@@ -236,16 +238,15 @@ export class ManagementView extends LitElement {
       overflow: hidden; flex-shrink: 0;
     }
     .view-toggle-btn {
-      padding: 6px 10px; border: none; background: var(--card-background-color,#fff);
+      padding: 6px 10px; border: 1px solid var(--divider-color); border-radius: 10px;
+      background: var(--card-background-color,#fff);
       color: var(--secondary-text-color,#727272);
       cursor: pointer; font-size: 14px; transition: all 0.2s;
       min-width: 36px; min-height: 36px;
       display: flex; align-items: center; justify-content: center;
       touch-action: manipulation;
     }
-    .view-toggle-btn + .view-toggle-btn { border-left: 1px solid var(--divider-color); }
-    .view-toggle-btn.active { background: var(--primary-color); color: #fff; }
-    .view-toggle-btn:hover:not(.active) { color: var(--primary-color); }
+    .view-toggle-btn:hover { border-color: var(--primary-color); color: var(--primary-color); }
 
     .sort-bar { display: flex; align-items: center; margin-bottom: 10px; padding: 6px 14px; background: var(--secondary-background-color,#f0f0f0); border-radius: 8px; flex-wrap: wrap; gap: 4px; }
     .sort-chips { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
@@ -258,6 +259,17 @@ export class ManagementView extends LitElement {
     .sort-chip:hover { border-color: var(--primary-color); color: var(--primary-color); }
     .sort-chip.active { background: var(--primary-color); border-color: var(--primary-color); color: #fff; }
     .sort-chip .sort-dir { font-size: 9px; margin-left: 2px; }
+
+    .fs-actions { display: none; }
+
+    .filter-toggle-sm {
+      display: none; width: 36px; height: 36px; flex-shrink: 0;
+      border: 1px solid var(--divider-color); border-radius: 10px;
+      background: var(--card-background-color); color: var(--secondary-text-color);
+      cursor: pointer; align-items: center; justify-content: center; padding: 0;
+      touch-action: manipulation;
+    }
+    .filter-toggle-sm:hover { border-color: var(--primary-color); color: var(--primary-color); }
 
     /* ===== Filter-Sort Row (compact, aligned with store) ===== */
     .filter-sort-row {
@@ -449,10 +461,20 @@ export class ManagementView extends LitElement {
     /* ===== Mobile ===== */
     @media (max-width: 768px) {
       .section { padding: 14px; border-radius: 12px; }
-      .controls { flex-wrap: wrap; }
-      .search { flex: 1; min-width: 0; }
-      .search input { width: 100%; }
-      .filter-sort-row { padding: 6px 10px; }
+      .controls { flex-wrap: nowrap; gap: 4px; margin-bottom: 0; }
+      .search { flex: 1; min-width: 0; height: 36px; box-sizing: border-box; border: 1px solid var(--divider-color); border-radius: 10px; }
+      .search input { width: 100%; padding: 7px 10px 7px 30px; font-size: 13px; border: none; background: transparent; height: 100%; }
+      .search-icon { left: 10px; }
+      .controls-right { flex-shrink: 0; }
+      .sel-all-label { font-size: 0; }
+      .desktop-only { display: none; }
+      .filter-sort-row { padding: 6px 10px; flex-wrap: nowrap; overflow: hidden; }
+      .filter-sort-row .fs-chips { display: none; }
+      .filter-sort-row.expanded .fs-chips { display: flex; }
+      .filter-sort-row.expanded { flex-wrap: wrap; }
+      .filter-sort-row .fs-actions { display: none; }
+      .filter-sort-row.expanded .fs-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 11px; }
+      .filter-toggle-sm { display: flex; }
       .btn { min-height: 44px; }
       .btn.sm { min-height: 36px; }
       .btn-group-wide { flex-direction: column; gap: 8px; }
@@ -1132,7 +1154,10 @@ export class ManagementView extends LitElement {
 
       <!-- Controls: Search + Sort Dropdown + Add Button + View Toggle -->
       <div class="controls">
-        <div class="search" style="flex:1;min-width:150px;">
+        <button class="filter-toggle-sm" @click=${() => { this._filterExpanded = !this._filterExpanded; }} title="${t('filterMore') || '筛选/排序'}">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;"><line x1="4" y1="6" x2="20" y2="6"/><line x1="8" y1="12" x2="20" y2="12"/><line x1="12" y1="18" x2="20" y2="18"/></svg>
+        </button>
+        <div class="search">
           <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
           <input type="text" autocomplete="off" placeholder="${t('search') || '搜索...'}" .value=${this._customRepoSearch} @input=${e => this._customRepoSearch = e.target.value}>
           ${this._customRepoSearch ? html`<button class="search-clear" @click=${() => this._customRepoSearch = ''}>✕</button>` : ''}
@@ -1141,12 +1166,15 @@ export class ManagementView extends LitElement {
           <button class="refresh-btn" @click=${() => this._load()} title="${t('refreshTitle')}">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
           </button>
-          <div class="view-toggle">
-            <button class="view-toggle-btn ${_viewMode === 'card' ? 'active' : ''}" @click=${() => this._setViewMode('card')}>${t('viewCard')}</button>
-            <button class="view-toggle-btn ${_viewMode === 'list' ? 'active' : ''}" @click=${() => this._setViewMode('list')}>${t('viewList')}</button>
-          </div>
-          <button class="btn primary" style="padding:6px 12px;font-size:12px;min-height:36px;" @click=${this._toggleAddCustom}>+ ${t('addRepo')}</button>
-          <label class="sel-all-label">
+          <button class="view-toggle-btn" @click=${() => this._setViewMode(_viewMode === 'card' ? 'list' : 'card')} title="${_viewMode === 'card' ? t('viewList') : t('viewCard')}">
+            ${_viewMode === 'card' ? html`
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+            ` : html`
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+            `}
+          </button>
+          <button class="btn primary desktop-only" style="padding:6px 12px;font-size:12px;min-height:36px;" @click=${this._toggleAddCustom}>+ ${t('addRepo')}</button>
+          <label class="sel-all-label desktop-only">
             <input type="checkbox" class="checkbox-sm" .checked=${this._getFilteredCustomRepos().length > 0 && this._selectedRepos.length === this._getFilteredCustomRepos().length}
                    @click=${e => e.stopPropagation()}
                    @change=${() => { if (this._selectedRepos.length > 0) { this._selectedRepos = []; } else { this._selectedRepos = this._getFilteredCustomRepos().map(r => r.full_name || r.repository).filter(Boolean); } }}>
@@ -1225,7 +1253,7 @@ export class ManagementView extends LitElement {
       ` : ''}
 
       <!-- Filter + Sort: single compact row -->
-      <div class="filter-sort-row">
+      <div class="filter-sort-row ${this._filterExpanded ? 'expanded' : ''}">
         <div class="fs-chips">
           <span class="fs-label">${t('repoStatus')}</span>
           <button class="filter-chip ${this._customRepofilter === 'all' ? 'active' : ''}" @click=${() => { this._customRepofilter = 'all'; _saveMgmtState({customRepofilter:this._customRepofilter,customRepoSort:this._customRepoSort,statusFilter:this._statusFilter,typeFilter:this._typeFilter}); }}>${t('all') || '全部'}</button>
@@ -1260,6 +1288,16 @@ export class ManagementView extends LitElement {
           <button class="filter-chip sort-inline ${this._customRepoSort === 'updated' ? 'active' : ''}" @click=${() => { this._customRepoSort = 'updated'; _saveMgmtState({customRepofilter:this._customRepofilter,customRepoSort:this._customRepoSort,statusFilter:this._statusFilter,typeFilter:this._typeFilter}); }}>
             ${t('sortByUpdated')}${this._customRepoSort === 'updated' ? html`<span class="sort-dir">▼</span>` : ''}
           </button>
+        </div>
+        <div class="fs-actions">
+          <button class="btn primary" style="padding:4px 10px;font-size:11px;min-height:32px;" @click=${this._toggleAddCustom}>+ ${t('addRepo')}</button>
+          <label class="sel-all-label">
+            <input type="checkbox" class="checkbox-sm" .checked=${this._getFilteredCustomRepos().length > 0 && this._selectedRepos.length === this._getFilteredCustomRepos().length}
+                   @click=${e => e.stopPropagation()}
+                   @change=${() => { if (this._selectedRepos.length > 0) { this._selectedRepos = []; } else { this._selectedRepos = this._getFilteredCustomRepos().map(r => r.full_name || r.repository).filter(Boolean); } }}>
+            ${t('selectAll')}
+            ${this._selectedRepos.length > 0 ? html`<span style="color:var(--primary-color);font-weight:600;">(${this._selectedRepos.length})</span>` : ''}
+          </label>
         </div>
       </div>
 

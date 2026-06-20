@@ -22,6 +22,7 @@ class UpdatesView extends LitElement {
     _viewMode: { type: String, state: true },
     _favs: { type: Object, state: true },
     _categoryFilter: { type: String, state: true },
+    _filterExpanded: { type: Boolean, state: true },
     _updateProgress: { type: Object, state: true },
   };
 
@@ -45,6 +46,7 @@ class UpdatesView extends LitElement {
     this._updateProgress = null;
     const saved = (() => { try { return localStorage.getItem('hacs_vision_view_mode'); } catch { return null; } })();
     this._viewMode = saved || 'card';
+    this._filterExpanded = false;
   }
 
   static styles = [
@@ -99,6 +101,15 @@ class UpdatesView extends LitElement {
       }
       .refresh-btn:hover { border-color: var(--primary-color); color: var(--primary-color); }
       .refresh-btn svg { width: 16px; height: 16px; }
+
+    .filter-toggle-sm {
+      display: none; width: 36px; height: 36px; flex-shrink: 0;
+      border: 1px solid var(--divider-color); border-radius: 10px;
+      background: var(--card-background-color); color: var(--secondary-text-color);
+      cursor: pointer; align-items: center; justify-content: center; padding: 0;
+      touch-action: manipulation;
+    }
+    .filter-toggle-sm:hover { border-color: var(--primary-color); color: var(--primary-color); }
 
       .status-badge-update {
         position: absolute; bottom: 8px; left: 8px; z-index: 2;
@@ -211,7 +222,7 @@ class UpdatesView extends LitElement {
         display: inline-flex; align-items: center; gap: 4px;
         padding: 5px 12px; border-radius: 16px; border: 1px solid var(--divider-color, #e0e0e0);
         background: var(--card-background-color); color: var(--secondary-text-color);
-        font-size: 12px; cursor: pointer; white-space: nowrap; transition: all 0.2s;
+        font-size: 11px; cursor: pointer; white-space: nowrap; transition: all 0.2s;
         touch-action: manipulation; user-select: none;
       }
       .filter-bar .chip:hover { border-color: var(--primary-color); color: var(--primary-color); }
@@ -252,15 +263,14 @@ class UpdatesView extends LitElement {
         overflow: hidden; flex-shrink: 0;
       }
       .view-toggle-btn {
-        padding: 6px 10px; border: none; background: var(--card-background-color);
+        padding: 6px 10px; border: 1px solid var(--divider-color); border-radius: 10px;
+        background: var(--card-background-color);
         color: var(--secondary-text-color); cursor: pointer; font-size: 14px;
         transition: all 0.2s; min-width: 36px; min-height: 36px;
         display: flex; align-items: center; justify-content: center;
         touch-action: manipulation;
       }
-      .view-toggle-btn + .view-toggle-btn { border-left: 1px solid var(--divider-color); }
-      .view-toggle-btn.active { background: var(--primary-color); color: #fff; }
-      .view-toggle-btn:hover:not(.active) { color: var(--primary-color); }
+      .view-toggle-btn:hover { border-color: var(--primary-color); color: var(--primary-color); }
 
       /* ===== List View (HACS-style table) ===== */
       .list-view { width: 100%; overflow-x: auto; }
@@ -325,7 +335,19 @@ class UpdatesView extends LitElement {
       .update-all-btn.selected-btn:disabled { opacity: 0.4; }
 
       @media (max-width: 768px) {
-        .search { min-width: 0; }
+        .controls { flex-wrap: nowrap; gap: 4px; margin-bottom: 0; }
+        .search { flex: 1; min-width: 0; height: 36px; box-sizing: border-box; border: 1px solid var(--divider-color); border-radius: 10px; }
+        .search input { padding: 7px 10px 7px 30px; font-size: 13px; border: none; background: transparent; height: 100%; }
+        .search-icon { left: 10px; }
+        .controls-right { flex-shrink: 0; }
+        .desktop-only { display: none; }
+        .filter-bar { padding: 6px 10px; flex-wrap: nowrap; overflow: hidden; background: var(--secondary-background-color, #f5f5f5); border-radius: 10px; }
+        .filter-bar .fs-chips { display: none; }
+        .filter-bar.expanded .fs-chips { display: flex; }
+        .filter-bar.expanded { flex-wrap: wrap; }
+        .filter-bar .fs-actions { display: none; }
+        .filter-bar.expanded .fs-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 11px; }
+        .filter-toggle-sm { display: flex; }
         .card { min-height: 260px; }
         .img-container { height: 100px; }
         .avatar { width: 44px; height: 44px; font-size: 20px; }
@@ -788,6 +810,9 @@ class UpdatesView extends LitElement {
             </div>
           </div>
         ` : ''}
+        <button class="filter-toggle-sm" @click=${() => { this._filterExpanded = !this._filterExpanded; }} title="${t('filterMore') || '筛选/排序'}">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;"><line x1="4" y1="6" x2="20" y2="6"/><line x1="8" y1="12" x2="20" y2="12"/><line x1="12" y1="18" x2="20" y2="18"/></svg>
+        </button>
         <div class="search">
           <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
@@ -806,21 +831,19 @@ class UpdatesView extends LitElement {
           <button class="refresh-btn ${this.refreshing ? 'spinning' : ''}" @click=${this._refresh} ?disabled=${this.refreshing} title="${t('refreshTitle')}">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
           </button>
-          <div class="view-toggle">
-            <button class="view-toggle-btn ${this._viewMode === 'card' ? 'active' : ''}" @click=${() => this._setViewMode('card')} title="${t('viewCard')}">${t('viewCard')}</button>
-            <button class="view-toggle-btn ${this._viewMode === 'list' ? 'active' : ''}" @click=${() => this._setViewMode('list')} title="${t('viewList')}">${t('viewList')}</button>
-          </div>
+          <button class="view-toggle-btn" @click=${() => this._setViewMode(this._viewMode === 'card' ? 'list' : 'card')} title="${this._viewMode === 'card' ? t('viewList') : t('viewCard')}">
+            ${this._viewMode === 'card' ? html`
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+            ` : html`
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+            `}
+          </button>
           ${this.updates.length > 0 ? html`
             <button class="update-all-btn" @click=${this._updateAll} ?disabled=${this.updating || this.updates.length === 0}>
               <svg class="mini-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg> ${this.updating ? t('updatingProgress') : t('updateAllNow')}
             </button>
-            ${this._selectedCount() > 0 ? html`
-              <button class="update-all-btn selected-btn" @click=${this._updateSelected} ?disabled=${this.updating || this._selectedCount() === 0}>
-                <svg class="mini-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="10"/></svg> ${t('updateSelected')} (${this._selectedCount() || 0})
-              </button>
-            ` : ''}
           ` : ''}
-          <label class="sel-all-label">
+          <label class="sel-all-label desktop-only">
             <input type="checkbox" class="checkbox-sm" .checked=${this._isAllSelected()}
                    @click=${e => e.stopPropagation()} @change=${this._toggleSelectAll}>
             ${t('selectAll') || '全选'}
@@ -834,7 +857,8 @@ class UpdatesView extends LitElement {
         const counts = {};
         for (const c of cats) counts[c] = c === 'all' ? this.updates.length : this.updates.filter(r => (r.category || 'integration') === c).length;
         return html`
-        <div class="filter-bar">
+        <div class="filter-bar ${this._filterExpanded ? 'expanded' : ''}">
+          <div class="fs-chips">
           ${cats.map(c => html`
             <button class="chip ${this._categoryFilter === c ? 'chip-active' : ''}"
               @click=${() => { this._categoryFilter = c; }}>
@@ -842,6 +866,20 @@ class UpdatesView extends LitElement {
               <span class="chip-count">${counts[c]}</span>
             </button>
           `)}
+          </div>
+          <div class="fs-actions">
+            ${this._selectedCount() > 0 ? html`
+              <button class="update-all-btn selected-btn" @click=${this._updateSelected} ?disabled=${this.updating || this._selectedCount() === 0}>
+                <svg class="mini-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="10"/></svg> ${t('updateSelected')} (${this._selectedCount() || 0})
+              </button>
+            ` : ''}
+            <label class="sel-all-label">
+              <input type="checkbox" class="checkbox-sm" .checked=${this._isAllSelected()}
+                     @click=${e => e.stopPropagation()} @change=${this._toggleSelectAll}>
+              ${t('selectAll') || '全选'}
+              ${this._selectedCount() > 0 ? html`<span style="color:var(--primary-color);font-weight:600;">(${this._selectedCount()})</span>` : ''}
+            </label>
+          </div>
         </div>`;
       })()}
 
