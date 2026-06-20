@@ -312,7 +312,7 @@ class RepoCard extends LitElement {
     if (repo.installed && pendingReloads.length > 0 && repo.full_name && pendingReloads.includes(repo.full_name)) {
       return { label: t('statusPendingReload'), cls: 'pending-reload' };
     }
-    if (repo.installed && (repo.has_update || (repo.installed_version && repo.latest_version && repo.installed_version !== repo.latest_version))) {
+    if (repo.installed && repo.has_update) {
       return { label: t('statusPendingUpgrade'), cls: 'update-available' };
     }
     if (repo.installed) return { label: t('installed'), cls: 'installed' };
@@ -433,10 +433,7 @@ class RepoCard extends LitElement {
     const stars = r.stars || r.stargazers_count || 0;
     const downloads = r.downloads || 0;
     const isInstalled = r.installed || false;
-    const isUpdateAvailable = isInstalled && (
-      r.has_update ||
-      (r.installed_version && r.latest_version && r.installed_version !== r.latest_version)
-    );
+    const isUpdateAvailable = isInstalled && r.has_update;
     const categoryColor = getCategoryColor(category);
 
     const iconUrls = this._getIconUrls(r);

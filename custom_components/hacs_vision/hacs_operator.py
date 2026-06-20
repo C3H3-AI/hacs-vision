@@ -2,6 +2,7 @@
 from __future__ import annotations
 import asyncio
 import logging
+import re
 import threading
 from typing import Any
 
@@ -11,6 +12,19 @@ from .const import DOMAIN_HACS, VERSION
 from .hacs_data import HACSData
 
 _LOGGER = logging.getLogger(__name__)
+
+_PRERELEASE_RE = re.compile(r'(?i)(?:[-_.]?(?:alpha|beta|pre|rc|dev)\d*|b\d+)')
+
+
+def _is_prerelease_version(version: str | None) -> bool:
+    """Check if a version string indicates a pre-release (alpha/beta/rc/dev).
+
+    Handles common patterns: 2.0.0b24, 1.0.0-alpha.1, 2.0.0-rc1, 1.0.0.dev0.
+    """
+    if not version:
+        return False
+    v = version.lstrip('vV').strip()
+    return bool(_PRERELEASE_RE.search(v))
 
 class HACSOperator:
     """Operate HACS via its internal API."""
@@ -270,7 +284,10 @@ class HACSOperator:
                     continue
                 installed = repo.data.installed_version
                 available = repo.display_available_version
-                has_update = installed and available and installed != available
+                installed_prerelease = _is_prerelease_version(installed)
+                available_prerelease = _is_prerelease_version(available)
+                same_channel = installed_prerelease == available_prerelease
+                has_update = installed and available and installed != available and same_channel
                 domain = getattr(repo.data, 'domain', None)
                 manifest = getattr(repo.data, 'repository_manifest', None)
                 manifest_name = getattr(repo.data, 'manifest_name', None) or (
@@ -286,6 +303,7 @@ class HACSOperator:
                     "has_update": has_update,
                     "installed": repo.data.installed or False,
                     "pending_restart": getattr(repo, 'pending_restart', False),
+                    "update_channel": "prerelease" if installed_prerelease else "stable",
                     "domain": domain,
                 })
             except (AttributeError, KeyError, TypeError) as e:
@@ -305,7 +323,8 @@ class HACSOperator:
                     continue
                 installed = repo.data.installed_version
                 available = repo.display_available_version
-                if installed and available and installed != available:
+                same_channel = _is_prerelease_version(installed) == _is_prerelease_version(available)
+                if installed and available and installed != available and same_channel:
                     updates.append({
                         "id": str(repo.data.id),
                         "full_name": repo.data.full_name,
@@ -358,7 +377,16 @@ class HACSOperator:
                 try:
                     installed_ver = repo.data.installed_version
                     latest_ver = repo.display_available_version or getattr(repo.data, 'available_version', None) or getattr(repo.data, 'last_version', None)
-                    has_update = bool(installed_ver and latest_ver and installed_ver != latest_ver)
+                    # Channel detection: prevent cross-channel updates
+                    installed_prerelease = _is_prerelease_version(installed_ver)
+                    latest_prerelease = _is_prerelease_version(latest_ver)
+                    same_channel = installed_prerelease == latest_prerelease
+                    has_update = bool(
+                        installed_ver and latest_ver
+                        and installed_ver != latest_ver
+                        and same_channel
+                    )
+                    update_channel = "prerelease" if installed_prerelease else "stable"
 
                     display_installed = (
                         installed_ver
@@ -428,6 +456,7 @@ class HACSOperator:
                         "installed_version": display_installed,
                         "latest_version": display_latest,
                         "has_update": has_update,
+                        "update_channel": update_channel,
                         "status": status,
                         "pending_restart": pending_restart,
                         "new": getattr(repo.data, 'new', False),
