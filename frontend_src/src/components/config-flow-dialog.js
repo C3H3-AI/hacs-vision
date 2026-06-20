@@ -646,35 +646,41 @@ class ConfigFlowDialog extends LitElement {
 
   _collectFormData(form) {
     const data = {};
-    // Track which checkbox names are multi-select (appear more than once)
-    const checkboxCounts = {};
-    for (const el of form.elements) {
-      if (el.type === 'checkbox' && el.name) {
-        checkboxCounts[el.name] = (checkboxCounts[el.name] || 0) + 1;
-      }
-    }
-    for (const el of form.elements) {
-      if (el.name && el.type !== 'submit' && el.type !== 'button') {
+    // HACK: Under HA's scoped custom element registry, form.elements AND
+    // form.querySelectorAll both throw "Method not implemented" via Proxy trap.
+    // Use the form's native named-property access (form['fieldName']) instead.
+    try {
+      const schema = this._step?.data_schema || [];
+      for (const field of schema) {
+        const name = field.name;
+        if (!name) continue;
+        const el = form[name];
+        if (!el) continue;
         if (el.type === 'checkbox') {
-          // If multiple checkboxes share the same name → it's a multi_select array
-          if (checkboxCounts[el.name] > 1) {
-            if (!Array.isArray(data[el.name])) data[el.name] = [];
-            if (el.checked) data[el.name].push(el.value);
+          // If multiple checkboxes share the same name (multi_select),
+          // form[name] returns a RadioNodeList/HTMLCollection
+          if (typeof el.length === 'number' && el.length > 1 && el[0]?.type === 'checkbox') {
+            data[name] = [];
+            for (let i = 0; i < el.length; i++) {
+              if (el[i].checked) data[name].push(el[i].value);
+            }
           } else {
-            data[el.name] = el.checked;
+            data[name] = el.checked;
           }
         } else if (el.value !== undefined && el.value !== null) {
-          // Preserve type (string/number)
-          data[el.name] = el.valueAsNumber !== undefined && !isNaN(el.valueAsNumber) && el.type === 'number'
+          data[name] = (el.valueAsNumber !== undefined && !isNaN(el.valueAsNumber) && el.type === 'number')
             ? el.valueAsNumber : el.value;
         }
       }
+    } catch (e) {
+      console.error('HACS Vision: _collectFormData error:', e);
     }
     return data;
   }
 
   _handleSubmit(e) {
     e.preventDefault();
+    if (this._loading) return;
     this._submitStep(this._collectFormData(e.target));
   }
 
@@ -1117,11 +1123,11 @@ class ConfigFlowDialog extends LitElement {
     return html`
       ${descText ? html`<div class="step-desc" .innerHTML=${descText}></div>` : ''}
       ${baseError ? html`<div class="form-error" style="margin-bottom:12px">${baseError}</div>` : ''}
-      <form>
+      <form @submit=${this._handleSubmit}>
         ${schema.map(s => this._renderField(s))}
         <div class="actions">
           <button type="button" class="btn" @click=${this._cancelFlow} ?disabled=${this._loading}>${t('flowCancel')}</button>
-          <button type="submit" class="btn primary" ?disabled=${this._loading}>
+          <button type="submit" class="btn primary" @click=${this._handlePrimaryClick} ?disabled=${this._loading}>
             ${this._loading ? t('flowProcessing') : (this._isOptions || step.last_step ? t('flowSubmit') : t('flowStepNext'))}
           </button>
         </div>
