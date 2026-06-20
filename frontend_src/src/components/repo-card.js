@@ -403,6 +403,11 @@ class RepoCard extends LitElement {
       detail: { repo: this.repo, starred: this._starred },
       bubbles: true, composed: true,
     }));
+    // Notify parent panel to refresh header count
+    this.dispatchEvent(new CustomEvent('favorite', {
+      detail: { isFavorite: this._starred, repo: this.repo },
+      bubbles: true, composed: true,
+    }));
     this._starring = false;
   }
 
