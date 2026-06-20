@@ -287,7 +287,6 @@ class EntityRefFinder:
     async def _scan_dashboards(self) -> None:
         """Scan all Lovelace dashboards for entity_id references."""
         from homeassistant.components.lovelace.const import LOVELACE_DATA
-        from homeassistant.components.lovelace.dashboard import LovelaceStorage
 
         lovelace_data = self.hass.data.get(LOVELACE_DATA)
         if not lovelace_data:
@@ -552,14 +551,15 @@ class EntityRefFinder:
         # Method 2: REST API fallback (HA 2025.9+) — use the token passed from API handler
         if self._hass_token:
             try:
-                import aiohttp
+                from homeassistant.helpers.aiohttp_client import async_get_clientsession
+                base_url = self.hass.http.get_url()
                 headers = {"Authorization": f"Bearer {self._hass_token}", "Content-Type": "application/json"}
-                async with aiohttp.ClientSession() as session:
-                    async with session.post(
-                        f"http://localhost:8123/api/config/automation/config/{auto_id}",
-                        json=config, headers=headers, timeout=aiohttp.ClientTimeout(total=10)
-                    ) as resp:
-                        return resp.status == 200
+                session = async_get_clientsession(self.hass)
+                async with session.post(
+                    f"{base_url}/api/config/automation/config/{auto_id}",
+                    json=config, headers=headers
+                ) as resp:
+                    return resp.status == 200
             except Exception as e:
                 _LOGGER.error("Save auto config failed: %s", e, exc_info=True)
                 return False
@@ -629,13 +629,17 @@ class EntityRefFinder:
             return False
 
     async def _get_dash_config(self, url_path: str | None) -> dict | None:
-        """Get Lovelace dashboard config via WebSocket."""
+        """Get Lovelace dashboard config via internal API."""
         try:
-            from homeassistant.components.lovelace import _async_get_dashboard_data
+            from homeassistant.components.lovelace.const import LOVELACE_DATA
 
-            data = await _async_get_dashboard_data(self.hass, url_path)
-            if data and hasattr(data, "config"):
-                return data.config
+            lovelace_data = self.hass.data.get(LOVELACE_DATA)
+            if not lovelace_data:
+                return None
+            dashboards = getattr(lovelace_data, "dashboards", {})
+            config_obj = dashboards.get(url_path)
+            if config_obj:
+                return await config_obj.async_load(False)
         except Exception:
             pass
         return None
@@ -645,7 +649,6 @@ class EntityRefFinder:
     ) -> list[str]:
         """Update entity_id references in dashboards."""
         from homeassistant.components.lovelace.const import LOVELACE_DATA
-        from homeassistant.components.lovelace.dashboard import LovelaceStorage
 
         lovelace_data = self.hass.data.get(LOVELACE_DATA)
         if not lovelace_data:
@@ -654,24 +657,18 @@ class EntityRefFinder:
         updated = []
         dashboards = getattr(lovelace_data, "dashboards", {})
 
-        # Collect unique dashboard URLs to update
         dash_urls = set(r.source_id for r in refs)
 
         for url_path in dash_urls:
             try:
-                store_id = (
-                    "lovelace_default" if url_path == "lovelace_default" else f"lovelace.{url_path}"
-                )
-                dash = dashboards.get(url_path) if url_path != "lovelace_default" else None
-                store = LovelaceStorage(
-                    self.hass,
-                    {"id": store_id},
-                )
-                config = await store.async_load()
+                dash_url = None if url_path == "lovelace_default" else url_path
+                config_obj = dashboards.get(dash_url)
+                if not config_obj:
+                    continue
+                config = await config_obj.async_load(False)
                 if config and isinstance(config, dict):
-                    raw_config = config.get("config", config)
-                    if self._replace_in_value(raw_config, old_id, new_id):
-                        await store.async_save({"config": raw_config})
+                    if self._replace_in_value(config, old_id, new_id):
+                        await config_obj.async_save(config)
                         updated.append(url_path)
             except Exception as e:
                 _LOGGER.error("Update dashboard %s failed: %s", url_path, e, exc_info=True)

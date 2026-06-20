@@ -87,7 +87,6 @@ class HACSEnhancedAPI(HomeAssistantView):
         self.operator = operator or HACSOperator(hass, shared_data=self.data)
         self.backup = backup or BackupManager(hass, shared_data=self.data, operator=self.operator)
         self.checker = checker or DependencyChecker(hass, shared_data=self.data)
-        self._session: aiohttp.ClientSession | None = None
         self._github_token: str | None = None
 
     @property
@@ -1203,16 +1202,12 @@ class HACSEnhancedAPI(HomeAssistantView):
         return web.json_response(result)
 
     async def _get_session(self) -> aiohttp.ClientSession:
-        """Get or create shared aiohttp session."""
-        if self._session is None or self._session.closed:
-            self._session = aiohttp.ClientSession()
-        return self._session
+        """Get HA's shared aiohttp session (reuses connection pool)."""
+        from homeassistant.helpers.aiohttp_client import async_get_clientsession
+        return async_get_clientsession(self.hass)
 
     async def async_close(self) -> None:
-        """Close shared aiohttp session."""
-        if self._session is not None and not self._session.closed:
-            await self._session.close()
-            self._session = None
+        """No-op: shared session is managed by HA."""
 
     async def _get_readme(self, full_name: str) -> web.Response:
         """Proxy GitHub README request with rate limit awareness and server-side cache."""

@@ -377,6 +377,15 @@ class HACSOperator:
         except Exception:
             pass
 
+        # Build domain→entry_id map once (avoids N+1 config entry traversal)
+        _domain_entry_map = {}
+        try:
+            for _entry in self._hacs.hass.config_entries.async_entries():
+                if _entry.domain and _entry.domain not in _domain_entry_map:
+                    _domain_entry_map[_entry.domain] = _entry.entry_id
+        except Exception:
+            pass
+
         result = []
         errors = []
         try:
@@ -463,7 +472,7 @@ class HACSOperator:
                         "is_custom": is_custom,
                         "domain": getattr(repo.data, 'domain', None),
                         "releases": getattr(repo.data, 'releases', None),
-                        "config_entry_id": await self._find_config_entry_id(getattr(repo.data, 'domain', None)),
+                        "config_entry_id": _domain_entry_map.get(getattr(repo.data, 'domain', None)),
                         "default_branch": getattr(repo.data, 'default_branch', None) or "main",
                     })
                 except Exception as inner_e:
