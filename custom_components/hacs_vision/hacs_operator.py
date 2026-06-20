@@ -320,9 +320,9 @@ class HACSOperator:
             releases = await self._fetch_github_releases(full_name)
             installed_clean = installed.lstrip("vV")
             for r in releases:
-                tag = r.get("tag_name", "").lstrip("vV")
-                if tag and tag != installed_clean and _compare_versions(tag, installed_clean) > 0:
-                    return tag
+                tag = r.get("tag_name", "")
+                if tag and tag.lstrip("vV") != installed_clean and _compare_versions(tag.lstrip("vV"), installed_clean) > 0:
+                    return tag  # Return full tag (with v prefix) for changelog API
         except Exception:
             pass
         return available
