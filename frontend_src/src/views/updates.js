@@ -430,7 +430,7 @@ class UpdatesView extends LitElement {
     let i = 0;
     const next = () => {
       if (i >= repos.length) return;
-      this._loadChangelog(repos[i++].full_name);
+      this._loadChangelog(repos[i++].full_name, repos[i-1].latest_version);
       setTimeout(next, 150);
     };
     setTimeout(next, 300);
@@ -450,11 +450,11 @@ class UpdatesView extends LitElement {
   }
 
   /* Lazy load changelog for a single repo */
-  async _loadChangelog(fullName) {
+  async _loadChangelog(fullName, version) {
     if (!fullName || this._changelogs[fullName] || this._changelogsLoading[fullName]) return;
     this._changelogsLoading = { ...this._changelogsLoading, [fullName]: true };
     try {
-      const data = await api.getChangelog(fullName);
+      const data = await api.getChangelog(fullName, version);
       if (data?.body) {
         this._changelogs = { ...this._changelogs, [fullName]: data };
       }
@@ -475,7 +475,7 @@ class UpdatesView extends LitElement {
     if (repos.length === 0) return;
     const results = await Promise.allSettled(
       repos.map(r =>
-        api.getChangelog(r.full_name).then(data => ({ fullName: r.full_name, data }))
+        api.getChangelog(r.full_name, r.latest_version).then(data => ({ fullName: r.full_name, data }))
       )
     );
     const logs = {};
