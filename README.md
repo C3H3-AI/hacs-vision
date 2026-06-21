@@ -4,8 +4,8 @@
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://github.com/hacs/integration)
 [![GitHub Release](https://img.shields.io/github/v/release/C3H3-AI/hacs-vision)](https://github.com/C3H3-AI/hacs-vision/releases)
 
-> **当前版本**: v5.0.1 | **最低 HA 版本**: 2024.1.0
-> **Current version**: v5.0.1 | **Minimum HA**: 2024.1.0
+> **当前版本**: v5.1.0 | **最低 HA 版本**: 2024.1.0
+> **Current version**: v5.1.0 | **Minimum HA**: 2024.1.0
 
 [![Downloads](https://img.shields.io/github/downloads/C3H3-AI/hacs-vision/total)](https://github.com/C3H3-AI/hacs-vision/releases)
 
@@ -179,7 +179,18 @@ Configure panel behavior, check version info, restart HA, or add new HA integrat
 
 ## 更新日志 / Changelog
 
-### v5.0.1 (2026-06-21) — 补丁版
+### v5.1.0 (2026-06-21) — 优化版
+- **New**: 📊 **集成卡片显示设备/实体数** — 每个集成卡片、列表行展示设备和实体数量
+- **New**: ⭐ **GitHub 登录自动星标** — Token/OAuth/HACS 导入后自动星标本仓库
+- **New**: 🏷️ **侧边栏+标题图标统一** — 全部使用 `hacs:hacs` 图标，去掉蓝底背景
+- **Fix**: 🧹 **清理 130+ 冗余 fallback** — 移除所有 `|| '中文'` 无效回退，信任 i18n 层
+- **Fix**: 🌐 **补充 5 个缺失 i18n 键** — githubTokenRequired, pendingRestart, selectAction, zoom, restarting
+- **Fix**: 🎨 **emoji 统一为 SVG 图标** — 设置页 GitHub/OAuth 区域 emoji 替换
+- **Fix**: 🎨 **硬编码颜色改为 CSS 变量** — `#f44336` → `var(--error-color)` 等
+- **Fix**: 🔔 **默认视图变更提示** — 选择后弹出 Toast 提示保存成功
+- **Fix**: 🖼️ **集成图标 avatar 重构** — 使用生命周期 + RAF + complete 兜底，弹窗与卡片图标统一
+- **Fix**: 🎨 **28 处 inline style → CSS 工具类** — config-view GitHub 区域
+- **Chore**: 版本号升级至 v5.1.0
 - **New**: 🔑 **OAuth 无痕登录** — 通过 GitHub OAuth 设备流直接授权，无需手动输入 Token，与 HACS 共用 Client ID
 - **New**: 🚀 **OAuth 绕过 SSRF** — 使用独立 aiohttp session，不被 HA SSRF 中间件拦截，不再断连
 - **New**: 👥 **组织/用户仓库开放使用** — 无需登录即可输入组织名列出仓库，GitHub 公开 API 直接访问
