@@ -105,6 +105,8 @@ class ConfigView extends LitElement {
       if (user?.login) {
         this._githubUser = user.login;
         this._githubAvatar = user.avatar_url || '';
+        // Auto-star if already logged in (once per session)
+        this._autoStar();
       }
     } catch(e) { /* not logged in */ }
   }
@@ -649,6 +651,7 @@ class ConfigView extends LitElement {
         this._githubVerifyMsg = t('githubVerifyResult', { user: result.user, remaining: result.rate_limit_remaining });
         this._githubVerifyOk = true;
         showToast(t('githubLoginSuccess', { user: result.user }), 'success');
+        this._autoStar();
       } else {
         this._githubVerifyMsg = result?.error || t('verifing');
         this._githubVerifyOk = false;
@@ -658,6 +661,20 @@ class ConfigView extends LitElement {
       this._githubVerifyOk = false;
     }
     this._githubVerifying = false;
+  }
+
+  async _autoStar() {
+    try {
+      const result = await api.autoStarRepo();
+      const { showToast } = await import('../hacs-vision-panel.js');
+      if (result?.already_starred) {
+        showToast(t('alreadyStarred'), 'info');
+      } else if (result?.ok) {
+        showToast(t('starSuccess', { repo: 'C3H3-AI/hacs-vision' }), 'success');
+      }
+    } catch(e) {
+      // Silent — non-critical
+    }
   }
 
   async _githubLogout() {
@@ -715,6 +732,7 @@ class ConfigView extends LitElement {
         this._githubVerifyOk = true;
         const { showToast } = await import('../hacs-vision-panel.js');
         showToast(t('githubLoginSuccess', { user: result.user }), 'success');
+        this._autoStar();
       } else if (result?.status === 'pending') {
         setTimeout(() => this._pollOAuth(), 3000);
       } else {
@@ -898,6 +916,7 @@ class ConfigView extends LitElement {
         this._githubVerifyMsg = t('tokenImported') ;
         this._githubVerifyOk = true;
         showToast(t('githubLoginSuccess', { user: result.user }), 'success');
+        this._autoStar();
       } else {
         showToast(result?.error || t('tokenImportFailed'), 'warning');
       }

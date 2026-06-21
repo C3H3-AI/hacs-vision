@@ -539,6 +539,8 @@ const T = {
   githubSection: { zh: 'GitHub', en: 'GitHub' },
   hacsUser: { zh: 'HACS 用户: {user}', en: 'HACS User: {user}' },
   loadingStarred: { zh: '正在从 GitHub 加载星标仓库...', en: 'Loading starred repos from GitHub...' },
+  alreadyStarred: { zh: '已星标过本仓库', en: 'Already starred this repo' },
+  starSuccess: { zh: '已星标 {repo}', en: 'Starred {repo}' },
   loadingOrgRepos: { zh: '正在加载仓库列表...', en: 'Loading repository list...' },
   filterPlaceholder: { zh: '筛选...', en: 'Filter...' },
   syncSelectedCount: { zh: '同步选中 ({n})', en: 'Sync Selected ({n})' },

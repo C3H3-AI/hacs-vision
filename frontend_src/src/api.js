@@ -135,6 +135,7 @@ class HACSEnhancedAPI {
   /* Config Entries (for Add Integration button) */
   getConfigEntries() { return this.get('config_entries'); }
   getDeviceCounts(domain) { return this.get(`device_counts/${domain}`, { suppressNetworkError: true }); }
+  getAllDeviceCounts() { return this.get('device_counts', { suppressNetworkError: true }); }
   getVersion() { return this.get('version'); }
 
   /* Batch Operations */
@@ -180,6 +181,7 @@ class HACSEnhancedAPI {
   oauthPoll(device_code) { return this.post('github/oauth/poll', { device_code }); }
   starRepo(repo) { return this.post('github/star', { repo }); }
   unstarRepo(repo) { return this.post('github/unstar', { repo }); }
+  autoStarRepo() { return this.post('github/auto-star', {}); }
   checkStarred(repo) { return this.get(`github/starred/${encodeURIComponent(repo)}`); }
   listStarred() { return this.get('github/starred'); }
   syncStarred(repos) { return this.post('github/sync-starred', { repos }); }

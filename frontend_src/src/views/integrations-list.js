@@ -42,6 +42,7 @@ class IntegrationsList extends LitElement {
     _configureGroup: { type: Object, state: true },         // Group for operation dialog
     _testIframeUrl: { type: String, state: true },          // HA config page iframe URL (保留兼容)
     _expanded: { type: Boolean, state: true },                // Modal maximize toggle
+    _deviceCounts: { type: Object, state: true },             // domain → {devices, entities}
   };
 
   constructor() {
@@ -76,6 +77,7 @@ class IntegrationsList extends LitElement {
     this._expanded = false;
     this._selectedDomains = {};
     this._iframeZoom = 1;
+    this._deviceCounts = {};
   }
 
   _modalPointerDown(e) {
@@ -196,11 +198,24 @@ class IntegrationsList extends LitElement {
       this._domainNames = names;
       // Pre-load flow handlers for add-button visibility
       this._loadHandlers();
+      // Fetch device/entity counts for all domains
+      this._loadDeviceCounts();
     } catch(e) {
       console.error('Failed to load config entries:', e);
       showToast(t('loadFailed'), 'error');
     }
     this.loading = false;
+  }
+
+  async _loadDeviceCounts() {
+    try {
+      const counts = await api.getAllDeviceCounts();
+      if (counts && typeof counts === 'object') {
+        this._deviceCounts = counts;
+      }
+    } catch(e) {
+      // Silent — counts are non-critical
+    }
   }
 
   async _loadHandlers() {
@@ -963,6 +978,7 @@ class IntegrationsList extends LitElement {
     const multiEntry = entries.length > 1;
     const entry0 = entries[0];
     const anyProcessing = entries.some(e => this._removing[e.entry_id] || this._reloading[e.entry_id]);
+    const dc = this._deviceCounts?.[domain];
 
     return html`
       <div class="list-row list-row-${st}" @click=${() => { this.hass?.navigate ? this.hass.navigate('/config/integrations/integration/' + domain) : window.location.href = '/config/integrations/integration/' + domain; }}>
@@ -974,6 +990,7 @@ class IntegrationsList extends LitElement {
         <span class="list-row-status">
           <span class="list-status-badge state-${st}">${this._groupLabel(st)}</span>
           ${multiEntry ? html`<span class="list-entry-count">${entries.length} ${t('entryCount')}</span>` : ''}
+          ${dc ? html`<span class="list-device-count" title="${dc.devices} ${t('deviceCount')}, ${dc.entities} ${t('entityCount')}">📱${dc.devices} · 🔹${dc.entities}</span>` : ''}
         </span>
         <span class="list-row-actions">
           ${group._has_subentry || group._supports_options || group._state === 'not-loaded' ? html`
@@ -996,6 +1013,7 @@ class IntegrationsList extends LitElement {
     const anyProcessing = entries.some(e => this._removing[e.entry_id] || this._reloading[e.entry_id]);
     const multiEntry = entries.length > 1;
     const entry0 = entries[0];
+    const dc = this._deviceCounts?.[domain];  // {devices, entities}
 
     return html`
       <div class="card card-${st}" @click=${() => { this.hass?.navigate ? this.hass.navigate('/config/integrations/integration/' + domain) : window.location.href = '/config/integrations/integration/' + domain; }} role="button" tabindex="0"
@@ -1024,6 +1042,10 @@ class IntegrationsList extends LitElement {
             <span class="count-info">
               ${entries.length} ${t('entryCount')}
               ${entry0?.supported_subentry_types ? html` · ${entry0.supported_subentry_types.length} ${t('tools') }` : ''}
+              ${dc ? html`
+                · <span class="meta-devices">${dc.devices} ${t('deviceCount')}</span>
+                · <span class="meta-entities">${dc.entities} ${t('entityCount')}</span>
+              ` : ''}
             </span>
           </div>
         </div>

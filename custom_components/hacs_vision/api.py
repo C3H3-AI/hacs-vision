@@ -347,6 +347,17 @@ class HACSEnhancedAPI(HomeAssistantView):
         except Exception as e:
             return web.json_response({"error": str(e)}, status=500)
 
+    async def _github_auto_star(self) -> web.Response:
+        """Auto-star hacs-vision repo if not already starred."""
+        repo = "C3H3-AI/hacs-vision"
+        # Check if already starred first (idempotent)
+        check_resp = await self._github_check_starred(repo)
+        check_data = json.loads(check_resp.body)
+        if check_data.get("starred"):
+            return web.json_response({"ok": True, "already_starred": True})
+        # Star it
+        return await self._github_star({"repo": repo})
+
     async def _github_unstar(self, body: dict) -> web.Response:
         """Unstar a repository."""
         repo = body.get("repo", "").strip()
@@ -684,11 +695,15 @@ class HACSEnhancedAPI(HomeAssistantView):
             return await self._get_subentries(request, entry_id)
         if path == "entity_refs/find":
             return await self._entity_refs_find(query)
+        if path == "device_counts":
+            return await self._get_device_counts(None)
         if path.startswith("device_counts/"):
             domain = path.split("/", 1)[1]
             return await self._get_device_counts(domain)
         if path in ("github/user", "github/user/", "github/oauth/user", "github/oauth/user/"):
             return await self._github_user()
+        if path == "github/auto-star":
+            return await self._github_auto_star()
         if path.startswith("github/starred/"):
             repo = path.split("/", 2)[2] if "/" in path else ""
             return await self._github_check_starred(repo)
@@ -1873,38 +1888,59 @@ class HACSEnhancedAPI(HomeAssistantView):
         mapping = await self.data.get_config_entries_map()
         return web.json_response({"entries": mapping})
 
-    async def _get_device_counts(self, domain: str) -> web.Response:
-        """Get device and entity counts for a given domain."""
+    async def _get_device_counts(self, domain: str | None = None) -> web.Response:
+        """Get device and entity counts for a given domain (or all domains if domain is None)."""
         from homeassistant.helpers import device_registry as dr, entity_registry as er
         import re
-        # Sanitize domain to prevent path traversal
-        if not re.match(r'^[a-zA-Z0-9_-]+$', domain):
-            return web.json_response({"error": "invalid_domain"}, status=400)
-        safe = domain
+        if domain is not None:
+            if not re.match(r'^[a-zA-Z0-9_-]+$', domain):
+                return web.json_response({"error": "invalid_domain"}, status=400)
         try:
             dev_reg = dr.async_get(self.hass)
             ent_reg = er.async_get(self.hass)
-            # Count devices and entities linked to config entries of this domain
-            device_ids = set()
-            entity_count = 0
-            for entry in self.hass.config_entries.async_entries():
-                if entry.domain != safe:
-                    continue
-                # Devices linked to this config entry
+            if domain:
+                # Single domain
+                safe = domain
+                device_ids = set()
+                entity_count = 0
+                for entry in self.hass.config_entries.async_entries():
+                    if entry.domain != safe:
+                        continue
+                    for device in dev_reg.devices.values():
+                        if entry.entry_id in device.config_entries:
+                            device_ids.add(device.id)
+                            entity_count += len([
+                                e for e in ent_reg.entities.values()
+                                if e.device_id == device.id and not e.disabled_by
+                            ])
+                return web.json_response({
+                    "domain": safe,
+                    "devices": len(device_ids),
+                    "entities": entity_count,
+                })
+            else:
+                # All domains — aggregate by domain
+                domain_counts = {}
+                for entry in self.hass.config_entries.async_entries():
+                    d = entry.domain
+                    if d not in domain_counts:
+                        domain_counts[d] = {"devices": set(), "entities": 0}
                 for device in dev_reg.devices.values():
-                    if entry.entry_id in device.config_entries:
-                        device_ids.add(device.id)
-                        entity_count += len([
-                            e for e in ent_reg.entities.values()
-                            if e.device_id == device.id and not e.disabled_by
-                        ])
-            return web.json_response({
-                "domain": safe,
-                "devices": len(device_ids),
-                "entities": entity_count,
-            })
+                    for eid in device.config_entries:
+                        for entry in self.hass.config_entries.async_entries():
+                            if entry.entry_id == eid and entry.domain in domain_counts:
+                                domain_counts[entry.domain]["devices"].add(device.id)
+                                domain_counts[entry.domain]["entities"] += len([
+                                    e for e in ent_reg.entities.values()
+                                    if e.device_id == device.id and not e.disabled_by
+                                ])
+                result = {
+                    d: {"devices": len(c["devices"]), "entities": c["entities"]}
+                    for d, c in domain_counts.items()
+                }
+                return web.json_response(result)
         except Exception as e:
-            _LOGGER.error("Failed to get device counts for %s: %s", safe, e, exc_info=True)
+            _LOGGER.error("Failed to get device counts for %s: %s", domain or "all", e, exc_info=True)
             return web.json_response({"error": str(e)}, status=500)
 
     async def _get_translations(self, domain: str, lang: str) -> web.Response:
