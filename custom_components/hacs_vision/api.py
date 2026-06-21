@@ -1,5 +1,6 @@
 """REST API endpoints + static file serving for HACS Vision."""
 from __future__ import annotations
+import asyncio
 import json
 import logging
 import os
@@ -266,38 +267,49 @@ class HACSEnhancedAPI(HomeAssistantView):
             return web.json_response({"error": str(e)}, status=500)
 
     async def _github_oauth_poll(self, body: dict) -> web.Response:
-        """Poll for OAuth device flow activation using aiogithubapi."""
+        """Poll for OAuth device flow activation using bare aiohttp."""
         device_code = body.get("device_code", "")
         if not device_code:
             return web.json_response({"error": "device_code_required"}, status=400)
         try:
-            from aiogithubapi import GitHubDeviceAPI, GitHubException
             from custom_components.hacs.const import CLIENT_ID
+            import aiohttp
 
-            device = getattr(self, '_oauth_device', None)
-            if not device:
-                device = GitHubDeviceAPI(
-                    client_id=CLIENT_ID,
-                    session=aiohttp_client.async_get_clientsession(self.hass),
-                )
+            poll_url = "https://github.com/login/oauth/access_token"
+            payload = {
+                "client_id": CLIENT_ID,
+                "device_code": device_code,
+                "grant_type": "urn:ietf:params:oauth:grant-type:device_code",
+            }
+            headers = {"Accept": "application/json"}
 
-            response = await device.activation(device_code=device_code)
-            act = response.data
-            token = act.access_token
+            connector = aiohttp.TCPConnector(force_close=True)
+            async with aiohttp.ClientSession(connector=connector) as session:
+                async with session.post(poll_url, data=payload, headers=headers,
+                                         timeout=aiohttp.ClientTimeout(total=15)) as resp:
+                    data = await resp.json()
+
+            err = data.get("error", "")
+            if err == "authorization_pending":
+                return web.json_response({"status": "pending"})
+            if err == "slow_down":
+                return web.json_response({"status": "pending", "slow_down": True})
+            if err:
+                return web.json_response({"error": data.get("error_description", err)}, status=400)
+
+            token = data["access_token"]
 
             # Get user info
             gh_headers = {"Authorization": f"Bearer {token}", "Accept": "application/vnd.github.v3+json"}
-            session = aiohttp_client.async_get_clientsession(self.hass)
-            async with session.get("https://api.github.com/user",
-                                     headers=gh_headers,
-                                     timeout=aiohttp.ClientTimeout(total=10)) as resp:
-                user_data = await resp.json()
-                login = user_data.get("login", "?")
-                avatar = user_data.get("avatar_url", "")
+            async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(force_close=True)) as session2:
+                async with session2.get("https://api.github.com/user",
+                                         headers=gh_headers,
+                                         timeout=aiohttp.ClientTimeout(total=10)) as resp:
+                    user_data = await resp.json()
+                    login = user_data.get("login", "?")
+                    avatar = user_data.get("avatar_url", "")
 
             await self.data.write_storage("github_token", {"token": token, "user": login})
-            self._oauth_device = None
-            self._oauth_device_code = None
 
             return web.json_response({
                 "ok": True,
@@ -305,15 +317,13 @@ class HACSEnhancedAPI(HomeAssistantView):
                 "user": login,
                 "avatar_url": avatar,
             })
-        except GitHubException as e:
-            err_str = str(e)
-            if "authorization_pending" in err_str.lower():
-                return web.json_response({"status": "pending"})
-            if "slow_down" in err_str.lower():
-                return web.json_response({"status": "pending", "slow_down": True})
-            _LOGGER.error("OAuth poll error: %s", e, exc_info=True)
-            return web.json_response({"error": err_str}, status=500)
+        except asyncio.TimeoutError:
+            _LOGGER.error("OAuth poll timeout")
+            return web.json_response({"error": "连接 GitHub 超时，请稍后重试"}, status=504)
         except Exception as e:
+            err_str = str(e)
+            if "pending" in err_str.lower() or "authorization_pending" in err_str.lower():
+                return web.json_response({"status": "pending"})
             _LOGGER.error("OAuth poll error: %s", e, exc_info=True)
             return web.json_response({"error": str(e)}, status=500)
 
