@@ -4,10 +4,11 @@
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://github.com/hacs/integration)
 [![GitHub Release](https://img.shields.io/github/v/release/C3H3-AI/hacs-vision)](https://github.com/C3H3-AI/hacs-vision/releases)
 [![Downloads](https://img.shields.io/github/downloads/C3H3-AI/hacs-vision/total)](https://github.com/C3H3-AI/hacs-vision/releases)
+[![Stars](https://img.shields.io/github/stars/C3H3-AI/hacs-vision)](https://github.com/C3H3-AI/hacs-vision/stargazers)
+[![License](https://img.shields.io/github/license/C3H3-AI/hacs-vision)](LICENSE)
+
 > **当前版本**: v5.1.0 | **最低 HA 版本**: 2024.1.0
 > **Current version**: v5.1.0 | **Minimum HA**: 2024.1.0
-
-
 
 > **⚠️ 前置条件 / Prerequisite**: 必须先安装并配置好 [HACS](https://hacs.xyz) / [HACS](https://hacs.xyz) must be installed and configured.
 
@@ -191,6 +192,8 @@ Configure panel behavior, check version info, restart HA, or add new HA integrat
 - **Fix**: 🖼️ **集成图标 avatar 重构** — 使用生命周期 + RAF + complete 兜底，弹窗与卡片图标统一
 - **Fix**: 🎨 **28 处 inline style → CSS 工具类** — config-view GitHub 区域
 - **Chore**: 版本号升级至 v5.1.0
+
+### v5.0.1 (2026-06-21) — 补丁版
 - **New**: 🔑 **OAuth 无痕登录** — 通过 GitHub OAuth 设备流直接授权，无需手动输入 Token，与 HACS 共用 Client ID
 - **New**: 🚀 **OAuth 绕过 SSRF** — 使用独立 aiohttp session，不被 HA SSRF 中间件拦截，不再断连
 - **New**: 👥 **组织/用户仓库开放使用** — 无需登录即可输入组织名列出仓库，GitHub 公开 API 直接访问
