@@ -622,6 +622,15 @@ export class ManagementView extends LitElement {
     }
   }
 
+  async _restartHA() {
+    try {
+      showToast(t('restarting') || '正在重启 HA…', 'info');
+      await api.restartHA();
+    } catch(e) {
+      showToast(`${t('restartFailed') || '重启失败'}: ${e.message}`, 'error');
+    }
+  }
+
   _parseRepoUrl(url) {
     url = url.trim();
     const match = url.match(/github\.com\/([^/]+\/[^/\s?#]+)/i);
@@ -961,7 +970,8 @@ export class ManagementView extends LitElement {
             .selected=${this._selectedRepos.includes(r.full_name || r.repository)}
             @detail=${(e) => this._openCardDetail(e.detail.repo)}
             @remove-repo=${(e) => this._removeCustomRepo(e.detail.repo?.full_name || e.detail.repo?.repository, e.detail.repo?.category)}
-            @check-change=${(e) => { const fn = e.detail.fullName; if (fn) this._toggleSelectRepo(fn); }}>
+            @check-change=${(e) => { const fn = e.detail.fullName; if (fn) this._toggleSelectRepo(fn); }}
+            @restart-ha=${() => this._restartHA()}>
           </repo-card>`;
       })}</div>`;
     }

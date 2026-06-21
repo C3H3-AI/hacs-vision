@@ -172,12 +172,12 @@ class HACSEnhancedAPI {
   setFavorites(favorites) { return this.post('favorites', { favorites }); }
 
   /* GitHub Auth */
-  verifyGitHubToken(token, syncToHacs = false) { return this.post('github/verify_token', { token, sync_to_hacs: syncToHacs }); }
+  verifyGitHubToken(token) { return this.post('github/verify_token', { token }); }
   importHacsToken() { return this.get('github/import_token'); }
   getGitHubUser() { return this.get('github/oauth/user'); }
   getGitHubOAuthUser() { return this.get('github/oauth/user'); }
   oauthStart() { return this.post('github/oauth/start', {}); }
-  oauthPoll(device_code, syncToHacs = true) { return this.post('github/oauth/poll', { device_code, sync_to_hacs: syncToHacs }); }
+  oauthPoll(device_code) { return this.post('github/oauth/poll', { device_code }); }
   starRepo(repo) { return this.post('github/star', { repo }); }
   unstarRepo(repo) { return this.post('github/unstar', { repo }); }
   checkStarred(repo) { return this.get(`github/starred/${encodeURIComponent(repo)}`); }

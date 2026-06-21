@@ -4,8 +4,8 @@
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://github.com/hacs/integration)
 [![GitHub Release](https://img.shields.io/github/v/release/C3H3-AI/hacs-vision)](https://github.com/C3H3-AI/hacs-vision/releases)
 
-> **当前版本**: v5.0.0 | **最低 HA 版本**: 2024.1.0
-> **Current version**: v5.0.0 | **Minimum HA**: 2024.1.0
+> **当前版本**: v5.0.1 | **最低 HA 版本**: 2024.1.0
+> **Current version**: v5.0.1 | **Minimum HA**: 2024.1.0
 
 [![Downloads](https://img.shields.io/github/downloads/C3H3-AI/hacs-vision/total)](https://github.com/C3H3-AI/hacs-vision/releases)
 
@@ -178,6 +178,15 @@ Configure panel behavior, check version info, restart HA, or add new HA integrat
 ---
 
 ## 更新日志 / Changelog
+
+### v5.0.1 (2026-06-21) — 补丁版
+- **New**: 🔑 **OAuth 无痕登录** — 通过 GitHub OAuth 设备流直接授权，无需手动输入 Token，与 HACS 共用 Client ID
+- **New**: 🚀 **OAuth 绕过 SSRF** — 使用独立 aiohttp session，不被 HA SSRF 中间件拦截，不再断连
+- **New**: 👥 **组织/用户仓库开放使用** — 无需登录即可输入组织名列出仓库，GitHub 公开 API 直接访问
+- **New**: ⚡ **设置即时保存** — 修改刷新间隔、默认视图后自动保存并提示，去掉保存按钮
+- **New**: 🛑 **待重启卡片快捷按钮** — 管理视图中 `pending_restart` 状态的仓库卡片下方直接显示重启按钮
+- **Fix**: 🗑️ 清理废弃的 `save-bar` CSS 样式
+- **Chore**: 版本号升级至 v5.0.1
 
 ### v5.0.0 (2026-06-20) — 正式版
 - **Arch**: 架构重构 — 从 Lovelace iframe 迁移至 panel_custom embed_iframe=False

@@ -7,6 +7,7 @@ import time
 import aiohttp
 from aiohttp import web
 from homeassistant.components.http import HomeAssistantView
+from homeassistant.helpers import aiohttp_client
 from homeassistant.util import dt as dt_util
 
 from .const import API_BASE, VERSION
@@ -100,8 +101,10 @@ class HACSEnhancedAPI(HomeAssistantView):
         self.operator = operator or HACSOperator(hass, shared_data=self.data)
         self.backup = backup or BackupManager(hass, shared_data=self.data, operator=self.operator)
         self.checker = checker or DependencyChecker(hass, shared_data=self.data)
-        self._github_token: str | None = None
-        self._current_token: str | None = None
+        # Schedule first-run auto-import from HACS after setup completes
+        self._auto_import_done = False
+        self._oauth_device = None
+        self._oauth_device_code = None
 
     @property
     def _ha_base_url(self) -> str:
@@ -114,19 +117,15 @@ class HACSEnhancedAPI(HomeAssistantView):
             except Exception:
                 return "http://localhost:8123"
 
-    def _get_github_token(self) -> str | None:
-        """Get GitHub token from HACS config entry for authenticated API calls (5000/hr vs 60/hr)."""
-        if self._github_token is not None:
-            return self._github_token or None
+    def _get_hacs_token(self) -> str | None:
+        """Get GitHub token from HACS config entry — used only for explicit HACS import."""
         try:
             for entry in self.hass.config_entries.async_entries("hacs"):
                 token = entry.data.get("token")
                 if token:
-                    self._github_token = token
                     return token
         except Exception:
             pass
-        self._github_token = ""  # Cache negative result
         return None
 
     async def _get_vision_github_token(self) -> str | None:
@@ -140,25 +139,8 @@ class HACSEnhancedAPI(HomeAssistantView):
         return None
 
     async def _get_active_github_token(self) -> str | None:
-        """Get GitHub token respecting user's source preference.
-
-        Setting: use_hacs_token (default: true)
-          true  → try HACS first, fallback to own
-          false → try own first, fallback to HACS
-        """
-        settings = await self.data.get_settings()
-        prefer_hacs = settings.get("use_hacs_token", True)
-
-        if prefer_hacs:
-            token = self._get_github_token()
-            if token:
-                return token
-            return await self._get_vision_github_token()
-        else:
-            token = await self._get_vision_github_token()
-            if token:
-                return token
-            return self._get_github_token()
+        """Get GitHub token from Vision's own storage only."""
+        return await self._get_vision_github_token()
 
     async def _github_api(self, method: str, path: str, body: dict | None = None) -> dict:
         """Call GitHub API with the active token."""
@@ -191,7 +173,6 @@ class HACSEnhancedAPI(HomeAssistantView):
         if not token:
             # Empty token = logout: clear stored token
             await self.data.write_storage("github_token", {})
-            self._github_token = None
             return web.json_response({"ok": True, "logout": True})
         # Verify by calling GitHub user API
         headers = {"Authorization": f"Bearer {token}", "Accept": "application/vnd.github.v3+json"}
@@ -210,31 +191,13 @@ class HACSEnhancedAPI(HomeAssistantView):
                     remaining = rl.get("rate", {}).get("remaining", 0)
         except Exception as e:
             return web.json_response({"error": str(e)}, status=500)
-        # Store token
+        # Store token to Vision's own storage
         await self.data.write_storage("github_token", {"token": token, "user": login})
-        self._github_token = token
-
-        # Optionally sync to HACS config entry
-        if body.get("sync_to_hacs"):
-            try:
-                for entry in self.hass.config_entries.async_entries("hacs"):
-                    new_data = dict(entry.data)
-                    new_data["token"] = token
-                    self.hass.config_entries.async_update_entry(entry, data=new_data)
-                    _LOGGER.info("Synced GitHub token to HACS config entry")
-                    break
-            except Exception as e:
-                _LOGGER.warning("Failed to sync token to HACS: %s", e)
-
         return web.json_response({"ok": True, "user": login, "avatar_url": user.get("avatar_url"), "rate_limit_remaining": remaining})
 
     async def _github_user(self) -> web.Response:
-        """Get current GitHub user info — ONLY from vision-stored token, not HACS fallback."""
-        try:
-            data = await self.data.read_storage("github_token")
-            token = (data or {}).get("token")
-        except Exception:
-            token = None
+        """Get current GitHub user info from Vision's stored token."""
+        token = await self._get_active_github_token()
         if not token:
             return web.json_response({"error": "not_authenticated"}, status=401)
         headers = {"Authorization": f"Bearer {token}", "Accept": "application/vnd.github.v3+json"}
@@ -250,82 +213,91 @@ class HACSEnhancedAPI(HomeAssistantView):
         return web.json_response({"login": user.get("login"), "avatar_url": user.get("avatar_url")})
 
     async def _github_import_token(self) -> web.Response:
-        """Import GitHub token from HACS storage (fallback chain)."""
-        token = await self._get_active_github_token()
-        if token:
-            return web.json_response({"token": token})
-        return web.json_response({"error": "no_token_found"}, status=404)
-
-    async def _github_oauth_reauth(self, body: dict) -> web.Response:
-        """Start GitHub OAuth device flow — returns user_code for display."""
+        """Import GitHub token from HACS and save to Vision's own storage."""
+        token = self._get_hacs_token()
+        if not token:
+            return web.json_response({"error": "hacs_no_token"}, status=404)
+        # Verify the token before saving
+        headers = {"Authorization": f"Bearer {token}", "Accept": "application/vnd.github.v3+json"}
         try:
-            # Get HACS OAuth App client_id
-            try:
-                from custom_components.hacs.const import CLIENT_ID
-            except ImportError:
-                CLIENT_ID = "395a8e669c5de9f7c6e8"
-            from aiogithubapi import GitHubDeviceAPI
-            from homeassistant.helpers import aiohttp_client
+            session = await self._get_session()
+            async with session.get("https://api.github.com/user", headers=headers,
+                                   timeout=aiohttp.ClientTimeout(total=10)) as resp:
+                if resp.status != 200:
+                    return web.json_response({"error": "token_invalid", "status": resp.status}, status=400)
+                user = await resp.json()
+                login = user.get("login", "?")
+            await self.data.write_storage("github_token", {"token": token, "user": login})
+            return web.json_response({"ok": True, "user": login, "avatar_url": user.get("avatar_url", "")})
+        except Exception as e:
+            return web.json_response({"error": str(e)}, status=500)
 
-            device = GitHubDeviceAPI(
-                client_id=CLIENT_ID,
-                session=aiohttp_client.async_get_clientsession(self.hass),
-                client_name="HACS Vision",
-            )
-            response = await device.register()
-            reg = response.data
-            return web.json_response({
-                "user_code": reg.user_code,
-                "device_code": reg.device_code,
-                "verification_uri": reg.verification_uri,
-                "interval": reg.interval,
-            })
-        except ImportError:
-            return web.json_response({"error": "aiogithubapi_not_installed"}, status=501)
+    async def _github_oauth_start(self, body: dict) -> web.Response:
+        """Start GitHub OAuth device flow using bare aiohttp to bypass SSRF."""
+        try:
+            from custom_components.hacs.const import CLIENT_ID
+            import aiohttp
+
+            register_url = "https://github.com/login/device/code"
+            payload = {"client_id": CLIENT_ID, "scope": "repo"}
+            headers = {"Accept": "application/json"}
+
+            connector = aiohttp.TCPConnector(force_close=True)
+            async with aiohttp.ClientSession(connector=connector) as session:
+                async with session.post(register_url, data=payload, headers=headers,
+                                         timeout=aiohttp.ClientTimeout(total=15)) as resp:
+                    data = await resp.json()
+                    _LOGGER.debug("GitHub device code response: %s (status=%d)", data, resp.status)
+                    if "error" in data:
+                        return web.json_response({"error": data.get("error_description", data["error"])}, status=400)
+                    # Store device_code for poll
+                    self._oauth_device_code = data.get("device_code", "")
+                    return web.json_response({
+                        "user_code": data["user_code"],
+                        "device_code": data["device_code"],
+                        "verification_uri": data["verification_uri"],
+                        "interval": data.get("interval", 5),
+                    })
+        except asyncio.TimeoutError:
+            _LOGGER.error("OAuth start timeout after 15s")
+            return web.json_response({"error": "连接 GitHub 超时，请稍后重试"}, status=504)
         except Exception as e:
             _LOGGER.error("OAuth start error: %s", e, exc_info=True)
             return web.json_response({"error": str(e)}, status=500)
 
     async def _github_oauth_poll(self, body: dict) -> web.Response:
-        """Poll for OAuth device flow activation."""
+        """Poll for OAuth device flow activation using aiogithubapi."""
         device_code = body.get("device_code", "")
         if not device_code:
             return web.json_response({"error": "device_code_required"}, status=400)
         try:
-            try:
-                from custom_components.hacs.const import CLIENT_ID
-            except ImportError:
-                CLIENT_ID = "395a8e669c5de9f7c6e8"
-            from aiogithubapi import GitHubDeviceAPI
-            from homeassistant.helpers import aiohttp_client
+            from aiogithubapi import GitHubDeviceAPI, GitHubException
+            from custom_components.hacs.const import CLIENT_ID
 
-            device = GitHubDeviceAPI(
-                client_id=CLIENT_ID,
-                session=aiohttp_client.async_get_clientsession(self.hass),
-                client_name="HACS Vision",
-            )
+            device = getattr(self, '_oauth_device', None)
+            if not device:
+                device = GitHubDeviceAPI(
+                    client_id=CLIENT_ID,
+                    session=aiohttp_client.async_get_clientsession(self.hass),
+                )
+
             response = await device.activation(device_code=device_code)
-            token = response.data.access_token
+            act = response.data
+            token = act.access_token
 
             # Get user info
-            headers = {"Authorization": f"Bearer {token}", "Accept": "application/vnd.github.v3+json"}
-            async with self.session.get("https://api.github.com/user",
-                                         headers=headers,
-                                         timeout=aiohttp.ClientTimeout(total=10)) as resp:
+            gh_headers = {"Authorization": f"Bearer {token}", "Accept": "application/vnd.github.v3+json"}
+            session = aiohttp_client.async_get_clientsession(self.hass)
+            async with session.get("https://api.github.com/user",
+                                     headers=gh_headers,
+                                     timeout=aiohttp.ClientTimeout(total=10)) as resp:
                 user_data = await resp.json()
                 login = user_data.get("login", "?")
                 avatar = user_data.get("avatar_url", "")
 
-            # Store token
             await self.data.write_storage("github_token", {"token": token, "user": login})
-            self._github_token = token
-
-            # Sync to HACS
-            for entry in self.hass.config_entries.async_entries("hacs"):
-                new_data = dict(entry.data)
-                new_data["token"] = token
-                self.hass.config_entries.async_update_entry(entry, data=new_data)
-                break
+            self._oauth_device = None
+            self._oauth_device_code = None
 
             return web.json_response({
                 "ok": True,
@@ -333,47 +305,17 @@ class HACSEnhancedAPI(HomeAssistantView):
                 "user": login,
                 "avatar_url": avatar,
             })
-        except ImportError:
-            return web.json_response({"error": "aiogithubapi_not_installed"}, status=501)
-        except Exception as e:
-            err = str(e)
-            if "pending" in err.lower() or "authorization_pending" in err.lower():
+        except GitHubException as e:
+            err_str = str(e)
+            if "authorization_pending" in err_str.lower():
                 return web.json_response({"status": "pending"})
+            if "slow_down" in err_str.lower():
+                return web.json_response({"status": "pending", "slow_down": True})
+            _LOGGER.error("OAuth poll error: %s", e, exc_info=True)
+            return web.json_response({"error": err_str}, status=500)
+        except Exception as e:
             _LOGGER.error("OAuth poll error: %s", e, exc_info=True)
             return web.json_response({"error": str(e)}, status=500)
-
-    async def _github_oauth_user(self) -> web.Response:
-        """Get current GitHub user info from our stored token (not HACS)."""
-        try:
-            data = await self.data.read_storage("github_token")
-            token = (data or {}).get("token")
-        except Exception:
-            token = None
-        if not token:
-            return web.json_response({"error": "not_authenticated"}, status=401)
-
-        # Also get info about whether HACS has a token
-        hacs_has_token = bool(self._get_github_token())
-        settings = await self.data.get_settings()
-        prefer_hacs = settings.get("use_hacs_token", True)
-
-        headers = {"Authorization": f"Bearer {token}", **GITHUB_HEADERS}
-        try:
-            async with self.session.get(f"{GITHUB_API_BASE}/user",
-                                         headers=headers,
-                                         timeout=aiohttp.ClientTimeout(total=10)) as resp:
-                if resp.status != 200:
-                    return web.json_response({"error": "token_invalid"}, status=401)
-                user = await resp.json()
-        except Exception as e:
-            return web.json_response({"error": str(e)}, status=500)
-
-        return web.json_response({
-            "login": user.get("login"),
-            "avatar_url": user.get("avatar_url"),
-            "hacs_has_token": hacs_has_token,
-            "prefer_hacs": prefer_hacs,
-        })
 
     async def _github_star(self, body: dict) -> web.Response:
         """Star a repository."""
@@ -735,7 +677,7 @@ class HACSEnhancedAPI(HomeAssistantView):
         if path.startswith("device_counts/"):
             domain = path.split("/", 1)[1]
             return await self._get_device_counts(domain)
-        if path in ("github/user", "github/user/"):
+        if path in ("github/user", "github/user/", "github/oauth/user", "github/oauth/user/"):
             return await self._github_user()
         if path.startswith("github/starred/"):
             repo = path.split("/", 2)[2] if "/" in path else ""
@@ -746,8 +688,6 @@ class HACSEnhancedAPI(HomeAssistantView):
             return await self._github_list_org_repos(query)
         if path in ("github/import_token", "github/import_token/"):
             return await self._github_import_token()
-        if path in ("github/oauth/user", "github/oauth/user/"):
-            return await self._github_oauth_user()
 
         return web.json_response({"error": "not_found"}, status=404)
 
@@ -817,7 +757,7 @@ class HACSEnhancedAPI(HomeAssistantView):
             return await self._github_sync_favorites()
         # ── OAuth device flow ──
         if path in ("github/oauth/start", "github/oauth/start/"):
-            return await self._github_oauth_reauth(body)
+            return await self._github_oauth_start(body)
         if path in ("github/oauth/poll", "github/oauth/poll/"):
             return await self._github_oauth_poll(body)
 
@@ -1388,7 +1328,7 @@ class HACSEnhancedAPI(HomeAssistantView):
         session = await self._get_session()
         url = f"https://api.github.com/repos/{full_name}/readme"
         headers = {"Accept": "application/vnd.github.v3.html"}
-        token = self._get_github_token()
+        token = await self._get_vision_github_token()
         if token:
             headers["Authorization"] = f"token {token}"
         try:
@@ -1437,7 +1377,7 @@ class HACSEnhancedAPI(HomeAssistantView):
         else:
             url = f"https://api.github.com/repos/{full_name}/releases/latest"
         headers = {"Accept": "application/vnd.github.v3+json"}
-        token = self._get_github_token()
+        token = await self._get_vision_github_token()
         if token:
             headers["Authorization"] = f"token {token}"
         try:
@@ -1553,7 +1493,7 @@ class HACSEnhancedAPI(HomeAssistantView):
                     session = await self._get_session()
                     url = f"https://api.github.com/repos/{repo.data.full_name}/releases?per_page=20"
                     gh_headers = {"Accept": "application/vnd.github.v3+json"}
-                    token = self._get_github_token()
+                    token = await self._get_vision_github_token()
                     if token:
                         gh_headers["Authorization"] = f"token {token}"
                     async with session.get(url, headers=gh_headers) as resp:

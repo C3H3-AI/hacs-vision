@@ -50,7 +50,6 @@ class ConfigView extends LitElement {
     this._githubVerifying = false;
     this._githubVerifyMsg = '';
     this._githubVerifyOk = false;
-    this._syncToHacs = true;
     this._githubOAuthing = false;
     this._githubOAuthCode = '';
     this._githubOAuthDeviceCode = '';
@@ -145,8 +144,9 @@ class ConfigView extends LitElement {
     this._saving = false;
   }
 
-  _set(key, val) {
+  async _set(key, val) {
     this._settings = { ...this._settings, [key]: val };
+    await this._save();
   }
 
   async _reloadCore() {
@@ -245,10 +245,6 @@ class ConfigView extends LitElement {
     .toggle input:checked + .slider { background: var(--primary-color, #03a9f4); }
     .toggle input:checked + .slider::before { transform: translateX(20px); }
 
-    .save-bar {
-      display: flex; justify-content: flex-end; padding-top: 14px;
-    }
-
     .action-grid {
       display: flex; flex-wrap: wrap; gap: 8px;
     }
@@ -297,22 +293,7 @@ class ConfigView extends LitElement {
                 ? html`<img src="${this._githubAvatar}" style="width:28px;height:28px;border-radius:50%;border:1px solid var(--divider-color);flex-shrink:0;" @error=${e => e.target.style.display='none'}>`
                 : html`<span style="width:28px;height:28px;border-radius:50%;background:var(--primary-color,#03a9f4);color:#fff;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:600;flex-shrink:0;">${this._githubUser[0].toUpperCase()}</span>`}
               <span style="font-size:13px;">${t('hacsUser', { user: this._githubUser })}</span>
-              <span style="font-size:11px;color:var(--secondary-text-color);padding:2px 6px;border-radius:4px;background:var(--secondary-background-color);">${this._settings.use_hacs_token ? t('tokenFromHacs') || '来源：HACS' : t('tokenFromVision') || '来源：HACS Vision'}</span>
               <button class="btn" style="font-size:11px;padding:4px 10px;" @click=${this._githubLogout}>${t('logout') || '登出'}</button>
-            </div>
-            <!-- Token 来源选择 -->
-            <div class="setting-row" style="margin-bottom:8px;">
-              <div class="setting-info">
-                <div class="label">${t('tokenSource') || 'Token 来源'}</div>
-                <div class="desc">${t('tokenSourceDesc') || '选择使用哪个 GitHub Token 进行 API 调用'}</div>
-              </div>
-              <div class="setting-control">
-                <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;">
-                  <input type="checkbox" .checked=${this._settings.use_hacs_token !== false}
-                    @change=${e => this._onToggleSetting('use_hacs_token', e.target.checked)}>
-                  ${t('useHacsToken') || '优先使用 HACS 的 Token'}
-                </label>
-              </div>
             </div>
             <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;">
               <button class="btn" style="font-size:11px;padding:6px 12px;" @click=${this._syncFavToStar} ?disabled=${this._syncFavToStarring}>
@@ -327,20 +308,6 @@ class ConfigView extends LitElement {
               </button>
             </div>
           ` : html`
-            <!-- Token 来源选择 -->
-            <div class="setting-row" style="margin-bottom:8px;">
-              <div class="setting-info">
-                <div class="label">${t('tokenSource') || 'Token 来源'}</div>
-                <div class="desc">${t('tokenSourceDesc') || '选择使用哪个 GitHub Token 进行 API 调用'}</div>
-              </div>
-              <div class="setting-control">
-                <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;">
-                  <input type="checkbox" .checked=${this._settings.use_hacs_token !== false}
-                    @change=${e => this._onToggleSetting('use_hacs_token', e.target.checked)}>
-                  ${t('useHacsToken') || '优先使用 HACS 的 Token'}
-                </label>
-              </div>
-            </div>
             <div class="setting-row">
               <div class="setting-info">
                 <div class="label">${t('githubToken') || 'GitHub Token (PAT)'}</div>
@@ -352,11 +319,6 @@ class ConfigView extends LitElement {
                   <button class="btn primary" style="font-size:12px;padding:5px 14px;" @click=${this._importHacsToken}>${this._githubVerifying ? t('importing') || '导入中...' : t('importFromHacs') || '从 HACS 导入'}</button>
                   <button class="btn" style="font-size:11px;padding:4px 10px;" @click=${this._githubVerifyToken} ?disabled=${this._githubVerifying}>${t('verifyAndSave') || '验证并保存'}</button>
                 </div>
-                <!-- Sync to HACS checkbox -->
-                <label style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--secondary-text-color);cursor:pointer;margin-top:2px;">
-                  <input type="checkbox" .checked=${this._syncToHacs !== false} @change=${e => this._syncToHacs = e.target.checked}>
-                  ${t('syncToHacs') || '同时也更新 HACS 的 Token'}
-                </label>
               </div>
             </div>
             <div style="border-top:1px solid var(--divider-color);margin:12px 0;"></div>
@@ -451,7 +413,6 @@ class ConfigView extends LitElement {
         </div>
         ` : ''}
 
-        ${this._githubUser ? html`
         <!-- 👥 组织/用户仓库 -->
         <div class="section">
           <div class="section-title">
@@ -512,7 +473,6 @@ class ConfigView extends LitElement {
             </div>
           ` : ''}
         </div>
-        ` : ''}
         </div> <!-- /config-col: GitHub -->
 
         <!-- 列2：⚙️ 基本设置 -->
@@ -582,13 +542,6 @@ class ConfigView extends LitElement {
                   <span class="slider"></span>
                 </label>
               </div>
-            </div>
-            <div class="save-bar">
-              <button class="btn primary" @click=${this._save} ?disabled=${this._saving}>
-                ${this._saving
-                  ? html`<span class="spinner-sm" style="display:inline-block;width:14px;height:14px;border-width:2px;margin:0;vertical-align:-2px;"></span> ${t('loading')}`
-                  : html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> ${t('save')}`}
-              </button>
             </div>
           </div>
         </div>
@@ -688,13 +641,12 @@ class ConfigView extends LitElement {
     this._githubVerifyMsg = '';
     try {
       const { showToast } = await import('../hacs-vision-panel.js');
-      const result = await api.verifyGitHubToken(this._githubTokenInput.trim(), this._syncToHacs);
+      const result = await api.verifyGitHubToken(this._githubTokenInput.trim());
       if (result?.ok) {
         this._githubUser = result.user;
         this._githubAvatar = result.avatar_url || '';
         this._githubTokenInput = '';
-        const syncMsg = this._syncToHacs ? ' (已同步到 HACS)' : '';
-        this._githubVerifyMsg = t('githubVerifyResult', { user: result.user, remaining: result.rate_limit_remaining }) + syncMsg;
+        this._githubVerifyMsg = t('githubVerifyResult', { user: result.user, remaining: result.rate_limit_remaining });
         this._githubVerifyOk = true;
         showToast(t('githubLoginSuccess', { user: result.user }), 'success');
       } else {
@@ -940,11 +892,12 @@ class ConfigView extends LitElement {
     try {
       const { showToast } = await import('../hacs-vision-panel.js');
       const result = await api.importHacsToken();
-      if (result?.token) {
-        this._githubTokenInput = result.token;
-        showToast(t('tokenImported') || '已从 HACS 导入 Token', 'success');
-        // Auto verify after import
-        await this._githubVerifyToken();
+      if (result?.ok) {
+        this._githubUser = result.user;
+        this._githubAvatar = result.avatar_url || '';
+        this._githubVerifyMsg = t('tokenImported') || '已从 HACS 导入并保存 Token';
+        this._githubVerifyOk = true;
+        showToast(t('githubLoginSuccess', { user: result.user }), 'success');
       } else {
         showToast(result?.error || t('tokenImportFailed'), 'warning');
       }

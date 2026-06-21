@@ -77,7 +77,37 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigType) -> bool:
     except Exception as exc:
         _LOGGER.warning("Config entries cache init error: %s", exc)
 
+    # Auto-import token from HACS on first run
+    hass.async_create_task(_auto_import_token(hass, shared_data))
+
     return True
+
+
+async def _auto_import_token(hass: HomeAssistant, shared_data) -> None:
+    """On first startup, if Vision has no token, try to import from HACS."""
+    try:
+        current = await shared_data.read_storage("github_token")
+        if current and isinstance(current, dict) and current.get("token"):
+            return  # Already have a token, skip
+        # Try to get HACS token
+        for entry in hass.config_entries.async_entries("hacs"):
+            token = entry.data.get("token")
+            if token:
+                # Verify and save
+                import aiohttp
+                from homeassistant.helpers import aiohttp_client
+                session = aiohttp_client.async_get_clientsession(hass)
+                headers = {"Authorization": f"Bearer {token}", "Accept": "application/vnd.github.v3+json"}
+                async with session.get("https://api.github.com/user", headers=headers,
+                                       timeout=aiohttp.ClientTimeout(total=10)) as resp:
+                    if resp.status == 200:
+                        user = await resp.json()
+                        login = user.get("login", "?")
+                        await shared_data.write_storage("github_token", {"token": token, "user": login})
+                        _LOGGER.info("Auto-imported GitHub token from HACS (user: %s)", login)
+                break
+    except Exception as e:
+        _LOGGER.debug("Auto-import token skipped: %s", e)
 
 async def _register_panel(hass: HomeAssistant) -> None:
     """Register HACS Vision as a frontend panel.

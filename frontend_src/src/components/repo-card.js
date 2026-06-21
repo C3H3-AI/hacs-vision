@@ -527,6 +527,13 @@ class RepoCard extends LitElement {
 
         ${this.viewMode === 'management' ? html`
         <div class="actions">
+          ${r.pending_restart ? html`
+            <button class="action-btn primary" @click=${e => { e.stopPropagation(); this.dispatchEvent(new CustomEvent('restart-ha', { bubbles: true, composed: true })); }}
+              style="flex:1;background:var(--primary-color,#03a9f4);color:#fff;border-color:var(--primary-color,#03a9f4);">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
+              <span class="label">${t('pendingRestart') || '待重启'}</span>
+            </button>
+          ` : ''}
           ${this.showRemoveBtn ? html`
             <button class="action-btn ${this._removing ? 'installing' : ''}"
               @click=${e => { this._removing = true; this._handleAction(e, 'remove-repo'); }} ?disabled=${this._removing}
