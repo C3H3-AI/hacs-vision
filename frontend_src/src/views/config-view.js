@@ -50,6 +50,10 @@ class ConfigView extends LitElement {
     this._githubVerifying = false;
     this._githubVerifyMsg = '';
     this._githubVerifyOk = false;
+    this._syncToHacs = true;
+    this._githubOAuthing = false;
+    this._githubOAuthCode = '';
+    this._githubOAuthDeviceCode = '';
     this._syncFavToStarring = false;
     this._syncFavToStarResult = '';
     this._syncStarToFaving = false;
@@ -293,7 +297,22 @@ class ConfigView extends LitElement {
                 ? html`<img src="${this._githubAvatar}" style="width:28px;height:28px;border-radius:50%;border:1px solid var(--divider-color);flex-shrink:0;" @error=${e => e.target.style.display='none'}>`
                 : html`<span style="width:28px;height:28px;border-radius:50%;background:var(--primary-color,#03a9f4);color:#fff;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:600;flex-shrink:0;">${this._githubUser[0].toUpperCase()}</span>`}
               <span style="font-size:13px;">${t('hacsUser', { user: this._githubUser })}</span>
+              <span style="font-size:11px;color:var(--secondary-text-color);padding:2px 6px;border-radius:4px;background:var(--secondary-background-color);">${this._settings.use_hacs_token ? t('tokenFromHacs') || '来源：HACS' : t('tokenFromVision') || '来源：HACS Vision'}</span>
               <button class="btn" style="font-size:11px;padding:4px 10px;" @click=${this._githubLogout}>${t('logout') || '登出'}</button>
+            </div>
+            <!-- Token 来源选择 -->
+            <div class="setting-row" style="margin-bottom:8px;">
+              <div class="setting-info">
+                <div class="label">${t('tokenSource') || 'Token 来源'}</div>
+                <div class="desc">${t('tokenSourceDesc') || '选择使用哪个 GitHub Token 进行 API 调用'}</div>
+              </div>
+              <div class="setting-control">
+                <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;">
+                  <input type="checkbox" .checked=${this._settings.use_hacs_token !== false}
+                    @change=${e => this._onToggleSetting('use_hacs_token', e.target.checked)}>
+                  ${t('useHacsToken') || '优先使用 HACS 的 Token'}
+                </label>
+              </div>
             </div>
             <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;">
               <button class="btn" style="font-size:11px;padding:6px 12px;" @click=${this._syncFavToStar} ?disabled=${this._syncFavToStarring}>
@@ -308,19 +327,66 @@ class ConfigView extends LitElement {
               </button>
             </div>
           ` : html`
+            <!-- Token 来源选择 -->
+            <div class="setting-row" style="margin-bottom:8px;">
+              <div class="setting-info">
+                <div class="label">${t('tokenSource') || 'Token 来源'}</div>
+                <div class="desc">${t('tokenSourceDesc') || '选择使用哪个 GitHub Token 进行 API 调用'}</div>
+              </div>
+              <div class="setting-control">
+                <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;">
+                  <input type="checkbox" .checked=${this._settings.use_hacs_token !== false}
+                    @change=${e => this._onToggleSetting('use_hacs_token', e.target.checked)}>
+                  ${t('useHacsToken') || '优先使用 HACS 的 Token'}
+                </label>
+              </div>
+            </div>
             <div class="setting-row">
               <div class="setting-info">
-                <div class="label">${t('githubToken') || 'GitHub Token'}</div>
+                <div class="label">${t('githubToken') || 'GitHub Token (PAT)'}</div>
                 <div class="desc">${t('githubTokenDesc') || '在 GitHub Settings → Developer settings → Personal access tokens 生成'}</div>
               </div>
               <div class="setting-control" style="flex-direction:column;gap:6px;align-items:stretch;">
                 <input type="text" class="token-input" autocomplete="off" style="-webkit-text-security:disc;padding:8px;border:1px solid var(--divider-color);border-radius:8px;font-size:13px;background:var(--card-background-color);color:var(--primary-text-color);width:100%;box-sizing:border-box;" placeholder="ghp_xxxxxxxxxxxx" .value=${this._githubTokenInput || ''} @input=${e => this._githubTokenInput = e.target.value} />
-                <div style="display:flex;gap:6px;justify-content:flex-end;">
+                <div style="display:flex;gap:6px;justify-content:flex-end;flex-wrap:wrap;">
                   <button class="btn primary" style="font-size:12px;padding:5px 14px;" @click=${this._importHacsToken}>${this._githubVerifying ? t('importing') || '导入中...' : t('importFromHacs') || '从 HACS 导入'}</button>
                   <button class="btn" style="font-size:11px;padding:4px 10px;" @click=${this._githubVerifyToken} ?disabled=${this._githubVerifying}>${t('verifyAndSave') || '验证并保存'}</button>
                 </div>
+                <!-- Sync to HACS checkbox -->
+                <label style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--secondary-text-color);cursor:pointer;margin-top:2px;">
+                  <input type="checkbox" .checked=${this._syncToHacs !== false} @change=${e => this._syncToHacs = e.target.checked}>
+                  ${t('syncToHacs') || '同时也更新 HACS 的 Token'}
+                </label>
               </div>
             </div>
+            <div style="border-top:1px solid var(--divider-color);margin:12px 0;"></div>
+            <!-- OAuth 方式 -->
+            <div class="setting-row">
+              <div class="setting-info">
+                <div class="label">${t('oauthLogin') || 'OAuth 授权登录'}</div>
+                <div class="desc">${t('oauthDesc') || '通过 GitHub OAuth 设备流授权，无需手动输入 Token'}</div>
+              </div>
+              <div class="setting-control">
+                <button class="btn primary" style="font-size:12px;padding:5px 14px;" @click=${this._githubOAuthStart} ?disabled=${this._githubOAuthing}>
+                  ${this._githubOAuthing ? (this._githubOAuthCode ? html`⏳ ${t('oauthWaiting') || '等待授权...'}` : html`<svg class="mini-icon spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;vertical-align:middle;"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> ${t('oauthStarting') || '启动中...'}`)
+                  : html`🔑 ${t('oauthStart') || '开始 OAuth 授权'}`}
+                </button>
+              </div>
+            </div>
+            ${this._githubOAuthCode ? html`
+              <div style="background:var(--secondary-background-color);border-radius:10px;padding:14px;margin-top:8px;">
+                <div style="font-size:12px;font-weight:600;margin-bottom:8px;">${t('oauthStep1') || '步骤 1'}</div>
+                <div style="font-size:12px;margin-bottom:6px;">${t('oauthVisit') || '访问'} <a href="https://github.com/login/device" target="_blank" rel="noopener" style="color:var(--primary-color);">github.com/login/device</a></div>
+                <div style="font-size:12px;font-weight:600;margin-bottom:6px;">${t('oauthStep2') || '步骤 2'}</div>
+                <div style="font-size:12px;margin-bottom:8px;">${t('oauthEnterCode') || '输入验证码：'}</div>
+                <div style="font-size:24px;font-weight:700;text-align:center;padding:10px;letter-spacing:4px;background:var(--card-background-color);border-radius:8px;font-family:monospace;">${this._githubOAuthCode}</div>
+                <div style="font-size:11px;color:var(--secondary-text-color);margin-top:8px;text-align:center;">
+                  <svg class="mini-icon spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:12px;height:12px;vertical-align:middle;"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+                  ${t('oauthWaitingDesc') || '等待授权完成后自动保存...'}
+                  <button class="btn" style="font-size:10px;padding:2px 8px;margin-left:8px;" @click=${this._githubOAuthCancel}>${t('cancel')}</button>
+                </div>
+              </div>
+            ` : ''}
           `}
           ${this._githubVerifyMsg ? html`<div style="font-size:12px;margin-top:4px;color:${this._githubVerifyOk ? 'var(--primary-color,#03a9f4)' : '#f44336'};">${this._githubVerifyMsg}</div>` : ''}
         </div>
@@ -622,12 +688,13 @@ class ConfigView extends LitElement {
     this._githubVerifyMsg = '';
     try {
       const { showToast } = await import('../hacs-vision-panel.js');
-      const result = await api.verifyGitHubToken(this._githubTokenInput.trim());
+      const result = await api.verifyGitHubToken(this._githubTokenInput.trim(), this._syncToHacs);
       if (result?.ok) {
         this._githubUser = result.user;
         this._githubAvatar = result.avatar_url || '';
         this._githubTokenInput = '';
-        this._githubVerifyMsg = t('githubVerifyResult', { user: result.user, remaining: result.rate_limit_remaining });
+        const syncMsg = this._syncToHacs ? ' (已同步到 HACS)' : '';
+        this._githubVerifyMsg = t('githubVerifyResult', { user: result.user, remaining: result.rate_limit_remaining }) + syncMsg;
         this._githubVerifyOk = true;
         showToast(t('githubLoginSuccess', { user: result.user }), 'success');
       } else {
@@ -651,9 +718,67 @@ class ConfigView extends LitElement {
       this._starredRepos = [];
       this._syncFavToStarResult = '';
       this._syncStarToFavResult = '';
+      this._githubOAuthCode = '';
+      this._githubOAuthDeviceCode = '';
+      this._githubOAuthing = false;
       const { showToast } = await import('../hacs-vision-panel.js');
       showToast(t('logoutGithub'), 'info');
     } catch(e) { /* ignore */ }
+  }
+
+  async _githubOAuthStart() {
+    this._githubOAuthing = true;
+    this._githubOAuthCode = '';
+    this._githubOAuthDeviceCode = '';
+    this._githubVerifyMsg = '';
+    try {
+      const result = await api.post('github/oauth/start', {});
+      if (result?.user_code) {
+        this._githubOAuthCode = result.user_code;
+        this._githubOAuthDeviceCode = result.device_code;
+        this._pollOAuth();
+      } else {
+        this._githubVerifyMsg = result?.error || 'OAuth 启动失败';
+        this._githubOAuthing = false;
+      }
+    } catch(e) {
+      this._githubVerifyMsg = `OAuth 错误: ${e.message}`;
+      this._githubOAuthing = false;
+    }
+  }
+
+  async _pollOAuth() {
+    if (!this._githubOAuthDeviceCode) return;
+    try {
+      const result = await api.post('github/oauth/poll', {
+        device_code: this._githubOAuthDeviceCode
+      });
+      if (result?.ok) {
+        this._githubUser = result.user;
+        this._githubAvatar = result.avatar_url || '';
+        this._githubOAuthCode = '';
+        this._githubOAuthDeviceCode = '';
+        this._githubOAuthing = false;
+        this._githubVerifyMsg = `${t('githubLoginSuccess', { user: result.user })} (OAuth)`;
+        this._githubVerifyOk = true;
+        const { showToast } = await import('../hacs-vision-panel.js');
+        showToast(t('githubLoginSuccess', { user: result.user }), 'success');
+      } else if (result?.status === 'pending') {
+        setTimeout(() => this._pollOAuth(), 3000);
+      } else {
+        this._githubVerifyMsg = result?.error || 'OAuth 授权失败';
+        this._githubOAuthing = false;
+        this._githubOAuthCode = '';
+      }
+    } catch(e) {
+      setTimeout(() => this._pollOAuth(), 5000);
+    }
+  }
+
+  async _githubOAuthCancel() {
+    this._githubOAuthing = false;
+    this._githubOAuthCode = '';
+    this._githubOAuthDeviceCode = '';
   }
 
   async _syncFavToStar() {

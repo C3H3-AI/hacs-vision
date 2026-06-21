@@ -140,11 +140,25 @@ class HACSEnhancedAPI(HomeAssistantView):
         return None
 
     async def _get_active_github_token(self) -> str | None:
-        """Try hacs-vision token first, then HACS token."""
-        token = await self._get_vision_github_token()
-        if token:
-            return token
-        return self._get_github_token()
+        """Get GitHub token respecting user's source preference.
+
+        Setting: use_hacs_token (default: true)
+          true  → try HACS first, fallback to own
+          false → try own first, fallback to HACS
+        """
+        settings = await self.data.get_settings()
+        prefer_hacs = settings.get("use_hacs_token", True)
+
+        if prefer_hacs:
+            token = self._get_github_token()
+            if token:
+                return token
+            return await self._get_vision_github_token()
+        else:
+            token = await self._get_vision_github_token()
+            if token:
+                return token
+            return self._get_github_token()
 
     async def _github_api(self, method: str, path: str, body: dict | None = None) -> dict:
         """Call GitHub API with the active token."""
@@ -199,6 +213,19 @@ class HACSEnhancedAPI(HomeAssistantView):
         # Store token
         await self.data.write_storage("github_token", {"token": token, "user": login})
         self._github_token = token
+
+        # Optionally sync to HACS config entry
+        if body.get("sync_to_hacs"):
+            try:
+                for entry in self.hass.config_entries.async_entries("hacs"):
+                    new_data = dict(entry.data)
+                    new_data["token"] = token
+                    self.hass.config_entries.async_update_entry(entry, data=new_data)
+                    _LOGGER.info("Synced GitHub token to HACS config entry")
+                    break
+            except Exception as e:
+                _LOGGER.warning("Failed to sync token to HACS: %s", e)
+
         return web.json_response({"ok": True, "user": login, "avatar_url": user.get("avatar_url"), "rate_limit_remaining": remaining})
 
     async def _github_user(self) -> web.Response:
@@ -228,6 +255,125 @@ class HACSEnhancedAPI(HomeAssistantView):
         if token:
             return web.json_response({"token": token})
         return web.json_response({"error": "no_token_found"}, status=404)
+
+    async def _github_oauth_reauth(self, body: dict) -> web.Response:
+        """Start GitHub OAuth device flow — returns user_code for display."""
+        try:
+            # Get HACS OAuth App client_id
+            try:
+                from custom_components.hacs.const import CLIENT_ID
+            except ImportError:
+                CLIENT_ID = "395a8e669c5de9f7c6e8"
+            from aiogithubapi import GitHubDeviceAPI
+            from homeassistant.helpers import aiohttp_client
+
+            device = GitHubDeviceAPI(
+                client_id=CLIENT_ID,
+                session=aiohttp_client.async_get_clientsession(self.hass),
+                client_name="HACS Vision",
+            )
+            response = await device.register()
+            reg = response.data
+            return web.json_response({
+                "user_code": reg.user_code,
+                "device_code": reg.device_code,
+                "verification_uri": reg.verification_uri,
+                "interval": reg.interval,
+            })
+        except ImportError:
+            return web.json_response({"error": "aiogithubapi_not_installed"}, status=501)
+        except Exception as e:
+            _LOGGER.error("OAuth start error: %s", e, exc_info=True)
+            return web.json_response({"error": str(e)}, status=500)
+
+    async def _github_oauth_poll(self, body: dict) -> web.Response:
+        """Poll for OAuth device flow activation."""
+        device_code = body.get("device_code", "")
+        if not device_code:
+            return web.json_response({"error": "device_code_required"}, status=400)
+        try:
+            try:
+                from custom_components.hacs.const import CLIENT_ID
+            except ImportError:
+                CLIENT_ID = "395a8e669c5de9f7c6e8"
+            from aiogithubapi import GitHubDeviceAPI
+            from homeassistant.helpers import aiohttp_client
+
+            device = GitHubDeviceAPI(
+                client_id=CLIENT_ID,
+                session=aiohttp_client.async_get_clientsession(self.hass),
+                client_name="HACS Vision",
+            )
+            response = await device.activation(device_code=device_code)
+            token = response.data.access_token
+
+            # Get user info
+            headers = {"Authorization": f"Bearer {token}", "Accept": "application/vnd.github.v3+json"}
+            async with self.session.get("https://api.github.com/user",
+                                         headers=headers,
+                                         timeout=aiohttp.ClientTimeout(total=10)) as resp:
+                user_data = await resp.json()
+                login = user_data.get("login", "?")
+                avatar = user_data.get("avatar_url", "")
+
+            # Store token
+            await self.data.write_storage("github_token", {"token": token, "user": login})
+            self._github_token = token
+
+            # Sync to HACS
+            for entry in self.hass.config_entries.async_entries("hacs"):
+                new_data = dict(entry.data)
+                new_data["token"] = token
+                self.hass.config_entries.async_update_entry(entry, data=new_data)
+                break
+
+            return web.json_response({
+                "ok": True,
+                "token": token,
+                "user": login,
+                "avatar_url": avatar,
+            })
+        except ImportError:
+            return web.json_response({"error": "aiogithubapi_not_installed"}, status=501)
+        except Exception as e:
+            err = str(e)
+            if "pending" in err.lower() or "authorization_pending" in err.lower():
+                return web.json_response({"status": "pending"})
+            _LOGGER.error("OAuth poll error: %s", e, exc_info=True)
+            return web.json_response({"error": str(e)}, status=500)
+
+    async def _github_oauth_user(self) -> web.Response:
+        """Get current GitHub user info from our stored token (not HACS)."""
+        try:
+            data = await self.data.read_storage("github_token")
+            token = (data or {}).get("token")
+        except Exception:
+            token = None
+        if not token:
+            return web.json_response({"error": "not_authenticated"}, status=401)
+
+        # Also get info about whether HACS has a token
+        hacs_has_token = bool(self._get_github_token())
+        settings = await self.data.get_settings()
+        prefer_hacs = settings.get("use_hacs_token", True)
+
+        headers = {"Authorization": f"Bearer {token}", **GITHUB_HEADERS}
+        try:
+            async with self.session.get(f"{GITHUB_API_BASE}/user",
+                                         headers=headers,
+                                         timeout=aiohttp.ClientTimeout(total=10)) as resp:
+                if resp.status != 200:
+                    return web.json_response({"error": "token_invalid"}, status=401)
+                user = await resp.json()
+        except Exception as e:
+            return web.json_response({"error": str(e)}, status=500)
+
+        return web.json_response({
+            "login": user.get("login"),
+            "avatar_url": user.get("avatar_url"),
+            "hacs_has_token": hacs_has_token,
+            "prefer_hacs": prefer_hacs,
+        })
 
     async def _github_star(self, body: dict) -> web.Response:
         """Star a repository."""
@@ -600,6 +746,8 @@ class HACSEnhancedAPI(HomeAssistantView):
             return await self._github_list_org_repos(query)
         if path in ("github/import_token", "github/import_token/"):
             return await self._github_import_token()
+        if path in ("github/oauth/user", "github/oauth/user/"):
+            return await self._github_oauth_user()
 
         return web.json_response({"error": "not_found"}, status=404)
 
@@ -667,6 +815,11 @@ class HACSEnhancedAPI(HomeAssistantView):
             return await self._github_sync_starred(body)
         if path in ("github/sync-favorites", "github/sync-favorites/"):
             return await self._github_sync_favorites()
+        # ── OAuth device flow ──
+        if path in ("github/oauth/start", "github/oauth/start/"):
+            return await self._github_oauth_reauth(body)
+        if path in ("github/oauth/poll", "github/oauth/poll/"):
+            return await self._github_oauth_poll(body)
 
         # ── Config Flow proxy ──
         if path == "config_flow/start":

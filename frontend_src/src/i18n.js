@@ -279,6 +279,7 @@ const T = {
   haRestarting: { zh: 'Home Assistant 正在重启，请稍候...', en: 'Home Assistant is restarting, please wait...' },
   cacheMismatch: { zh: '版本已更新，请刷新页面', en: 'New version available, please refresh' },
   rateLimited: { zh: 'GitHub API 限流，请稍后重试', en: 'GitHub API rate limited — try again later' },
+  serverError: { zh: '后端服务异常，请检查 Vision 后端状态', en: 'Backend service error — check Vision backend status' },
 
   // Restart HA button
   restartHA: { zh: '重启', en: 'Restart' },
@@ -517,6 +518,22 @@ const T = {
   githubVerifyResult: { zh: '已验证 ✅ 用户: {user} (剩余 {remaining}/5000 次/小时)', en: 'Verified ✅ User: {user} ({remaining}/5000 remaining)' },
   errorPrefix: { zh: '{action}失败: {err}', en: '{action} failed: {err}' },
 
+  tokenSource: { zh: 'Token 来源', en: 'Token Source' },
+  tokenSourceDesc: { zh: '选择使用哪个 GitHub Token 进行 API 调用', en: 'Choose which GitHub Token to use for API calls' },
+  useHacsToken: { zh: '优先使用 HACS 的 Token', en: 'Prefer HACS Token' },
+  tokenFromHacs: { zh: '来源：HACS', en: 'Source: HACS' },
+  tokenFromVision: { zh: '来源：HACS Vision', en: 'Source: HACS Vision' },
+  syncToHacs: { zh: '同时也更新 HACS 的 Token', en: 'Also update HACS Token' },
+  oauthLogin: { zh: 'OAuth 授权登录', en: 'OAuth Login' },
+  oauthDesc: { zh: '通过 GitHub OAuth 设备流授权，无需手动输入 Token', en: 'Authorize via GitHub OAuth device flow, no token needed' },
+  oauthStart: { zh: '开始 OAuth 授权', en: 'Start OAuth' },
+  oauthWaiting: { zh: '等待授权...', en: 'Waiting for authorization...' },
+  oauthStep1: { zh: '步骤1: 访问 GitHub', en: 'Step 1: Visit GitHub' },
+  oauthStep2: { zh: '步骤2: 输入验证码', en: 'Step 2: Enter the code' },
+  oauthVisit: { zh: '访问', en: 'Visit' },
+  oauthEnterCode: { zh: '输入验证码：', en: 'Enter code:' },
+  oauthWaitingDesc: { zh: '等待授权完成后自动保存...', en: 'Waiting for authorization... saving automatically...' },
+  oauthStarting: { zh: '启动中...', en: 'Starting...' },
   // === Missing keys for i18n completeness ===
   githubToken: { zh: 'GitHub Token', en: 'GitHub Token' },
   githubSection: { zh: 'GitHub', en: 'GitHub' },

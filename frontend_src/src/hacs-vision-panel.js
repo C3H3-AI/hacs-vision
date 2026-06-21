@@ -21,6 +21,7 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
     _readmeLoading: { type: Boolean, state: true },
     _viewTransition: { type: Boolean, state: true },
     _networkStatus: { type: String, state: true },
+    _restarting: { type: Boolean, state: true },
     _detailExpanded: { type: Boolean, state: true },
     _showVersionSelector: { type: Boolean, state: true },
     _releases: { type: Array, state: true },
@@ -60,6 +61,7 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
     this._readmeLoading = false;
     this._viewTransition = false;
     this._networkStatus = 'online';
+    this._restarting = false;
     this._detailExpanded = false;
     this._showVersionSelector = false;
     this._releases = [];
@@ -740,6 +742,10 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
     try {
       this._error = '';
       this.stats = await api.getStats();
+      // Clear restarting flag when HA is back
+      if (this._restarting) {
+        this._restarting = false;
+      }
       // HA is back online — clear network error banners
       if (this._networkStatus === 'server_error') {
         this._networkStatus = 'online';
@@ -752,9 +758,16 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
       console.error('Stats error:', e);
       this.stats = {};
       this._error = `API: ${e.message}`;
-      // Retry loadStats with backoff when HA is restarting
-      if (this._networkStatus === 'server_error' && !this._statsRetryTimer) {
-        this._scheduleStatsRetry();
+      // Only retry when user explicitly triggered restart
+      if (this._restarting && !this._statsRetryTimer) {
+        this._statsRetryCount = (this._statsRetryCount || 0) + 1;
+        if (this._statsRetryCount <= 6) {
+          this._scheduleStatsRetry();
+        } else {
+          this._restarting = false;
+          this._networkStatus = 'server_error';
+          console.warn('Stats retry limit reached, giving up restart detection');
+        }
       }
     }
   }
@@ -764,12 +777,20 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
       this._statsRetryTimer = null;
       try {
         this.stats = await api.getStats();
+        // HA is back — clear restarting + error state
+        this._restarting = false;
         if (this._networkStatus === 'server_error') {
           this._networkStatus = 'online';
         }
       } catch(e) {
-        // Still down, retry again
-        this._scheduleStatsRetry();
+        this._statsRetryCount = (this._statsRetryCount || 0) + 1;
+        if (this._statsRetryCount <= 6) {
+          this._scheduleStatsRetry();
+        } else {
+          this._restarting = false;
+          this._networkStatus = 'server_error';
+          console.warn('Stats retry limit reached, giving up restart detection');
+        }
       }
     }, 5000);
   }
@@ -800,6 +821,7 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
       danger: true,
     });
     if (!ok) return;
+    this._restarting = true;
     try {
       await api.restartHA();
       showToast(t('haRestarting'), 'info');
@@ -1521,7 +1543,7 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
         ` : this._networkStatus === 'rate_limited' ? html`
           <div class="network-banner warning">${t('rateLimited')}</div>
         ` : this._networkStatus === 'server_error' ? html`
-          <div class="network-banner warning">${t('haRestarting')}</div>
+          <div class="network-banner warning">${this._restarting ? t('haRestarting') : t('serverError')}</div>
         ` : ''}
 
         <!-- Sticky Header + Tabs -->
