@@ -76,11 +76,13 @@
 
 ## 截图 / Screenshots
 
-| Overview | Store | Management |
-|:--------:|:-----:|:----------:|
-| ![hero](https://raw.githubusercontent.com/C3H3-AI/hacs-vision/main/assets/hero.png) | ![store](https://raw.githubusercontent.com/C3H3-AI/hacs-vision/main/assets/screenshot_2_store_list.png) | ![manage](https://raw.githubusercontent.com/C3H3-AI/hacs-vision/main/assets/screenshot_4_manage.png) |
-| **Updates** | **Detail** | **Card View** |
-| ![updates](https://raw.githubusercontent.com/C3H3-AI/hacs-vision/main/assets/screenshot_3_updates.png) | ![detail](https://raw.githubusercontent.com/C3H3-AI/hacs-vision/main/assets/screenshot_5_detail.png) | ![card](https://raw.githubusercontent.com/C3H3-AI/hacs-vision/main/assets/screenshot_1_store_card.png) |
+| Store | Detail | Config Flow |
+|:-----:|:------:|:-----------:|
+| ![store](https://raw.githubusercontent.com/C3H3-AI/hacs-vision/main/assets/store.png) | ![detail](https://raw.githubusercontent.com/C3H3-AI/hacs-vision/main/assets/detail.png) | ![config-flow](https://raw.githubusercontent.com/C3H3-AI/hacs-vision/main/assets/config-flow.png) |
+| **Management** | **Updates** | **Settings** |
+| ![management](https://raw.githubusercontent.com/C3H3-AI/hacs-vision/main/assets/management.png) | ![updates](https://raw.githubusercontent.com/C3H3-AI/hacs-vision/main/assets/updates.png) | ![settings](https://raw.githubusercontent.com/C3H3-AI/hacs-vision/main/assets/settings.png) |
+| **Integrations** | **Integration Config** | |
+| ![integrations](https://raw.githubusercontent.com/C3H3-AI/hacs-vision/main/assets/integrations.png) | ![integration-config](https://raw.githubusercontent.com/C3H3-AI/hacs-vision/main/assets/integration-config.png) | |
 
 ---
 
