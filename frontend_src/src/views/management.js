@@ -624,10 +624,10 @@ export class ManagementView extends LitElement {
 
   async _restartHA() {
     try {
-      showToast(t('restarting') || '正在重启 HA…', 'info');
+      showToast(t('restarting') , 'info');
       await api.restartHA();
     } catch(e) {
-      showToast(`${t('restartFailed') || '重启失败'}: ${e.message}`, 'error');
+      showToast(`${t('restartFailed') }: ${e.message}`, 'error');
     }
   }
 
@@ -774,7 +774,7 @@ export class ManagementView extends LitElement {
   async _batchRemove() {
     const count = this._selectedRepos.length;
     const ok = await ConfirmDialog.show(this, {
-      message: `${t('batchRemoveRepoConfirm') || '确认移除'} ${count} ${t('totalRepos')}?`,
+      message: `${t('batchRemoveRepoConfirm') } ${count} ${t('totalRepos')}?`,
       confirmText: t('removeRepo'), danger: true,
     });
     if (!ok) return;
@@ -946,7 +946,7 @@ export class ManagementView extends LitElement {
             <div class="actions" style="display:flex;gap:6px;padding:8px 14px;border-top:1px solid var(--divider-color,#e0e0e0);">
               <button class="action-btn primary" @click=${() => this._replaceRenamedOneClick(oldName, newName)} ?disabled=${this._renamedRefreshing} style="flex:1;">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
-                ${t('replace') || '替换'}
+                ${t('replace') }
               </button>
               <button class="action-btn" @click=${() => this._removeRenamedRepo(oldName)} style="color:#f44336;border-color:#f44336;flex:0 0 auto;padding:8px 10px;" title="${t('removeRenamed')}">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
@@ -954,7 +954,7 @@ export class ManagementView extends LitElement {
             </div>
           </div>
         `)}</div>
-      ` : html`<div class="empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width:32px;height:32px;opacity:0.4;margin-bottom:8px;"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg><div>${t('noRenamed') || '无重命名仓库'}</div></div>`;
+      ` : html`<div class="empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width:32px;height:32px;opacity:0.4;margin-bottom:8px;"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg><div>${t('noRenamed') }</div></div>`;
     }
 
     // Default: custom repos (all / custom)
@@ -1164,12 +1164,12 @@ export class ManagementView extends LitElement {
 
       <!-- Controls: Search + Sort Dropdown + Add Button + View Toggle -->
       <div class="controls">
-        <button class="filter-toggle-sm" @click=${() => { this._filterExpanded = !this._filterExpanded; }} title="${t('filterMore') || '筛选/排序'}">
+        <button class="filter-toggle-sm" @click=${() => { this._filterExpanded = !this._filterExpanded; }} title="${t('filterMore') }">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;"><line x1="4" y1="6" x2="20" y2="6"/><line x1="8" y1="12" x2="20" y2="12"/><line x1="12" y1="18" x2="20" y2="18"/></svg>
         </button>
         <div class="search">
           <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
-          <input type="text" autocomplete="off" placeholder="${t('search') || '搜索...'}" .value=${this._customRepoSearch} @input=${e => this._customRepoSearch = e.target.value}>
+          <input type="text" autocomplete="off" placeholder="${t('search') }" .value=${this._customRepoSearch} @input=${e => this._customRepoSearch = e.target.value}>
           ${this._customRepoSearch ? html`<button class="search-clear" @click=${() => this._customRepoSearch = ''}>✕</button>` : ''}
         </div>
         <div class="controls-right">
@@ -1266,13 +1266,13 @@ export class ManagementView extends LitElement {
       <div class="filter-sort-row ${this._filterExpanded ? 'expanded' : ''}">
         <div class="fs-chips">
           <span class="fs-label">${t('repoStatus')}</span>
-          <button class="filter-chip ${this._customRepofilter === 'all' ? 'active' : ''}" @click=${() => { this._customRepofilter = 'all'; _saveMgmtState({customRepofilter:this._customRepofilter,customRepoSort:this._customRepoSort,statusFilter:this._statusFilter,typeFilter:this._typeFilter}); }}>${t('all') || '全部'}</button>
+          <button class="filter-chip ${this._customRepofilter === 'all' ? 'active' : ''}" @click=${() => { this._customRepofilter = 'all'; _saveMgmtState({customRepofilter:this._customRepofilter,customRepoSort:this._customRepoSort,statusFilter:this._statusFilter,typeFilter:this._typeFilter}); }}>${t('all') }</button>
           ${archivedRepos.length > 0 ? html`<button class="filter-chip ${this._customRepofilter === 'archived' ? 'active' : ''}" @click=${() => { this._customRepofilter = 'archived'; _saveMgmtState({customRepofilter:this._customRepofilter,customRepoSort:this._customRepoSort,statusFilter:this._statusFilter,typeFilter:this._typeFilter}); }}>${t('archivedRepos')} (${archivedRepos.length})</button>` : ''}
           ${renamedEntries.length > 0 ? html`<button class="filter-chip ${this._customRepofilter === 'renamed' ? 'active' : ''}" @click=${() => { this._customRepofilter = 'renamed'; _saveMgmtState({customRepofilter:this._customRepofilter,customRepoSort:this._customRepoSort,statusFilter:this._statusFilter,typeFilter:this._typeFilter}); }}>${t('renamedRepos')} (${renamedEntries.length})</button>` : ''}
           ${ignoredRepos.length > 0 ? html`<button class="filter-chip ${this._customRepofilter === 'ignored' ? 'active' : ''}" @click=${() => { this._customRepofilter = 'ignored'; _saveMgmtState({customRepofilter:this._customRepofilter,customRepoSort:this._customRepoSort,statusFilter:this._statusFilter,typeFilter:this._typeFilter}); }}>${t('ignoredRepos')} (${ignoredRepos.length})</button>` : ''}
           <span class="fs-divider"></span>
           <span class="fs-label">${t('filterStatus')}</span>
-          <button class="filter-chip ${!this._statusFilter ? 'active' : ''}" @click=${() => { this._statusFilter = ''; _saveMgmtState({customRepofilter:this._customRepofilter,customRepoSort:this._customRepoSort,statusFilter:this._statusFilter,typeFilter:this._typeFilter}); }}>${t('all') || '全部'}</button>
+          <button class="filter-chip ${!this._statusFilter ? 'active' : ''}" @click=${() => { this._statusFilter = ''; _saveMgmtState({customRepofilter:this._customRepofilter,customRepoSort:this._customRepoSort,statusFilter:this._statusFilter,typeFilter:this._typeFilter}); }}>${t('all') }</button>
           ${['installed','update_available','not_installed','pending_restart'].filter(k => (this._getStatusCounts()[k] ?? 0) > 0).map(k => html`
             <button class="filter-chip ${this._statusFilter === k ? 'active' : ''}" @click=${() => { this._statusFilter = k; _saveMgmtState({customRepofilter:this._customRepofilter,customRepoSort:this._customRepoSort,statusFilter:this._statusFilter,typeFilter:this._typeFilter}); }}>
               ${k === 'installed' ? t('statusInstalled') : k === 'update_available' ? t('statusPendingUpgrade') : k === 'not_installed' ? t('statusNotInstalled') : t('statusPendingRestart')}
@@ -1281,14 +1281,14 @@ export class ManagementView extends LitElement {
           `)}
           <span class="fs-divider"></span>
           <span class="fs-label">${t('filterType')}</span>
-          <button class="filter-chip ${!this._typeFilter ? 'active' : ''}" @click=${() => { this._typeFilter = ''; _saveMgmtState({customRepofilter:this._customRepofilter,customRepoSort:this._customRepoSort,statusFilter:this._statusFilter,typeFilter:this._typeFilter}); }}>${t('all') || '全部'}</button>
+          <button class="filter-chip ${!this._typeFilter ? 'active' : ''}" @click=${() => { this._typeFilter = ''; _saveMgmtState({customRepofilter:this._customRepofilter,customRepoSort:this._customRepoSort,statusFilter:this._statusFilter,typeFilter:this._typeFilter}); }}>${t('all') }</button>
           ${Object.entries(this._getTypeCounts()).filter(([cat, cnt]) => cnt > 0).map(([cat, cnt]) => html`
             <button class="filter-chip ${this._typeFilter === cat ? 'active' : ''}" @click=${() => { this._typeFilter = cat; _saveMgmtState({customRepofilter:this._customRepofilter,customRepoSort:this._customRepoSort,statusFilter:this._statusFilter,typeFilter:this._typeFilter}); }}>
               ${this._getCategoryLabel(cat)}<span class="chip-count">${cnt}</span>
             </button>
           `)}
           <span class="fs-divider"></span>
-          <span class="fs-label">${t('sort') || '排序'}</span>
+          <span class="fs-label">${t('sort') }</span>
           <button class="filter-chip sort-inline ${this._customRepoSort === 'name' ? 'active' : ''}" @click=${() => { this._customRepoSort = 'name'; _saveMgmtState({customRepofilter:this._customRepofilter,customRepoSort:this._customRepoSort,statusFilter:this._statusFilter,typeFilter:this._typeFilter}); }}>
             ${t('sortByName')}${this._customRepoSort === 'name' ? html`<span class="sort-dir">▲</span>` : ''}
           </button>

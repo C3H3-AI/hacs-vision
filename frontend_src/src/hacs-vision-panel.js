@@ -161,9 +161,8 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
     .header-left { display: flex; align-items: center; gap: 14px; }
     .header-icon {
       width: 44px; height: 44px; display: flex; align-items: center; justify-content: center;
-      background: var(--primary-color, #03a9f4); border-radius: 12px; color: #fff;
-      font-size: 22px; font-weight: 700;
     }
+    .header-icon ha-icon { --icon-size: 24px; color: var(--primary-color); }
     .sidebar-toggle {
       display: none; align-items: center; justify-content: center;
       width: 36px; height: 36px; border: none; background: transparent;
@@ -847,11 +846,11 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
 
   _updatePageTitle(view) {
     const titles = {
-      browse: t('tabBrowse') || '商店',
-      integrations: t('tabIntegrations') || '集成管理',
-      updates: t('tabUpdates') || '更新',
-      management: t('tabManagement') || '管理',
-      settings: t('tabSettings') || '设置',
+      browse: t('tabBrowse'),
+      integrations: t('tabIntegrations'),
+      updates: t('tabUpdates'),
+      management: t('tabManagement'),
+      settings: t('tabSettings'),
     };
     document.title = `${titles[view] || view} · HACS Vision`;
   }
@@ -1174,7 +1173,7 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
         this._changelogData = data?.body ? { ...data, tag } : { tag, body: '(No release notes)' };
       }
     } catch(e) {
-      this._changelogData = { tag, body: t('noChangelog') || '暂无更新日志' };
+      this._changelogData = { tag, body: t('noChangelog')  };
     }
     this._changelogLoading = false;
   }
@@ -1214,25 +1213,12 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
   _renderDetailAvatar(repo) {
     const domain = repo.domain;
     if (!domain) return '';
-    const brandUrl = `https://brands.home-assistant.io/${domain}/icon.png`;
-    const localUrl = `${window.location.origin}/api/hacs_vision_brand/${domain}`;
     const color = this._getDomainColor(domain);
     const letter = domain.charAt(0).toUpperCase();
     return html`
-      <div class="detail-avatar">
-        <img class="detail-avatar-img" src="${brandUrl}" alt=""
-          @error=${function() {
-            if (!this.dataset.fallbackTried) {
-              this.dataset.fallbackTried = 'cdn';
-              this.src = localUrl;
-            } else {
-              this.style.display = 'none';
-              this.parentElement.style.background = color;
-              const fl = this.parentElement.querySelector('.detail-avatar-letter');
-              if (fl) fl.style.display = 'flex';
-            }
-          }}>
+      <div class="detail-avatar" style="background:${color}">
         <span class="detail-avatar-letter" style="display:none">${letter}</span>
+        <img class="detail-avatar-img" alt="" data-domain="${domain}">
       </div>
     `;
   }
@@ -1288,7 +1274,7 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
         buttons.push(html`
           <button class="modal-btn" @click=${() => this._modalAction('enable')}>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-            ${t('enable') || '启用'}
+            ${t('enable') }
           </button>`);
       }
 
@@ -1297,7 +1283,7 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
         buttons.push(html`
           <button class="modal-btn" style="color:#ff9800;border-color:#ff9800;" @click=${() => this._modalAction('view-logs')}>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
-            ${t('viewLogs') || '查看日志'}
+            ${t('viewLogs') }
           </button>`);
       }
 
@@ -1314,14 +1300,14 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
           buttons.push(html`
             <button class="modal-btn" @click=${() => this._modalAction('reconfigure')}>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2v6h-6M3 22v-6h6"/><path d="M21 8a9 9 0 1 1-3.64-6.36L21 2"/></svg>
-              ${t('reconfigure') || '重配置'}
+              ${t('reconfigure') }
             </button>`);
         }
         if (subTypes) {
           buttons.push(html`
             <button class="modal-btn" style="background:var(--primary-color, #03a9f4);color:#fff;border-color:var(--primary-color, #03a9f4);" @click=${() => this._modalAction('add-subentry')}>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-              ${t('addSubentry') || '添加服务'}
+              ${t('addSubentry') }
             </button>`);
         }
       }
@@ -1387,8 +1373,8 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
         if (entries && entries.length > 0) {
           const { ConfirmDialog } = await import('./shared/confirm-dialog.js');
           const ok = await ConfirmDialog.show(this, {
-            message: `${t('confirmEnable') || '确认启用集成?'}`,
-            confirmText: t('enable') || '启用',
+            message: `${t('confirmEnable') }`,
+            confirmText: t('enable'),
             danger: false,
           });
           if (!ok) return;
@@ -1401,14 +1387,14 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
               headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
             });
             if (resp.ok) {
-              showToast(t('enabled') || '已启用', 'success');
+              showToast(t('enabled') , 'success');
               this._loadConfigEntries();
             } else {
               const errData = await resp.json().catch(() => ({}));
-              showToast(errData.message || (t('enableFailed') || '启用失败'), 'error');
+              showToast(errData.message || (t('enableFailed') ), 'error');
             }
           } catch(e) {
-            showToast(`${t('enableFailed') || '启用失败'}: ${e.message}`, 'error');
+            showToast(`${t('enableFailed') }: ${e.message}`, 'error');
           }
         }
         return;
@@ -1482,6 +1468,53 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
     if (changedProps.has('narrow')) {
       requestAnimationFrame(() => this._checkTabsScrollable());
     }
+    // Defer avatar loading to next frame so modal DOM is definitely committed
+    requestAnimationFrame(() => this._loadAvatars());
+  }
+
+  _loadAvatars() {
+    const imgs = this.shadowRoot?.querySelectorAll('.detail-avatar-img[data-domain]:not([data-avatar-inited])');
+    if (!imgs || !imgs.length) return;
+    for (const img of imgs) {
+      img.dataset.avatarInited = '1';
+      const domain = img.dataset.domain;
+      const brandUrl = `https://brands.home-assistant.io/${domain}/icon.png`;
+      const localUrl = `${window.location.origin}/api/hacs_vision_brand/${domain}`;
+      const color = this._getDomainColor(domain);
+
+      const onLoad = () => {
+        if (img.naturalWidth > 0) {
+          img.style.display = '';
+          const letter = img.parentElement.querySelector('.detail-avatar-letter');
+          if (letter) letter.style.display = 'none';
+          img.parentElement.style.background = '';
+        }
+      };
+      const onError = () => {
+        if (!img.dataset.fb) {
+          img.dataset.fb = '1';
+          img.src = localUrl;
+        } else {
+          img.style.display = 'none';
+          const letter = img.parentElement.querySelector('.detail-avatar-letter');
+          if (letter) letter.style.display = '';
+          img.parentElement.style.background = color;
+        }
+      };
+
+      img.addEventListener('load', onLoad);
+      img.addEventListener('error', onError);
+      img.src = brandUrl;
+
+      // Handle cache: image already loaded before listeners were added
+      if (img.complete) {
+        if (img.naturalWidth > 0) {
+          onLoad();
+        } else {
+          onError();
+        }
+      }
+    }
   }
 
   firstUpdated() {
@@ -1493,14 +1526,14 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
       return this._renderPanel();
     } catch(e) {
       console.error('Panel render error:', e);
-      return html`<div class="store"><div class="error-banner error"><svg class="mini-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> ${t('connectFailed')}: ${e.message}</div><div style="text-align:center;padding:40px;color:var(--secondary-text-color)"><p>${t('refreshPage') || '请刷新页面重试'}</p><button @click=${() => location.reload()} style="margin-top:12px;padding:8px 24px;border:1px solid var(--primary-color);border-radius:6px;background:var(--card-background-color);color:var(--primary-color);cursor:pointer">${t('refresh') || '刷新'}</button></div></div>`;
+      return html`<div class="store"><div class="error-banner error"><svg class="mini-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> ${t('connectFailed')}: ${e.message}</div><div style="text-align:center;padding:40px;color:var(--secondary-text-color)"><p>${t('refreshPage') }</p><button @click=${() => location.reload()} style="margin-top:12px;padding:8px 24px;border:1px solid var(--primary-color);border-radius:6px;background:var(--card-background-color);color:var(--primary-color);cursor:pointer">${t('refresh') }</button></div></div>`;
     }
   }
 
   _renderPanel() {
     const tabs = [
       { view: 'browse', label: t('tabBrowse'), icon: '', count: null },
-      { view: 'integrations', label: t('tabIntegrations') || '集成管理', icon: '', count: null },
+      { view: 'integrations', label: t('tabIntegrations') , icon: '', count: null },
       { view: 'updates', label: t('tabUpdates'), icon: '', count: this.stats.available_updates },
       { view: 'management', label: t('tabManagement'), icon: '', count: null },
       { view: 'settings', label: t('tabSettings'), icon: '', count: null },
@@ -1556,10 +1589,7 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
           <div class="header">
           <div class="header-left">
             <div class="header-icon">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                <circle cx="12" cy="12" r="3"/>
-              </svg>
+              <ha-icon icon="hacs:hacs"></ha-icon>
             </div>
             <div class="title-group">
               <h1>HACS Vision</h1>
@@ -1583,11 +1613,11 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
             ` : ''}
             <div class="stat" @click=${() => this._applyTag('favorites')}>
               <div class="stat-num">${this._favoriteCount ?? 0}</div>
-              <div class="stat-label">${t('statFavorites') || '收藏'}</div>
+              <div class="stat-label">${t('statFavorites') }</div>
             </div>
             <div class="stat" @click=${() => this._applyTag('custom')}>
               <div class="stat-num">${this.stats.custom_count ?? 0}</div>
-              <div class="stat-label">${t('statCustom') || '自定义'}</div>
+              <div class="stat-label">${t('statCustom') }</div>
             </div>
             <div class="stat" @click=${() => this._applyFilter('')}>
               <div class="stat-num">${this.stats.total_repos ?? 0}</div>
@@ -1601,7 +1631,7 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
           <span>${t('statusPendingRestart')}: ${this.stats.pending_restart} ${t('repositories')}</span>
           <button class="restart-bar-btn" @click=${this._restartHA}>${t('restartHA')}</button>
-          <button class="restart-bar-btn outline" @click=${() => this._applyFilter('pending_restart')}>${t('viewDetail') || '查看'}</button>
+          <button class="restart-bar-btn outline" @click=${() => this._applyFilter('pending_restart')}>${t('viewDetail') }</button>
         </div>
         ` : ''}
 
@@ -1647,7 +1677,7 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
       ${this._showDetail && r ? html`
         <div class="modal-overlay" role="dialog" aria-modal="true" aria-label="${r.manifest_name || r.full_name || t('detail')}" @click=${(e) => { if (e.target === e.currentTarget) this._closeDetail(); }}>
           <div class="modal ${this._detailExpanded ? 'expanded' : ''}" @dblclick=${this._toggleDetailExpand}>
-            ${!this._detailExpanded ? html`<div class="modal-expand-hint">${t('dblZoomHint') || '双击放大'}</div>` : ''}
+            ${!this._detailExpanded ? html`<div class="modal-expand-hint">${t('dblZoomHint') }</div>` : ''}
             <div class="modal-header">
               <div class="modal-header-left">
                 ${this._renderDetailAvatar(r)}
@@ -1656,8 +1686,8 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
                 </div>
               </div>
               <div style="display:flex;align-items:center;gap:8px;">
-                <button class="modal-expand-btn" aria-label="${t('zoom') || '放大'}" @click=${this._toggleDetailExpand}>${this._detailExpanded ? '⤡' : '⤢'}</button>
-                <button class="modal-close" aria-label="${t('close') || '关闭'}" @click=${this._closeDetail}>✕</button>
+                <button class="modal-expand-btn" aria-label="${t('zoom') }" @click=${this._toggleDetailExpand}>${this._detailExpanded ? '⤡' : '⤢'}</button>
+                <button class="modal-close" aria-label="${t('close') }" @click=${this._closeDetail}>✕</button>
               </div>
             </div>
             <div class="modal-body">
@@ -1731,8 +1761,8 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
                 ${this._showVersionSelector ? html`
                   <div class="version-selector-body">
                     <div class="release-tabs">
-                      <div class="release-tab ${this._releaseTab === 0 ? 'active' : ''}" @click=${() => this._releaseTab = 0}>${t('stableReleases') || '正式版'}</div>
-                      <div class="release-tab ${this._releaseTab === 1 ? 'active' : ''}" @click=${() => this._releaseTab = 1}>${t('prereleaseTab') || '预发布'}</div>
+                      <div class="release-tab ${this._releaseTab === 0 ? 'active' : ''}" @click=${() => this._releaseTab = 0}>${t('stableReleases') }</div>
+                      <div class="release-tab ${this._releaseTab === 1 ? 'active' : ''}" @click=${() => this._releaseTab = 1}>${t('prereleaseTab') }</div>
                     </div>
                     ${this._releasesLoading ? html`
                       <div class="releases-loading">
@@ -1771,11 +1801,11 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
               <!-- Changelog (What's New) — shown when update is available or version selected -->
               ${isUpdateAvailable || this._changelogData ? html`
                 <div class="detail-changelog">
-                  <div class="detail-changelog-title">${t('changelogTitle') || '更新内容'}${this._changelogData?.tag ? html` <span style="font-weight:400;font-size:12px;color:var(--secondary-text-color);">— ${this._changelogData.tag}</span>` : ''}</div>
+                  <div class="detail-changelog-title">${t('changelogTitle') }${this._changelogData?.tag ? html` <span style="font-weight:400;font-size:12px;color:var(--secondary-text-color);">— ${this._changelogData.tag}</span>` : ''}</div>
                   ${this._changelogLoading ? html`
                     <div class="readme-loading">
                       <div class="spinner-sm"></div>
-                      ${t('loading') || '加载中...'}
+                      ${t('loading') }
                     </div>
                   ` : this._changelogData ? html`
                     <div class="changelog-body" .innerHTML=${this._linkify(this._changelogData.body)}></div>
@@ -1783,10 +1813,10 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
                       <div class="changelog-tag">${this._changelogData.tag}</div>
                     ` : ''}
                     ${this._changelogData.url ? html`
-                      <a class="changelog-link" href="${this._changelogData.url}" target="_blank" rel="noopener">${t('viewFullChangelog') || '查看完整更新日志'} →</a>
+                      <a class="changelog-link" href="${this._changelogData.url}" target="_blank" rel="noopener">${t('viewFullChangelog') } →</a>
                     ` : ''}
                   ` : html`
-                    <div class="changelog-empty">${t('noChangelog') || '暂无更新日志'}</div>
+                    <div class="changelog-empty">${t('noChangelog') }</div>
                   `}
                 </div>
               ` : ''}
@@ -1826,14 +1856,14 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
         <div class="entry-overlay" role="dialog" aria-modal="true" aria-label="${t('selectEntryTitle')}" @click=${() => { this._showEntrySelector = false; }}>
           <div class="entry-dialog" @click=${(e) => e.stopPropagation()}>
             <div class="entry-title">${t('selectEntryTitle')}</div>
-            <div class="entry-subtitle">${t('selectEntrySubtitle') || '请选择要配置的集成实例'}</div>
+            <div class="entry-subtitle">${t('selectEntrySubtitle') }</div>
             <div class="entry-list">
               ${this._entrySelectorEntries.map(entry => html`
                 <button class="entry-btn" @click=${() => this._selectConfigEntry(entry.entry_id)}>
                   <div class="entry-btn-icon">⚙️</div>
                   <div class="entry-btn-text">
                     <span class="entry-btn-title">${entry.title || entry.entry_id}</span>
-                    <span class="entry-btn-domain">${entry.domain}${entry.entry_id === this._entrySelectorCurrentId ? ' · ' + (t('currentEntry') || '当前') : ''}</span>
+                    <span class="entry-btn-domain">${entry.domain}${entry.entry_id === this._entrySelectorCurrentId ? ' · ' + (t('currentEntry') ) : ''}</span>
                   </div>
                 </button>
               `)}

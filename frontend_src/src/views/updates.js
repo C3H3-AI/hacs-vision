@@ -429,10 +429,10 @@ class UpdatesView extends LitElement {
   /* 检查更新：refresh + 刷新列表 + 显示进度 */
   async _refresh() {
     this.refreshing = true;
-    this._updateProgress = { current: 0, total: 0, currentName: t('checkingUpdates') || '正在检查更新...' };
+    this._updateProgress = { current: 0, total: 0, currentName: t('checkingUpdates')  };
     try {
       await api.refresh();
-      this._updateProgress = { ...this._updateProgress, currentName: t('loadingUpdates') || '正在加载更新列表...' };
+      this._updateProgress = { ...this._updateProgress, currentName: t('loadingUpdates')  };
       const result = await api.getUpdates();
       this.updates = Array.isArray(result) ? result : (result.updates || []);
       this._changelogs = {};
@@ -736,10 +736,10 @@ class UpdatesView extends LitElement {
         <thead>
           <tr>
             <th class="col-icon"></th>
-            <th>${t('colName') || '名称'}</th>
+            <th>${t('colName') }</th>
             <th>${t('currentVersion')}</th>
             <th>${t('latestVersion')}</th>
-            <th>${t('colStatus') || '状态'}</th>
+            <th>${t('colStatus') }</th>
             <th></th>
           </tr>
         </thead>
@@ -804,13 +804,13 @@ class UpdatesView extends LitElement {
         ${this.refreshing ? html`
           <div style="position:fixed;top:0;left:0;right:0;z-index:9999;background:var(--card-background-color,#fff);border-bottom:1px solid var(--divider-color);padding:10px 16px;display:flex;align-items:center;gap:10px;">
             <svg class="mini-icon spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px;flex-shrink:0;"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
-            <span style="font-size:13px;color:var(--primary-text-color);flex:1;">${this._updateProgress?.currentName || t('checkingUpdates') || '正在检查更新...'}</span>
+            <span style="font-size:13px;color:var(--primary-text-color);flex:1;">${this._updateProgress?.currentName || t('checkingUpdates') }</span>
             <div style="width:120px;height:6px;background:var(--divider-color);border-radius:3px;overflow:hidden;">
               <div class="progress-fill" style="width:100%;animation:pulse 1.5s ease-in-out infinite;"></div>
             </div>
           </div>
         ` : ''}
-        <button class="filter-toggle-sm" @click=${() => { this._filterExpanded = !this._filterExpanded; }} title="${t('filterMore') || '筛选/排序'}">
+        <button class="filter-toggle-sm" @click=${() => { this._filterExpanded = !this._filterExpanded; }} title="${t('filterMore') }">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;"><line x1="4" y1="6" x2="20" y2="6"/><line x1="8" y1="12" x2="20" y2="12"/><line x1="12" y1="18" x2="20" y2="18"/></svg>
         </button>
         <div class="search">
@@ -846,7 +846,7 @@ class UpdatesView extends LitElement {
           <label class="sel-all-label desktop-only">
             <input type="checkbox" class="checkbox-sm" .checked=${this._isAllSelected()}
                    @click=${e => e.stopPropagation()} @change=${this._toggleSelectAll}>
-            ${t('selectAll') || '全选'}
+            ${t('selectAll') }
             ${this._selectedCount() > 0 ? html`<span style="color:var(--primary-color);font-weight:600;">(${this._selectedCount()})</span>` : ''}
           </label>
         </div>
@@ -876,7 +876,7 @@ class UpdatesView extends LitElement {
             <label class="sel-all-label">
               <input type="checkbox" class="checkbox-sm" .checked=${this._isAllSelected()}
                      @click=${e => e.stopPropagation()} @change=${this._toggleSelectAll}>
-              ${t('selectAll') || '全选'}
+              ${t('selectAll') }
               ${this._selectedCount() > 0 ? html`<span style="color:var(--primary-color);font-weight:600;">(${this._selectedCount()})</span>` : ''}
             </label>
           </div>
@@ -977,7 +977,7 @@ class UpdatesView extends LitElement {
                   <span class="status-badge-update">${t('statusPendingUpgrade')}</span>
                   <button class="fav-btn ${this._favs?.[r.id || r.full_name] ? 'active' : ''}"
                     @click=${(e) => { e.stopPropagation(); this._toggleFav(r); }}
-                    title=${this._favs?.[r.id || r.full_name] ? (t('favOn') || '取消收藏') : (t('favOff') || '收藏')}>
+                    title=${this._favs?.[r.id || r.full_name] ? (t('favOn') ) : (t('favOff') )}>
                     <svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                       <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
                     </svg>

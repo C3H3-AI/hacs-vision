@@ -6,7 +6,7 @@ DOMAIN_HACS = "hacs"
 VERSION = "5.0.1"
 
 PANEL_TITLE = "HACS Vision"
-PANEL_ICON = "mdi:store"
+PANEL_ICON = "hacs:hacs"
 
 STORAGE_PATHS = {
     "repositories": ".storage/hacs.repositories",

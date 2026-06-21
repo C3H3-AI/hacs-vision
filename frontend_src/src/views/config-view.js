@@ -3,6 +3,7 @@ import { api } from '../api.js';
 import { t } from '../i18n.js';
 import { getCommonStyles } from '../shared/styles.js';
 import { ConfirmDialog } from '../shared/confirm-dialog.js';
+import { showToast } from '../hacs-vision-panel.js';
 
 class ConfigView extends LitElement {
   static properties = {
@@ -98,7 +99,7 @@ class ConfigView extends LitElement {
     try {
       const data = await api.getVersion();
       this._version = data?.version || '';
-    } catch(e) { /* ignore */ }
+    } catch(e) { console.debug('Version fetch failed (optional):', e); }
     try {
       const user = await api.getGitHubUser();
       if (user?.login) {
@@ -134,7 +135,6 @@ class ConfigView extends LitElement {
 
   async _save() {
     this._saving = true;
-    const { showToast } = await import('../hacs-vision-panel.js');
     try {
       await api.updateSettings(this._settings);
       showToast(t('settingsSaved'), 'success');
@@ -288,69 +288,69 @@ class ConfigView extends LitElement {
             GitHub
           </div>
           ${this._githubUser ? html`
-            <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+            <div class="flex-row-wide">
               ${this._githubAvatar
                 ? html`<img src="${this._githubAvatar}" style="width:28px;height:28px;border-radius:50%;border:1px solid var(--divider-color);flex-shrink:0;" @error=${e => e.target.style.display='none'}>`
                 : html`<span style="width:28px;height:28px;border-radius:50%;background:var(--primary-color,#03a9f4);color:#fff;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:600;flex-shrink:0;">${this._githubUser[0].toUpperCase()}</span>`}
-              <span style="font-size:13px;">${t('hacsUser', { user: this._githubUser })}</span>
-              <button class="btn" style="font-size:11px;padding:4px 10px;" @click=${this._githubLogout}>${t('logout') || '登出'}</button>
+              <span class="flex-row-wide" style="font-size:13px;">${t('hacsUser', { user: this._githubUser })}</span>
+              <button class="btn btn-sm" @click=${this._githubLogout}>${t('logout') }</button>
             </div>
-            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;">
-              <button class="btn" style="font-size:11px;padding:6px 12px;" @click=${this._syncFavToStar} ?disabled=${this._syncFavToStarring}>
+            <div class="flex-wrap" style="margin-top:8px;">
+              <button class="btn btn-mid" @click=${this._syncFavToStar} ?disabled=${this._syncFavToStarring}>
                 ${this._syncFavToStarring ? html`<svg class="mini-icon spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;vertical-align:middle;"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> ${t('syncingShort')}`
                 : this._syncFavToStarResult ? html`<span style="color:var(--primary-color,#03a9f4)">${this._syncFavToStarResult}</span>`
-                : html`📤 ${t('syncFavToStar') || '收藏同步点赞'}`}
+                : html`<svg class=\"mini-icon\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" style=\"width:14px;height:14px;vertical-align:middle;\"><path d=\"M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4\"/><polyline points=\"7 10 12 15 17 10\"/><line x1=\"12\" y1=\"15\" x2=\"12\" y2=\"3\"/></svg> ${t('syncFavToStar') }`}
               </button>
-              <button class="btn" style="font-size:11px;padding:6px 12px;" @click=${this._syncStarToFav} ?disabled=${this._syncStarToFaving}>
+              <button class="btn btn-mid" @click=${this._syncStarToFav} ?disabled=${this._syncStarToFaving}>
                 ${this._syncStarToFaving ? html`<svg class="mini-icon spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;vertical-align:middle;"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> ${t('syncingShort')}`
                 : this._syncStarToFavResult ? html`<span style="color:var(--primary-color,#03a9f4)">${this._syncStarToFavResult}</span>`
-                : html`📥 ${t('syncStarToFav') || '点赞同步收藏'}`}
+                : html`<svg class=\"mini-icon\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" style=\"width:14px;height:14px;vertical-align:middle;\"><path d=\"M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4\"/><polyline points=\"17 8 12 3 7 8\"/><line x1=\"12\" y1=\"3\" x2=\"12\" y2=\"15\"/></svg> ${t('syncStarToFav') }`}
               </button>
             </div>
           ` : html`
             <div class="setting-row">
               <div class="setting-info">
-                <div class="label">${t('githubToken') || 'GitHub Token (PAT)'}</div>
-                <div class="desc">${t('githubTokenDesc') || '在 GitHub Settings → Developer settings → Personal access tokens 生成'}</div>
+                <div class="label">${t('githubToken')}</div>
+                <div class="desc">${t('githubTokenDesc') }</div>
               </div>
-              <div class="setting-control" style="flex-direction:column;gap:6px;align-items:stretch;">
-                <input type="text" class="token-input" autocomplete="off" style="-webkit-text-security:disc;padding:8px;border:1px solid var(--divider-color);border-radius:8px;font-size:13px;background:var(--card-background-color);color:var(--primary-text-color);width:100%;box-sizing:border-box;" placeholder="ghp_xxxxxxxxxxxx" .value=${this._githubTokenInput || ''} @input=${e => this._githubTokenInput = e.target.value} />
-                <div style="display:flex;gap:6px;justify-content:flex-end;flex-wrap:wrap;">
-                  <button class="btn primary" style="font-size:12px;padding:5px 14px;" @click=${this._importHacsToken}>${this._githubVerifying ? t('importing') || '导入中...' : t('importFromHacs') || '从 HACS 导入'}</button>
-                  <button class="btn" style="font-size:11px;padding:4px 10px;" @click=${this._githubVerifyToken} ?disabled=${this._githubVerifying}>${t('verifyAndSave') || '验证并保存'}</button>
+              <div class="setting-control flex-col">
+                <input type="text" class="token-input" autocomplete="off" placeholder="ghp_xxxxxxxxxxxx" .value=${this._githubTokenInput || ''} @input=${e => this._githubTokenInput = e.target.value} />
+                <div class="flex-end">
+                  <button class="btn btn-md primary" @click=${this._importHacsToken}>${this._githubVerifying ? t('importing')  : t('importFromHacs') }</button>
+                  <button class="btn btn-sm" @click=${this._githubVerifyToken} ?disabled=${this._githubVerifying}>${t('verifyAndSave') }</button>
                 </div>
               </div>
             </div>
-            <div style="border-top:1px solid var(--divider-color);margin:12px 0;"></div>
+            <div class="divider"></div>
             <!-- OAuth 方式 -->
             <div class="setting-row">
               <div class="setting-info">
-                <div class="label">${t('oauthLogin') || 'OAuth 授权登录'}</div>
-                <div class="desc">${t('oauthDesc') || '通过 GitHub OAuth 设备流授权，无需手动输入 Token'}</div>
+                <div class="label">${t('oauthLogin') }</div>
+                <div class="desc">${t('oauthDesc') }</div>
               </div>
               <div class="setting-control">
-                <button class="btn primary" style="font-size:12px;padding:5px 14px;" @click=${this._githubOAuthStart} ?disabled=${this._githubOAuthing}>
-                  ${this._githubOAuthing ? (this._githubOAuthCode ? html`⏳ ${t('oauthWaiting') || '等待授权...'}` : html`<svg class="mini-icon spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;vertical-align:middle;"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> ${t('oauthStarting') || '启动中...'}`)
-                  : html`🔑 ${t('oauthStart') || '开始 OAuth 授权'}`}
+                <button class="btn btn-md primary" @click=${this._githubOAuthStart} ?disabled=${this._githubOAuthing}>
+                  ${this._githubOAuthing ? (this._githubOAuthCode ? html`<svg class="mini-icon spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;vertical-align:middle;"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> ${t('oauthWaiting') }` : html`<svg class="mini-icon spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;vertical-align:middle;"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> ${t('oauthStarting') }`)
+                  : html`<svg class="mini-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;vertical-align:middle;"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg> ${t('oauthStart') }`}
                 </button>
               </div>
             </div>
             ${this._githubOAuthCode ? html`
               <div style="background:var(--secondary-background-color);border-radius:10px;padding:14px;margin-top:8px;">
-                <div style="font-size:12px;font-weight:600;margin-bottom:8px;">${t('oauthStep1') || '步骤 1'}</div>
-                <div style="font-size:12px;margin-bottom:6px;">${t('oauthVisit') || '访问'} <a href="https://github.com/login/device" target="_blank" rel="noopener" style="color:var(--primary-color);">github.com/login/device</a></div>
-                <div style="font-size:12px;font-weight:600;margin-bottom:6px;">${t('oauthStep2') || '步骤 2'}</div>
-                <div style="font-size:12px;margin-bottom:8px;">${t('oauthEnterCode') || '输入验证码：'}</div>
-                <div style="font-size:24px;font-weight:700;text-align:center;padding:10px;letter-spacing:4px;background:var(--card-background-color);border-radius:8px;font-family:monospace;">${this._githubOAuthCode}</div>
-                <div style="font-size:11px;color:var(--secondary-text-color);margin-top:8px;text-align:center;">
+                <div class="oauth-step">${t('oauthStep1') }</div>
+                <div class="oauth-text">${t('oauthVisit') } <a href="https://github.com/login/device" target="_blank" rel="noopener" style="color:var(--primary-color);">github.com/login/device</a></div>
+                <div class="oauth-step" style="margin-bottom:6px;">${t('oauthStep2') }</div>
+                <div class="oauth-text" style="margin-bottom:8px;">${t('oauthEnterCode') }</div>
+                <div class="oauth-code">${this._githubOAuthCode}</div>
+                <div class="oauth-status">
                   <svg class="mini-icon spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:12px;height:12px;vertical-align:middle;"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
-                  ${t('oauthWaitingDesc') || '等待授权完成后自动保存...'}
-                  <button class="btn" style="font-size:10px;padding:2px 8px;margin-left:8px;" @click=${this._githubOAuthCancel}>${t('cancel')}</button>
+                  ${t('oauthWaitingDesc') }
+                  <button class="btn btn-xs" style="margin-left:8px;" @click=${this._githubOAuthCancel}>${t('cancel')}</button>
                 </div>
               </div>
             ` : ''}
           `}
-          ${this._githubVerifyMsg ? html`<div style="font-size:12px;margin-top:4px;color:${this._githubVerifyOk ? 'var(--primary-color,#03a9f4)' : '#f44336'};">${this._githubVerifyMsg}</div>` : ''}
+          ${this._githubVerifyMsg ? html`<div class="msg-bar" style="color:${this._githubVerifyOk ? 'var(--primary-color,#03a9f4)' : '#f44336'};">${this._githubVerifyMsg}</div>` : ''}
         </div>
 
         ${this._githubUser ? html`
@@ -358,18 +358,18 @@ class ConfigView extends LitElement {
         <div class="section">
           <div class="section-title">
             <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
-            ${t('syncStarred') || '星标仓库同步'}
+            ${t('syncStarred') }
           </div>
-          <div style="font-size:12px;color:var(--secondary-text-color);margin-bottom:10px;">
-            ${t('syncStarredDesc') || '从 GitHub 拉取你点赞过的仓库，勾选后添加到自定义仓库列表'}
+          <div class="section-desc">
+            ${t('syncStarredDesc') }
           </div>
           ${this._starredLoading ? html`
-            <div style="padding:20px;text-align:center;color:var(--secondary-text-color);font-size:13px;">
+            <div class="loading-box">
               <svg class="mini-icon spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px;vertical-align:middle;margin-right:6px;"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
               ${t('loadingStarred')}
             </div>
           ` : this._starredRepos.length > 0 ? html`
-            <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+            <div class="flex-row" style="margin-bottom:8px;">
               <label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer;">
                 <input type="checkbox" .checked=${this._filteredStarredCount > 0 && Object.keys(this._selectedStarred).length === this._filteredStarredCount}
                   ?indeterminate=${Object.keys(this._selectedStarred).length > 0 && Object.keys(this._selectedStarred).length < this._filteredStarredCount}
@@ -377,20 +377,20 @@ class ConfigView extends LitElement {
                 ${t('selectAll')}
               </label>
               <span style="font-size:13px;font-weight:600;">${t('starredCount', { n: this._starredRepos.length })}</span>
-              <input type="text" placeholder="${t('filterPlaceholder')}" .value=${this._starredFilter}
+              <input type="text" class="search-input" placeholder="${t('filterPlaceholder')}" .value=${this._starredFilter}
                 @input=${e => { this._starredFilter = e.target.value; this.requestUpdate(); }}
                 style="flex:1;padding:6px 8px;border:1px solid var(--divider-color);border-radius:6px;font-size:12px;background:var(--card-background-color);color:var(--primary-text-color);">
               <button class="btn primary" style="font-size:11px;padding:4px 10px;" @click=${this._syncSelectedStarred} ?disabled=${this._starredSyncing || Object.keys(this._selectedStarred).length === 0}>
                 ${this._starredSyncing ? t('syncingShort') : t('syncSelectedCount', { n: Object.keys(this._selectedStarred).length })}
               </button>
-              <button class="btn" style="font-size:11px;padding:4px 10px;" @click=${this._refreshStarred}>
+              <button class="btn btn-sm" @click=${this._refreshStarred}>
                 ${t('refresh')}
               </button>
             </div>
-            ${this._starredSyncResult ? html`<div style="font-size:12px;margin-bottom:8px;color:${this._starredSyncFailed ? '#f44336' : 'var(--primary-text-color)'};">${this._starredSyncResult}</div>` : ''}
-            <div style="max-height:300px;overflow-y:auto;border:1px solid var(--divider-color);border-radius:8px;">
+            ${this._starredSyncResult ? html`<div class="result-msg" style="color:${this._starredSyncFailed ? '#f44336' : 'var(--primary-text-color)'};">${this._starredSyncResult}</div>` : ''}
+            <div class="scroll-list">
               ${this._starredRepos.filter(r => !this._starredFilter || r.full_name.toLowerCase().includes(this._starredFilter.toLowerCase())).map(r => html`
-                <div style="display:flex;align-items:center;gap:8px;padding:6px 10px;border-bottom:1px solid var(--divider-color);font-size:12px;cursor:pointer;" @click=${() => this._toggleSelectStarred(r.full_name)}>
+                <div class="list-item" @click=${() => this._toggleSelectStarred(r.full_name)}>
                   <input type="checkbox" .checked=${!!this._selectedStarred[r.full_name]}
                     @click=${(e) => { e.stopPropagation(); this._toggleSelectStarred(r.full_name); }}
                     style="cursor:pointer;">
@@ -406,8 +406,8 @@ class ConfigView extends LitElement {
               `)}
             </div>
           ` : html`
-            <button class="btn" style="font-size:12px;padding:6px 14px;" @click=${this._loadStarredRepos}>
-              ${t('loadStarred') || '加载星标仓库'}
+            <button class="btn btn-lg" @click=${this._loadStarredRepos}>
+              ${t('loadStarred') }
             </button>
           `}
         </div>
@@ -419,25 +419,25 @@ class ConfigView extends LitElement {
             <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
             ${t('orgRepos')}
           </div>
-          <div style="font-size:12px;color:var(--secondary-text-color);margin-bottom:10px;">
+          <div class="section-desc">
             ${t('orgReposDesc')}
           </div>
-          <div style="display:flex;gap:8px;margin-bottom:10px;">
-            <input type="text" placeholder="${t('gitHubOrgInput')}" .value=${this._orgInput}
+          <div class="flex-wrap" style="margin-bottom:10px;">
+            <input type="text" class="search-input" placeholder="${t('gitHubOrgInput')}" .value=${this._orgInput}
               @input=${e => this._orgInput = e.target.value}
               @keydown=${e => e.key === 'Enter' && this._loadOrgRepos()}
               style="flex:1;padding:8px;border:1px solid var(--divider-color);border-radius:8px;font-size:13px;background:var(--card-background-color);color:var(--primary-text-color);">
-            <button class="btn primary" style="font-size:12px;padding:6px 14px;white-space:nowrap;" @click=${this._loadOrgRepos} ?disabled=${this._orgLoading}>
+            <button class="btn btn-lg primary" style="white-space:nowrap;" @click=${this._loadOrgRepos} ?disabled=${this._orgLoading}>
               ${this._orgLoading ? t('searching') : t('load')}
             </button>
           </div>
           ${this._orgLoading ? html`
-            <div style="padding:20px;text-align:center;color:var(--secondary-text-color);font-size:13px;">
+            <div class="loading-box">
               <svg class="mini-icon spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px;vertical-align:middle;margin-right:6px;"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
               ${t('loadingOrgRepos')}
             </div>
           ` : this._orgRepos.length > 0 ? html`
-            <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+            <div class="flex-row" style="margin-bottom:8px;">
               <label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer;">
                 <input type="checkbox" .checked=${this._orgFilteredCount > 0 && Object.keys(this._selectedOrgRepos).length === this._orgFilteredCount}
                   ?indeterminate=${Object.keys(this._selectedOrgRepos).length > 0 && Object.keys(this._selectedOrgRepos).length < this._orgFilteredCount}
@@ -445,17 +445,17 @@ class ConfigView extends LitElement {
               ${t('selectAll')}
               </label>
               <span style="font-size:13px;font-weight:600;">${this._orgRepos.length} ${t('repositories')}</span>
-              <input type="text" placeholder="${t('filterPlaceholder')}" .value=${this._orgFilter}
+              <input type="text" class="search-input" placeholder="${t('filterPlaceholder')}" .value=${this._orgFilter}
                 @input=${e => { this._orgFilter = e.target.value; this.requestUpdate(); }}
                 style="flex:1;padding:6px 8px;border:1px solid var(--divider-color);border-radius:6px;font-size:12px;background:var(--card-background-color);color:var(--primary-text-color);">
               <button class="btn primary" style="font-size:11px;padding:4px 10px;" @click=${this._syncSelectedOrgRepos} ?disabled=${this._orgSyncing || Object.keys(this._selectedOrgRepos).length === 0}>
                 ${this._orgSyncing ? t('syncing') : `${t('syncSelected')} (${Object.keys(this._selectedOrgRepos).length})`}
               </button>
             </div>
-            ${this._orgSyncResult ? html`<div style="font-size:12px;margin-bottom:8px;color:${this._orgSyncFailed ? '#f44336' : 'var(--primary-text-color)'};">${this._orgSyncResult}</div>` : ''}
-            <div style="max-height:300px;overflow-y:auto;border:1px solid var(--divider-color);border-radius:8px;">
+            ${this._orgSyncResult ? html`<div class="result-msg" style="color:${this._orgSyncFailed ? '#f44336' : 'var(--primary-text-color)'};">${this._orgSyncResult}</div>` : ''}
+            <div class="scroll-list">
               ${this._filteredSortedOrgRepos.map(r => html`
-                <div style="display:flex;align-items:center;gap:8px;padding:6px 10px;border-bottom:1px solid var(--divider-color);font-size:12px;cursor:pointer;" @click=${() => this._toggleSelectOrgRepo(r.full_name)}>
+                <div class="list-item" @click=${() => this._toggleSelectOrgRepo(r.full_name)}>
                   <input type="checkbox" .checked=${!!this._selectedOrgRepos[r.full_name]}
                     @click=${(e) => { e.stopPropagation(); this._toggleSelectOrgRepo(r.full_name); }}
                     style="cursor:pointer;">
@@ -633,7 +633,7 @@ class ConfigView extends LitElement {
 
   async _githubVerifyToken() {
     if (!this._githubTokenInput?.trim()) {
-      this._githubVerifyMsg = t('githubTokenRequired') || '请输入 Token';
+      this._githubVerifyMsg = t('githubTokenRequired') ;
       this._githubVerifyOk = false;
       return;
     }
@@ -690,7 +690,7 @@ class ConfigView extends LitElement {
         this._githubOAuthDeviceCode = result.device_code;
         this._pollOAuth();
       } else {
-        this._githubVerifyMsg = result?.error || 'OAuth 启动失败';
+        this._githubVerifyMsg = result?.error ;
         this._githubOAuthing = false;
       }
     } catch(e) {
@@ -718,7 +718,7 @@ class ConfigView extends LitElement {
       } else if (result?.status === 'pending') {
         setTimeout(() => this._pollOAuth(), 3000);
       } else {
-        this._githubVerifyMsg = result?.error || 'OAuth 授权失败';
+        this._githubVerifyMsg = result?.error ;
         this._githubOAuthing = false;
         this._githubOAuthCode = '';
       }
@@ -895,7 +895,7 @@ class ConfigView extends LitElement {
       if (result?.ok) {
         this._githubUser = result.user;
         this._githubAvatar = result.avatar_url || '';
-        this._githubVerifyMsg = t('tokenImported') || '已从 HACS 导入并保存 Token';
+        this._githubVerifyMsg = t('tokenImported') ;
         this._githubVerifyOk = true;
         showToast(t('githubLoginSuccess', { user: result.user }), 'success');
       } else {

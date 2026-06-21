@@ -569,6 +569,12 @@ const T = {
   // Hide original HACS panel
   hideHacsPanel: { zh: '隐藏 HACS 侧边栏', en: 'Hide HACS sidebar' },
   hideHacsPanelDesc: { zh: '隐藏/恢复原版 HACS 侧边栏图标，即时生效无需重启', en: 'Show/hide original HACS sidebar icon, applies immediately' },
+  // === Missing keys (2026-06-21 fix) ===
+  githubTokenRequired: { zh: '请输入 Token', en: 'Token is required' },
+  pendingRestart: { zh: '待重启', en: 'Pending Restart' },
+  selectAction: { zh: '选择一个操作', en: 'Select an action' },
+  zoom: { zh: '放大', en: 'Zoom' },
+  restarting: { zh: '正在重启 HA…', en: 'Restarting HA…' },
 };
 
 /**

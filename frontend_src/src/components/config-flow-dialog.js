@@ -992,7 +992,7 @@ class ConfigFlowDialog extends LitElement {
               ` : ''}
               <div>
                 <span class="title">${title}</span>
-                ${hasStepInfo ? html`<div class="step-indicator">${t('flowStep') || '步骤'} ${this._step.step_id}</div>` : ''}
+                ${hasStepInfo ? html`<div class="step-indicator">${t('flowStep') } ${this._step.step_id}</div>` : ''}
               </div>
             </div>
             <button class="close-btn" aria-label="${t('close')}" @click=${this._cancelFlow}>

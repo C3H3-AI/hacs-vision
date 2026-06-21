@@ -126,14 +126,14 @@ class BrowseView extends LitElement {
 
     // HACS-style sortable columns for list view
     this.sortColumns = [
-      { key: 'name', label: t('colName') || '名称', sortable: true },
-      { key: 'downloads', label: t('colDownloads') || '下载', sortable: true },
-      { key: 'stars', label: t('colStars') || '星数', sortable: true },
-      { key: 'last_updated', label: t('colLastUpdated') || '更新时间', sortable: true },
-      { key: 'installed_version', label: t('colInstalledVer') || '已安装', sortable: true },
-      { key: 'latest_version', label: t('colAvailableVer') || '可用', sortable: true },
-      { key: 'installed_at', label: t('colInstalledAt') || '安装时间', sortable: true },
-      { key: 'status', label: t('colStatus') || '状态', sortable: true },
+      { key: 'name', label: t('colName'),colName: true },
+      { key: 'downloads', label: t('colDownloads'),colDownloads: true },
+      { key: 'stars', label: t('colStars'),colStars: true },
+      { key: 'last_updated', label: t('colLastUpdated'),colLastUpdated: true },
+      { key: 'installed_version', label: t('colInstalledVer'),colInstalledVer: true },
+      { key: 'latest_version', label: t('colAvailableVer'),colAvailableVer: true },
+      { key: 'installed_at', label: t('colInstalledAt'),colInstalledAt: true },
+      { key: 'status', label: t('colStatus'),colStatus: true },
     ];
   }
 
@@ -1063,8 +1063,8 @@ class BrowseView extends LitElement {
       const now = new Date();
       const diff = now - d;
       const days = Math.floor(diff / 86400000);
-      if (days === 0) return t('today') || '今天';
-      if (days === 1) return t('yesterday') || '昨天';
+      if (days === 0) return t('today') ;
+      if (days === 1) return t('yesterday') ;
       if (days < 30) return `${days}d`;
       if (days < 365) return `${Math.floor(days / 30)}mo`;
       return `${Math.floor(days / 365)}y`;
@@ -1170,14 +1170,14 @@ class BrowseView extends LitElement {
         <thead>
           <tr>
             <th class="col-icon"></th>
-            <th class="${thClass('name')}" @click=${() => this._onSortColumn('name')}>${t('colName') || '名称'}<span class="sort-arrow">${sortArrow('name')}</span></th>
-            <th class="${thClass('downloads')} col-downloads" @click=${() => this._onSortColumn('downloads')}>${t('colDownloads') || '下载'}<span class="sort-arrow">${sortArrow('downloads')}</span></th>
-            <th class="${thClass('stars')} col-stars" @click=${() => this._onSortColumn('stars')}>${t('colStars') || '星数'}<span class="sort-arrow">${sortArrow('stars')}</span></th>
-            <th class="${thClass('last_updated')} col-last-updated" @click=${() => this._onSortColumn('last_updated')}>${t('colLastUpdated') || '更新'}<span class="sort-arrow">${sortArrow('last_updated')}</span></th>
-            <th class="${thClass('installed_version')} col-installed-ver" @click=${() => this._onSortColumn('installed_version')}>${t('colInstalledVer') || '已安装'}<span class="sort-arrow">${sortArrow('installed_version')}</span></th>
-            <th class="${thClass('latest_version')} col-available-ver" @click=${() => this._onSortColumn('latest_version')}>${t('colAvailableVer') || '可用'}<span class="sort-arrow">${sortArrow('latest_version')}</span></th>
-            <th class="${thClass('installed_at')} col-installed-at" @click=${() => this._onSortColumn('installed_at')}>${t('colInstalledAt') || '安装时间'}<span class="sort-arrow">${sortArrow('installed_at')}</span></th>
-            <th class="col-status">${t('colStatus') || '状态'}</th>
+            <th class="${thClass('name')}" @click=${() => this._onSortColumn('name')}>${t('colName') }<span class="sort-arrow">${sortArrow('name')}</span></th>
+            <th class="${thClass('downloads')} col-downloads" @click=${() => this._onSortColumn('downloads')}>${t('colDownloads') }<span class="sort-arrow">${sortArrow('downloads')}</span></th>
+            <th class="${thClass('stars')} col-stars" @click=${() => this._onSortColumn('stars')}>${t('colStars') }<span class="sort-arrow">${sortArrow('stars')}</span></th>
+            <th class="${thClass('last_updated')} col-last-updated" @click=${() => this._onSortColumn('last_updated')}>${t('colLastUpdated') }<span class="sort-arrow">${sortArrow('last_updated')}</span></th>
+            <th class="${thClass('installed_version')} col-installed-ver" @click=${() => this._onSortColumn('installed_version')}>${t('colInstalledVer') }<span class="sort-arrow">${sortArrow('installed_version')}</span></th>
+            <th class="${thClass('latest_version')} col-available-ver" @click=${() => this._onSortColumn('latest_version')}>${t('colAvailableVer') }<span class="sort-arrow">${sortArrow('latest_version')}</span></th>
+            <th class="${thClass('installed_at')} col-installed-at" @click=${() => this._onSortColumn('installed_at')}>${t('colInstalledAt') }<span class="sort-arrow">${sortArrow('installed_at')}</span></th>
+            <th class="col-status">${t('colStatus') }</th>
             <th class="actions-cell"></th>
           </tr>
         </thead>
@@ -1225,7 +1225,7 @@ class BrowseView extends LitElement {
         <td class="actions-cell">
           <button class="action-sm star-btn ${this._starredMap?.[r.full_name] ? 'starred' : ''}"
             @click=${e => { e.stopPropagation(); this._toggleStar(r); }}
-            title=${this._starredMap?.[r.full_name] ? t('unstar') || '取消星标' : t('star') || '星标'}>
+            title=${this._starredMap?.[r.full_name] ? t('unstar')  : t('star') }>
             <svg viewBox="0 0 20 20" fill="${this._starredMap?.[r.full_name] ? '#ff9800' : 'none'}" stroke="#ff9800" stroke-width="1.5" width="12" height="12" style="vertical-align:middle;"><path d="M10 1l2.39 4.84L17.6 6.7l-3.8 3.71.9 5.26L10 13.27l-4.7 2.46.9-5.26L2.4 6.7l5.2-.86L10 1z"/></svg>
           </button>
           ${isInstalled ? html`
@@ -1246,7 +1246,7 @@ class BrowseView extends LitElement {
     return html`
       <!-- Controls: Search + Action Buttons -->
       <div class="controls">
-        <button class="filter-toggle-sm" @click=${() => { this._filterExpanded = !this._filterExpanded; }} title="${t('filterMore') || '筛选/排序'}">
+        <button class="filter-toggle-sm" @click=${() => { this._filterExpanded = !this._filterExpanded; }} title="${t('filterMore') }">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;"><line x1="4" y1="6" x2="20" y2="6"/><line x1="8" y1="12" x2="20" y2="12"/><line x1="12" y1="18" x2="20" y2="18"/></svg>
         </button>
         <div class="search">
@@ -1273,7 +1273,7 @@ class BrowseView extends LitElement {
           <label class="sel-all-label desktop-only">
             <input type="checkbox" class="checkbox-sm" .checked=${this._isAllSelected()}
                    @click=${e => e.stopPropagation()} @change=${this._toggleSelectAll}>
-            ${t('selectAll') || '全选'}
+            ${t('selectAll') }
             ${this._selectedRepos.length > 0 ? html`<span style="color:var(--primary-color);font-weight:600;">(${this._selectedRepos.length})</span>` : ''}
           </label>
         </div>
@@ -1363,7 +1363,7 @@ class BrowseView extends LitElement {
             ${t('tagFavorites')}
           </button>
           <button class="filter-chip ${this._tagFilters.includes('new') ? 'active' : ''}" @click=${() => this._onTagFilter('new')}>
-            ${t('tagNew') || '新'}
+            ${t('tagNew') }
           </button>
           <button class="filter-chip ${this._tagFilters.includes('custom') ? 'active' : ''}" @click=${() => this._onTagFilter('custom')}>
             ${t('tagCustom')}
@@ -1378,7 +1378,7 @@ class BrowseView extends LitElement {
             </button>
           `)}
           <span class="fs-divider"></span>
-          <span class="fs-label">${t('sort') || '排序'}</span>
+          <span class="fs-label">${t('sort') }</span>
           ${this.sortColumns.map(col => html`
             <button class="filter-chip sort-inline ${this.sort === col.key ? 'active' : ''}" @click=${() => this._onSortColumn(col.key)}>
               ${col.label}${this.sort === col.key ? html`<span class="sort-dir">${this.sortDir === 'desc' ? '▼' : '▲'}</span>` : ''}
@@ -1390,7 +1390,7 @@ class BrowseView extends LitElement {
           <label class="sel-all-label">
             <input type="checkbox" class="checkbox-sm" .checked=${this._isAllSelected()}
                    @click=${e => e.stopPropagation()} @change=${this._toggleSelectAll}>
-            ${t('selectAll') || '全选'}
+            ${t('selectAll') }
             ${this._selectedRepos.length > 0 ? html`<span style="color:var(--primary-color);font-weight:600;">(${this._selectedRepos.length})</span>` : ''}
           </label>
         </div>

@@ -121,6 +121,57 @@ class IntegrationsList extends LitElement {
     this._load();
   }
 
+  /* ─── Avatar image loading: attach listeners before setting src ─── */
+  updated(changedProps) {
+    super.updated(changedProps);
+    requestAnimationFrame(() => this._loadAvatars());
+  }
+
+  _loadAvatars() {
+    const imgs = this.shadowRoot?.querySelectorAll('.avatar-img[data-domain]:not([data-avatar-inited])');
+    if (!imgs || !imgs.length) return;
+    for (const img of imgs) {
+      img.dataset.avatarInited = '1';
+      const domain = img.dataset.domain;
+      const brandUrl = `https://brands.home-assistant.io/${domain}/icon.png`;
+      const localUrl = `${window.location.origin}/api/hacs_vision_brand/${domain}`;
+      const color = this._getDomainColor(domain);
+
+      const onLoad = () => {
+        if (img.naturalWidth > 0) {
+          img.style.display = '';
+          const letter = img.parentElement.querySelector('.avatar-letter');
+          if (letter) letter.style.display = 'none';
+          img.parentElement.style.background = '';
+        }
+      };
+      const onError = () => {
+        if (!img.dataset.fb) {
+          img.dataset.fb = '1';
+          img.src = localUrl;
+        } else {
+          img.style.display = 'none';
+          const letter = img.parentElement.querySelector('.avatar-letter');
+          if (letter) letter.style.display = '';
+          img.parentElement.style.background = color;
+        }
+      };
+
+      img.addEventListener('load', onLoad);
+      img.addEventListener('error', onError);
+      img.src = brandUrl;
+
+      // Handle cache: image already loaded before listeners were added
+      if (img.complete) {
+        if (img.naturalWidth > 0) {
+          onLoad();
+        } else {
+          onError();
+        }
+      }
+    }
+  }
+
   _setViewMode(mode) {
     this._viewMode = mode;
     try { localStorage.setItem('hacs_int_view_mode', mode); } catch(e) {}
@@ -209,12 +260,12 @@ class IntegrationsList extends LitElement {
       });
       if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
       showToast(`${entry.domain} ${t('reloaded')}`, 'success');
-      this._activeActionResult = `${t('reloaded') || '已重载'} ✅`;
+      this._activeActionResult = `${t('reloaded') } ✅`;
       setTimeout(() => this._closeOperationDialog(), 1200);
       setTimeout(() => this._load(), 1500);
     } catch(e) {
       showToast(`${t('reloadFailed')}: ${e.message}`, 'error');
-      this._activeActionResult = `${t('reloadFailed') || '重载失败'}: ${e.message}`;
+      this._activeActionResult = `${t('reloadFailed') }: ${e.message}`;
     }
     const r = { ...this._reloading };
     delete r[entry.entry_id];
@@ -224,7 +275,7 @@ class IntegrationsList extends LitElement {
   async _toggleDisabled(entry, e) {
     e.stopPropagation();
     const newState = entry.disabled_by ? null : "user";
-    const actionLabel = newState ? t('disableEntry') || '禁用' : t('enableEntry') || '启用';
+    const actionLabel = newState ? t('disableEntry')  : t('enableEntry') ;
     try {
       const headers = api._getHeaders();
       const resp = await fetch(`/api/config/config_entries/entry`, {
@@ -234,13 +285,13 @@ class IntegrationsList extends LitElement {
         body: JSON.stringify({ entry_id: entry.entry_id, disabled_by: newState }),
       });
       if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-      showToast(`${entry.domain} ${actionLabel}${t('successSuffix') || '成功'}`, 'success');
-      this._activeActionResult = `${actionLabel}${t('successSuffix') || '成功'} ✅`;
+      showToast(`${entry.domain} ${actionLabel}${t('successSuffix') }`, 'success');
+      this._activeActionResult = `${actionLabel}${t('successSuffix') } ✅`;
       setTimeout(() => this._closeOperationDialog(), 1200);
       setTimeout(() => this._load(), 1500);
     } catch(err) {
-      showToast(`${actionLabel}${t('failedSuffix') || '失败'}: ${err.message}`, 'error');
-      this._activeActionResult = `${actionLabel}${t('failedSuffix') || '失败'}: ${err.message}`;
+      showToast(`${actionLabel}${t('failedSuffix') }: ${err.message}`, 'error');
+      this._activeActionResult = `${actionLabel}${t('failedSuffix') }: ${err.message}`;
     }
   }
 
@@ -373,12 +424,12 @@ class IntegrationsList extends LitElement {
       this._reloadEntry(entry, { stopPropagation: () => {} });
     } else if (action === 'remove') {
       // Show confirmation in right panel
-      this._activeActionResult = t('confirmDelete') || '确认删除此集成?';
+      this._activeActionResult = t('confirmDelete') ;
     }
   }
 
   _showActionProgress() {
-    this._activeActionResult = t('processing') || '处理中...';
+    this._activeActionResult = t('processing') ;
   }
 
   /* ─── Tree expand/collapse ─── */
@@ -479,14 +530,14 @@ class IntegrationsList extends LitElement {
   }
 
   _formatState(state, domain, unit) {
-    if (!state || state === 'unavailable') return t('unavailable') || '不可用';
-    if (state === 'unknown') return t('unknown') || '未知';
-    if (state === 'on') return t('stateOn') || '开';
-    if (state === 'off') return t('stateOff') || '关';
-    if (state === 'open') return t('stateOpen') || '已打开';
-    if (state === 'closed') return t('stateClosed') || '已关闭';
-    if (state === 'home') return t('stateHome') || '在家';
-    if (state === 'not_home') return t('stateNotHome') || '离家';
+    if (!state || state === 'unavailable') return t('unavailable') ;
+    if (state === 'unknown') return t('unknown') ;
+    if (state === 'on') return t('stateOn') ;
+    if (state === 'off') return t('stateOff') ;
+    if (state === 'open') return t('stateOpen') ;
+    if (state === 'closed') return t('stateClosed') ;
+    if (state === 'home') return t('stateHome') ;
+    if (state === 'not_home') return t('stateNotHome') ;
     const modes = { cool: '❄️ 制冷', heat: '🔥 制热', fan_only: '🌀 送风', dry: '💧 除湿', auto: '🤖 自动', 'off': '关' };
     if (modes[state]) return modes[state];
     return unit ? `${state} ${unit}` : state;
@@ -577,7 +628,7 @@ class IntegrationsList extends LitElement {
     this._selectedEntryIds = {};
     this.requestUpdate();
     const { showToast } = await import('../hacs-vision-panel.js');
-    showToast(`${t('batchComplete') || '批量操作完成'} (${ids.length})`, 'success');
+    showToast(`${t('batchComplete') } (${ids.length})`, 'success');
   }
 
   /* ─── Card batch selection ─── */
@@ -627,7 +678,7 @@ class IntegrationsList extends LitElement {
     this._selectedDomains = {};
     this.requestUpdate();
     const { showToast } = await import('../hacs-vision-panel.js');
-    showToast(`${t('batchComplete') || '批量操作完成'} (${domains.length} 集成, ${entries.length} 条目)`, 'success');
+    showToast(`${t('batchComplete') } (${domains.length} 集成, ${entries.length} 条目)`, 'success');
   }
   _translateDomain(domain) {
     return this._domainNames?.[domain] || domain;
@@ -653,27 +704,14 @@ class IntegrationsList extends LitElement {
     return map[key] || key;
   }
 
-  /* ─── Render avatar with CDN icon → local fallback → initials ─── */
+  /* ─── Render avatar: show image first, fallback to letter on error ─── */
   _renderAvatar(domain) {
-    const brandUrl = `https://brands.home-assistant.io/${domain}/icon.png`;
-    const localUrl = `${window.location.origin}/api/hacs_vision_brand/${domain}`;
     const color = this._getDomainColor(domain);
     const letter = domain.charAt(0).toUpperCase();
     return html`
-      <div class="avatar">
-        <img class="avatar-img" src="${brandUrl}" alt=""
-          @error=${e => {
-            if (!e.target.dataset.fallbackTried) {
-              e.target.dataset.fallbackTried = 'cdn';
-              e.target.src = localUrl;
-            } else {
-              e.target.style.display = 'none';
-              e.target.parentElement.style.background = color;
-              const fl = e.target.parentElement.querySelector('.avatar-letter');
-              if (fl) fl.style.display = 'flex';
-            }
-          }}>
+      <div class="avatar" style="background:${color}">
         <span class="avatar-letter" style="display:none">${letter}</span>
+        <img class="avatar-img" alt="" data-domain="${domain}">
       </div>
     `;
   }
@@ -807,7 +845,7 @@ class IntegrationsList extends LitElement {
     return html`
       <div class="integrations">
       <div class="controls">
-        <button class="filter-toggle-sm" @click=${() => { this._filterExpanded = !this._filterExpanded; }} title="${t('filterMore') || '筛选/排序'}">
+        <button class="filter-toggle-sm" @click=${() => { this._filterExpanded = !this._filterExpanded; }} title="${t('filterMore') }">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;"><line x1="4" y1="6" x2="20" y2="6"/><line x1="8" y1="12" x2="20" y2="12"/><line x1="12" y1="18" x2="20" y2="18"/></svg>
         </button>
         <div class="search">
@@ -839,7 +877,7 @@ class IntegrationsList extends LitElement {
               <input type="checkbox" class="checkbox-sm"
                 .checked=${this._isAllDomainsSelected(groups)}
                 @change=${() => this._toggleSelectAllDomains(groups)}>
-              ${t('selectAll') || '全选'} ${this._selectedDomainCount() > 0 ? html`<span style="color:var(--primary-color);font-weight:600;">(${this._selectedDomainCount()})</span>` : ''}
+              ${t('selectAll') } ${this._selectedDomainCount() > 0 ? html`<span style="color:var(--primary-color);font-weight:600;">(${this._selectedDomainCount()})</span>` : ''}
             </label>
           </div>
         </div>
@@ -855,7 +893,7 @@ class IntegrationsList extends LitElement {
             </button>
           `)}
           <span class="fs-divider"></span>
-          <span class="fs-label">${t('sort') || '排序'}</span>
+          <span class="fs-label">${t('sort') }</span>
           ${[{key:'name',label:t('sortByName')},{key:'entries',label:t('sortByEntries')},{key:'status',label:t('filterStatus')}].map(s => html`
             <button class="filter-chip sort-inline ${this._sortBy === s.key ? 'active' : ''}" @click=${() => this._onSortColumn(s.key)}>
               ${s.label}${this._sortBy === s.key ? html`<span class="sort-dir">${this._sortDir === 'desc' ? '▼' : '▲'}</span>` : ''}
@@ -871,19 +909,19 @@ class IntegrationsList extends LitElement {
               <input type="checkbox" class="checkbox-sm"
                 .checked=${this._isAllDomainsSelected(groups)}
                 @change=${() => this._toggleSelectAllDomains(groups)}>
-              ${t('selectAll') || '全选'} ${this._selectedDomainCount() > 0 ? html`<span style="color:var(--primary-color);font-weight:600;">(${this._selectedDomainCount()})</span>` : ''}
+              ${t('selectAll') } ${this._selectedDomainCount() > 0 ? html`<span style="color:var(--primary-color);font-weight:600;">(${this._selectedDomainCount()})</span>` : ''}
             </label>
           </div>
         </div>
 
         ${this._selectedDomainCount() > 0 ? html`
           <div class="batch-bar" style="margin-bottom:10px;">
-            <span style="font-weight:600;">${this._selectedDomainCount()} ${t('selected') || '个集成已选'}</span>
+            <span style="font-weight:600;">${this._selectedDomainCount()} ${t('selected') }</span>
             <div class="batch-actions">
-              <button class="batch-btn enable" @click=${() => this._batchDomainAction('enable')}>${t('enableEntry') || '启用'}</button>
-              <button class="batch-btn disable" @click=${() => this._batchDomainAction('disable')}>${t('disableEntry') || '禁用'}</button>
-              <button class="batch-btn reload" @click=${() => this._batchDomainAction('reload')}>${t('reloadEntry') || '重载'}</button>
-              <button class="batch-btn remove" @click=${() => this._batchDomainAction('remove')}>${t('removeEntry') || '删除'}</button>
+              <button class="batch-btn enable" @click=${() => this._batchDomainAction('enable')}>${t('enableEntry') }</button>
+              <button class="batch-btn disable" @click=${() => this._batchDomainAction('disable')}>${t('disableEntry') }</button>
+              <button class="batch-btn reload" @click=${() => this._batchDomainAction('reload')}>${t('reloadEntry') }</button>
+              <button class="batch-btn remove" @click=${() => this._batchDomainAction('remove')}>${t('removeEntry') }</button>
               <button class="batch-btn cancel" @click=${() => { this._selectedDomains = {}; this.requestUpdate(); }}>✕</button>
             </div>
           </div>
@@ -974,10 +1012,10 @@ class IntegrationsList extends LitElement {
 
         <div class="card-body">
           <div class="img-badges">
-            ${entry0?.is_custom ? html`<span class="img-badge custom-badge" title="${t('customBadge') || '自定义'}">
+            ${entry0?.is_custom ? html`<span class="img-badge custom-badge" title="${t('customBadge') }">
               <svg viewBox="0 0 24 24" fill="currentColor" width="12" height="12"><path d="M2 10.96a.985.985 0 0 1-.37-1.37L3.13 7c.11-.2.28-.34.47-.42l7.83-4.4c.16-.12.36-.18.57-.18s.41.06.57.18l7.9 4.44c.19.1.35.26.44.46l1.45 2.52c.28.48.11 1.09-.36 1.36l-1 .58v4.96c0 .38-.21.71-.53.88l-7.9 4.44c-.16.12-.36.18-.57.18s-.41-.06-.57-.18l-7.9-4.44A.99.99 0 0 1 3 16.5v-5.54c-.3.17-.68.18-1 0m10-6.81v6.7l5.96-3.35zM5 15.91l6 3.38v-6.71L5 9.21zm14 0v-3.22l-5 2.9c-.33.18-.7.17-1 .01v3.69zm-5.15-2.55l6.28-3.63l-.58-1.01l-6.28 3.63z"/></svg>
             </span>` : ''}
-            ${this._needsCloud(entry0?.iot_class) ? html`<span class="img-badge cloud-badge" title="${t('cloud') || '需要互联网'}">
+            ${this._needsCloud(entry0?.iot_class) ? html`<span class="img-badge cloud-badge" title="${t('cloud') }">
               <svg viewBox="0 0 24 24" fill="currentColor" width="12" height="12"><path d="M16.36 14c.08-.66.14-1.32.14-2s-.06-1.34-.14-2h3.38c.16.64.26 1.31.26 2s-.1 1.36-.26 2m-5.15 5.56c.6-1.11 1.06-2.31 1.38-3.56h2.95a8.03 8.03 0 0 1-4.33 3.56M14.34 14H9.66c-.1-.66-.16-1.32-.16-2s.06-1.35.16-2h4.68c.09.65.16 1.32.16 2s-.07 1.34-.16 2M12 19.96c-.83-1.2-1.5-2.53-1.91-3.96h3.82c-.41 1.43-1.08 2.76-1.91 3.96M8 8H5.08A7.92 7.92 0 0 1 9.4 4.44C8.8 5.55 8.35 6.75 8 8m-2.92 8H8c.35 1.25.8 2.45 1.4 3.56A8 8 0 0 1 5.08 16m-.82-2C4.1 13.36 4 12.69 4 12s.1-1.36.26-2h3.38c-.08.66-.14 1.32-.14 2s.06 1.34.14 2M12 4.03c.83 1.2 1.5 2.54 1.91 3.97h-3.82c.41-1.43 1.08-2.77 1.91-3.97M18.92 8h-2.95a15.7 15.7 0 0 0-1.38-3.56c1.84.63 3.37 1.9 4.33 3.56M12 2C6.47 2 2 6.5 2 12a10 10 0 0 0 10 10a10 10 0 0 0 10-10A10 10 0 0 0 12 2"/></svg>
             </span>` : ''}
           </div>
@@ -985,7 +1023,7 @@ class IntegrationsList extends LitElement {
           <div class="card-meta">
             <span class="count-info">
               ${entries.length} ${t('entryCount')}
-              ${entry0?.supported_subentry_types ? html` · ${entry0.supported_subentry_types.length} ${t('tools') || '项服务'}` : ''}
+              ${entry0?.supported_subentry_types ? html` · ${entry0.supported_subentry_types.length} ${t('tools') }` : ''}
             </span>
           </div>
         </div>
@@ -995,7 +1033,7 @@ class IntegrationsList extends LitElement {
           <button class="footer-btn manage" @click=${() => this._onConfigure(entry0 || entries[0], group)}
             title="${t('configureEntry')}">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-            <span class="btn-label">${t('configure') || '配置'}</span>
+            <span class="btn-label">${t('configure') }</span>
           </button>
           ` : ''}
           ${this._configMenuFor?.domain === domain && this._configMenuFor?.mode === 'configure' ? html`
@@ -1013,7 +1051,7 @@ class IntegrationsList extends LitElement {
           <button class="footer-btn reload" @click=${() => this._reloadEntry(entry0 || entries[0], { stopPropagation: () => {} })}
             title="${t('reloadEntry')}" ?disabled=${anyProcessing}>
             ${anyProcessing ? html`<span class="spinning-mini">⟳</span>` : html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>`}
-            <span class="btn-label">${t('reloadEntry') || '重载'}</span>
+            <span class="btn-label">${t('reloadEntry') }</span>
           </button>
           <button class="footer-btn remove" @click=${e => this._removeEntry(entry0 || entries[0], e)}
             title="${t('removeEntry')}" ?disabled=${anyProcessing}>
@@ -1044,17 +1082,17 @@ class IntegrationsList extends LitElement {
                   <label class="sel-all-label" @click=${(e) => e.stopPropagation()}>
                     <input type="checkbox" class="entry-checkbox" .checked=${this._isAllSelected()}
                            @change=${this._toggleSelectAll}>
-                    <span style="font-size:12px;color:var(--secondary-text-color);cursor:pointer;">${t('selectAll') || '全选'}</span>
+                    <span style="font-size:12px;color:var(--secondary-text-color);cursor:pointer;">${t('selectAll') }</span>
                   </label>
-                  ${this._selectedCount() > 0 ? html`<span style="font-size:12px;color:var(--primary-color);font-weight:600;">${this._selectedCount()} ${t('selected') || '已选'}</span>` : ''}
+                  ${this._selectedCount() > 0 ? html`<span style="font-size:12px;color:var(--primary-color);font-weight:600;">${this._selectedCount()} ${t('selected') }</span>` : ''}
                 </div>
               </div>
             </div>
             <div class="modal-header-right">
-              <button class="tree-action-btn" @click=${this._toggleExpand} title="${t('zoom') || '放大'}">${this._expanded ? '⤡' : '⤢'}</button>
-              <button class="tree-action-btn" @click=${this._expandAll} title="${t('expandAll') || '展开全部'}">⊕</button>
-              <button class="tree-action-btn" @click=${this._collapseAll} title="${t('collapseAll') || '全部折叠'}">⊖</button>
-              <button class="modal-close" aria-label="${t('close') || '关闭'}" @click=${this._closeDetail}>
+              <button class="tree-action-btn" @click=${this._toggleExpand} title="${t('zoom') }">${this._expanded ? '⤡' : '⤢'}</button>
+              <button class="tree-action-btn" @click=${this._expandAll} title="${t('expandAll') }">⊕</button>
+              <button class="tree-action-btn" @click=${this._collapseAll} title="${t('collapseAll') }">⊖</button>
+              <button class="modal-close" aria-label="${t('close') }" @click=${this._closeDetail}>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
               </button>
             </div>
@@ -1062,17 +1100,17 @@ class IntegrationsList extends LitElement {
           <div class="tree-container">
             ${this._selectedCount() > 0 ? html`
             <div class="batch-bar">
-              <span style="font-weight:600;">${this._selectedCount()} ${t('selected') || '已选'}</span>
+              <span style="font-weight:600;">${this._selectedCount()} ${t('selected') }</span>
               <div class="batch-actions">
-                <button class="batch-btn enable" @click=${() => this._batchAction('enable')} title="${t('enableEntry') || '启用'}">${t('enableEntry') || '启用'}</button>
-                <button class="batch-btn disable" @click=${() => this._batchAction('disable')} title="${t('disableEntry') || '禁用'}">${t('disableEntry') || '禁用'}</button>
-                <button class="batch-btn reload" @click=${() => this._batchAction('reload')} title="${t('reloadEntry') || '重载'}">${t('reloadEntry') || '重载'}</button>
-                <button class="batch-btn remove" @click=${() => this._batchAction('remove')} title="${t('removeEntry') || '删除'}">${t('removeEntry') || '删除'}</button>
+                <button class="batch-btn enable" @click=${() => this._batchAction('enable')} title="${t('enableEntry') }">${t('enableEntry') }</button>
+                <button class="batch-btn disable" @click=${() => this._batchAction('disable')} title="${t('disableEntry') }">${t('disableEntry') }</button>
+                <button class="batch-btn reload" @click=${() => this._batchAction('reload')} title="${t('reloadEntry') }">${t('reloadEntry') }</button>
+                <button class="batch-btn remove" @click=${() => this._batchAction('remove')} title="${t('removeEntry') }">${t('removeEntry') }</button>
                 <button class="batch-btn cancel" @click=${() => { this._selectedEntryIds = {}; this.requestUpdate(); }}>✕</button>
               </div>
             </div>
             ` : ''}
-            ${entries.length === 0 ? html`<div class="tree-empty">${t('noData') || '暂无数据'}</div>` : entries.map(e => this._renderEntryRow(e))}
+            ${entries.length === 0 ? html`<div class="tree-empty">${t('noData') }</div>` : entries.map(e => this._renderEntryRow(e))}
           </div>
         </div>
       </div>
@@ -1088,10 +1126,10 @@ class IntegrationsList extends LitElement {
         @keydown=${e => { if (e.key === 'Escape') this._testIframeUrl = null; }}>
         <div class="modal iframe-modal ${this._expanded ? 'expanded' : ''}" @pointerdown=${this._modalPointerDown} @dblclick=${this._toggleExpand}>
           <div class="modal-header">
-            <div class="modal-title">${this._translateDomain(this._testIframeDomain) || this._testIframeDomain || '配置页'}</div>
+            <div class="modal-title">${this._translateDomain(this._testIframeDomain) || this._testIframeDomain }</div>
             <div class="modal-header-right">
-              <button class="tree-action-btn" @click=${this._toggleExpand} title="${t('zoom') || '放大'}">${this._expanded ? '⤡' : '⤢'}</button>
-              <button class="modal-close" aria-label="${t('close') || '关闭'}" @click=${() => { this._testIframeUrl = null; }}>
+              <button class="tree-action-btn" @click=${this._toggleExpand} title="${t('zoom') }">${this._expanded ? '⤡' : '⤢'}</button>
+              <button class="modal-close" aria-label="${t('close') }" @click=${() => { this._testIframeUrl = null; }}>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
               </button>
             </div>
@@ -1121,7 +1159,7 @@ class IntegrationsList extends LitElement {
     // Right panel content based on active action
     const renderRightPanel = () => {
       if (!active) {
-        return html`<div class="op-prompt">${t('selectAction') || '选择一个操作'}</div>`;
+        return html`<div class="op-prompt">${t('selectAction') }</div>`;
       }
       if (result) {
         if (active === 'remove') {
@@ -1129,8 +1167,8 @@ class IntegrationsList extends LitElement {
             <div class="op-confirm">
               <div class="op-result-text">${result}</div>
               <div class="op-confirm-actions">
-                <button class="op-btn-confirm danger" @click=${() => { this._activeActionResult = t('processing') || '处理中...'; this._removeEntry(entry, { stopPropagation: () => {} }, true); }}>${t('confirm') || '确认'}</button>
-                <button class="op-btn-cancel" @click=${() => { this._activeAction = ''; this._activeActionResult = ''; }}>${t('cancel') || '取消'}</button>
+                <button class="op-btn-confirm danger" @click=${() => { this._activeActionResult = t('processing') ; this._removeEntry(entry, { stopPropagation: () => {} }, true); }}>${t('confirm') }</button>
+                <button class="op-btn-cancel" @click=${() => { this._activeAction = ''; this._activeActionResult = ''; }}>${t('cancel') }</button>
               </div>
             </div>
           `;
@@ -1138,7 +1176,7 @@ class IntegrationsList extends LitElement {
         return html`<div class="op-result"><div class="op-spinner"></div><div class="op-result-text">${result}</div></div>`;
       }
       // Nothing to show yet
-      return html`<div class="op-prompt">${t('selectAction') || '选择一个操作'}</div>`;
+      return html`<div class="op-prompt">${t('selectAction') }</div>`;
     };
 
     return html`
@@ -1159,8 +1197,8 @@ class IntegrationsList extends LitElement {
               </div>
             </div>
             <div class="modal-header-right">
-              <button class="tree-action-btn" @click=${this._toggleExpand} title="${t('zoom') || '放大'}">${this._expanded ? '⤡' : '⤢'}</button>
-              <button class="modal-close" aria-label="${t('close') || '关闭'}" @click=${this._closeOperationDialog}>
+              <button class="tree-action-btn" @click=${this._toggleExpand} title="${t('zoom') }">${this._expanded ? '⤡' : '⤢'}</button>
+              <button class="modal-close" aria-label="${t('close') }" @click=${this._closeOperationDialog}>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
               </button>
             </div>
@@ -1177,35 +1215,35 @@ class IntegrationsList extends LitElement {
               ` : ''}
               ${reconf ? html`
                 <button class="op-btn ${active === 'reconfigure' ? 'active' : ''}" @click=${() => this._triggerOperation('reconfigure', entry)}
-                  title="${t('reconfigure') || '重配置'}">
-                  🔄 <span class="op-btn-label">${t('reconfigure') || '重配置'}</span>
+                  title="${t('reconfigure') }">
+                  🔄 <span class="op-btn-label">${t('reconfigure') }</span>
                 </button>
               ` : ''}
               ${subTypes && subTypes.length > 0 ? html`
                 <button class="op-btn ${active === 'add-subentry' ? 'active' : ''}" @click=${() => this._triggerOperation('add-subentry', entry)}
-                  title="${t('addSubentry') || '添加服务'}">
-                  ➕ <span class="op-btn-label">${t('addSubentry') || '添加服务'}</span>
+                  title="${t('addSubentry') }">
+                  ➕ <span class="op-btn-label">${t('addSubentry') }</span>
                 </button>
               ` : ''}
               ${!isDisabled ? html`
                 <button class="op-btn ${active === 'disable' ? 'active' : ''}" @click=${() => this._triggerOperation('disable', entry)}
-                  title="${t('disableEntry') || '禁用'}">
-                  ⏹ <span class="op-btn-label">${t('disableEntry') || '禁用'}</span>
+                  title="${t('disableEntry') }">
+                  ⏹ <span class="op-btn-label">${t('disableEntry') }</span>
                 </button>
               ` : html`
                 <button class="op-btn enable ${active === 'enable' ? 'active' : ''}" @click=${() => this._triggerOperation('enable', entry)}
-                  title="${t('enableEntry') || '启用'}">
-                  ▶️ <span class="op-btn-label">${t('enableEntry') || '启用'}</span>
+                  title="${t('enableEntry') }">
+                  ▶️ <span class="op-btn-label">${t('enableEntry') }</span>
                 </button>
               `}
               <button class="op-btn ${active === 'reload' ? 'active' : ''}" @click=${() => this._triggerOperation('reload', entry)}
-                title="${t('reloadEntry') || '重载'}">
-                🔁 <span class="op-btn-label">${t('reloadEntry') || '重载'}</span>
+                title="${t('reloadEntry') }">
+                🔁 <span class="op-btn-label">${t('reloadEntry') }</span>
               </button>
               ${entry.source !== 'system' ? html`
                 <button class="op-btn danger ${active === 'remove' ? 'active' : ''}" @click=${() => this._triggerOperation('remove', entry)}
-                  title="${t('removeEntry') || '删除'}">
-                  🗑 <span class="op-btn-label">${t('removeEntry') || '删除'}</span>
+                  title="${t('removeEntry') }">
+                  🗑 <span class="op-btn-label">${t('removeEntry') }</span>
                 </button>
               ` : ''}
             </div>
@@ -1249,7 +1287,7 @@ class IntegrationsList extends LitElement {
           <!-- Enable/Disable toggle -->
           <button class="entry-btn ${isDisabled ? 'enable' : 'disable'}"
             @click=${e => this._toggleDisabled(entry, e)}
-            title="${isDisabled ? t('enableEntry') || '启用' : t('disableEntry') || '禁用'}"
+            title="${isDisabled ? t('enableEntry')  : t('disableEntry') }"
             ?disabled=${isProcessing}>
             ${isDisabled ? html`
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
@@ -1263,12 +1301,12 @@ class IntegrationsList extends LitElement {
           </button>
           ` : ''}
           ${entry.supports_reconfigure ? html`
-          <button class="entry-btn" @click=${e => { e.stopPropagation(); this.dispatchEvent(new CustomEvent('configure-integration', { bubbles: true, composed: true, detail: { domain: entry.domain, entry_id: entry.entry_id, action: 'reconfigure' } })); this._closeDetail(); }} title="${t('reconfigure') || '重配置'}" ?disabled=${isProcessing}>
+          <button class="entry-btn" @click=${e => { e.stopPropagation(); this.dispatchEvent(new CustomEvent('configure-integration', { bubbles: true, composed: true, detail: { domain: entry.domain, entry_id: entry.entry_id, action: 'reconfigure' } })); this._closeDetail(); }} title="${t('reconfigure') }" ?disabled=${isProcessing}>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M21 2v6h-6M3 22v-6h6"/><path d="M21 8a9 9 0 1 1-3.64-6.36L21 2"/></svg>
           </button>
           ` : ''}
           ${entry.supported_subentry_types && entry.supported_subentry_types.length > 0 ? html`
-          <button class="entry-btn sub" @click=${e => { e.stopPropagation(); this.dispatchEvent(new CustomEvent('configure-integration', { bubbles: true, composed: true, detail: { domain: entry.domain, entry_id: entry.entry_id, action: 'add-subentry' } })); this._closeDetail(); }} title="${t('addSubentry') || '添加服务'}" ?disabled=${isProcessing}>
+          <button class="entry-btn sub" @click=${e => { e.stopPropagation(); this.dispatchEvent(new CustomEvent('configure-integration', { bubbles: true, composed: true, detail: { domain: entry.domain, entry_id: entry.entry_id, action: 'add-subentry' } })); this._closeDetail(); }} title="${t('addSubentry') }" ?disabled=${isProcessing}>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
           </button>
           ` : ''}
@@ -1290,7 +1328,7 @@ class IntegrationsList extends LitElement {
           ${isLoading ? html`
             <div class="tree-loading"><div class="spinner-xs"></div><span>${t('loading')}</span></div>
           ` : !groups || groups.length === 0 ? html`
-            <div class="tree-empty-msg">${t('noDevicesOrEntities') || '无设备'}</div>
+            <div class="tree-empty-msg">${t('noDevicesOrEntities') }</div>
           ` : groups.map(g => this._renderDeviceGroup(g, entry))}
         </div>
       ` : ''}
@@ -1303,7 +1341,7 @@ class IntegrationsList extends LitElement {
       <div class="device-group">
         <div class="device-group-header">
           <span class="device-group-name">${area}</span>
-          <span class="device-group-count">${devices.length} ${t('deviceCount') || '设备'}</span>
+          <span class="device-group-count">${devices.length} ${t('deviceCount') }</span>
         </div>
         <div class="device-group-body">
           ${devices.map(d => this._renderDevice(d, entry))}
@@ -1326,7 +1364,7 @@ class IntegrationsList extends LitElement {
           <svg class="device-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
           <span class="device-name">${device.name}</span>
           ${device.model ? html`<span class="device-model">${device.model}</span>` : ''}
-          <span class="device-ecount">${entityCount} ${t('entityCount') || '实体'}</span>
+          <span class="device-ecount">${entityCount} ${t('entityCount') }</span>
         </div>
         ${isOpen && device.entities ? html`
           <div class="device-entities">
@@ -1366,8 +1404,8 @@ class IntegrationsList extends LitElement {
           <div class="modal-header">
             <span class="modal-title">${t('addHAIntegration')}</span>
             <div style="display:flex;align-items:center;gap:8px;">
-              <button class="tree-action-btn" @click=${this._toggleExpand} title="${t('zoom') || '放大'}">${this._expanded ? '⤡' : '⤢'}</button>
-              <button class="modal-close" aria-label="${t('close') || '关闭'}" @click=${this._closeAddDialog}>
+              <button class="tree-action-btn" @click=${this._toggleExpand} title="${t('zoom') }">${this._expanded ? '⤡' : '⤢'}</button>
+              <button class="modal-close" aria-label="${t('close') }" @click=${this._closeAddDialog}>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
               </button>
             </div>

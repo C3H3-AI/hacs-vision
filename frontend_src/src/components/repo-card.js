@@ -98,9 +98,9 @@ class RepoCard extends LitElement {
       font-size: 10px; font-weight: 600;
     }
     .status-badge.installed { background: rgba(76,175,80,0.15); color: #4caf50; }
-    .status-badge.update-available { background: rgba(255,152,0,0.15); color: #ff9800; }
-    .status-badge.pending-restart { background: rgba(244,67,54,0.15); color: #f44336; }
-    .status-badge.pending-reload { background: rgba(255,152,0,0.15); color: #ff9800; }
+    .status-badge.update-available { background: rgba(255,152,0,0.15); color: var(--warning-color,#ff9800); }
+    .status-badge.pending-restart { background: rgba(244,67,54,0.15); color: var(--error-color,#f44336); }
+    .status-badge.pending-reload { background: rgba(255,152,0,0.15); color: var(--warning-color,#ff9800); }
 
     /* Right-side independent badges — symmetrical with status-badge */
     .right-tags {
@@ -113,7 +113,7 @@ class RepoCard extends LitElement {
       white-space: nowrap; line-height: 1.5;
     }
     .right-tags .tag.configured { background: rgba(33,150,243,0.15); color: #2196f3; }
-    .right-tags .tag.load-failed { background: rgba(244,67,54,0.15); color: #f44336; }
+    .right-tags .tag.load-failed { background: rgba(244,67,54,0.15); color: var(--error-color,#f44336); }
     .right-tags .tag.custom-tag { background: rgba(255,111,0,0.15); color: #ff6f00; font-weight: 600; }
 
     .top-bar {
@@ -147,7 +147,7 @@ class RepoCard extends LitElement {
     .star-fav-btn:hover { transform: scale(1.15); }
     .star-fav-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
     .star-fav-btn svg { width: 18px; height: 18px; transition: all 0.2s; }
-    .star-fav-btn.starred svg { fill: #ff9800; color: #ff9800; }
+    .star-fav-btn.starred svg { fill: var(--warning-color,#ff9800); color: var(--warning-color,#ff9800); }
     .star-fav-btn:not(.starred) svg { fill: none; color: #fff; }
 
     .remove-btn {
@@ -155,7 +155,7 @@ class RepoCard extends LitElement {
       width: 32px; height: 32px; border-radius: 50%;
       border: none; background: rgba(244,67,54,0.12);
       cursor: pointer; display: flex; align-items: center; justify-content: center;
-      transition: all 0.2s; z-index: 2; padding: 0; color: #f44336;
+      transition: all 0.2s; z-index: 2; padding: 0; color: var(--error-color,#f44336);
       font-size: 16px; font-weight: 700; line-height: 1;
       box-shadow: 0 2px 6px rgba(0,0,0,0.12);
     }
@@ -189,7 +189,7 @@ class RepoCard extends LitElement {
       display: flex; align-items: center; gap: 3px;
       font-size: 11px; color: var(--secondary-text-color, #727272);
     }
-    .stars svg { width: 14px; height: 14px; fill: #ff9800; color: #ff9800; }
+    .stars svg { width: 14px; height: 14px; fill: var(--warning-color,#ff9800); color: var(--warning-color,#ff9800); }
 
     .tags { display: flex; gap: 4px; flex-wrap: wrap; }
     .tag {
@@ -200,6 +200,11 @@ class RepoCard extends LitElement {
     .custom-tag {
       font-size: 9px; padding: 2px 7px; border-radius: 4px;
       background: #ff6f00; color: #fff; font-weight: 700;
+    }
+    .rename-tag {
+      font-size: 9px; padding: 2px 7px; border-radius: 4px;
+      background: var(--warning-color, #ff9800); color: #fff;
+      font-weight: 600; display: flex; align-items: center; gap: 2px;
     }
     .topic-tag {
       font-size: 9px; padding: 1px 6px; border-radius: 4px;
@@ -483,7 +488,7 @@ class RepoCard extends LitElement {
             ${r.config_entry_id ? html`<span class="tag configured">${t('badgeConfigured')}</span>` : ''}
             ${r.load_failed ? html`<span class="tag load-failed">${t('badgeLoadFailed')}</span>` : ''}
             ${r.is_custom && this.viewMode !== 'management' ? html`<span class="tag custom-tag">${t('customBadge')}</span>` : ''}
-            ${this.renamedFrom ? html`<span class="tag" style="background:#ff9800;color:#fff;font-weight:600;display:flex;align-items:center;gap:2px;"><svg class="mini-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:10px;height:10px;"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg> ${this.renamedFrom}</span>` : ''}
+            ${this.renamedFrom ? html`<span class="tag rename-tag"><svg class="mini-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:10px;height:10px;"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg> ${this.renamedFrom}</span>` : ''}
           </div>
           ${this.viewMode !== 'management' ? html`
           <button class="star-fav-btn ${this._starred ? 'starred' : ''}"
@@ -531,17 +536,17 @@ class RepoCard extends LitElement {
             <button class="action-btn primary" @click=${e => { e.stopPropagation(); this.dispatchEvent(new CustomEvent('restart-ha', { bubbles: true, composed: true })); }}
               style="flex:1;background:var(--primary-color,#03a9f4);color:#fff;border-color:var(--primary-color,#03a9f4);">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
-              <span class="label">${t('pendingRestart') || '待重启'}</span>
+              <span class="label">${t('pendingRestart') }</span>
             </button>
           ` : ''}
           ${this.showRemoveBtn ? html`
             <button class="action-btn ${this._removing ? 'installing' : ''}"
               @click=${e => { this._removing = true; this._handleAction(e, 'remove-repo'); }} ?disabled=${this._removing}
-              style="color:#f44336;border-color:#f44336;flex:1;">
+              style="color:var(--error-color,#f44336);border-color:var(--error-color,#f44336);flex:1;">
               ${this._removing
                 ? html`<svg class="mini-icon spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>`
                 : html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>`}
-              <span class="label">${this._removing ? (t('removing') || '移除中…') : (this.viewMode === 'management' ? t('removeRepo') : t('remove'))}</span>
+              <span class="label">${this._removing ? (t('removing') ) : (this.viewMode === 'management' ? t('removeRepo') : t('remove'))}</span>
             </button>
           ` : ''}
         </div>
@@ -567,11 +572,11 @@ class RepoCard extends LitElement {
             ` : ''}
             <button class="action-btn ${this._removing ? 'installing' : ''}"
               @click=${e => { this._removing = true; this._handleAction(e, 'uninstall'); }} ?disabled=${this._removing}
-              style="color:#f44336;border-color:#f44336;">
+              style="color:var(--error-color,#f44336);border-color:var(--error-color,#f44336);">
               ${this._removing
                 ? html`<svg class="mini-icon spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>`
                 : html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>`}
-              <span class="label">${this._removing ? t('removing') || '卸载中…' : (this.viewMode === 'management' ? t('removeRepo') : t('remove'))}</span>
+              <span class="label">${this._removing ? t('removing')  : (this.viewMode === 'management' ? t('removeRepo') : t('remove'))}</span>
             </button>
             ${this.viewMode === 'management' ? html`
             <button class="action-btn" @click=${e => this._handleAction(e, 'ignore')} title="${t('ignore')}"
