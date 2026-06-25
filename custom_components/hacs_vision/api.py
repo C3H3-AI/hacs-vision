@@ -32,6 +32,11 @@ _DOWNLOAD_CACHE: dict[str, dict] = {}
 _DOWNLOAD_CACHE_TTL = 7200  # 2 hours
 _DOWNLOAD_CACHE_MAX = 500
 
+# GitHub star count cache: {full_name: {stars, timestamp}}
+_STAR_CACHE: dict[str, dict] = {}
+_STAR_CACHE_TTL = 21600  # 6 hours — star counts change slowly
+_STAR_CACHE_MAX = 500
+
 def _cache_put(cache: dict, key: str, value: dict, max_size: int) -> None:
     """Put into cache with size limit — evict oldest entry if full."""
     if len(cache) >= max_size:
@@ -1028,6 +1033,75 @@ class HACSEnhancedAPI(HomeAssistantView):
 
     # ── Repositories ─────────────────────────────────────
 
+    async def _enrich_star_counts(self, repos: list[dict]) -> None:
+        """Batch refresh stargazers_count from GitHub API for installed repos.
+
+        HACS's internal stargazers_count can be hours/days stale because
+        it only updates when HACS performs its periodic GitHub sync.
+        This method does a lightweight GET /repos/{full_name} per repo,
+        cached with a 6-hour TTL to stay well within rate limits.
+        """
+        token = await self._get_active_github_token()
+        if not token:
+            return  # No token — can't call GitHub API
+        session = await self._get_session()
+        now = time.monotonic()
+
+        need_fetch = []
+        for r in repos:
+            fn = r.get("full_name", "")
+            if not fn or "/" not in fn:
+                continue
+            cached = _STAR_CACHE.get(fn)
+            if cached and (now - cached["timestamp"]) < _STAR_CACHE_TTL:
+                r["stargazers_count"] = cached["stars"]
+                continue
+            need_fetch.append(fn)
+
+        if not need_fetch:
+            return
+
+        sem = asyncio.Semaphore(3)
+
+        async def _fetch_one(full_name: str) -> tuple[str, int]:
+            url = f"https://api.github.com/repos/{full_name}"
+            async with sem:
+                try:
+                    async with session.get(
+                        url,
+                        headers={"Authorization": f"token {token}",
+                                 "Accept": "application/vnd.github.v3+json"},
+                        timeout=aiohttp.ClientTimeout(total=10)
+                    ) as resp:
+                        if resp.status == 200:
+                            data = await resp.json()
+                            stars = data.get("stargazers_count", 0)
+                            _cache_put(_STAR_CACHE, full_name,
+                                       {"stars": stars, "timestamp": now}, _STAR_CACHE_MAX)
+                            return full_name, stars
+                except Exception:
+                    pass
+                _cache_put(_STAR_CACHE, full_name,
+                           {"stars": 0, "timestamp": now}, _STAR_CACHE_MAX)
+                return full_name, 0
+
+        tasks = [_fetch_one(fn) for fn in need_fetch]
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+        result_map = {}
+        for res in results:
+            if isinstance(res, tuple):
+                result_map[res[0]] = res[1]
+
+        applied = 0
+        for r in repos:
+            fn = r.get("full_name", "")
+            if fn in result_map and result_map[fn]:
+                r["stargazers_count"] = result_map[fn]
+                applied += 1
+
+        if applied:
+            _LOGGER.debug("Enriched star counts for %d repos", applied)
+
     async def _enrich_download_counts(self, repos: list[dict]) -> None:
         """Enrich repos with GitHub release download counts where HACS data is 0."""
         import aiohttp
@@ -1107,6 +1181,14 @@ class HACSEnhancedAPI(HomeAssistantView):
             installed = [r for r in repos if r.get("installed")]
             if installed:
                 await self._enrich_download_counts(installed)
+        except Exception:
+            pass
+
+        # Enrich stargazers_count from GitHub API — installed repos only, 6h cache
+        try:
+            installed = [r for r in repos if r.get("installed")]
+            if installed:
+                await self._enrich_star_counts(installed)
         except Exception:
             pass
 
@@ -1319,6 +1401,12 @@ class HACSEnhancedAPI(HomeAssistantView):
     async def _get_custom_repos(self) -> web.Response:
         repos = await self.operator.get_all_repos_from_hacs()
         custom = [r for r in repos if r.get("custom") or r.get("is_custom")]
+        # Also refresh star counts for custom repos (they're installed ones)
+        try:
+            if custom:
+                await self._enrich_star_counts(custom)
+        except Exception:
+            pass
         return web.json_response({"custom_repositories": custom})
 
     async def _export_backup(self) -> web.Response:
@@ -2022,6 +2110,14 @@ class HACSEnhancedAPI(HomeAssistantView):
     async def _check_updates_with_notification(self) -> web.Response:
         """Check for updates and send a persistent notification."""
         try:
+            # Step 1: Force HACS to refresh ALL installed repos from GitHub
+            # Without this, HACS's display_available_version is stale (last sync)
+            refresh_result = await self.operator.refresh_repositories()
+            if not refresh_result.get("success"):
+                _LOGGER.warning("GitHub refresh rate-limited during check, falling back to cached data: %s",
+                                refresh_result.get("error", "unknown"))
+
+            # Step 2: Now rebuild index and check with fresh data
             self.operator.invalidate_index()
             repos = await self.operator.get_all_repos_from_hacs()
             updatable = [r for r in repos if r.get("has_update")]

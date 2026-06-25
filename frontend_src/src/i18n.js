@@ -577,6 +577,18 @@ const T = {
   selectAction: { zh: '选择一个操作', en: 'Select an action' },
   zoom: { zh: '放大', en: 'Zoom' },
   restarting: { zh: '正在重启 HA…', en: 'Restarting HA…' },
+  // === Render error fallback ===
+  renderCrash: { zh: '渲染崩溃', en: 'Render error' },
+  fieldError: { zh: '字段渲染错误', en: 'Field render error' },
+  // === HVAC modes ===
+  hvacCool: { zh: '❄️ 制冷', en: '❄️ Cool' },
+  hvacHeat: { zh: '🔥 制热', en: '🔥 Heat' },
+  hvacFanOnly: { zh: '🌀 送风', en: '🌀 Fan Only' },
+  hvacDry: { zh: '💧 除湿', en: '💧 Dry' },
+  hvacAuto: { zh: '🤖 自动', en: '🤖 Auto' },
+  hvacOff: { zh: '关', en: 'Off' },
+  // === Sidebar Toggle ===
+  toggleSidebar: { zh: '切换侧边栏', en: 'Toggle sidebar' },
 };
 
 /**

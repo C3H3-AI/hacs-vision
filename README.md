@@ -7,8 +7,8 @@
 [![Stars](https://img.shields.io/github/stars/C3H3-AI/hacs-vision)](https://github.com/C3H3-AI/hacs-vision/stargazers)
 [![License](https://img.shields.io/github/license/C3H3-AI/hacs-vision)](LICENSE)
 
-> **当前版本**: v5.1.0 | **最低 HA 版本**: 2024.1.0
-> **Current version**: v5.1.0 | **Minimum HA**: 2024.1.0
+> **当前版本**: v5.1.1 | **最低 HA 版本**: 2024.1.0
+> **Current version**: v5.1.1 | **Minimum HA**: 2024.1.0
 
 > **⚠️ 前置条件 / Prerequisite**: 必须先安装并配置好 [HACS](https://hacs.xyz) / [HACS](https://hacs.xyz) must be installed and configured.
 

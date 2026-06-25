@@ -36,6 +36,39 @@ class ConfigView extends LitElement {
     _orgSyncing: { type: Boolean, state: true },
   };
 
+  static _LOGIN_CACHE_KEY = 'hacs_vision_github_login';
+
+  /** Save login info to localStorage so page reloads don't immediately show logged-out UI */
+  static _saveLoginCache(user, avatar) {
+    try {
+      localStorage.setItem(ConfigView._LOGIN_CACHE_KEY, JSON.stringify({
+        user,
+        avatar: avatar || '',
+        timestamp: Date.now(),
+        ttl: 86400000, // 24h cache TTL
+      }));
+    } catch(e) { /* ignore quota errors */ }
+  }
+
+  /** Read cached login info — returns { user, avatar } or null */
+  static _getLoginCache() {
+    try {
+      const raw = localStorage.getItem(ConfigView._LOGIN_CACHE_KEY);
+      if (!raw) return null;
+      const data = JSON.parse(raw);
+      if (!data.user || Date.now() - data.timestamp > (data.ttl || 86400000)) {
+        localStorage.removeItem(ConfigView._LOGIN_CACHE_KEY);
+        return null;
+      }
+      return { user: data.user, avatar: data.avatar || '' };
+    } catch(e) { return null; }
+  }
+
+  /** Clear cached login info */
+  static _clearLoginCache() {
+    try { localStorage.removeItem(ConfigView._LOGIN_CACHE_KEY); } catch(e) {}
+  }
+
   constructor() {
     super();
     this._settings = {};
@@ -100,15 +133,37 @@ class ConfigView extends LitElement {
       const data = await api.getVersion();
       this._version = data?.version || '';
     } catch(e) { console.debug('Version fetch failed (optional):', e); }
+    // Step 1: Check frontend cache first — show immediately if cached
+    const cached = ConfigView._getLoginCache();
+    if (cached) {
+      this._githubUser = cached.user;
+      this._githubAvatar = cached.avatar;
+    }
+    // Step 2: Verify with backend (async, non-blocking)
     try {
       const user = await api.getGitHubUser();
       if (user?.login) {
-        this._githubUser = user.login;
-        this._githubAvatar = user.avatar_url || '';
-        // Auto-star if already logged in (once per session)
+        // Server confirms login — update cache and UI
+        ConfigView._saveLoginCache(user.login, user.avatar_url || '');
+        if (!cached || cached.user !== user.login) {
+          this._githubUser = user.login;
+          this._githubAvatar = user.avatar_url || '';
+        }
         this._autoStar();
+      } else if (cached) {
+        // Server says not logged in, but we have cache — keep showing logged-in state
+        // The user might need to re-auth, but we don't flash the login UI
       }
-    } catch(e) { /* not logged in */ }
+    } catch(e) {
+      if (!cached) {
+        // No cache and server error — truly not logged in
+        ConfigView._clearLoginCache();
+      }
+      // If we have cache, stay logged-in — server check failed (network blip, etc.)
+      if (cached) {
+        console.debug('GitHub user check failed but cache present; keeping logged-in UI');
+      }
+    }
   }
 
   async _toggleImmediate(key, val) {
@@ -287,7 +342,7 @@ class ConfigView extends LitElement {
         <div class="section">
           <div class="section-title">
             <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg>
-            GitHub
+            ${t('githubSection')}
           </div>
           ${this._githubUser ? html`
             <div class="flex-row-wide">
@@ -650,6 +705,7 @@ class ConfigView extends LitElement {
         this._githubTokenInput = '';
         this._githubVerifyMsg = t('githubVerifyResult', { user: result.user, remaining: result.rate_limit_remaining });
         this._githubVerifyOk = true;
+        ConfigView._saveLoginCache(result.user, result.avatar_url || '');
         showToast(t('githubLoginSuccess', { user: result.user }), 'success');
         this._autoStar();
       } else {
@@ -684,6 +740,7 @@ class ConfigView extends LitElement {
       this._githubAvatar = '';
       this._githubVerifyMsg = t('loggedOut');
       this._githubVerifyOk = false;
+      ConfigView._clearLoginCache();
       this._starredRepos = [];
       this._syncFavToStarResult = '';
       this._syncStarToFavResult = '';
@@ -730,6 +787,7 @@ class ConfigView extends LitElement {
         this._githubOAuthing = false;
         this._githubVerifyMsg = `${t('githubLoginSuccess', { user: result.user })} (OAuth)`;
         this._githubVerifyOk = true;
+        ConfigView._saveLoginCache(result.user, result.avatar_url || '');
         const { showToast } = await import('../hacs-vision-panel.js');
         showToast(t('githubLoginSuccess', { user: result.user }), 'success');
         this._autoStar();
@@ -915,6 +973,7 @@ class ConfigView extends LitElement {
         this._githubAvatar = result.avatar_url || '';
         this._githubVerifyMsg = t('tokenImported') ;
         this._githubVerifyOk = true;
+        ConfigView._saveLoginCache(result.user, result.avatar_url || '');
         showToast(t('githubLoginSuccess', { user: result.user }), 'success');
         this._autoStar();
       } else {

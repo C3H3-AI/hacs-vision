@@ -741,6 +741,8 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
     try {
       this._error = '';
       this.stats = await api.getStats();
+      // Sync available updates to HA sidebar badge
+      this._updateSidebarBadge(this.stats.available_updates ?? 0);
       // Clear restarting flag when HA is back
       if (this._restarting) {
         this._restarting = false;
@@ -771,11 +773,87 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
     }
   }
 
+  _updateSidebarBadge(count) {
+    try {
+      // Recursively walk light DOM + open shadow DOMs to find "HACS Vision" text.
+      const visited = new Set();
+
+      function findTextNode(root) {
+        if (!root || visited.has(root)) return null;
+        visited.add(root);
+
+        const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+        while (walker.nextNode()) {
+          const node = walker.currentNode;
+          const t = node.textContent.trim();
+          if (t === 'HACS Vision' || /^HACS Vision \(\d+\)$/.test(t)) {
+            return node;
+          }
+        }
+
+        const iter = document.createNodeIterator(root, NodeFilter.SHOW_ELEMENT);
+        let el;
+        while ((el = iter.nextNode())) {
+          if (el.shadowRoot) {
+            const found = findTextNode(el.shadowRoot);
+            if (found) return found;
+          }
+        }
+        return null;
+      }
+
+      const textNode = findTextNode(document.body);
+      if (!textNode) return;
+
+      const parent = textNode.parentElement;
+      if (!parent) return;
+
+      // Strip any existing count suffix from text, don't clear parent entirely
+      const baseName = textNode.textContent.replace(/ \(\d+\)$/, '');
+      textNode.textContent = baseName;
+
+      // Remove old badge if exists
+      const oldBadge = parent.querySelector('.hacs-vision-sb-badge');
+      if (oldBadge) oldBadge.remove();
+
+      if (count > 0) {
+        if (getComputedStyle(parent).position === 'static') {
+          parent.style.position = 'relative';
+        }
+        const badge = document.createElement('span');
+        badge.className = 'hacs-vision-sb-badge';
+        badge.textContent = count;
+        Object.assign(badge.style, {
+          position: 'absolute',
+          right: '0',
+          top: '50%',
+          transform: 'translateY(-50%)',
+          display: 'inline-flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          width: '22px',
+          height: '22px',
+          background: 'var(--primary-color, #03a9f4)',
+          color: '#fff',
+          borderRadius: '50%',
+          fontSize: '12px',
+          fontWeight: '700',
+          lineHeight: '22px',
+          pointerEvents: 'none',
+        });
+        parent.appendChild(badge);
+      }
+    } catch (e) {
+      // Silently ignore — DOM structure varies across HA versions
+    }
+  }
+
   _scheduleStatsRetry() {
     this._statsRetryTimer = setTimeout(async () => {
       this._statsRetryTimer = null;
       try {
         this.stats = await api.getStats();
+        this._updateSidebarBadge(this.stats.available_updates ?? 0);
         // HA is back — clear restarting + error state
         this._restarting = false;
         if (this._networkStatus === 'server_error') {
@@ -1045,7 +1123,7 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
         this._loadStats();
       }
     } catch(e) {
-      showToast(`Update check failed: ${e.message}`, 'error');
+      showToast(t('checkUpdateFailed', { err: e.message }), 'error');
     }
   }
 
@@ -1197,7 +1275,7 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
     const labels = {
       integration: t('catIntegration'), plugin: t('catPlugin'), theme: t('catTheme'),
       appdaemon: t('catAppDaemon'), netdaemon: t('catNetDaemon'),
-      python_script: t('catPython'), template: t('catTemplate'),
+      python_script: t('catPythonScript'), template: t('catTemplate'),
       dashboard: t('catDashboard'),
     };
     return labels[category] || category;
@@ -1581,7 +1659,7 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
 
         <!-- Sticky Header + Tabs -->
         <div class="sticky-header">
-          ${this.narrow ? html`<button class="sidebar-toggle" @click=${this._toggleSidebar} aria-label="切换侧边栏">
+          ${this.narrow ? html`<button class="sidebar-toggle" @click=${this._toggleSidebar} aria-label="${t('toggleSidebar')}">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="24" height="24"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
           </button>` : ''}
 

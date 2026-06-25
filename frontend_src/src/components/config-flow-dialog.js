@@ -955,7 +955,7 @@ class ConfigFlowDialog extends LitElement {
       return this._renderContent();
     } catch(e) {
       console.error('HACS Vision: render crash:', e, e?.stack);
-      return html`<div class="overlay" style="display:flex;align-items:center;justify-content:center;"><div class="dialog" style="padding:40px;color:red;background:#fff;">渲染崩溃: ${e?.message}<br><br><button class="btn primary" @click=${this._close}>关闭</button></div></div>`;
+      return html`<div class="overlay" style="display:flex;align-items:center;justify-content:center;"><div class="dialog" style="padding:40px;color:red;background:#fff;">${t('renderCrash')}: ${e?.message}<br><br><button class="btn primary" @click=${this._close}>${t('close')}</button></div></div>`;
     }
   }
 
@@ -1330,7 +1330,7 @@ class ConfigFlowDialog extends LitElement {
 
   _renderField(schema) {
     try { return this._renderFieldSafe(schema); }
-    catch(e) { console.error('HACS Vision: field render error:', schema?.name, e); return html`<div style="color:red;padding:8px;">字段 "${schema?.name}" 渲染错误: ${e?.message}</div>`; }
+    catch(e) { console.error('HACS Vision: field render error:', schema?.name, e); return html`<div style="color:red;padding:8px;">${t('fieldError')}: "${schema?.name}" ${e?.message}</div>`; }
   }
 
   _renderFieldSafe(schema) {

@@ -378,8 +378,12 @@ class HACSOperator:
                 if not repo.data.installed:
                     continue
                 installed = repo.data.installed_version
-                available = await self._get_available_with_prerelease(repo, installed, repo.display_available_version)
-                same_channel = _is_prerelease_version(installed) == _is_prerelease_version(available)
+                hacs_available = repo.display_available_version
+                available = await self._get_available_with_prerelease(repo, installed, hacs_available)
+                installed_prerelease = _is_prerelease_version(installed)
+                same_channel = installed_prerelease == _is_prerelease_version(available)
+                if installed_prerelease and available != hacs_available:
+                    same_channel = True
                 if installed and available and installed != available and same_channel:
                     updates.append({
                         "id": str(repo.data.id),
@@ -432,14 +436,25 @@ class HACSOperator:
             for i, repo in enumerate(repo_list):
                 try:
                     installed_ver = repo.data.installed_version
-                    latest_ver = await self._get_available_with_prerelease(
-                        repo, installed_ver,
-                        repo.display_available_version or getattr(repo.data, 'available_version', None) or getattr(repo.data, 'last_version', None)
+                    # Capture HACS's original available version before _get_available_with_prerelease
+                    # may override it with a GitHub result
+                    hacs_available = (
+                        repo.display_available_version
+                        or getattr(repo.data, 'available_version', None)
+                        or getattr(repo.data, 'last_version', None)
                     )
-                    # Channel detection: prevent cross-channel updates
+                    latest_ver = await self._get_available_with_prerelease(
+                        repo, installed_ver, hacs_available
+                    )
+                    # Channel detection: prevent stable→prerelease, but allow prerelease→stable
+                    # ONLY when _get_available_with_prerelease actually returned a verified-newer
+                    # version from GitHub (not just the stale HACS cache)
                     installed_prerelease = _is_prerelease_version(installed_ver)
                     latest_prerelease = _is_prerelease_version(latest_ver)
                     same_channel = installed_prerelease == latest_prerelease
+                    if installed_prerelease and latest_ver != hacs_available:
+                        # _get_available_with_prerelease found a newer version from GitHub
+                        same_channel = True
                     has_update = bool(
                         installed_ver and latest_ver
                         and installed_ver != latest_ver

@@ -553,7 +553,7 @@ class IntegrationsList extends LitElement {
     if (state === 'closed') return t('stateClosed') ;
     if (state === 'home') return t('stateHome') ;
     if (state === 'not_home') return t('stateNotHome') ;
-    const modes = { cool: '❄️ 制冷', heat: '🔥 制热', fan_only: '🌀 送风', dry: '💧 除湿', auto: '🤖 自动', 'off': '关' };
+    const modes = { cool: t('hvacCool'), heat: t('hvacHeat'), fan_only: t('hvacFanOnly'), dry: t('hvacDry'), auto: t('hvacAuto'), 'off': t('hvacOff') };
     if (modes[state]) return modes[state];
     return unit ? `${state} ${unit}` : state;
   }

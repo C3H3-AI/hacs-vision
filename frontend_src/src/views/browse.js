@@ -1316,7 +1316,7 @@ class BrowseView extends LitElement {
                   ${t('selectAll')}
                 </label>
                 <span style="font-size:13px;font-weight:600;color:var(--primary-text-color);white-space:nowrap;">${this._orgRepos.length} ${t('repositories')}</span>
-                <input type="text" placeholder="筛选..." .value=${this._orgFilter}
+                <input type="text" placeholder="${t('filterPlaceholder')}" .value=${this._orgFilter}
                   @input=${e => { this._orgFilter = e.target.value; this.requestUpdate(); }}
                   style="flex:1;min-width:80px;padding:6px 8px;border:1px solid var(--divider-color);border-radius:6px;font-size:13px;background:var(--input-background-color,var(--card-background-color));color:var(--primary-text-color);outline:none;">
                 <button class="btn primary" style="font-size:12px;padding:6px 12px;white-space:nowrap;" @click=${this._syncSelectedBrowseOrg} ?disabled=${this._orgSyncing || Object.keys(this._selectedOrgRepos).length === 0}>
