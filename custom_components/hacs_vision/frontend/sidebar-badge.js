@@ -59,9 +59,30 @@
     }
   }
 
+  async function getAuthToken() {
+    try {
+      // HA stores its connection promise on window
+      if (window.hassConnection) {
+        const conn = await Promise.resolve(window.hassConnection);
+        if (conn?.auth?.data?.access_token) {
+          return conn.auth.data.access_token;
+        }
+      }
+      // Fallback: try cookie-based auth (for non-auth endpoints)
+      return '';
+    } catch(e) {
+      return '';
+    }
+  }
+
   async function fetchUpdateCount() {
     try {
-      const resp = await fetch(BADGE_URL, { credentials: 'include' });
+      const token = await getAuthToken();
+      if (!token) return; // Not logged in yet
+
+      const resp = await fetch(BADGE_URL, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
       if (!resp.ok) return;
       const data = await resp.json();
       const updates = data.updates || [];
