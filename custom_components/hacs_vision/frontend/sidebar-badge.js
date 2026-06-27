@@ -9,16 +9,34 @@
   const BADGE_CLASS = 'hacs-vision-sb-badge';
   let lastCount = -1;
 
-  // Walk ALL shadow DOMs recursively (same as panel.js ye function)
-  // At each level, search for the HACS Vision link, then recurse into shadow DOMs
-  function findTextNode(root, visited) {
+  let PANEL_NAME = ''; // Will be fetched dynamically from HA
+
+  // Get HACS Vision panel title from HA's panel registry
+  async function getPanelName() {
+    try {
+      if (window.hassConnection) {
+        const conn = await Promise.resolve(window.hassConnection);
+        if (conn?.conn) {
+          const result = await conn.conn.sendMessagePromise({type: 'get_panels'});
+          for (const [path, panel] of Object.entries(result)) {
+            if (path === 'hacs-vision' && panel?.title) {
+              return panel.title;
+            }
+          }
+        }
+      }
+    } catch(e) {}
+    return 'HACS Vision'; // fallback
+  }
+
+  // Walk ALL shadow DOMs recursively
+  function findTextNode(root, visited, panelName) {
     if (!root || visited.has(root)) return null;
     visited.add(root);
 
-    // Search for HACS Vision link at THIS shadow DOM level
+    // Strategy 1: find by href at this shadow DOM level
     const link = root.querySelector('a[href="/hacs-vision"]');
     if (link) {
-      // Found it — get the text from the sidebar item container
       const container = link.closest('[role="listitem"], ha-sidebar-item, li, a') || link.parentElement;
       if (container) {
         const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT);
@@ -30,13 +48,26 @@
       }
     }
 
-    // Recurse into shadow DOMs of ALL child elements
+    // Recurse into shadow DOMs
     const iter = document.createNodeIterator(root, NodeFilter.SHOW_ELEMENT);
     let el;
     while (el = iter.nextNode()) {
       if (el.shadowRoot) {
-        const found = findTextNode(el.shadowRoot, visited);
+        const found = findTextNode(el.shadowRoot, visited, panelName);
         if (found) return found;
+      }
+    }
+
+    // Strategy 2: text search — use dynamically fetched panel name
+    if (panelName) {
+      const lowerTarget = panelName.toLowerCase();
+      const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+      let node;
+      while (node = walker.nextNode()) {
+        const text = node.textContent.trim().toLowerCase();
+        if (text === lowerTarget || text === lowerTarget + ' (' || text.startsWith(lowerTarget + ' (')) {
+          return node;
+        }
       }
     }
 
@@ -49,7 +80,7 @@
     lastCount = count;
 
     try {
-      const textNode = findTextNode(document.body, new Set());
+      const textNode = findTextNode(document.body, new Set(), PANEL_NAME);
       if (!textNode) return;
 
       const parent = textNode.parentElement;
@@ -116,6 +147,10 @@
   }
 
   function startPolling() {
+    // First fetch the panel name from HA
+    getPanelName().then(name => {
+      PANEL_NAME = name;
+    });
     setTimeout(fetchUpdateCount, 2000);
     setInterval(fetchUpdateCount, POLL_INTERVAL);
     document.addEventListener('visibilitychange', () => {
