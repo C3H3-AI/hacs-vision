@@ -4,6 +4,7 @@ import { themeMixin } from './theme.js';
 import { t, setLangFromHass } from './i18n.js';
 import { getCategoryColor } from './shared/constants.js';
 import { getCommonStyles } from './shared/styles.js';
+import { updateSidebarBadge } from './shared/sidebar-badge.js';
 import DOMPurify from 'dompurify';
 
 export class HacsVisionPanel extends themeMixin(LitElement) {
@@ -774,78 +775,7 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
   }
 
   _updateSidebarBadge(count) {
-    try {
-      // Recursively walk light DOM + open shadow DOMs to find "HACS Vision" text.
-      const visited = new Set();
-
-      function findTextNode(root) {
-        if (!root || visited.has(root)) return null;
-        visited.add(root);
-
-        const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
-        while (walker.nextNode()) {
-          const node = walker.currentNode;
-          const t = node.textContent.trim();
-          if (t === 'HACS Vision' || /^HACS Vision \(\d+\)$/.test(t)) {
-            return node;
-          }
-        }
-
-        const iter = document.createNodeIterator(root, NodeFilter.SHOW_ELEMENT);
-        let el;
-        while ((el = iter.nextNode())) {
-          if (el.shadowRoot) {
-            const found = findTextNode(el.shadowRoot);
-            if (found) return found;
-          }
-        }
-        return null;
-      }
-
-      const textNode = findTextNode(document.body);
-      if (!textNode) return;
-
-      const parent = textNode.parentElement;
-      if (!parent) return;
-
-      // Strip any existing count suffix from text, don't clear parent entirely
-      const baseName = textNode.textContent.replace(/ \(\d+\)$/, '');
-      textNode.textContent = baseName;
-
-      // Remove old badge if exists
-      const oldBadge = parent.querySelector('.hacs-vision-sb-badge');
-      if (oldBadge) oldBadge.remove();
-
-      if (count > 0) {
-        if (getComputedStyle(parent).position === 'static') {
-          parent.style.position = 'relative';
-        }
-        const badge = document.createElement('span');
-        badge.className = 'hacs-vision-sb-badge';
-        badge.textContent = count;
-        Object.assign(badge.style, {
-          position: 'absolute',
-          right: '0',
-          top: '50%',
-          transform: 'translateY(-50%)',
-          display: 'inline-flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          width: '22px',
-          height: '22px',
-          background: 'var(--primary-color, #03a9f4)',
-          color: '#fff',
-          borderRadius: '50%',
-          fontSize: '12px',
-          fontWeight: '700',
-          lineHeight: '22px',
-          pointerEvents: 'none',
-        });
-        parent.appendChild(badge);
-      }
-    } catch (e) {
-      // Silently ignore — DOM structure varies across HA versions
-    }
+    updateSidebarBadge(count);
   }
 
   _scheduleStatsRetry() {

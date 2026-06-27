@@ -52,6 +52,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigType) -> bool:
     except Exception as exc:
         _LOGGER.debug("HACS panel auto-hide skipped: %s", exc)
 
+    # Register sidebar badge JS as global Lovelace resource
+    try:
+        _register_sidebar_badge(hass)
+    except Exception as exc:
+        _LOGGER.warning("Sidebar badge registration failed: %s", exc)
+
     hass.data.setdefault(DOMAIN, {})
     hass.data[DOMAIN]["entry"] = entry
     hass.data[DOMAIN]["api"] = api_view
@@ -140,6 +146,67 @@ async def _register_panel(hass: HomeAssistant) -> None:
         config={},
     )
     _LOGGER.debug("Registered panel: %s (panel_custom embed_iframe=False)", URL_PATH)
+
+
+def _register_sidebar_badge(hass: HomeAssistant) -> None:
+    """Register sidebar-badge.js as a global frontend resource.
+
+    This JS file polls the updates API and sets the sidebar badge count.
+    It's loaded on every HA page via a Lovelace resource.
+    """
+    badge_js_path = os.path.join(FRONTEND_DIR, "sidebar-badge.js")
+    static_url = "/api/hacs_vision/static/sidebar-badge.js"
+
+    # 1. Register static path so the JS file is served
+    try:
+        from homeassistant.components.http import StaticPathConfig
+        # HA 2025+ uses StaticPathConfig; fallback for older versions
+        hass.http.register_static_path(static_url, badge_js_path, cache_headers=False)
+    except TypeError:
+        hass.http.register_static_path(static_url, badge_js_path)
+    _LOGGER.debug("Registered static path: %s", static_url)
+
+    # 2. Register as a Lovelace resource (module type) so it auto-loads
+    hass.async_create_task(_async_register_lovelace_resource(hass, static_url))
+
+
+async def _async_register_lovelace_resource(hass: HomeAssistant, url: str) -> None:
+    """Add sidebar-badge.js as a Lovelace module resource."""
+    try:
+        # Method 1: Use lovelace service to set resource
+        await hass.services.async_call(
+            "lovelace", "set_resource",
+            {"res_type": "module", "url": url, "create": True},
+            blocking=True,
+        )
+        _LOGGER.info("Registered sidebar badge via lovelace service")
+        return
+    except Exception:
+        pass
+
+    try:
+        # Method 2: Direct storage write
+        from homeassistant.helpers.storage import Store
+        import uuid
+
+        store = Store(hass, "lovelace_resources")
+        data = await store.async_load() or {}
+        items = data.setdefault("data", {}).setdefault("items", [])
+
+        for item in items:
+            if item.get("url") == url:
+                _LOGGER.debug("Sidebar badge already registered")
+                return
+
+        items.append({
+            "id": uuid.uuid4().hex[:16],
+            "url": url,
+            "type": "module",
+        })
+        await store.async_save(data)
+        _LOGGER.info("Registered sidebar badge resource via storage")
+    except Exception as exc:
+        _LOGGER.debug("Lovelace resource registration failed (non-critical): %s", exc)
 
 
 def _register_services(hass: HomeAssistant, operator) -> None:

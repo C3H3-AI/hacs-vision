@@ -707,8 +707,6 @@ class HACSEnhancedAPI(HomeAssistantView):
             return await self._get_device_counts(domain)
         if path in ("github/user", "github/user/", "github/oauth/user", "github/oauth/user/"):
             return await self._github_user()
-        if path == "github/auto-star":
-            return await self._github_auto_star()
         if path.startswith("github/starred/"):
             repo = path.split("/", 2)[2] if "/" in path else ""
             return await self._github_check_starred(repo)
@@ -785,6 +783,8 @@ class HACSEnhancedAPI(HomeAssistantView):
             return await self._github_sync_starred(body)
         if path in ("github/sync-favorites", "github/sync-favorites/"):
             return await self._github_sync_favorites()
+        if path in ("github/auto-star", "github/auto-star/"):
+            return await self._github_auto_star()
         # ── OAuth device flow ──
         if path in ("github/oauth/start", "github/oauth/start/"):
             return await self._github_oauth_start(body)
