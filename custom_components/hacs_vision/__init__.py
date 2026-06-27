@@ -149,25 +149,29 @@ async def _register_panel(hass: HomeAssistant) -> None:
 
 
 def _register_sidebar_badge(hass: HomeAssistant) -> None:
-    """Register sidebar-badge.js as a global frontend resource.
+    """Register sidebar-badge.js — injects into every HA page.
 
-    This JS file polls the updates API and sets the sidebar badge count.
-    It's loaded on every HA page via a Lovelace resource.
+    Uses frontend.add_extra_js_url() to add the badge script to
+    every HA frontend page, including panels and settings.
     """
     badge_js_path = os.path.join(FRONTEND_DIR, "sidebar-badge.js")
-    static_url = "/api/hacs_vision/static/sidebar-badge.js"
+    static_url = f"/api/hacs_vision/static/sidebar-badge.js?v={VERSION}"
 
     # 1. Register static path so the JS file is served
     try:
         from homeassistant.components.http import StaticPathConfig
-        # HA 2025+ uses StaticPathConfig; fallback for older versions
         hass.http.register_static_path(static_url, badge_js_path, cache_headers=False)
     except TypeError:
         hass.http.register_static_path(static_url, badge_js_path)
     _LOGGER.debug("Registered static path: %s", static_url)
 
-    # 2. Register as a Lovelace resource (module type) so it auto-loads
-    hass.async_create_task(_async_register_lovelace_resource(hass, static_url))
+    # 2. Inject into every HA page via frontend.add_extra_js_url
+    try:
+        from homeassistant.components.frontend import add_extra_js_url
+        add_extra_js_url(hass, static_url)
+        _LOGGER.info("✅ Sidebar badge registered via frontend.add_extra_js_url")
+    except Exception as exc:
+        _LOGGER.warning("Sidebar badge failed: %s", exc)
 
 
 async def _async_register_lovelace_resource(hass: HomeAssistant, url: str) -> None:

@@ -1,114 +1,126 @@
 // HACS Vision Sidebar Badge
-// Loaded globally via Lovelace resource — runs on every HA page load
-// Updates the sidebar badge with pending update count
+// Finds HACS Vision by href="/hacs-vision" in ALL shadow DOMs recursively
 
 (function() {
   'use strict';
 
-  const BADGE_URL = '/api/hacs_vision/updates';
-  const POLL_INTERVAL = 5 * 60 * 1000; // 5 minutes
-  const INITIAL_DELAY = 2000; // Wait 2s after page load for HA to initialize
-
-  let pollTimer = null;
+  const BADGE_URL = '/api/hacs_vision/updates?v=' + Date.now();
+  const POLL_INTERVAL = 5 * 60 * 1000;
+  const BADGE_CLASS = 'hacs-vision-sb-badge';
   let lastCount = -1;
-  let haReady = false;
 
-  function getHaRoot() {
-    try {
-      const ha = document.querySelector('home-assistant');
-      if (!ha || !ha.shadowRoot) return null;
-      return ha.shadowRoot;
-    } catch(e) {
-      return null;
-    }
-  }
+  // Walk ALL shadow DOMs recursively (same as panel.js ye function)
+  // At each level, search for the HACS Vision link, then recurse into shadow DOMs
+  function findTextNode(root, visited) {
+    if (!root || visited.has(root)) return null;
+    visited.add(root);
 
-  function findSidebarItem(root) {
-    if (!root) return null;
-    // Try modern ha-sidebar-item (HA 2025+)
-    const items = root.querySelectorAll('ha-sidebar-item');
-    for (const item of items) {
-      const link = item.querySelector('a[href*="hacs-vision"], a[href*="hacs_vision"]');
-      if (link) return item;
-    }
-    // Fallback: check by text
-    for (const item of items) {
-      if (item.textContent.toLowerCase().includes('hacs') && 
-          !item.textContent.toLowerCase().includes('hacs原始')) {
-        return item;
+    // Search for HACS Vision link at THIS shadow DOM level
+    const link = root.querySelector('a[href="/hacs-vision"]');
+    if (link) {
+      // Found it — get the text from the sidebar item container
+      const container = link.closest('[role="listitem"], ha-sidebar-item, li, a') || link.parentElement;
+      if (container) {
+        const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT);
+        let node;
+        while (node = walker.nextNode()) {
+          const text = node.textContent.trim();
+          if (text) return node;
+        }
       }
     }
+
+    // Recurse into shadow DOMs of ALL child elements
+    const iter = document.createNodeIterator(root, NodeFilter.SHOW_ELEMENT);
+    let el;
+    while (el = iter.nextNode()) {
+      if (el.shadowRoot) {
+        const found = findTextNode(el.shadowRoot, visited);
+        if (found) return found;
+      }
+    }
+
     return null;
   }
 
+  // Exact same badge injection as panel.js
   function updateBadge(count) {
-    if (count === lastCount) return; // No change
+    if (count === lastCount) return;
     lastCount = count;
 
-    const root = getHaRoot();
-    const item = findSidebarItem(root);
-    if (!item) return;
+    try {
+      const textNode = findTextNode(document.body, new Set());
+      if (!textNode) return;
 
-    // For HA 2024+: use `notification` property
-    if (count > 0) {
-      item.notification = count;
-      item.setAttribute('notification', String(count));
-    } else {
-      item.notification = 0;
-      item.removeAttribute('notification');
-    }
+      const parent = textNode.parentElement;
+      if (!parent) return;
+
+      textNode.textContent = textNode.textContent.replace(/ \(\d+\)$/, '');
+      const oldBadge = parent.querySelector('.' + BADGE_CLASS);
+      if (oldBadge) oldBadge.remove();
+      if (count <= 0) return;
+
+      if (getComputedStyle(parent).position === 'static') {
+        parent.style.position = 'relative';
+      }
+
+      const badge = document.createElement('span');
+      badge.className = BADGE_CLASS;
+      badge.textContent = count;
+      Object.assign(badge.style, {
+        position: 'absolute',
+        right: '0',
+        top: '50%',
+        transform: 'translateY(-50%)',
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        width: '22px',
+        height: '22px',
+        background: 'var(--primary-color, #03a9f4)',
+        color: '#fff',
+        borderRadius: '50%',
+        fontSize: '12px',
+        fontWeight: '700',
+        lineHeight: '22px',
+        pointerEvents: 'none',
+      });
+      parent.appendChild(badge);
+    } catch(e) {}
   }
 
   async function getAuthToken() {
-    try {
-      // HA stores its connection promise on window
-      if (window.hassConnection) {
-        const conn = await Promise.resolve(window.hassConnection);
-        if (conn?.auth?.data?.access_token) {
-          return conn.auth.data.access_token;
+    for (let i = 0; i < 10; i++) {
+      try {
+        if (window.hassConnection) {
+          const conn = await Promise.resolve(window.hassConnection);
+          if (conn?.auth?.data?.access_token) return conn.auth.data.access_token;
         }
-      }
-      // Fallback: try cookie-based auth (for non-auth endpoints)
-      return '';
-    } catch(e) {
-      return '';
+      } catch(e) {}
+      await new Promise(r => setTimeout(r, 1000));
     }
+    return '';
   }
 
   async function fetchUpdateCount() {
     try {
       const token = await getAuthToken();
-      if (!token) return; // Not logged in yet
-
+      if (!token) return;
       const resp = await fetch(BADGE_URL, {
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { 'Authorization': 'Bearer ' + token }
       });
       if (!resp.ok) return;
       const data = await resp.json();
-      const updates = data.updates || [];
-      updateBadge(updates.length);
-    } catch(e) {
-      // Silently retry on next poll
-    }
+      updateBadge((data.updates || []).length);
+    } catch(e) {}
   }
 
   function startPolling() {
-    // Initial fetch after HA is ready
-    setTimeout(() => {
-      fetchUpdateCount();
-    }, INITIAL_DELAY);
-
-    // Periodic polling
-    pollTimer = setInterval(fetchUpdateCount, POLL_INTERVAL);
-
-    // Also listen for panel visibility changes (user returns to HA tab)
+    setTimeout(fetchUpdateCount, 2000);
+    setInterval(fetchUpdateCount, POLL_INTERVAL);
     document.addEventListener('visibilitychange', () => {
-      if (!document.hidden) {
-        fetchUpdateCount();
-      }
+      if (!document.hidden) fetchUpdateCount();
     });
-
-    // Hook into HA's connection
     const origPushState = window.history.pushState;
     window.history.pushState = function() {
       origPushState.apply(this, arguments);
@@ -116,39 +128,26 @@
     };
   }
 
-  // Wait for HA to be ready
   function waitForHA() {
     if (document.querySelector('home-assistant')) {
-      haReady = true;
       startPolling();
       return;
     }
-    // DOM observer fallback
     const observer = new MutationObserver(() => {
-      if (document.querySelector('home-assistant') && !haReady) {
-        haReady = true;
+      if (document.querySelector('home-assistant')) {
         startPolling();
         observer.disconnect();
       }
     });
     observer.observe(document.body, { childList: true, subtree: true });
-
-    // Also check after a timeout
-    setTimeout(() => {
-      if (!haReady) {
-        // HA might be loading in shadow DOM already
-        haReady = true;
-        startPolling();
-      }
-    }, 10000);
+    setTimeout(() => { observer.disconnect(); startPolling(); }, 10000);
   }
 
-  // Start on DOMContentLoaded
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', waitForHA);
   } else {
     waitForHA();
   }
 
-  console.log('[HACS Vision] Sidebar badge initialized');
+  console.log('[HACS Vision] Sidebar badge initialized (shadow-aware)');
 })();
