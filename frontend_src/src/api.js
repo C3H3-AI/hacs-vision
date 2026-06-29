@@ -189,7 +189,7 @@ class HACSEnhancedAPI {
   /** Preview issue logs — returns system info + error logs for a repo */
   previewIssueLogs(repo) { return this.get(`github/issue-logs?repo=${encodeURIComponent(repo)}`); }
   /** Create a GitHub issue with auto-collected error logs */
-  createIssue(repo, title, body, domain) { return this.post('github/create-issue', { repo, title, body, domain }); }
+  createIssue(repo, title, body, domain, screenshots) { return this.post('github/create-issue', { repo, title, body, domain, screenshots }); }
   listOrgRepos(org) { return this.get(`github/repos?org=${encodeURIComponent(org)}`); }
 
   /* Version selector: get releases for a repo */

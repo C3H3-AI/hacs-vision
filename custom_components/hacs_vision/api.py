@@ -381,7 +381,7 @@ class HACSEnhancedAPI(HomeAssistantView):
                         "Authorization": f"Bearer {token}",
                         "Content-Type": "application/json",
                     },
-                    timeout=aiohttp.ClientTimeout(total=10),
+                    timeout=aiohttp.ClientTimeout(total=5),
                 ) as resp:
                     if resp.status == 200:
                         text = await resp.text()
@@ -393,7 +393,7 @@ class HACSEnhancedAPI(HomeAssistantView):
             text = ""
 
         if not text:
-            # Fallback: try HA's own error_log endpoint
+            # Fallback: try HA's own error_log endpoint (short timeout)
             try:
                 session = await self._get_session()
                 ha_url = self.hass.http.get_url()
@@ -420,6 +420,21 @@ class HACSEnhancedAPI(HomeAssistantView):
             except Exception:
                 text = ""
 
+        if not text:
+            # Fallback 2: read the log file directly
+            try:
+                for log_path in ("/share/second-core/home-assistant.log", "/config/home-assistant.log"):
+                    import os as _os3
+                    if _os3.path.exists(log_path):
+                        with open(log_path, "r", encoding="utf-8", errors="replace") as f:
+                            # Read last 200 lines
+                            all_lines = f.readlines()
+                            text = "".join(all_lines[-200:])
+                        if text:
+                            break
+            except Exception:
+                text = ""
+
         # Parse and filter
         lines = text.split("\n") if text else []
         if domain:
@@ -437,19 +452,20 @@ class HACSEnhancedAPI(HomeAssistantView):
     async def _build_issue_body(self, repo_info: dict | None, user_title: str, user_body: str,
                                   repo_domain: str | None) -> str:
         """Build a detailed GitHub issue body with system info and logs."""
-        ha_version = getattr(self.hass, "version", "unknown")
+        try:
+            from homeassistant.const import __version__ as ha_version
+        except ImportError:
+            ha_version = getattr(self.hass, "version", "unknown") or "unknown"
         lines = []
         lines.append(f"## 描述\n{user_body}\n" if user_body else "## 描述\n_无详细描述_\n")
         lines.append("## 系统信息")
         lines.append(f"| 项目 | 值 |")
         lines.append(f"|------|-----|")
         lines.append(f"| HA 版本 | {ha_version} |")
-        lines.append(f"| HACS Vision | v{VERSION} |")
         if repo_info:
             inst_ver = repo_info.get("installed_version", repo_info.get("version", "?"))
-            name = repo_info.get("name", repo_info.get("full_name", "?"))
-            lines.append(f"| 集成 | {name} |")
-            lines.append(f"| 版本 | {inst_ver} |")
+            if inst_ver and inst_ver != "?":
+                lines.append(f"| 版本 | {inst_ver} |")
         if repo_domain:
             lines.append(f"| 领域 | {repo_domain} |")
         lines.append(f"| 时间 | {time.strftime('%Y-%m-%d %H:%M:%S')} |")
@@ -469,7 +485,7 @@ class HACSEnhancedAPI(HomeAssistantView):
 
     async def _github_issue_preview(self, query) -> web.Response:
         """Preview logs and system info before creating an issue."""
-        repo = (query or "").strip()
+        repo = (query.get("repo") if hasattr(query, "get") else query or "").strip()
         repo_info = None
         repo_domain = None
         try:
@@ -480,7 +496,10 @@ class HACSEnhancedAPI(HomeAssistantView):
             pass
 
         logs = await self._github_fetch_logs(repo_domain, max_lines=60)
-        ha_version = getattr(self.hass, "version", "unknown")
+        try:
+            from homeassistant.const import __version__ as ha_version
+        except ImportError:
+            ha_version = getattr(self.hass, "version", "unknown") or "unknown"
 
         return web.json_response({
             "ha_version": ha_version,
@@ -490,6 +509,62 @@ class HACSEnhancedAPI(HomeAssistantView):
             "repo_version": repo_info.get("installed_version", repo_info.get("version")) if repo_info else None,
             "logs": logs[-2000:] if logs else "",
         })
+
+    async def _save_screenshot(self, base64_data: str, filename: str) -> str | None:
+        """Save a base64 screenshot to HA's www dir and return accessible URL.
+        File is deleted after issue creation (cleanup happens in caller).
+        """
+        try:
+            import os as _os
+            www_dir = self.hass.config.path("www", "hacs_vision_screenshots")
+            _os.makedirs(www_dir, exist_ok=True)
+            raw = base64_data
+            if "," in raw:
+                raw = raw.split(",", 1)[1]
+            decoded = __import__("base64").b64decode(raw)
+            filepath = _os.path.join(www_dir, filename)
+            with open(filepath, "wb") as f:
+                f.write(decoded)
+            ha_url = None
+            try:
+                if hasattr(self.hass.config, "external_url") and self.hass.config.external_url:
+                    ha_url = self.hass.config.external_url
+                elif hasattr(self.hass.config, "internal_url") and self.hass.config.internal_url:
+                    ha_url = self.hass.config.internal_url
+                else:
+                    ha_url = self.hass.http.get_url(prefer_external=True)
+            except Exception:
+                try:
+                    ha_url = self.hass.http.get_url()
+                except Exception:
+                    pass
+            if not ha_url:
+                ha_url = "https://api.homediy.top:8443"
+            _LOGGER.info("Screenshot URL base: %s", ha_url)
+            return f"{ha_url.rstrip('/')}/local/hacs_vision_screenshots/{filename}"
+        except Exception as e:
+            _LOGGER.warning("Save screenshot error: %s", e)
+        return None
+
+    def _cleanup_screenshots(self, filenames: list[str]) -> None:
+        """Remove temporary screenshot files."""
+        import os as _os
+        if not filenames:
+            return
+        www_dir = self.hass.config.path("www", "hacs_vision_screenshots")
+        for fname in filenames:
+            try:
+                fp = _os.path.join(www_dir, fname)
+                if _os.path.exists(fp):
+                    _os.remove(fp)
+            except Exception as e:
+                _LOGGER.warning("Cleanup screenshot %s error: %s", fname, e)
+
+    async def _delayed_cleanup(self, filenames: list[str], delay: int = 300) -> None:
+        """Clean up screenshots after a delay to let GitHub cache them."""
+        import asyncio as _asyncio
+        await _asyncio.sleep(delay)
+        self._cleanup_screenshots(filenames)
 
     async def _github_create_issue(self, body: dict) -> web.Response:
         """Create a GitHub issue with auto-collected error logs."""
@@ -516,6 +591,26 @@ class HACSEnhancedAPI(HomeAssistantView):
         # Build the issue body
         issue_body = await self._build_issue_body(repo_info, title, user_body, repo_domain)
 
+        # Save screenshots to HA www, embed URLs in body, track for cleanup
+        screenshot_files = []
+        screenshots = body.get("screenshots", [])
+        if screenshots and isinstance(screenshots, list):
+            import uuid as _uuid
+            _LOGGER.info("Saving %d screenshots to HA www...", len(screenshots))
+            for i, ss_b64 in enumerate(screenshots):
+                if not ss_b64 or not isinstance(ss_b64, str) or len(ss_b64) < 100:
+                    continue
+                if len(ss_b64) > 3 * 1024 * 1024:
+                    _LOGGER.warning("Screenshot %d too large, skipped", i)
+                    continue
+                fname = f"issue_{_uuid.uuid4().hex[:12]}_{i+1}.png"
+                url = await self._save_screenshot(ss_b64, fname)
+                if url:
+                    issue_body += f"\n\n![截图{i+1}]({url})"
+                    screenshot_files.append(fname)
+                else:
+                    _LOGGER.warning("Failed to save screenshot %d", i)
+
         # Call GitHub API
         result = await self._github_api("POST", f"/repos/{repo}/issues", {
             "title": title,
@@ -528,18 +623,30 @@ class HACSEnhancedAPI(HomeAssistantView):
             html_url = result.get("html_url", "")
             number = result.get("number", "")
             _LOGGER.info("Created issue #%s for %s: %s", number, repo, html_url)
+            # Delay cleanup to give GitHub time to cache the images (~5min)
+            if screenshot_files:
+                _LOGGER.info("Screenshots will be cleaned up in 5 minutes")
+                asyncio.ensure_future(self._delayed_cleanup(screenshot_files, 300))
             return web.json_response({
                 "ok": True,
                 "issue_url": html_url,
                 "issue_number": number,
             })
         elif status == 401:
+            if screenshot_files:
+                self._cleanup_screenshots(screenshot_files)
             return web.json_response({"error": "GitHub token not authorized"}, status=401)
         elif status == 403:
+            if screenshot_files:
+                self._cleanup_screenshots(screenshot_files)
             return web.json_response({"error": "Rate limited or no permission"}, status=403)
         elif status == 404:
+            if screenshot_files:
+                self._cleanup_screenshots(screenshot_files)
             return web.json_response({"error": "Repository not found"}, status=404)
         else:
+            if screenshot_files:
+                self._cleanup_screenshots(screenshot_files)
             err_msg = result.get("error", result.get("message", f"GitHub API error ({status})"))
             return web.json_response({"error": err_msg}, status=502)
 
