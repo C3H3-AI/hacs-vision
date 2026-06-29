@@ -18,6 +18,7 @@ class RepoCard extends LitElement {
     renamedFrom: { type: String },
     showRemoveBtn: { type: Boolean },
     configEntries: { type: Object },
+    _issueDialog: { type: Boolean, state: true },
   };
 
   constructor() {
@@ -33,6 +34,7 @@ class RepoCard extends LitElement {
     this.renamedFrom = null;
     this.showRemoveBtn = false;
     this.configEntries = {};
+    this._issueDialog = false;
   }
 
   willUpdate(changedProps) {
@@ -241,6 +243,20 @@ class RepoCard extends LitElement {
     .action-btn.readme-btn:hover { background: var(--primary-color, #03a9f4); color: #fff; }
     .action-btn svg { width: 16px; height: 16px; flex-shrink: 0; }
     .action-btn .label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    /* Report Issue button - subtle text link style */
+    .issue-btn { background: none; border: none; color: var(--secondary-text-color); cursor: pointer; font-size: 11px; padding: 2px 6px; text-decoration: none; opacity: 0.6; transition: opacity 0.2s; }
+    .issue-btn:hover { opacity: 1; color: var(--primary-color, #03a9f4); text-decoration: underline; }
+    /* Issue dialog overlay */
+    .issue-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 999; display: flex; align-items: center; justify-content: center; }
+    .issue-dialog { background: var(--card-background-color,#fff); border-radius: 12px; padding: 20px; max-width: 480px; width: 90%; box-shadow: 0 8px 32px rgba(0,0,0,0.2); }
+    .issue-dialog h3 { margin: 0 0 12px; font-size: 16px; color: var(--primary-text-color); }
+    .issue-dialog input, .issue-dialog textarea { width: 100%; box-sizing: border-box; padding: 8px 10px; margin-bottom: 10px; border: 1px solid var(--divider-color,#e0e0e0); border-radius: 6px; background: var(--input-background-color,#f5f5f5); color: var(--primary-text-color); font-size: 14px; }
+    .issue-dialog textarea { min-height: 60px; resize: vertical; }
+    .issue-dialog-actions { display: flex; gap: 8px; justify-content: flex-end; }
+    .issue-dialog-actions button { padding: 6px 16px; border-radius: 6px; border: 1px solid var(--divider-color); background: var(--card-background-color); color: var(--primary-text-color); cursor: pointer; font-size: 13px; }
+    .issue-dialog-actions button.primary { background: var(--primary-color,#03a9f4); color: #fff; border-color: var(--primary-color,#03a9f4); }
+    .issue-dialog-actions button:disabled { opacity: 0.5; cursor: not-allowed; }
+    .issue-dialog .error { color: #f44336; font-size: 12px; margin-bottom: 8px; }
 
     .action-btn.installing {
       opacity: 0.7; cursor: not-allowed;
@@ -368,6 +384,79 @@ class RepoCard extends LitElement {
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
         <span class="label">${hasEntry ? t('configure') : t('addIntegrationHint')}</span>
       </button>
+    `;
+  }
+
+  async _handleReportIssue() {
+    const r = this.repo;
+    const fullName = r.full_name || (r.repository && r.repository.replace('https://github.com/', ''));
+    if (!fullName || !fullName.includes('/')) {
+      this._showCardToast('Invalid repository', 'error');
+      return;
+    }
+    this._issueDialog = true;
+    this._issueRepo = fullName;
+    this._issueDomain = r.domain;
+    await this.updateComplete;
+    this.shadowRoot?.querySelector('.issue-title-input')?.focus();
+  }
+
+  _showCardToast(msg, type) {
+    this.dispatchEvent(new CustomEvent('toast', {
+      bubbles: true, composed: true,
+      detail: { message: msg, type: type || 'info' }
+    }));
+  }
+
+  async _submitIssue(e) {
+    const input = this.shadowRoot?.querySelector('.issue-title-input');
+    const bodyInput = this.shadowRoot?.querySelector('.issue-body-input');
+    const status = this.shadowRoot?.querySelector('.issue-status');
+    const title = input?.value?.trim();
+    if (!title) {
+      if (status) status.textContent = '请输入 Issue 标题';
+      return;
+    }
+    if (status) status.textContent = t('issueSubmitting');
+    const btn = this.shadowRoot?.querySelector('.issue-submit-btn');
+    if (btn) btn.disabled = true;
+
+    try {
+      const result = await api.createIssue(
+        this._issueRepo,
+        title,
+        bodyInput?.value?.trim() || '',
+        this._issueDomain
+      );
+      if (result.ok) {
+        if (status) status.textContent = '';
+        this._showCardToast(t('issueSuccess', { n: result.issue_number }), 'success');
+        this._issueDialog = false;
+        // Open issue in new tab
+        if (result.issue_url) window.open(result.issue_url, '_blank');
+      } else {
+        if (status) status.textContent = result.error || t('issueFailed');
+      }
+    } catch (e) {
+      if (status) status.textContent = `${t('issueFailed')}: ${e.message}`;
+    }
+    if (btn) btn.disabled = false;
+  }
+
+  _renderIssueDialog(repo) {
+    return html`
+      <div class="issue-overlay" @click=${e => { if (e.target === e.currentTarget) this._issueDialog = false; }}>
+        <div class="issue-dialog" @click=${e => e.stopPropagation()}>
+          <h3>${t('reportIssue')} · ${repo.name || repo.full_name}</h3>
+          <input class="issue-title-input" placeholder="${t('issueTitlePlaceholder')}" @keydown=${e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); this._submitIssue(); } }} />
+          <textarea class="issue-body-input" placeholder="${t('issueBody')}" rows="3"></textarea>
+          <div class="issue-status error"></div>
+          <div class="issue-dialog-actions">
+            <button @click=${() => this._issueDialog = false}>${t('issueCancel')}</button>
+            <button class="issue-submit-btn primary" @click=${this._submitIssue}>${t('issueConfirm')}</button>
+          </div>
+        </div>
+      </div>
     `;
   }
 
@@ -594,6 +683,12 @@ class RepoCard extends LitElement {
           `}
         </div>
         `}
+        <!-- Report Issue link -->
+        <div style="display:flex;justify-content:flex-end;margin-top:6px;padding:0 2px;">
+          <button class="issue-btn" @click=${e => { e.stopPropagation(); this._handleReportIssue(); }}
+                  title="${t('reportIssueDesc')}">🐛 ${t('reportIssue')}</button>
+        </div>
+        ${this._issueDialog ? html`${this._renderIssueDialog(r)}` : ''}
       </div>
     `;
   }

@@ -186,6 +186,10 @@ class HACSEnhancedAPI {
   listStarred() { return this.get('github/starred'); }
   syncStarred(repos) { return this.post('github/sync-starred', { repos }); }
   syncStarsToFavorites() { return this.post('github/sync-favorites'); }
+  /** Preview issue logs — returns system info + error logs for a repo */
+  previewIssueLogs(repo) { return this.get(`github/issue-logs?repo=${encodeURIComponent(repo)}`); }
+  /** Create a GitHub issue with auto-collected error logs */
+  createIssue(repo, title, body, domain) { return this.post('github/create-issue', { repo, title, body, domain }); }
   listOrgRepos(org) { return this.get(`github/repos?org=${encodeURIComponent(org)}`); }
 
   /* Version selector: get releases for a repo */

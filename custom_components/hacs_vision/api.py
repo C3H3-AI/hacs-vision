@@ -363,6 +363,186 @@ class HACSEnhancedAPI(HomeAssistantView):
         # Star it
         return await self._github_star({"repo": repo})
 
+    async def _github_fetch_logs(self, domain: str | None = None, max_lines: int = 50) -> str:
+        """Fetch HA error logs, optionally filtered by domain.
+
+        Reads from the supervisor API (inside HA Docker) or falls back
+        to HA's error_log API.
+        """
+        try:
+            # Try supervisor API first (works inside HA Docker)
+            import os as _os
+            token = _os.environ.get("SUPERVISOR_TOKEN")
+            if token:
+                session = await self._get_session()
+                async with session.get(
+                    "http://supervisor/core/api/error_log",
+                    headers={
+                        "Authorization": f"Bearer {token}",
+                        "Content-Type": "application/json",
+                    },
+                    timeout=aiohttp.ClientTimeout(total=10),
+                ) as resp:
+                    if resp.status == 200:
+                        text = await resp.text()
+                    else:
+                        text = ""
+            else:
+                text = ""
+        except Exception:
+            text = ""
+
+        if not text:
+            # Fallback: try HA's own error_log endpoint
+            try:
+                session = await self._get_session()
+                ha_url = self.hass.http.get_url()
+                # Need the HA token - try reading from env or config
+                token = None
+                import os as _os2
+                for var in ("HASSIO_TOKEN", "SUPERVISOR_TOKEN", "HA_TOKEN"):
+                    v = _os2.environ.get(var)
+                    if v:
+                        token = v
+                        break
+                if not token:
+                    # Try getting from HACS token (has repo scope but works for auth)
+                    token = await self._get_active_github_token()
+
+                if token:
+                    async with session.get(
+                        f"{ha_url}/api/error_log",
+                        headers={"Authorization": f"Bearer {token}"},
+                        timeout=aiohttp.ClientTimeout(total=10),
+                    ) as resp:
+                        if resp.status == 200:
+                            text = await resp.text()
+            except Exception:
+                text = ""
+
+        # Parse and filter
+        lines = text.split("\n") if text else []
+        if domain:
+            filtered = [l for l in lines if domain.lower() in l.lower() and
+                        any(kw in l for kw in ("ERROR", "WARNING", "Traceback", "Error", "Warning"))]
+            if not filtered:
+                # No domain-specific logs, show last N error lines
+                filtered = [l for l in lines if any(kw in l for kw in ("ERROR", "WARNING", "Traceback", "Error", "Warning"))]
+        else:
+            filtered = [l for l in lines if any(kw in l for kw in ("ERROR", "WARNING", "Traceback", "Error", "Warning"))]
+
+        # Take last N lines
+        return "\n".join(filtered[-max_lines:])
+
+    async def _build_issue_body(self, repo_info: dict | None, user_title: str, user_body: str,
+                                  repo_domain: str | None) -> str:
+        """Build a detailed GitHub issue body with system info and logs."""
+        ha_version = getattr(self.hass, "version", "unknown")
+        lines = []
+        lines.append(f"## 描述\n{user_body}\n" if user_body else "## 描述\n_无详细描述_\n")
+        lines.append("## 系统信息")
+        lines.append(f"| 项目 | 值 |")
+        lines.append(f"|------|-----|")
+        lines.append(f"| HA 版本 | {ha_version} |")
+        lines.append(f"| HACS Vision | v{VERSION} |")
+        if repo_info:
+            inst_ver = repo_info.get("installed_version", repo_info.get("version", "?"))
+            name = repo_info.get("name", repo_info.get("full_name", "?"))
+            lines.append(f"| 集成 | {name} |")
+            lines.append(f"| 版本 | {inst_ver} |")
+        if repo_domain:
+            lines.append(f"| 领域 | {repo_domain} |")
+        lines.append(f"| 时间 | {time.strftime('%Y-%m-%d %H:%M:%S')} |")
+        lines.append("")
+
+        # Append logs
+        logs = await self._github_fetch_logs(repo_domain, max_lines=60)
+        if logs:
+            lines.append("## 相关日志")
+            lines.append("```")
+            lines.append(logs[-3000:] if len(logs) > 3000 else logs)
+            lines.append("```")
+        else:
+            lines.append("_无相关错误日志_")
+
+        return "\n".join(lines)
+
+    async def _github_issue_preview(self, query) -> web.Response:
+        """Preview logs and system info before creating an issue."""
+        repo = (query or "").strip()
+        repo_info = None
+        repo_domain = None
+        try:
+            repo_info = await self.data.get_repository(repo) if repo else None
+            if repo_info:
+                repo_domain = repo_info.get("domain")
+        except Exception:
+            pass
+
+        logs = await self._github_fetch_logs(repo_domain, max_lines=60)
+        ha_version = getattr(self.hass, "version", "unknown")
+
+        return web.json_response({
+            "ha_version": ha_version,
+            "vision_version": VERSION,
+            "repo": repo,
+            "repo_domain": repo_domain,
+            "repo_version": repo_info.get("installed_version", repo_info.get("version")) if repo_info else None,
+            "logs": logs[-2000:] if logs else "",
+        })
+
+    async def _github_create_issue(self, body: dict) -> web.Response:
+        """Create a GitHub issue with auto-collected error logs."""
+        repo = body.get("repo", "").strip()
+        title = body.get("title", "").strip()
+        user_body = body.get("body", "").strip()
+        repo_domain = body.get("domain")
+
+        if not repo or "/" not in repo:
+            return web.json_response({"error": "repo required (format: owner/repo)"}, status=400)
+        if not title:
+            return web.json_response({"error": "title required"}, status=400)
+
+        # Get repo info for domain detection
+        repo_info = None
+        if not repo_domain:
+            try:
+                repo_info = await self.data.get_repository(repo)
+                if repo_info:
+                    repo_domain = repo_info.get("domain")
+            except Exception:
+                pass
+
+        # Build the issue body
+        issue_body = await self._build_issue_body(repo_info, title, user_body, repo_domain)
+
+        # Call GitHub API
+        result = await self._github_api("POST", f"/repos/{repo}/issues", {
+            "title": title,
+            "body": issue_body,
+            "labels": body.get("labels", ["bug"]),
+        })
+
+        status = result.get("status", 500)
+        if status in (200, 201):
+            html_url = result.get("html_url", "")
+            number = result.get("number", "")
+            _LOGGER.info("Created issue #%s for %s: %s", number, repo, html_url)
+            return web.json_response({
+                "ok": True,
+                "issue_url": html_url,
+                "issue_number": number,
+            })
+        elif status == 401:
+            return web.json_response({"error": "GitHub token not authorized"}, status=401)
+        elif status == 403:
+            return web.json_response({"error": "Rate limited or no permission"}, status=403)
+        elif status == 404:
+            return web.json_response({"error": "Repository not found"}, status=404)
+        else:
+            err_msg = result.get("error", result.get("message", f"GitHub API error ({status})"))
+            return web.json_response({"error": err_msg}, status=502)
+
     async def _github_unstar(self, body: dict) -> web.Response:
         """Unstar a repository."""
         repo = body.get("repo", "").strip()
@@ -716,6 +896,8 @@ class HACSEnhancedAPI(HomeAssistantView):
             return await self._github_list_org_repos(query)
         if path in ("github/import_token", "github/import_token/"):
             return await self._github_import_token()
+        if path in ("github/issue-logs", "github/issue-logs/"):
+            return await self._github_issue_preview(query)
 
         return web.json_response({"error": "not_found"}, status=404)
 
@@ -785,6 +967,8 @@ class HACSEnhancedAPI(HomeAssistantView):
             return await self._github_sync_favorites()
         if path in ("github/auto-star", "github/auto-star/"):
             return await self._github_auto_star()
+        if path in ("github/create-issue", "github/create-issue/"):
+            return await self._github_create_issue(body)
         # ── OAuth device flow ──
         if path in ("github/oauth/start", "github/oauth/start/"):
             return await self._github_oauth_start(body)

@@ -589,6 +589,18 @@ const T = {
   hvacOff: { zh: '关', en: 'Off' },
   // === Sidebar Toggle ===
   toggleSidebar: { zh: '切换侧边栏', en: 'Toggle sidebar' },
+  // === Issue Report ===
+  reportIssue: { zh: '提交 Issue', en: 'Report Issue' },
+  reportIssueDesc: { zh: '提交 GitHub Issue（自动附错误日志）', en: 'Submit GitHub issue (auto-attach error logs)' },
+  issueTitle: { zh: 'Issue 标题', en: 'Issue Title' },
+  issueTitlePlaceholder: { zh: '简要描述问题...', en: 'Briefly describe the issue...' },
+  issueBody: { zh: '补充说明（可选）', en: 'Additional details (optional)' },
+  issueConfirm: { zh: '确认提交', en: 'Submit Issue' },
+  issueCancel: { zh: '取消', en: 'Cancel' },
+  issueSubmitting: { zh: '正在提交 Issue...', en: 'Submitting issue...' },
+  issueSuccess: { zh: 'Issue #{n} 已创建', en: 'Issue #{n} created' },
+  issueFailed: { zh: 'Issue 提交失败', en: 'Failed to create issue' },
+  issueNotLoggedIn: { zh: '请先登录 GitHub（设置 → GitHub Token）', en: 'Please login to GitHub first (Settings → GitHub Token)' },
 };
 
 /**
