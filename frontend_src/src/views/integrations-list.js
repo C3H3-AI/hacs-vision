@@ -43,6 +43,8 @@ class IntegrationsList extends LitElement {
     _testIframeUrl: { type: String, state: true },          // HA config page iframe URL (保留兼容)
     _expanded: { type: Boolean, state: true },                // Modal maximize toggle
     _deviceCounts: { type: Object, state: true },             // domain → {devices, entities}
+    // Re-render trigger on language change
+    langVersion: { type: Number },
   };
 
   constructor() {

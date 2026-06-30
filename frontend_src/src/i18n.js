@@ -765,6 +765,7 @@ export function setLang(lang) {
   }
   // Notify all components to re-render with new language
   window.dispatchEvent(new CustomEvent('hacs-lang-changed', { detail: { lang: getLang() } }));
+  _refreshAllComponents();
 }
 
 /**
@@ -773,6 +774,27 @@ export function setLang(lang) {
  */
 export function getLang() {
   return _USER_LANG || _LANG || 'en';
+}
+
+/**
+ * Force-render all HACS Vision components in the DOM after language change.
+ * Called by setLang() to ensure every view re-renders with the new language.
+ */
+function _refreshAllComponents() {
+  const tags = ['browse-view', 'updates-view', 'management-view',
+    'config-view', 'integrations-list', 'config-flow-dialog', 'repo-card'];
+  for (const tag of tags) {
+    try {
+      for (const el of document.querySelectorAll(tag)) {
+        if (typeof el.requestUpdate === 'function') el.requestUpdate();
+      }
+    } catch (e) { /* ignore cross-root or detached elements */ }
+  }
+  // Also refresh the main panel
+  try {
+    const panel = document.querySelector('hacs-vision-panel');
+    if (panel && typeof panel.requestUpdate === 'function') panel.requestUpdate();
+  } catch (e) { /* ignore */ }
 }
 
 /**

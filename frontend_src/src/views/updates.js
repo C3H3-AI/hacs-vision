@@ -26,6 +26,8 @@ class UpdatesView extends LitElement {
     _updateProgress: { type: Object, state: true },
     _skippedVersions: { type: Array, state: true },
     _showSkipped: { type: Boolean },
+    // Re-render trigger on language change
+    langVersion: { type: Number },
   };
 
   constructor() {

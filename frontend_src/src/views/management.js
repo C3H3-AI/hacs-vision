@@ -50,6 +50,8 @@ export class ManagementView extends LitElement {
     _filterExpanded: { type: Boolean, state: true },
     _orgSyncResult: { type: String, state: true },
     _orgSyncing: { type: Boolean, state: true },
+    // Re-render trigger on language change
+    langVersion: { type: Number },
   };
 
   constructor() {

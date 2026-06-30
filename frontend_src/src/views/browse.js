@@ -59,6 +59,8 @@ class BrowseView extends LitElement {
     _orgLoading: { type: Boolean, state: true },
     _orgSyncing: { type: Boolean, state: true },
     _orgSyncResult: { type: String, state: true },
+    // Re-render trigger on language change
+    langVersion: { type: Number },
   };
 
   constructor() {
@@ -101,40 +103,7 @@ class BrowseView extends LitElement {
     this._favorites = [];
     this._selectedRepos = [];
     this._tagFilters = [];
-
-    this.statusOptions = [
-      { value: '', label: t('statusAll') },
-      { value: 'installed', label: t('statusInstalled') },
-      { value: 'not_installed', label: t('statusNotInstalled') },
-      { value: 'update_available', label: t('statusPendingUpgrade') },
-      { value: 'pending_restart', label: t('statusPendingRestart') },
-    ];
-
-    this.typeOptions = [
-      { value: '', label: t('typeAll') },
-      { value: 'integration', label: t('typeIntegration') },
-      { value: 'plugin', label: t('typePlugin') },
-      { value: 'theme', label: t('typeTheme') },
-      { value: 'template', label: t('typeTemplate') },
-    ];
-
-    this.groupOptions = [
-      { value: 'none', label: t('groupNone') },
-      { value: 'status', label: t('groupStatus') },
-      { value: 'type', label: t('groupType') },
-    ];
-
-    // HACS-style sortable columns for list view
-    this.sortColumns = [
-      { key: 'name', label: t('colName'),colName: true },
-      { key: 'downloads', label: t('colDownloads'),colDownloads: true },
-      { key: 'stars', label: t('colStars'),colStars: true },
-      { key: 'last_updated', label: t('colLastUpdated'),colLastUpdated: true },
-      { key: 'installed_version', label: t('colInstalledVer'),colInstalledVer: true },
-      { key: 'latest_version', label: t('colAvailableVer'),colAvailableVer: true },
-      { key: 'installed_at', label: t('colInstalledAt'),colInstalledAt: true },
-      { key: 'status', label: t('colStatus'),colStatus: true },
-    ];
+    this._rebuildOptions();
   }
 
   static styles = css`
@@ -468,6 +437,7 @@ class BrowseView extends LitElement {
 
   async connectedCallback() {
     super.connectedCallback();
+    window.addEventListener('hacs-lang-changed', this._boundLangRefresh);
     await this._loadFavorites();
     await this._load();
     // After repos loaded, silently sync GitHub stars → local favorites (only known repos)
@@ -515,6 +485,42 @@ class BrowseView extends LitElement {
 
   disconnectedCallback() {
     super.disconnectedCallback();
+    window.removeEventListener('hacs-lang-changed', this._boundLangRefresh);
+  }
+
+  _boundLangRefresh = () => { this._rebuildOptions(); this.requestUpdate(); };
+
+  /** Rebuild translated option arrays when language changes. */
+  _rebuildOptions() {
+    this.statusOptions = [
+      { value: '', label: t('statusAll') },
+      { value: 'installed', label: t('statusInstalled') },
+      { value: 'not_installed', label: t('statusNotInstalled') },
+      { value: 'update_available', label: t('statusPendingUpgrade') },
+      { value: 'pending_restart', label: t('statusPendingRestart') },
+    ];
+    this.typeOptions = [
+      { value: '', label: t('typeAll') },
+      { value: 'integration', label: t('typeIntegration') },
+      { value: 'plugin', label: t('typePlugin') },
+      { value: 'theme', label: t('typeTheme') },
+      { value: 'template', label: t('typeTemplate') },
+    ];
+    this.groupOptions = [
+      { value: 'none', label: t('groupNone') },
+      { value: 'status', label: t('groupStatus') },
+      { value: 'type', label: t('groupType') },
+    ];
+    this.sortColumns = [
+      { key: 'name', label: t('colName'), colName: true },
+      { key: 'downloads', label: t('colDownloads'), colDownloads: true },
+      { key: 'stars', label: t('colStars'), colStars: true },
+      { key: 'last_updated', label: t('colLastUpdated'), colLastUpdated: true },
+      { key: 'installed_version', label: t('colInstalledVer'), colInstalledVer: true },
+      { key: 'latest_version', label: t('colAvailableVer'), colAvailableVer: true },
+      { key: 'installed_at', label: t('colInstalledAt'), colInstalledAt: true },
+      { key: 'status', label: t('colStatus'), colStatus: true },
+    ];
   }
 
   willUpdate(changedProps) {

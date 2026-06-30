@@ -48,10 +48,13 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
     _entrySelectorDomain: { type: String, state: true },
     _entrySelectorEntries: { type: Array, state: true },
     _entrySelectorCurrentId: { type: String, state: true },
+    // Language version counter — incremented to force child re-render on lang switch
+    _langVersion: { type: Number, state: true },
   };
 
   constructor() {
     super();
+    this._langVersion = 0;
     this.currentView = (() => { try { return localStorage.getItem('hacs_vision_tab'); } catch { return null; } })() || 'browse';
     this.stats = { pendingRestart: 0 };
     this.narrow = window.innerWidth < 768;
@@ -91,6 +94,9 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
     this._offlineHandler = () => { this._networkStatus = 'offline'; };
     window.addEventListener('online', this._onlineHandler);
     window.addEventListener('offline', this._offlineHandler);
+    // Listen for language changes to force re-render all child views
+    this._langChangeHandler = () => { this._langVersion = (this._langVersion || 0) + 1; };
+    window.addEventListener('hacs-lang-changed', this._langChangeHandler);
     // _updateFavoriteCount() deferred to willUpdate when hass becomes available
   }
 
@@ -728,9 +734,6 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
       if (!document.hidden) this._checkCacheVersion();
     };
     document.addEventListener('visibilitychange', this._visibilityHandler);
-    // Language change listener
-    this._langChangeHandler = () => this.requestUpdate();
-    window.addEventListener('hacs-lang-changed', this._langChangeHandler);
   }
 
   disconnectedCallback() {
@@ -1924,11 +1927,11 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
 
         <!-- Content with fade transition -->
         <div class="content ${this._viewTransition ? 'transitioning' : ''}">
-          <browse-view .hass=${this.hass} .presetFilter=${this._presetFilter} .presetTag=${this._presetTag} .configEntries=${this._configEntries} .pendingRestart=${this.stats.pending_restart ?? 0} ?hidden=${this.currentView !== 'browse'}></browse-view>
-          <integrations-list .hass=${this.hass} ?hidden=${this.currentView !== 'integrations'} @configure-integration=${this._onConfigureIntegration} @add-integration=${this._onAddIntegration}></integrations-list>
-          <updates-view .hass=${this.hass} ?hidden=${this.currentView !== 'updates'}></updates-view>
-          <management-view .hass=${this.hass} ?hidden=${this.currentView !== 'management'}></management-view>
-          <config-view .hass=${this.hass} @refresh-stats=${this._loadStats} ?hidden=${this.currentView !== 'settings'}></config-view>
+          <browse-view .hass=${this.hass} .presetFilter=${this._presetFilter} .presetTag=${this._presetTag} .configEntries=${this._configEntries} .pendingRestart=${this.stats.pending_restart ?? 0} .langVersion=${this._langVersion} ?hidden=${this.currentView !== 'browse'}></browse-view>
+          <integrations-list .hass=${this.hass} .langVersion=${this._langVersion} ?hidden=${this.currentView !== 'integrations'} @configure-integration=${this._onConfigureIntegration} @add-integration=${this._onAddIntegration}></integrations-list>
+          <updates-view .hass=${this.hass} .langVersion=${this._langVersion} ?hidden=${this.currentView !== 'updates'}></updates-view>
+          <management-view .hass=${this.hass} .langVersion=${this._langVersion} ?hidden=${this.currentView !== 'management'}></management-view>
+          <config-view .hass=${this.hass} .langVersion=${this._langVersion} @refresh-stats=${this._loadStats} ?hidden=${this.currentView !== 'settings'}></config-view>
         </div>
       </div>
     `;

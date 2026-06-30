@@ -34,6 +34,8 @@ class ConfigView extends LitElement {
     _selectedOrgRepos: { type: Object, state: true },
     _orgSyncResult: { type: String, state: true },
     _orgSyncing: { type: Boolean, state: true },
+    // Re-render trigger on language change
+    langVersion: { type: Number },
   };
 
   static _LOGIN_CACHE_KEY = 'hacs_vision_github_login';

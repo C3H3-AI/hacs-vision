@@ -11,9 +11,9 @@
 [![English](https://img.shields.io/badge/lang-en-red.svg)](#)
 [![Deutsch](https://img.shields.io/badge/lang-de-green.svg)](#)
 
-> **当前版本**: v6.0.0b0 | **最低 HA 版本**: 2024.1.0
-> **Current version**: v6.0.0b0 | **Minimum HA**: 2024.1.0
-> **Aktuelle Version**: v6.0.0b0 | **Minimale HA-Version**: 2024.1.0
+> **当前版本**: v6.0.0b1 | **最低 HA 版本**: 2024.1.0
+> **Current version**: v6.0.0b1 | **Minimum HA**: 2024.1.0
+> **Aktuelle Version**: v6.0.0b1 | **Minimale HA-Version**: 2024.1.0
 
 > **⚠️ 前置条件 / Prerequisite / Voraussetzung**: 必须先安装并配置好 [HACS](https://hacs.xyz) / [HACS](https://hacs.xyz) must be installed and configured / [HACS](https://hacs.xyz) muss installiert und konfiguriert sein.
 
@@ -246,6 +246,21 @@ Konfigurieren Sie das Panel-Verhalten, prüfen Sie Versionsinformationen, starte
 ---
 
 ## 更新日志 / Changelog / Änderungsprotokoll
+
+### v6.0.0b1 (2026-07-01) — 架构拆分 Beta / Architecture Split Beta
+- **New**: 🏗️ **api.py 拆分** — 3,717 行 api.py 拆分为 `api.py` + `api_config_flow.py` + `api_repos.py`，通过 Mixin 组合继承
+  — *api.py split into 3 files via Python mixin inheritance — 3,717→1,978 lines*
+- **Fix**: 🌐 **语言切换全界面生效** — 解决切换语言后筛选栏/列头不刷新的问题，选项数组改为语言变化时重建
+  — *Language switch now applies to ALL UI elements — filter chips, column headers, and sort labels*
+- **Fix**: 🐛 **3 个翻译键补全 + 1 个拼写修正** — `loadingUpdates`/`processing`/`inputRepoPlaceholder` 新增，`verifing`→`verifying`
+  — *Fixed 3 missing translation keys + 1 typo*
+- **Fix**: 🐛 **6 处硬编码中文替换** — repo-card/browse/management/integrations-list 中硬编码中文改为 `t()` 调用
+  — *Replaced 6 hardcoded Chinese strings with t() calls*
+- **Fix**: 🔄 **导航时语言切换即时刷新** — 子视图监听 `hacs-lang-changed` 事件，确保切换 Tab 后文字仍为所选语言
+  — *Child views re-render immediately on language change, even across tab switches*
+- **Docs**: 📖 **README 三语化** — 全部章节新增德语版本
+  — *README now trilingual (zh/en/de)*
+- **Chore**: 版本号升级至 v6.0.0b1 / Version bump to v6.0.0b1
 
 ### v6.0.0b0 (2026-06-30) — 多语言 Beta / Multilingual Beta
 - **New**: 🌍 **多语言支持架构** — 重构 i18n 引擎，语言检测从二元硬编码升级为可扩展映射表 (`LANG_MAP`)
