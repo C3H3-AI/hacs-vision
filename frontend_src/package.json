@@ -1,6 +1,6 @@
 {
   "name": "hacs-vision-panel",
-  "version": "3.0.0",
+  "version": "6.0.0b0",
   "private": true,
   "type": "module",
   "scripts": {

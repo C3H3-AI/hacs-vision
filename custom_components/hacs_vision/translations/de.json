@@ -1,0 +1,70 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "HACS Vision",
+        "description": "HACS Vision-Panel einrichten. Stellen Sie sicher, dass HACS bereits installiert ist."
+      }
+    },
+    "abort": {
+      "single_instance_allowed": "Es ist nur eine einzige Instanz von HACS Vision erlaubt.",
+      "hacs_not_found": "Die HACS-Integration wird benötigt, wurde aber nicht gefunden."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "HACS Vision",
+        "description": "Aktuelle Version: {version}\n\nFür diese Integration ist keine zusätzliche Konfiguration erforderlich."
+      }
+    }
+  },
+  "services": {
+    "refresh": {
+      "name": "HACS-Daten aktualisieren",
+      "description": "Erzwingt eine Aktualisierung der HACS-Repository-Daten."
+    },
+    "install_repository": {
+      "name": "Repository installieren",
+      "description": "Installiert ein Repository aus HACS.",
+      "fields": {
+        "repository": {
+          "name": "Repository",
+          "description": "Vollständiger Name des Repositorys (Autor/Repo)."
+        },
+        "category": {
+          "name": "Kategorie",
+          "description": "Repository-Kategorie."
+        }
+      }
+    },
+    "find_entity_refs": {
+      "name": "Entity-Referenzen suchen",
+      "description": "Findet alle Referenzen auf eine Entity-ID in HA (Automationen, Skripte, Szenen, Dashboards, Blueprints).",
+      "fields": {
+        "entity_id": {
+          "name": "Entity-ID",
+          "description": "Die zu suchende Entity-ID (z.B. sensor.temperature)."
+        }
+      }
+    },
+    "replace_entity_refs": {
+      "name": "Entity-Referenzen ersetzen",
+      "description": "Ersetzt alle Referenzen auf eine alte Entity-ID durch eine neue in HA.",
+      "fields": {
+        "old_id": {
+          "name": "Alte Entity-ID",
+          "description": "Die alte zu ersetzende Entity-ID."
+        },
+        "new_id": {
+          "name": "Neue Entity-ID",
+          "description": "Die neue Entity-ID, durch die ersetzt wird."
+        },
+        "preview": {
+          "name": "Vorschaumodus",
+          "description": "True für Vorschau, False für Ausführung der Ersetzung."
+        }
+      }
+    }
+  }
+}

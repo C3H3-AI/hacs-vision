@@ -1,7 +1,7 @@
 import { LitElement, html, css } from 'lit';
 import { api } from './api.js';
 import { themeMixin } from './theme.js';
-import { t, setLangFromHass } from './i18n.js';
+import { t, setLang, setLangFromHass } from './i18n.js';
 import { getCategoryColor } from './shared/constants.js';
 import { getCommonStyles } from './shared/styles.js';
 import { updateSidebarBadge } from './shared/sidebar-badge.js';
@@ -112,6 +112,8 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
         this._updatePageTitle(this.currentView);
         // Parallel init: stats (includes favorites) + config entries
         Promise.all([this._loadStats(), this._loadConfigEntries()]).catch(e => console.error('Init error:', e));
+        // Apply saved language setting on init
+        this._initLanguage();
         // F2: Register network status callback once
         api._onNetworkStatus = (status) => { this._networkStatus = status; };
       }
@@ -1053,6 +1055,17 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
       this._configEntries = map;
     } catch {
       this._configEntries = {};
+    }
+  }
+
+  async _initLanguage() {
+    try {
+      const settings = await api.getSettings();
+      if (settings?.language) {
+        setLang(settings.language);
+      }
+    } catch {
+      // Fall back to HA auto-detect (already set by setLangFromHass)
     }
   }
 

@@ -7,8 +7,8 @@
 [![Stars](https://img.shields.io/github/stars/C3H3-AI/hacs-vision)](https://github.com/C3H3-AI/hacs-vision/stargazers)
 [![License](https://img.shields.io/github/license/C3H3-AI/hacs-vision)](LICENSE)
 
-> **当前版本**: v5.2.0 | **最低 HA 版本**: 2024.1.0
-> **Current version**: v5.2.0 | **Minimum HA**: 2024.1.0
+> **当前版本**: v6.0.0b0 | **最低 HA 版本**: 2024.1.0
+> **Current version**: v6.0.0b0 | **Minimum HA**: 2024.1.0
 
 > **⚠️ 前置条件 / Prerequisite**: 必须先安装并配置好 [HACS](https://hacs.xyz) / [HACS](https://hacs.xyz) must be installed and configured.
 
@@ -181,6 +181,17 @@ Configure panel behavior, check version info, restart HA, or add new HA integrat
 ---
 
 ## 更新日志 / Changelog
+
+### v6.0.0b0 (2026-06-30) — 多语言 Beta / Multilingual Beta
+- **New**: 🌍 **多语言支持架构** — 重构 i18n 引擎，语言检测从二元硬编码升级为可扩展映射表 (`LANG_MAP`)
+  — *Multi-language engine — language detection upgraded from hardcoded binary to extensible LANG_MAP*
+- **New**: 🇩🇪 **德语翻译** — 由社区贡献者支持，200+ 前端键完整翻译 + 后端 `de.json`
+  — *German (de) translations — 200+ frontend keys + backend de.json*
+- **New**: 🔠 **设置页语言选择器** — 可在设置页手动选择语言，覆盖 HA 系统语言检测
+  — *Language selector in settings — manual override for HA system language*
+- **New**: 🧩 **第三方语言扩展** — 新语言只需 2 步：加 `LANG_MAP` 映射 + 写翻译键。零代码改检测逻辑
+  — *Third-party language extension — 2 steps: LANG_MAP entry + translation keys. No detection logic changes*
+- **Chore**: 版本号升级至 v6.0.0b0 / Version bump to v6.0.0b0
 
 ### v5.2.0 (2026-06-30) — 跳过版本 + 全面优化 / Skip Version + Full Optimization
 - **New**: 🐛 **直接提交 GitHub Issue** — 在卡片和详情弹窗中一键提交 Issue，自动收集日志、系统信息、上传截图，支持 GitHub 截图粘贴

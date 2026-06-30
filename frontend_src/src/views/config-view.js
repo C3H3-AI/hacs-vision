@@ -1,6 +1,6 @@
 import { LitElement, html, css } from 'lit';
 import { api } from '../api.js';
-import { t } from '../i18n.js';
+import { t, setLang, getLang, getAvailableLanguages } from '../i18n.js';
 import { getCommonStyles } from '../shared/styles.js';
 import { ConfirmDialog } from '../shared/confirm-dialog.js';
 import { showToast } from '../hacs-vision-panel.js';
@@ -125,6 +125,10 @@ class ConfigView extends LitElement {
   async _load() {
     try {
       this._settings = (await api.getSettings()) || {};
+      // Apply saved language override after loading settings
+      if (this._settings.language) {
+        setLang(this._settings.language);
+      }
     } catch(e) {
       console.error('Settings load failed:', e);
       this._settings = {};
@@ -203,6 +207,12 @@ class ConfigView extends LitElement {
 
   async _set(key, val) {
     this._settings = { ...this._settings, [key]: val };
+    await this._save();
+  }
+
+  async _onLanguageChange(newLang) {
+    setLang(newLang);
+    this._settings = { ...this._settings, language: newLang };
     await this._save();
   }
 
@@ -598,6 +608,19 @@ class ConfigView extends LitElement {
                     @change=${e => this._toggleImmediate('hide_hacs_panel', e.target.checked)}>
                   <span class="slider"></span>
                 </label>
+              </div>
+            </div>
+            <div class="setting-row">
+              <div class="setting-info">
+                <div class="label">${t('settingsLanguage')}</div>
+              </div>
+              <div class="setting-control">
+                <select @change=${e => this._onLanguageChange(e.target.value)}
+                  .value=${this._settings.language || getLang()}>
+                  ${getAvailableLanguages().map(lang => html`
+                    <option value=${lang.code}>${lang.nativeLabel} (${lang.label})</option>
+                  `)}
+                </select>
               </div>
             </div>
           </div>
