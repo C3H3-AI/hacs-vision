@@ -662,6 +662,10 @@ const T = {
   issueSuccess: { zh: 'Issue #{n} 已创建', en: 'Issue #{n} created', de: 'Issue #{n} erstellt' },
   issueFailed: { zh: 'Issue 提交失败', en: 'Failed to create issue', de: 'Issue-Erstellung fehlgeschlagen' },
   issueNotLoggedIn: { zh: '请先登录 GitHub（设置 → GitHub Token）', en: 'Please login to GitHub first (Settings → GitHub Token)', de: 'Bitte zuerst bei GitHub anmelden (Einstellungen → GitHub-Token)' },
+
+  // Missing keys audit fix
+  loadingUpdates: { zh: '正在加载更新...', en: 'Loading updates...', de: 'Lade Aktualisierungen...' },
+  processing: { zh: '处理中...', en: 'Processing...', de: 'Verarbeite...' },
 };
 
 /* ── Translation Lookup ─────────────────────────────────── */

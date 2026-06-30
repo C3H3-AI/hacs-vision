@@ -732,11 +732,11 @@ class ConfigView extends LitElement {
         showToast(t('githubLoginSuccess', { user: result.user }), 'success');
         this._autoStar();
       } else {
-        this._githubVerifyMsg = result?.error || t('verifing');
+        this._githubVerifyMsg = result?.error || t('verifying');
         this._githubVerifyOk = false;
       }
     } catch(e) {
-      this._githubVerifyMsg = t('errorPrefix', { action: t('verifing'), err: e.message });
+      this._githubVerifyMsg = t('errorPrefix', { action: t('verifying'), err: e.message });
       this._githubVerifyOk = false;
     }
     this._githubVerifying = false;
