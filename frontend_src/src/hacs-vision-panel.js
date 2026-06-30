@@ -18,7 +18,6 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
     _detailRepo: { type: Object, state: true },
     _showDetail: { type: Boolean, state: true },
     _favoriteCount: { type: Number, state: true },
-    _showIssueDialog: { type: Boolean, state: true },
     _readmeHtml: { type: String, state: true },
     _readmeLoading: { type: Boolean, state: true },
     _viewTransition: { type: Boolean, state: true },
@@ -63,10 +62,6 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
     this._favoriteCount = 0;
     this._readmeHtml = null;
     this._readmeLoading = false;
-    this._showIssueDialog = false;
-    this._issueTitle = '';
-    this._issueBody = '';
-    this._issueScreenshot = null;
     this._viewTransition = false;
     this._networkStatus = 'online';
     this._restarting = false;
@@ -1370,7 +1365,7 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
     // Version-specific ignore (when update is available)
     const fullName = this._detailRepo?.full_name || (this._detailRepo?.repository || '').replace('https://github.com/', '');
     if (isUpdateAvailable && fullName) {
-      const availVer = r.available_version;
+      const availVer = r.available_version || r.latest_version;
       const isVerIgnored = this._ignoredVersions?.[fullName] === availVer;
       buttons.push(html`
         <button class="modal-btn" style="color:${isVerIgnored ? '#4caf50' : '#ff9800'};border-color:${isVerIgnored ? '#4caf50' : '#ff9800'};"
@@ -1517,7 +1512,7 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
         return;
       } else if (action === 'ignore-version') {
         const fullName = repo.full_name || (repo.repository || '').replace('https://github.com/', '');
-        const version = repo.available_version;
+        const version = repo.available_version || repo.latest_version;
         if (!fullName || !version) return;
         const { ConfirmDialog } = await import('./shared/confirm-dialog.js');
         const ok = await ConfirmDialog.show(this, {
@@ -2136,41 +2131,6 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
         .open=${this._showConfigFlow}
         @close=${this._onFlowClose}>
       </config-flow-dialog>
-
-      ${this._showIssueDialog ? html`
-      <div class="modal-overlay" @click=${e => { if (e.target === e.currentTarget) this._showIssueDialog = false; }}>
-        <div class="issue-dialog" style="background:var(--card-background-color,#fff);border-radius:16px;padding:24px;max-width:520px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,0.3);animation:slideUp .2s ease;">
-          <div style="font-size:17px;font-weight:600;margin-bottom:4px;color:var(--primary-text-color,#212121);">${t('reportIssue')}</div>
-          <div style="font-size:13px;color:var(--secondary-text-color,#727272);margin-bottom:16px;">${this._issueRepo}</div>
-          <input class="issue-dialog-input" .value=${this._issueTitle}
-            @input=${e => this._issueTitle = e.target.value}
-            placeholder="${t('issueTitlePlaceholder')}"
-            style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid var(--divider-color,#e0e0e0);border-radius:8px;background:var(--input-background-color,#f5f5f5);color:var(--primary-text-color);font-size:14px;margin-bottom:10px;">
-          <textarea .value=${this._issueBody}
-            @input=${e => this._issueBody = e.target.value}
-            placeholder="${t('issueBody')}"
-            style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid var(--divider-color,#e0e0e0);border-radius:8px;background:var(--input-background-color,#f5f5f5);color:var(--primary-text-color);font-size:14px;min-height:120px;resize:vertical;margin-bottom:10px;"></textarea>
-          <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--secondary-text-color);margin-bottom:12px;cursor:pointer;">
-            <input type="file" accept="image/*" @change=${e => {
-              const file = e.target.files?.[0];
-              if (file) {
-                if (file.size > 5 * 1024 * 1024) { showToast('截图过大（>5MB）', 'error'); return; }
-                const reader = new FileReader();
-                reader.onload = () => { this._issueScreenshot = reader.result; this.requestUpdate(); };
-                reader.readAsDataURL(file);
-              }
-            }} style="display:none;">
-            <span style="font-size:20px;">📷</span>
-            ${this._issueScreenshot ? '✓ 已选择截图' : '上传截图（可选）'}
-          </label>
-          <div style="display:flex;gap:8px;justify-content:flex-end;">
-            <button @click=${() => this._showIssueDialog = false}
-              style="padding:8px 20px;border-radius:8px;border:1px solid var(--divider-color);background:var(--card-background-color);color:var(--primary-text-color);cursor:pointer;font-size:13px;">${t('issueCancel')}</button>
-            <button @click=${() => this._submitIssueDialog()}
-              style="padding:8px 20px;border-radius:8px;border:none;background:var(--primary-color,#03a9f4);color:#fff;cursor:pointer;font-size:13px;font-weight:500;">${t('issueConfirm')}</button>
-          </div>
-        </div>
-      </div>` : ''}
     `;
   }
 }

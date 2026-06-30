@@ -400,6 +400,53 @@ class HACSOperator:
 
         return updates
 
+    async def get_updates_from_ha_entities(self) -> list[dict]:
+        """Get repositories with available updates from HA update.* entities.
+
+        Primary data source — reads HA state machine directly instead of iterating
+        HACS internal data. Falls back to HACS repo index only for category/name.
+        """
+        updates = []
+        try:
+            for state in self.hass.states.async_all():
+                eid = state.entity_id
+                if not eid.startswith("update."):
+                    continue
+                if state.state != "on":
+                    continue
+                release_url = (state.attributes.get("release_url", "") or "")
+                if "github.com" not in release_url.lower():
+                    continue
+                # Parse owner/repo from release_url
+                # Pattern: https://github.com/owner/repo/...
+                path = release_url.replace("https://github.com/", "").replace("http://github.com/", "")
+                parts = path.split("/")
+                if len(parts) < 2:
+                    continue
+                full_name = f"{parts[0]}/{parts[1]}"
+                # Look up HACS repo for category and name
+                repo = self._find_repo_by_full_name(full_name)
+                category = repo.data.category if repo else "integration"
+                name = (repo.data.name or parts[1]) if repo else parts[1]
+                pending_restart = repo.data.pending_restart if repo else False
+                updates.append({
+                    "id": str(repo.data.id) if repo else full_name,
+                    "full_name": full_name,
+                    "name": name,
+                    "installed_version": state.attributes.get("installed_version"),
+                    "latest_version": state.attributes.get("latest_version"),
+                    "skipped_version": state.attributes.get("skipped_version"),
+                    "in_progress": state.attributes.get("in_progress", False),
+                    "category": category,
+                    "installed": True,
+                    "has_update": True,
+                    "pending_restart": pending_restart,
+                })
+        except (AttributeError, TypeError) as e:
+            _LOGGER.error("get_updates_from_ha_entities error: %s", e, exc_info=True)
+
+        return updates
+
     async def get_all_repos_from_hacs(self) -> list[dict]:
         """Get ALL repositories from HACS in-memory data (same source as HACS UI)."""
         if not self.available:

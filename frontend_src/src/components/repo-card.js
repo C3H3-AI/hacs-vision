@@ -18,7 +18,6 @@ class RepoCard extends LitElement {
     renamedFrom: { type: String },
     showRemoveBtn: { type: Boolean },
     configEntries: { type: Object },
-    _issueDialog: { type: Boolean, state: true },
   };
 
   constructor() {
@@ -34,7 +33,6 @@ class RepoCard extends LitElement {
     this.renamedFrom = null;
     this.showRemoveBtn = false;
     this.configEntries = {};
-    this._issueDialog = false;
   }
 
   willUpdate(changedProps) {
@@ -643,7 +641,6 @@ class RepoCard extends LitElement {
           <button class="issue-btn" @click=${e => { e.stopPropagation(); this._handleReportIssue(); }}
                   title="${t('reportIssueDesc')}">🐛 ${t('reportIssue')}</button>
         </div>
-        ${this._issueDialog ? html`${this._renderIssueDialog(r)}` : ''}
       </div>
     `;
   }

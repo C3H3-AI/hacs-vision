@@ -24,6 +24,8 @@ class UpdatesView extends LitElement {
     _categoryFilter: { type: String, state: true },
     _filterExpanded: { type: Boolean, state: true },
     _updateProgress: { type: Object, state: true },
+    _skippedVersions: { type: Array, state: true },
+    _showSkipped: { type: Boolean },
   };
 
   constructor() {
@@ -44,6 +46,8 @@ class UpdatesView extends LitElement {
     this._batchMode = false;
     this._favs = {};
     this._updateProgress = null;
+    this._skippedVersions = [];
+    this._showSkipped = false;
     const saved = (() => { try { return localStorage.getItem('hacs_vision_view_mode'); } catch { return null; } })();
     this._viewMode = saved || 'card';
     this._filterExpanded = false;
@@ -55,6 +59,54 @@ class UpdatesView extends LitElement {
       :host { display: block; touch-action: manipulation; background: var(--primary-background-color); }
 
       .controls-right { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+      .controls-right .btn-icon {
+        width: 36px; height: 36px; padding: 0; border-radius: 10px;
+        border: 1px solid var(--divider-color); background: var(--card-background-color);
+        color: var(--secondary-text-color); cursor: pointer; display: flex;
+        align-items: center; justify-content: center; touch-action: manipulation; font-size: 14px;
+      }
+      .controls-right .btn-icon:hover { border-color: var(--primary-color); color: var(--primary-color); }
+      .controls-right .btn-icon.active { background: var(--primary-color); border-color: var(--primary-color); color: #fff; }
+
+      /* ===== Skipped versions section ===== */
+      .skipped-section {
+        margin-top: 16px; padding: 16px; background: var(--card-background-color, #fff);
+        border-radius: 14px; border: 1px solid var(--divider-color, #e0e0e0);
+        animation: fadeSlideIn 0.2s ease;
+      }
+      @keyframes fadeSlideIn {
+        from { opacity: 0; transform: translateY(-8px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+      .skipped-header {
+        display: flex; align-items: center; gap: 8px; margin-bottom: 12px;
+        font-size: 13px; font-weight: 600; color: var(--primary-text-color);
+      }
+      .skipped-count { color: var(--secondary-text-color); font-weight: 400; }
+      .skipped-list { display: flex; flex-direction: column; gap: 6px; }
+      .skipped-item {
+        display: flex; align-items: center; gap: 10px;
+        padding: 10px 14px;
+        background: var(--secondary-background-color, #f5f5f5);
+        border-radius: 10px; border: 1px solid var(--divider-color, #e0e0e0);
+        transition: background 0.15s;
+      }
+      .skipped-item:hover { background: var(--card-background-color); }
+      .skipped-name {
+        flex: 1; font-size: 13px; color: var(--primary-text-color);
+        overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+      }
+      .skipped-version {
+        font-size: 11px; color: var(--secondary-text-color); flex-shrink: 0;
+        padding: 2px 8px; background: rgba(255,152,0,0.12); border-radius: 4px;
+      }
+      .skipped-unskip {
+        flex-shrink: 0; padding: 4px 12px; font-size: 11px; border-radius: 6px;
+        border: 1px solid var(--primary-color); color: var(--primary-color);
+        background: transparent; cursor: pointer; transition: all 0.15s;
+        touch-action: manipulation;
+      }
+      .skipped-unskip:hover { background: var(--primary-color); color: #fff; }
 
       .card {
         border: 1px solid var(--divider-color); border-radius: 14px;
@@ -423,7 +475,7 @@ class UpdatesView extends LitElement {
       this.updates = [];
     }
     this.loading = false;
-    // 后台逐步加载 changelog（分卡片加载，已在 _lazyLoadChangelogs 中实现）
+    await this._loadSkippedVersions();
   }
 
   /* 检查更新：refresh + 刷新列表 + 显示进度 */
@@ -437,6 +489,7 @@ class UpdatesView extends LitElement {
       this.updates = Array.isArray(result) ? result : (result.updates || []);
       this._changelogs = {};
       this._lazyLoadChangelogs();
+      this._loadSkippedVersions();
       this.dispatchEvent(new CustomEvent('refresh-stats', { bubbles: true, composed: true }));
     } catch(e) {
       console.error('Refresh failed', e);
@@ -464,6 +517,7 @@ class UpdatesView extends LitElement {
       // 只获取缓存的更新列表，不调 refresh（慢）
       const result = await api.getUpdates();
       this.updates = Array.isArray(result) ? result : (result.updates || []);
+      this._loadSkippedVersions();
     } catch(e) {
       console.error('Failed to load updates', e);
       this.updates = [];
@@ -541,6 +595,34 @@ class UpdatesView extends LitElement {
       this._updateProgress = null;
     }
     this.updating = false;
+  }
+
+  /* "Skip Selected" — skip version for all checked repos */
+  async _skipSelected() {
+    const ids = Object.keys(this._selectedIds).filter(k => this._selectedIds[k]);
+    if (ids.length === 0) return;
+    const confirmed = await ConfirmDialog.show(this, {
+      message: `确定要跳过 ${ids.length} 个仓库的当前版本？下个新版本会正常提醒。`,
+      confirmText: t('ignoreVersion'),
+      danger: false,
+    });
+    if (!confirmed) return;
+    let skipped = 0;
+    for (const rid of ids) {
+      const repo = this.updates.find(r => (r.id || r.full_name) === rid);
+      if (!repo?.latest_version) continue;
+      try {
+        await api.ignoreVersion(repo.full_name, repo.latest_version);
+        skipped++;
+      } catch(e) {
+        console.warn(`Skip failed for ${repo.full_name}:`, e);
+      }
+    }
+    showToast(`已跳过 ${skipped}/${ids.length} 个版本`, 'success');
+    this._selectedIds = {};
+    this._load();
+    this._loadSkippedVersions();
+    this.dispatchEvent(new CustomEvent('refresh-stats', { bubbles: true, composed: true }));
   }
 
   /* "Update All" — updates ALL repos with real-time progress */
@@ -686,6 +768,58 @@ class UpdatesView extends LitElement {
     }
   }
 
+  async _skipVersion(repo) {
+    const fullName = repo.full_name;
+    if (!fullName) return;
+    const version = repo.latest_version;
+    if (!version) return;
+    const ok = await ConfirmDialog.show(this, {
+      message: t('confirmIgnoreVersion', { repo: fullName, version }),
+      confirmText: t('ignoreVersion'),
+      danger: false,
+    });
+    if (!ok) return;
+    try {
+      await api.ignoreVersion(fullName, version);
+      showToast(`${t('ignoreVersion')}: ${version}`, 'success');
+      // Reload updates — the skipped repo will no longer be in the list
+      const result = await api.getUpdates();
+      this.updates = Array.isArray(result) ? result : (result.updates || []);
+      this._loadSkippedVersions();
+      this.dispatchEvent(new CustomEvent('refresh-stats', { bubbles: true, composed: true }));
+    } catch(e) {
+      showToast(`${t('ignoreVersion')} 失败: ${e.message}`, 'error');
+    }
+  }
+
+  async _loadSkippedVersions() {
+    try {
+      const result = await api.getSkippedVersions();
+      this._skippedVersions = (result && result.skipped) || [];
+    } catch(e) {
+      this._skippedVersions = [];
+    }
+    this.requestUpdate();
+  }
+
+  async _unskipVersion(sv) {
+    const ok = await ConfirmDialog.show(this, {
+      message: `确定取消跳过 ${sv.full_name} 的版本 ${sv.skipped_version}？`,
+      confirmText: t('unignoreVersion'),
+      danger: false,
+    });
+    if (!ok) return;
+    try {
+      await api.unignoreVersion(sv.full_name);
+      showToast(`${t('unignoreVersion')}: ${sv.full_name}`, 'success');
+      this._loadSkippedVersions();
+      this._load();  // Reload updates list to show the now-available update
+      this.dispatchEvent(new CustomEvent('refresh-stats', { bubbles: true, composed: true }));
+    } catch(e) {
+      showToast(`取消跳过失败: ${e.message}`, 'error');
+    }
+  }
+
   _getFiltered() {
     let list = this.updates;
     if (this._categoryFilter && this._categoryFilter !== 'all') {
@@ -790,6 +924,10 @@ class UpdatesView extends LitElement {
               ? html`<svg class="mini-icon spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>`
               : html`<svg class="mini-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg> ${t('updateNow')}`}
           </button>
+          <button class="btn" style="padding:4px 8px;font-size:11px;margin-left:4px;color:var(--secondary-text-color);"
+                  @click=${(e) => { e.stopPropagation(); this._skipVersion(r); }}>
+            🔕 ${t('ignoreVersion')}
+          </button>
         </td>
       </tr>
     `;
@@ -868,6 +1006,11 @@ class UpdatesView extends LitElement {
           `)}
           </div>
           <div class="fs-actions">
+            ${this._skippedVersions && this._skippedVersions.length > 0 ? html`
+              <button class="chip" @click=${() => { this._showSkipped = !this._showSkipped; this.requestUpdate(); }}>
+                🔇 ${this._showSkipped ? '隐藏' : '显示'}已跳过更新 (${this._skippedVersions.length})
+              </button>
+            ` : ''}
             ${this._selectedCount() > 0 ? html`
               <button class="update-all-btn selected-btn" @click=${this._updateSelected} ?disabled=${this.updating || this._selectedCount() === 0}>
                 <svg class="mini-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="10"/></svg> ${t('updateSelected')} (${this._selectedCount() || 0})
@@ -921,6 +1064,7 @@ class UpdatesView extends LitElement {
             <span style="font-weight:600;">${t('selected')}: ${this._selectedCount()}</span>
             <div class="batch-actions">
               <button class="batch-bar-btn" @click=${this._updateSelected} ?disabled=${this.updating}>${t('batchUpdate')}</button>
+              <button class="batch-bar-btn" style="color:var(--warning-color,#ff9800);border-color:var(--warning-color,#ff9800);" @click=${this._skipSelected} ?disabled=${this.updating}>🔕 批量跳过</button>
               <button class="batch-bar-btn danger" @click=${() => this._batchDo('remove')} ?disabled=${this.updating}>${t('batchRemove')}</button>
               <button class="batch-bar-btn" style="background:transparent;border-color:transparent;font-size:14px;" @click=${() => { this._selectedIds = {}; this.requestUpdate(); }}>✕</button>
             </div>
@@ -1008,17 +1152,71 @@ class UpdatesView extends LitElement {
                   ` : ''}
                 </div>
                 <div class="actions">
+                  ${r.pending_restart ? html`
+                    <button class="action-btn primary" @click=${(e) => { e.stopPropagation(); this.dispatchEvent(new CustomEvent('restart-ha', { bubbles: true, composed: true })); }}
+                      style="flex:1;background:var(--primary-color,#03a9f4);color:#fff;border-color:var(--primary-color,#03a9f4);">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
+                      ${t('pendingRestart')}
+                    </button>
+                  ` : html`
                   <button class="action-btn primary ${isInstalling ? 'installing' : ''}"
                     @click=${() => this._updateOne(r)} ?disabled=${isInstalling || this.updating}>
                     ${isInstalling
                       ? html`<svg class="mini-icon spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> ${t('updatingProgress')}`
                       : html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg> ${t('updateNow')}`}
                   </button>
+                  <button class="action-btn" @click=${() => this._skipVersion(r)}
+                    style="color:var(--secondary-text-color);font-size:12px;min-width:auto;padding:8px 10px;">
+                    🔕 ${t('ignoreVersion')}
+                  </button>
+                  `}
                 </div>
               </div>
             `;})}
           </div>
         `}
+
+        <!-- 已跳过的版本 (按钮控制显示) -->
+        ${this._showSkipped && this._skippedVersions && this._skippedVersions.length > 0 ? html`
+          <div style="margin-top:16px;padding:16px;background:var(--card-background-color,#fff);border-radius:14px;border:1px solid var(--divider-color,#e0e0e0);">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+              <span style="font-size:14px;">🔇</span>
+              <span style="font-size:14px;font-weight:600;color:var(--primary-text-color);">已跳过版本</span>
+              <span style="font-size:12px;color:var(--secondary-text-color);">· ${this._skippedVersions.length} 个 · 点击上方按钮可隐藏</span>
+            </div>
+            <div class="grid">
+              ${this._skippedVersions.map(sv => html`
+                <div class="card" style="opacity:0.75;">
+                  <div class="img-container">
+                    <div class="avatar" style="background:#9e9e9e;display:flex;align-items:center;justify-content:center;">
+                      <span class="initials">${(sv.full_name || '?').charAt(0).toUpperCase()}</span>
+                    </div>
+                    <span class="status-badge-update" style="background:rgba(158,158,158,0.85)">🔇 已跳过</span>
+                  </div>
+                  <div class="card-body">
+                    <div class="card-name">${sv.full_name || '?'}</div>
+                    <div class="version-row">
+                      <div class="version-item">
+                        <div class="version-label">${t('currentVersion')}</div>
+                        <div class="version-value old">${sv.installed_version || '?'}</div>
+                      </div>
+                      <div class="version-item">
+                        <div class="version-label">跳过的版本</div>
+                        <div class="version-value" style="color:#9e9e9e;text-decoration:line-through;">${sv.skipped_version || '?'}</div>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="actions" style="justify-content:flex-end;">
+                    <button class="action-btn" @click=${() => this._unskipVersion(sv)}
+                      style="color:var(--primary-color);border-color:var(--primary-color);padding:8px 16px;">
+                      取消跳过
+                    </button>
+                  </div>
+                </div>
+              `)}
+            </div>
+          </div>
+        ` : ''}
       `}
     `;
   }

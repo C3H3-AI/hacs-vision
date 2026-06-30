@@ -1019,6 +1019,8 @@ class HACSEnhancedAPI(HomeAssistantView):
             return await self._get_favorites()
         if path in ("ignored-versions", "ignored-versions/"):
             return await self._get_ignored_versions()
+        if path in ("skipped-versions", "skipped-versions/"):
+            return await self._get_skipped_versions()
         if path in ("settings", "settings/"):
             return await self._get_settings()
         if path.startswith("devices/"):
@@ -1518,6 +1520,30 @@ class HACSEnhancedAPI(HomeAssistantView):
         if not repos:
             repos = await self.data.get_all_repositories()
 
+        # Cross-reference HA entities: clear has_update for skipped versions
+        try:
+            skipped_map = {}
+            for state in self.hass.states.async_all():
+                if not state.entity_id.startswith("update."):
+                    continue
+                skipped = state.attributes.get("skipped_version")
+                if not skipped:
+                    continue
+                ru = (state.attributes.get("release_url", "") or "")
+                if "github.com" not in ru.lower():
+                    continue
+                path = ru.replace("https://github.com/", "").replace("http://github.com/", "")
+                parts = path.split("/")
+                if len(parts) >= 2:
+                    skipped_map[f"{parts[0]}/{parts[1]}"] = skipped
+            if skipped_map:
+                for r in repos:
+                    fn = r.get("full_name", "")
+                    if fn in skipped_map:
+                        r["has_update"] = False
+        except Exception:
+            pass
+
         # Merge install times
         install_times = await self.data.get_install_times()
         for r in repos:
@@ -1704,28 +1730,65 @@ class HACSEnhancedAPI(HomeAssistantView):
             domain = item.get("domain")
             if domain and domain in entry_map:
                 item["config_entry_id"] = entry_map[domain][0]
+        # Cross-reference HA entities: clear has_update for skipped versions
+        try:
+            skipped_map = {}
+            for state in self.hass.states.async_all():
+                if not state.entity_id.startswith("update."):
+                    continue
+                skipped = state.attributes.get("skipped_version")
+                if not skipped:
+                    continue
+                ru = (state.attributes.get("release_url", "") or "")
+                if "github.com" not in ru.lower():
+                    continue
+                path = ru.replace("https://github.com/", "").replace("http://github.com/", "")
+                parts = path.split("/")
+                if len(parts) >= 2:
+                    skipped_map[f"{parts[0]}/{parts[1]}"] = skipped
+            if skipped_map:
+                for item in installed:
+                    fn = item.get("full_name", "")
+                    if fn in skipped_map:
+                        item["has_update"] = False
+        except Exception:
+            pass
         return web.json_response({"installed": installed})
 
     async def _get_stats(self) -> web.Response:
         repos = await self.operator.get_all_repos_from_hacs()
         if not repos:
             repos = await self.data.get_all_repositories()
-        # Get HACS ignored repos + version ignored versions
+        # Get HACS ignored repos + pending_restart
         config = await self.data.get_config()
         ignored_set = set(config.get("ignored_repositories", []))
-        ignored_ver_data = await self.data.read_storage("ignored_versions")
-        ignored_versions = ignored_ver_data.get("data", {}) if ignored_ver_data else {}
+        pending_restart_set = set()
+        for r in repos:
+            if r.get("pending_restart"):
+                fn = r.get("full_name") or str(r.get("id", ""))
+                pending_restart_set.add(fn)
         installed_count = sum(1 for r in repos if r.get("installed"))
-        # Exclude: whole-repo ignored + version-ignored
-        def _is_update_ignored(r):
-            if not r.get("has_update"):
-                return True  # no update = ignore from update count
-            rid = r.get("full_name") or r.get("id")
-            if rid in ignored_set:
-                return True
-            av = r.get("available_version", "")
-            return rid in ignored_versions and ignored_versions[rid] == av
-        updates_count = sum(1 for r in repos if not _is_update_ignored(r))
+        # Count updates from HA update entities (excludes skipped natively + pending_restart)
+        updates_count = 0
+        try:
+            for state in self.hass.states.async_all():
+                eid = state.entity_id
+                if not eid.startswith("update."):
+                    continue
+                if state.state != "on":
+                    continue
+                release_url = (state.attributes.get("release_url", "") or "")
+                if "github.com" not in release_url.lower():
+                    continue
+                # Parse full_name to cross-check
+                path = release_url.replace("https://github.com/", "").replace("http://github.com/", "")
+                parts = path.split("/")
+                if len(parts) >= 2:
+                    full_name = f"{parts[0]}/{parts[1]}"
+                    if full_name not in ignored_set and full_name not in pending_restart_set:
+                        updates_count += 1
+        except Exception:
+            pass
         new_count = sum(1 for r in repos if r.get("new") or r.get("status") == "new")
         pending_restart_count = sum(1 for r in repos if r.get("pending_restart"))
         custom_count = sum(1 for r in repos if r.get("custom") or r.get("is_custom"))
@@ -1754,7 +1817,32 @@ class HACSEnhancedAPI(HomeAssistantView):
         })
 
     async def _get_updates(self) -> web.Response:
-        updates = await self.operator.get_available_updates()
+        """Get available updates — HACS data filtered by HA entity states (skip/pending_restart)."""
+        updates = await self.operator.get_updates_from_ha_entities()
+        if not updates:
+            # Fallback: HACS API, then filter skipped/pending via HA entities
+            hacs_updates = await self.operator.get_available_updates()
+            if hacs_updates:
+                # Build set of skip-eligible repos from HA entities
+                skipped_or_pending = set()
+                try:
+                    for state in self.hass.states.async_all():
+                        if not state.entity_id.startswith("update."):
+                            continue
+                        ru = (state.attributes.get("release_url", "") or "")
+                        if "github.com" not in ru.lower():
+                            continue
+                        path = ru.replace("https://github.com/", "").replace("http://github.com/", "")
+                        parts = path.split("/")
+                        if len(parts) < 2:
+                            continue
+                        fn = f"{parts[0]}/{parts[1]}"
+                        # Skip if: state=off (skipped/up-to-date) OR pending_restart
+                        if state.state != "on":
+                            skipped_or_pending.add(fn)
+                except Exception:
+                    pass
+                updates = [u for u in hacs_updates if (u.get("full_name") or "") not in skipped_or_pending]
         return web.json_response({"updates": updates})
 
     async def _get_config(self) -> web.Response:
@@ -1764,6 +1852,28 @@ class HACSEnhancedAPI(HomeAssistantView):
     async def _get_custom_repos(self) -> web.Response:
         repos = await self.operator.get_all_repos_from_hacs()
         custom = [r for r in repos if r.get("custom") or r.get("is_custom")]
+        # Cross-reference HA entities: clear has_update for skipped versions
+        try:
+            skipped_set = set()
+            for state in self.hass.states.async_all():
+                if not state.entity_id.startswith("update."):
+                    continue
+                skipped = state.attributes.get("skipped_version")
+                if not skipped:
+                    continue
+                ru = (state.attributes.get("release_url", "") or "")
+                if "github.com" not in ru.lower():
+                    continue
+                path = ru.replace("https://github.com/", "").replace("http://github.com/", "")
+                parts = path.split("/")
+                if len(parts) >= 2:
+                    skipped_set.add(f"{parts[0]}/{parts[1]}")
+            if skipped_set:
+                for r in custom:
+                    if r.get("full_name", "") in skipped_set:
+                        r["has_update"] = False
+        except Exception:
+            pass
         # Also refresh star counts for custom repos (they're installed ones)
         try:
             if custom:
@@ -1967,6 +2077,8 @@ class HACSEnhancedAPI(HomeAssistantView):
         ignored[repo] = version
         data["data"] = ignored
         await self.data.write_storage("ignored_versions", data)
+        # Also call HA native update.skip to sync with Settings → Updates
+        await self._call_update_service("skip", repo)
         return web.json_response({"success": True, "repository": repo, "version": version})
 
     async def _unignore_version(self, body: dict) -> web.Response:
@@ -1978,12 +2090,69 @@ class HACSEnhancedAPI(HomeAssistantView):
         if data and repo in data.get("data", {}):
             del data["data"][repo]
             await self.data.write_storage("ignored_versions", data)
+        # Also call HA native update.clear_skipped to sync with Settings → Updates
+        await self._call_update_service("clear_skipped", repo)
         return web.json_response({"success": True, "repository": repo})
+
+    async def _call_update_service(self, action: str, repo_full_name: str):
+        """Call HA update.skip or update.clear_skipped for the matching update entity.
+
+        Matches the entity by checking release_url against the repo's GitHub URL.
+        Silently skips if no matching entity is found (e.g. entity not yet created).
+        """
+        repo_url_prefix = f"https://github.com/{repo_full_name}"
+        target_entity = None
+        for state in self.hass.states.async_all():
+            if not state.entity_id.startswith("update."):
+                continue
+            release_url = (state.attributes.get("release_url", "") or "")
+            if release_url.startswith(repo_url_prefix):
+                target_entity = state.entity_id
+                break
+        if not target_entity:
+            return
+        try:
+            await self.hass.services.async_call(
+                "update", action,
+                {"entity_id": target_entity},
+                blocking=True
+            )
+        except Exception:
+            pass  # best-effort, Vision's own storage still works
 
     async def _get_ignored_versions(self) -> web.Response:
         """Get all ignored versions."""
         data = await self.data.read_storage("ignored_versions")
         return web.json_response(data.get("data", {}) if data else {})
+
+    async def _get_skipped_versions(self) -> web.Response:
+        """Get all skipped versions from HA update entities (native skip)."""
+        skipped = []
+        try:
+            for state in self.hass.states.async_all():
+                if not state.entity_id.startswith("update."):
+                    continue
+                skipped_version = state.attributes.get("skipped_version")
+                if not skipped_version:
+                    continue
+                release_url = (state.attributes.get("release_url", "") or "")
+                if "github.com" not in release_url.lower():
+                    continue
+                # Parse full_name from release_url
+                path = release_url.replace("https://github.com/", "").replace("http://github.com/", "")
+                parts = path.split("/")
+                if len(parts) < 2:
+                    continue
+                full_name = f"{parts[0]}/{parts[1]}"
+                skipped.append({
+                    "full_name": full_name,
+                    "skipped_version": skipped_version,
+                    "latest_version": state.attributes.get("latest_version"),
+                    "installed_version": state.attributes.get("installed_version"),
+                })
+        except (AttributeError, TypeError) as e:
+            _LOGGER.error("_get_skipped_versions error: %s", e, exc_info=True)
+        return web.json_response({"skipped": skipped})
 
     async def _update_config(self, body: dict) -> web.Response:
         result = await self.data.update_config(body)
