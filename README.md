@@ -7,10 +7,15 @@
 [![Stars](https://img.shields.io/github/stars/C3H3-AI/hacs-vision)](https://github.com/C3H3-AI/hacs-vision/stargazers)
 [![License](https://img.shields.io/github/license/C3H3-AI/hacs-vision)](LICENSE)
 
+[![中文](https://img.shields.io/badge/lang-zh--CN-blue.svg)](#)
+[![English](https://img.shields.io/badge/lang-en-red.svg)](#)
+[![Deutsch](https://img.shields.io/badge/lang-de-green.svg)](#)
+
 > **当前版本**: v6.0.0b0 | **最低 HA 版本**: 2024.1.0
 > **Current version**: v6.0.0b0 | **Minimum HA**: 2024.1.0
+> **Aktuelle Version**: v6.0.0b0 | **Minimale HA-Version**: 2024.1.0
 
-> **⚠️ 前置条件 / Prerequisite**: 必须先安装并配置好 [HACS](https://hacs.xyz) / [HACS](https://hacs.xyz) must be installed and configured.
+> **⚠️ 前置条件 / Prerequisite / Voraussetzung**: 必须先安装并配置好 [HACS](https://hacs.xyz) / [HACS](https://hacs.xyz) must be installed and configured / [HACS](https://hacs.xyz) muss installiert und konfiguriert sein.
 
 ---
 
@@ -21,6 +26,9 @@
 
 <!-- en -->
 **HACS Vision** is a modern visual panel for HACS with a built-in storefront. Browse, install, update, and manage Home Assistant integrations, plugins, and themes like an app store. Configure any HA integration (config flow / options flow) directly in-panel, with automatic Chinese localization support.
+
+<!-- de -->
+**HACS Vision** ist ein modernes visuelles Panel für HACS mit integrierter Shop-Oberfläche. Durchsuchen, installieren, aktualisieren und verwalten Sie Home-Assistant-Integrationen, Plugins und Themes wie in einem App Store. Konfigurieren Sie jede HA-Integration (Config Flow / Options Flow) direkt im Panel – mit automatischer deutscher Lokalisierung.
 
 ---
 
@@ -72,9 +80,32 @@
 - **🖼️ Config Page Embed** — Click integration card to open HA native config page in iframe modal, double-click to fullscreen, close to return
 - **🧩 Config Flow Form** — Dropdown select rendered as radio buttons with next-step button, more intuitive configuration
 
+<!-- de -->
+- **🛒 Shop-Durchsuchen** — Suche, Kategorie-Filter, mehrdimensionale Sortierung, Favoriten. Karten-/Listenansicht, **Filter+Sortierung in einer Zeile**. Filterung nach **Favoriten**. Versionsauswahl mit Changelog-Vorschau
+- **⭐ Repository-Star** — Lokale Favoriten und GitHub-Stars unabhängig voneinander. Ein-Klick Star/Unstar
+- **🔑 GitHub-Anmeldung** — Eigenständige Token-Eingabe in den Einstellungen, getrennter Speicher, automatische Login-Wiederherstellung
+- **📦 Batch-Repo-Hinzufügen** — GitHub-Organisations-/Benutzer-URL eingeben, alle Repositorys auflisten und per Auswahlbox hinzufügen
+- **🔄 Update-Verwaltung** — Alle ausstehenden Updates mit Fortschrittsverfolgung, einzeln oder stapelweise. **Ignorieren** unerwünschter Repositorys
+- **📦 Repo-Verwaltung** — Verwaltung installierter Repos, Versionshistorie, **erneuter Download** (fehlerhafte Installationen reparieren) oder entfernen. **Status/Typ/Repo**-Dreifachfilter + Sortierung
+- **⚙️ Integrationskonfiguration** — Options Flow jeder installierten HA-Integration direkt im Panel konfigurieren (z. B. xiaomi_home, xiaomi_miot, haier), mit automatischer deutscher Lokalisierung
+- **🔌 Integration hinzufügen** — HA-Config-Flow direkt aus dem Panel starten
+- **📊 Statistiken** — Echtzeit-Anzeige von installierten/aktualisierbaren/Favoriten-Zahlen
+- **🔔 Benachrichtigungen** — Automatische Benachrichtigung bei verfügbaren Updates, optimiertes Caching
+- **📱 Responsives Design** — Für Desktop und Mobil optimiert, 44px Touch-Ziele
+- **🧩 Integrationsverwaltung** — Kartenraster aller installierten Integrationen mit deutscher Suche, Statusfilter, Kategoriegruppierung
+- **🔍 Geräte- & Entität-Drilldown** — Integrationskarte klicken → nach Bereich gruppierte Geräteliste → Echtzeit-Entitätsstatus & -Attribute
+- **🎮 Ein-Klick-Entitätssteuerung** — Schalter, Lampen, Schlösser, Jalousien, Lüfter direkt im Panel steuern
+- **🏷️ Deutsche Namensübersetzung** — Automatische Anzeige deutscher Namen für offizielle & benutzerdefinierte Integrationen
+- **🎨 Symbole** — CDN → lokales Symbol → Erstbuchstabe-Fallback, dreistufiges Laden
+- **🔗 EntityRefFinder** — Alle Verweise auf eine Entity-ID in HA finden (Automationen, Skripte, Szenen, Dashboards), mit Ein-Klick-Ersetzung
+- **🔄 Erneuter Download** — Ein-Klick-Neuinstallation für installierte Repos (Deinstallation + Neuinstallation) zur Reparatur defekter Installationen
+- **⛔ Repo ignorieren** — Repositorys zur Ignorierliste hinzufügen, aus Suchergebnissen und Update-Benachrichtigungen ausblenden
+- **🖼️ Konfigurationsseite einbetten** — Integrationskarte klicken, um native HA-Konfigurationsseite im Iframe-Modal zu öffnen, Doppelklick für Vollbild
+- **🧩 Config-Flow-Formular** — Dropdown-Menü als Radio-Buttons mit Weiter-Button dargestellt, intuitivere Konfiguration
+
 ---
 
-## 截图 / Screenshots
+## 截图 / Screenshots / Screenshots
 
 | Store | Detail | Config Flow |
 |:-----:|:------:|:-----------:|
@@ -86,9 +117,9 @@
 
 ---
 
-## 安装方法 / Installation
+## 安装方法 / Installation / Installation
 
-### 通过 HACS 安装（推荐） / Via HACS (Recommended)
+### 通过 HACS 安装（推荐） / Via HACS (Recommended) / Über HACS installieren (Empfohlen)
 
 <!-- zh-CN -->
 1. 确保已安装 [HACS](https://hacs.xyz)
@@ -106,7 +137,15 @@
 5. Click **Install**
 6. **Restart Home Assistant**
 
-### 手动安装 / Manual Installation
+<!-- de -->
+1. Stellen Sie sicher, dass [HACS](https://hacs.xyz) installiert ist
+2. Gehen Sie zu **HACS → Integrationen → Benutzerdefinierte Repositorys** (Menü oben rechts)
+3. Fügen Sie die Repository-URL hinzu: `https://github.com/C3H3-AI/hacs-vision`
+4. Kategorie: **Integration**
+5. Klicken Sie auf **Installieren**
+6. **Home Assistant neu starten**
+
+### 手动安装 / Manual Installation / Manuelle Installation
 
 <!-- zh-CN -->
 1. 下载最新 [Release](https://github.com/C3H3-AI/hacs-vision/releases)
@@ -118,9 +157,14 @@
 2. Copy `custom_components/hacs_vision` to HA's `custom_components/` directory
 3. Restart Home Assistant
 
+<!-- de -->
+1. Laden Sie die neueste [Version](https://github.com/C3H3-AI/hacs-vision/releases) herunter
+2. Kopieren Sie das Verzeichnis `custom_components/hacs_vision` in das `custom_components/`-Verzeichnis von HA
+3. Starten Sie Home Assistant neu
+
 ---
 
-## 配置说明 / Configuration
+## 配置说明 / Configuration / Konfiguration
 
 <!-- zh-CN -->
 1. 进入 **设置 → 设备与服务 → 添加集成**
@@ -134,11 +178,17 @@
 3. Click **Submit** (no extra config needed)
 4. The panel will appear in the sidebar
 
+<!-- de -->
+1. Gehen Sie zu **Einstellungen → Geräte & Dienste → Integration hinzufügen**
+2. Suchen Sie nach **HACS Vision**
+3. Klicken Sie auf **Absenden** (keine zusätzliche Konfiguration erforderlich)
+4. Das Panel erscheint in der Seitenleiste
+
 ---
 
-## 使用指南 / Usage
+## 使用指南 / Usage / Verwendung
 
-### 🛒 商店 / Store
+### 🛒 商店 / Store / Shop
 
 <!-- zh-CN -->
 浏览所有可用的 HACS 仓库。使用搜索栏和筛选标签（状态/标签/类型/排序合并为一行）快速定位。点击爱心图标收藏。支持重新下载和忽略操作，卡片视图和列表视图可切换。
@@ -146,7 +196,10 @@
 <!-- en -->
 Browse all available HACS repositories. Filter with search bar and merged filter chips (status/tags/type/sort in one row). Click heart to favorite. Redownload and ignore operations available. Toggle between card and list views.
 
-### 🔄 更新 / Updates
+<!-- de -->
+Durchsuchen Sie alle verfügbaren HACS-Repositorys. Filtern Sie mit der Suchleiste und den kombinierten Filter-Chips (Status/Tags/Typ/Sortierung in einer Zeile). Klicken Sie auf das Herz-Symbol, um Favoriten zu setzen. Erneuter Download und Ignorieren möglich. Zwischen Karten- und Listenansicht umschaltbar.
+
+### 🔄 更新 / Updates / Aktualisierungen
 
 <!-- zh-CN -->
 查看所有可更新的仓库。使用**全部更新**一键升级，或勾选特定仓库后**更新已选**。支持批量移除操作。
@@ -154,7 +207,10 @@ Browse all available HACS repositories. Filter with search bar and merged filter
 <!-- en -->
 View all repositories with pending updates. Use **Update All** to upgrade everything, or **Update Selected** for specific repos. Batch removal supported.
 
-### 📦 仓库管理 / Management
+<!-- de -->
+Zeigt alle Repositorys mit ausstehenden Updates an. Verwenden Sie **Alle aktualisieren** für ein Upgrade aller Repositorys oder **Auswahl aktualisieren** für bestimmte. Stapelverarbeitung unterstützt.
+
+### 📦 仓库管理 / Management / Verwaltung
 
 <!-- zh-CN -->
 管理已安装的仓库。支持**状态**（已安装/可更新/未安装）、**类型**（集成/插件/主题）、**仓库**（全部/已归档/重命名/已忽略）三维筛选+排序。支持批量操作（批量移除）。已归档和重命名仓库使用卡片展示，操作按钮在卡片底部。
@@ -162,7 +218,10 @@ View all repositories with pending updates. Use **Update All** to upgrade everyt
 <!-- en -->
 Manage installed repos with **status** (installed/updatable/not installed), **type** (integration/plugin/theme), and **repo** (all/archived/renamed/ignored) triple filters + sort. Batch operations supported. Archived and renamed repos shown as cards with action buttons at bottom.
 
-### 🧩 集成管理 / Integration Management
+<!-- de -->
+Verwalten Sie installierte Repositorys mit **Status** (installiert/aktualisierbar/nicht installiert), **Typ** (Integration/Plugin/Theme) und **Repo** (alle/archiviert/unbenannt/ignoriert) Dreifachfilter + Sortierung. Stapelverarbeitung unterstützt. Archivierte und umbenannte Repositorys werden als Karten mit Aktionsschaltflächen unten angezeigt.
+
+### 🧩 集成管理 / Integration Management / Integrationsverwaltung
 
 <!-- zh-CN -->
 通过卡片网格浏览所有已安装的 HA 集成，支持中文名称搜索、状态筛选和批量操作。**点击卡片**直接弹出 HA 原生配置页（iframe 内嵌，CSS 裁剪侧边栏），可双击全屏查看。**⚙ 配置按钮**打开 Options Flow 配置弹窗，自动加载中文翻译。
@@ -170,7 +229,10 @@ Manage installed repos with **status** (installed/updatable/not installed), **ty
 <!-- en -->
 Browse all installed HA integrations in a card grid, with Chinese name search, status filter, and batch operations. **Click a card** to open the HA native config page (iframe-embedded, sidebar cropped via CSS), double-click for fullscreen. The **⚙ Configure** button opens the Options Flow dialog with auto-loaded Chinese translations.
 
-### ⚙️ 设置 / Settings
+<!-- de -->
+Durchsuchen Sie alle installierten HA-Integrationen in einem Kartenraster mit deutscher Namenssuche, Statusfilter und Stapeloperationen. **Karte klicken**, um die native HA-Konfigurationsseite zu öffnen (Iframe-eingebettet, Seitenleiste per CSS beschnitten), Doppelklick für Vollbild. Die Schaltfläche **⚙ Konfigurieren** öffnet den Options-Flow-Dialog mit automatischer deutscher Übersetzung.
+
+### ⚙️ 设置 / Settings / Einstellungen
 
 <!-- zh-CN -->
 配置面板行为、查看版本信息、重启 HA，或从面板添加新的 HA 集成。
@@ -178,9 +240,12 @@ Browse all installed HA integrations in a card grid, with Chinese name search, s
 <!-- en -->
 Configure panel behavior, check version info, restart HA, or add new HA integrations.
 
+<!-- de -->
+Konfigurieren Sie das Panel-Verhalten, prüfen Sie Versionsinformationen, starten Sie HA neu oder fügen Sie neue HA-Integrationen hinzu.
+
 ---
 
-## 更新日志 / Changelog
+## 更新日志 / Changelog / Änderungsprotokoll
 
 ### v6.0.0b0 (2026-06-30) — 多语言 Beta / Multilingual Beta
 - **New**: 🌍 **多语言支持架构** — 重构 i18n 引擎，语言检测从二元硬编码升级为可扩展映射表 (`LANG_MAP`)
