@@ -182,19 +182,30 @@ Configure panel behavior, check version info, restart HA, or add new HA integrat
 
 ## 更新日志 / Changelog
 
-### v5.2.0 (2026-06-30) — 跳过版本 + 全面优化
+### v5.2.0 (2026-06-30) — 跳过版本 + 全面优化 / Skip Version + Full Optimization
 - **New**: 🐛 **直接提交 GitHub Issue** — 在卡片和详情弹窗中一键提交 Issue，自动收集日志、系统信息、上传截图，支持 GitHub 截图粘贴
+  — *One-click GitHub Issue submission from cards and detail modals, auto-collects logs, system info, screenshots*
 - **New**: 🔕 **版本级跳过更新** — 支持跳过指定版本，下个新版本正常提醒。与 HA 原生 `update.skip`/`update.clear_skipped` 同步，Vision 面板 + HA 设置 → Updates 完全一致
+  — *Skip specific versions, next version will re-notify. Synced with native HA `update.skip`/`update.clear_skipped`*
 - **New**: 👁️ **已跳过更新面板** — 更新页筛选栏显示 `🔇 显示/隐藏已跳过更新 (N)`，点击展开/收起已跳过的版本卡片，支持"取消跳过"
+  — *Skipped versions panel in Updates view with show/hide toggle, unskip support*
 - **New**: ⚡ **Updates 数据源切到 HA 实体** — 从 HA 状态机直接读取 `update.*` 实体，替代 HACS 内部 API。更实时、更准确。HACS 降级备用
+  — *Reads update data directly from HA state machine (`update.*` entities) instead of HACS internal API. Faster, more accurate*
 - **New**: 🏷️ **批量跳过** — 勾选多个仓库后，操作栏增加"批量跳过"按钮
-- **Optimize**: 📦 **商店/仓库管理同步跳过** — `_list_repositories`、`_list_installed`、`_get_custom_repos` 全部交叉检查 HA 实体跳过状态，已跳过的仓库不再显示更新按钮
+  — *Batch skip button for selected repositories*
+- **Optimize**: 📦 **商店/仓库管理同步跳过** — 所有列表接口交叉检查 HA 实体跳过状态，已跳过的仓库不再显示更新按钮
+  — *All list endpoints cross-check HA entity skip state; skipped repos no longer show update button*
 - **Optimize**: 🔄 **HA 重启可靠性** — 修复 Supervisor 作业卡死导致重启失败的问题。改用 `docker restart homeassistant` 绕开卡住的 Supervisor 作业
+  — *Fixed HA restart reliability — uses `docker restart homeassistant` to bypass stuck Supervisor jobs*
 - **Optimize**: 📋 **Issue 弹窗清理** — 删除废弃的 `_showIssueDialog` Lit 模板代码，统一使用 `_handleIssueReport`。日志预览改为可编辑 `textarea`
-- **Fix**: 🐛 **跳过版本 500 错误** — `_call_update_service` 中 `release_url` 可能为 `None` 导致 `None.startswith()` 异常，加 `or ""` 保护
-- **Fix**: 🐛 **跳过版本后更新数不变** — `_get_stats` 恢复 HACS 数据源，排除 `pending_restart` 仓库。已跳过版本通过 HA 实体过滤
-- **Fix**: 🐛 **跳过卡片渲染中断** — Lit 模板中 `<img>` + `@error` 事件处理器破坏渲染管道，改用纯文字首字母头像
-- **Chore**: 版本号升级至 v5.2.0
+  — *Cleaned up dead issue dialog code, unified to `_handleIssueReport`, editable log preview*
+- **Fix**: 🐛 **跳过版本 500 错误** — `release_url` 可能为 `None` 导致 `None.startswith()` 异常
+  — *Fixed 500 error when `release_url` is `None` causing `None.startswith()` crash*
+- **Fix**: 🐛 **跳过版本后更新数不变** — 排除 `pending_restart` 仓库
+  — *Fixed update count not updating — excludes `pending_restart` repos*
+- **Fix**: 🐛 **跳过卡片渲染中断** — `<img>` + `@error` 破坏 Lit 渲染管道，改用纯文字首字母头像
+  — *Fixed skipped card render crash — removed `<img>` + `@error` that broke Lit rendering*
+- **Chore**: 版本号升级至 v5.2.0 / Version bump to v5.2.0
 
 ### v5.1.0 (2026-06-21) — 优化版
 - **New**: 📊 **集成卡片显示设备/实体数** — 每个集成卡片、列表行展示设备和实体数量
