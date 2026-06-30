@@ -366,74 +366,124 @@ class HACSEnhancedAPI(HomeAssistantView):
     async def _github_fetch_logs(self, domain: str | None = None, max_lines: int = 50) -> str:
         """Fetch HA error logs, optionally filtered by domain.
 
-        Reads from the supervisor API (inside HA Docker) or falls back
-        to HA's error_log API.
+        Priority: supervisor Docker logs -> system_log component -> error_log API -> file fallback
         """
-        try:
-            # Try supervisor API first (works inside HA Docker)
-            import os as _os
-            token = _os.environ.get("SUPERVISOR_TOKEN")
-            if token:
-                session = await self._get_session()
-                async with session.get(
-                    "http://supervisor/core/api/error_log",
-                    headers={
-                        "Authorization": f"Bearer {token}",
-                        "Content-Type": "application/json",
-                    },
-                    timeout=aiohttp.ClientTimeout(total=5),
-                ) as resp:
-                    if resp.status == 200:
-                        text = await resp.text()
-                    else:
-                        text = ""
-            else:
-                text = ""
-        except Exception:
-            text = ""
+        text = ""
+        import os as _os
 
+        # 1. Supervisor API: http://supervisor/core/logs (returns real-time HA logs)
+        # Uses a dedicated session to avoid shared session proxy issues
         if not text:
-            # Fallback: try HA's own error_log endpoint (short timeout)
+            try:
+                token = _os.environ.get("SUPERVISOR_TOKEN")
+                if token:
+                    connector = aiohttp.TCPConnector(force_close=True)
+                    async with aiohttp.ClientSession(connector=connector) as sess:
+                        async with sess.get(
+                            "http://supervisor/core/logs",
+                            headers={"Authorization": f"Bearer {token}"},
+                            timeout=aiohttp.ClientTimeout(total=15),
+                        ) as resp:
+                            if resp.status == 200:
+                                raw = await resp.text()
+                                if raw and len(raw) > 50:
+                                    lines = raw.strip().split("\n")
+                                    # Strip ANSI codes and filter useful lines
+                                    import re as _re
+                                    clean = []
+                                    for ln in lines:
+                                        ln = ln.strip()
+                                        if not ln:
+                                            continue
+                                        # Remove ANSI escape codes
+                                        ln = _re.sub(r'\x1b\[[0-9;]*[a-zA-Z]', '', ln)
+                                        # Remove timestamp-only or empty lines
+                                        if ln and len(ln) > 10:
+                                            clean.append(ln)
+                                    if clean:
+                                        text = "\n".join(clean[-max_lines * 4:])
+                                        _LOGGER.debug("Got %d lines from supervisor/core/logs", len(clean))
+            except Exception:
+                pass
+
+        # 2. HA system_log component (in-memory, real-time, domain-filterable)
+        if not text:
+            try:
+                log_data = self.hass.data.get("system_log")
+                if log_data and hasattr(log_data, "get_log_entries"):
+                    entries = log_data.get_log_entries()
+                elif log_data and isinstance(log_data, dict):
+                    entries = log_data.get("log_entries", [])
+                else:
+                    entries = []
+                if entries:
+                    formatted = []
+                    for entry in entries[-100:]:
+                        ts = entry.get("timestamp", "") or entry.get("first_occurred", "")
+                        name = entry.get("name", "")
+                        message = entry.get("message", "")
+                        if isinstance(message, list):
+                            message = "\n".join(message)
+                        # Filter by domain if specified
+                        if domain and domain not in name and domain not in message:
+                            continue
+                        if ts:
+                            formatted.append(f"[{ts}] {name}: {message}")
+                        else:
+                            formatted.append(f"{name}: {message}")
+                    text = "\n".join(formatted[-max_lines:])
+            except Exception:
+                pass
+
+        # 3. HA error_log API
+        if not text:
             try:
                 session = await self._get_session()
                 ha_url = self.hass.http.get_url()
-                # Need the HA token - try reading from env or config
                 token = None
-                import os as _os2
                 for var in ("HASSIO_TOKEN", "SUPERVISOR_TOKEN", "HA_TOKEN"):
-                    v = _os2.environ.get(var)
+                    v = _os.environ.get(var)
                     if v:
                         token = v
                         break
                 if not token:
-                    # Try getting from HACS token (has repo scope but works for auth)
                     token = await self._get_active_github_token()
-
                 if token:
                     async with session.get(
                         f"{ha_url}/api/error_log",
                         headers={"Authorization": f"Bearer {token}"},
-                        timeout=aiohttp.ClientTimeout(total=10),
+                        timeout=aiohttp.ClientTimeout(total=5),
                     ) as resp:
                         if resp.status == 200:
                             text = await resp.text()
             except Exception:
-                text = ""
+                pass
 
+        # 4. Try docker CLI
         if not text:
-            # Fallback 2: read the log file directly
             try:
-                for log_path in ("/share/second-core/home-assistant.log", "/config/home-assistant.log"):
-                    import os as _os3
-                    if _os3.path.exists(log_path):
+                proc = await asyncio.create_subprocess_exec(
+                    "docker", "logs", "homeassistant", "--tail", "200",
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE,
+                )
+                stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=10)
+                text = stdout.decode("utf-8", errors="replace") if stdout else ""
+            except Exception:
+                pass
+
+        # 5. Read HA log file (last resort, may be stale)
+        if not text:
+            for log_path in ("/share/second-core/home-assistant.log", "/config/home-assistant.log"):
+                try:
+                    if _os.path.exists(log_path):
                         with open(log_path, "r", encoding="utf-8", errors="replace") as f:
-                            # Read last 200 lines
                             all_lines = f.readlines()
                             text = "".join(all_lines[-200:])
-                        if text:
-                            break
-            except Exception:
-                text = ""
+                            if text and len(text.strip()) > 10:
+                                break
+                except Exception:
+                    continue
 
         # Parse and filter
         lines = text.split("\n") if text else []
@@ -1035,6 +1085,8 @@ class HACSEnhancedAPI(HomeAssistantView):
             return await self._redownload(body)
         if path in ("ignore", "ignore/"):
             return await self._ignore_repo(body)
+        if path in ("unignore", "unignore/"):
+            return await self._unignore_repo(body)
         if path == "repos/install_version":
             return await self._install_repo_version(body)
         if path in ("favorites", "favorites/"):
@@ -1652,8 +1704,12 @@ class HACSEnhancedAPI(HomeAssistantView):
         repos = await self.operator.get_all_repos_from_hacs()
         if not repos:
             repos = await self.data.get_all_repositories()
+        # Get HACS ignored repos to exclude from update count
+        config = await self.data.get_config()
+        ignored_set = set(config.get("ignored_repositories", []))
         installed_count = sum(1 for r in repos if r.get("installed"))
-        updates_count = sum(1 for r in repos if r.get("has_update"))
+        updates_count = sum(1 for r in repos if r.get("has_update") and
+                            (r.get("full_name") or r.get("id")) not in ignored_set)
         new_count = sum(1 for r in repos if r.get("new") or r.get("status") == "new")
         pending_restart_count = sum(1 for r in repos if r.get("pending_restart"))
         custom_count = sum(1 for r in repos if r.get("custom") or r.get("is_custom"))
@@ -1865,6 +1921,19 @@ class HACSEnhancedAPI(HomeAssistantView):
         ignored = config.get("ignored_repositories", [])
         if repo not in ignored:
             ignored.append(repo)
+            config["ignored_repositories"] = ignored
+            await self.data.update_config(config)
+        return web.json_response({"success": True, "repository": repo})
+
+    async def _unignore_repo(self, body: dict) -> web.Response:
+        """Remove a repository from HACS's ignored list."""
+        repo = body.get("repository", "")
+        if not repo:
+            return web.json_response({"error": "repository required"}, status=400)
+        config = await self.data.get_config()
+        ignored = config.get("ignored_repositories", [])
+        if repo in ignored:
+            ignored.remove(repo)
             config["ignored_repositories"] = ignored
             await self.data.update_config(config)
         return web.json_response({"success": True, "repository": repo})

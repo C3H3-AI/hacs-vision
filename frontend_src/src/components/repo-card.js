@@ -394,70 +394,25 @@ class RepoCard extends LitElement {
       this._showCardToast('Invalid repository', 'error');
       return;
     }
-    this._issueDialog = true;
-    this._issueRepo = fullName;
-    this._issueDomain = r.domain;
-    await this.updateComplete;
-    this.shadowRoot?.querySelector('.issue-title-input')?.focus();
-  }
-
-  _showCardToast(msg, type) {
-    this.dispatchEvent(new CustomEvent('toast', {
+    // Check if GitHub token exists first
+    try {
+      const user = await api.get('github/user', { suppressNetworkError: true });
+      if (!user || user.error) {
+        this._showCardToast('请先登录 GitHub（设置 → GitHub Token）', 'error');
+        return;
+      }
+    } catch {
+      this._showCardToast('请先登录 GitHub（设置 → GitHub Token）', 'error');
+      return;
+    }
+    // Delegate to parent panel's full Issue dialog
+    this.dispatchEvent(new CustomEvent('report-issue', {
       bubbles: true, composed: true,
-      detail: { message: msg, type: type || 'info' }
+      detail: { repo: r }
     }));
   }
 
-  async _submitIssue(e) {
-    const input = this.shadowRoot?.querySelector('.issue-title-input');
-    const bodyInput = this.shadowRoot?.querySelector('.issue-body-input');
-    const status = this.shadowRoot?.querySelector('.issue-status');
-    const title = input?.value?.trim();
-    if (!title) {
-      if (status) status.textContent = '请输入 Issue 标题';
-      return;
-    }
-    if (status) status.textContent = t('issueSubmitting');
-    const btn = this.shadowRoot?.querySelector('.issue-submit-btn');
-    if (btn) btn.disabled = true;
-
-    try {
-      const result = await api.createIssue(
-        this._issueRepo,
-        title,
-        bodyInput?.value?.trim() || '',
-        this._issueDomain
-      );
-      if (result.ok) {
-        if (status) status.textContent = '';
-        this._showCardToast(t('issueSuccess', { n: result.issue_number }), 'success');
-        this._issueDialog = false;
-        // Open issue in new tab
-        if (result.issue_url) window.open(result.issue_url, '_blank');
-      } else {
-        if (status) status.textContent = result.error || t('issueFailed');
-      }
-    } catch (e) {
-      if (status) status.textContent = `${t('issueFailed')}: ${e.message}`;
-    }
-    if (btn) btn.disabled = false;
-  }
-
-  _renderIssueDialog(repo) {
-    return html`
-      <div class="issue-overlay" @click=${e => { if (e.target === e.currentTarget) this._issueDialog = false; }}>
-        <div class="issue-dialog" @click=${e => e.stopPropagation()}>
-          <h3>${t('reportIssue')} · ${repo.name || repo.full_name}</h3>
-          <input class="issue-title-input" placeholder="${t('issueTitlePlaceholder')}" @keydown=${e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); this._submitIssue(); } }} />
-          <textarea class="issue-body-input" placeholder="${t('issueBody')}" rows="3"></textarea>
-          <div class="issue-status error"></div>
-          <div class="issue-dialog-actions">
-            <button @click=${() => this._issueDialog = false}>${t('issueCancel')}</button>
-            <button class="issue-submit-btn primary" @click=${this._submitIssue}>${t('issueConfirm')}</button>
-          </div>
-        </div>
-      </div>
-    `;
+  _showCardToast(msg, type) {
   }
 
   async _handleStar(e) {

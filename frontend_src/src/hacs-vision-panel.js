@@ -42,6 +42,7 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
     _configFlowAction: { type: String, state: true },
     _showConfigFlow: { type: Boolean, state: true },
     _configEntries: { type: Object, state: true },
+    _ignoredRepos: { type: Array, state: true },
     // Entry selector (multiple entries for same domain)
     _showEntrySelector: { type: Boolean, state: true },
     _entrySelectorDomain: { type: String, state: true },
@@ -703,6 +704,11 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
       const { entryId, domain } = e.detail || {};
       if (entryId) this._openOptionsFlow(entryId, domain);
     });
+    // Open Issue dialog from child components (repo-card, etc.)
+    this.addEventListener('report-issue', (e) => {
+      const repo = e.detail?.repo;
+      if (repo) this._handleIssueReport(repo);
+    });
     // F1: Keyboard shortcuts
     this._keydownHandler = (e) => {
       if (e.key === 'Escape' && this._showDetail) {
@@ -761,6 +767,11 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
       const favResult = await api.getFavorites();
       const favs = Array.isArray(favResult) ? favResult : (favResult.favorites || []);
       this._favoriteCount = favs.length;
+      // Load ignored repos list
+      try {
+        const cfg = await api.getConfig();
+        this._ignoredRepos = cfg.ignored_repositories || [];
+      } catch(e) { /* non-critical */ }
     } catch(e) {
       console.error('Stats error:', e);
       this.stats = {};
@@ -1351,6 +1362,16 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
         </button>`);
     }
 
+    // Ignore/Unignore toggle
+    const fullName = this._detailRepo?.full_name || (this._detailRepo?.repository || '').replace('https://github.com/', '');
+    const isIgnored = fullName && this._ignoredRepos?.includes(fullName);
+    buttons.push(html`
+      <button class="modal-btn" style="color:${isIgnored ? '#4caf50' : '#ff9800'};border-color:${isIgnored ? '#4caf50' : '#ff9800'};"
+              @click=${() => this._modalAction(isIgnored ? 'unignore' : 'ignore')}>
+        <span style="font-size:14px;">${isIgnored ? '🔇' : '🔕'}</span>
+        ${isIgnored ? t('unignore') : t('ignore')}
+      </button>`);
+
     return html`${buttons}`;
   }
 
@@ -1389,166 +1410,7 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
         window.open(url, '_blank');
         return;
       } else if (action === 'report-issue') {
-        const repo = this._detailRepo;
-        const fullName = repo.full_name || (repo.repository && repo.repository.replace('https://github.com/', ''));
-        if (!fullName || !fullName.includes('/')) {
-          showToast('Invalid repository', 'error');
-          return;
-        }
-        // Check login first
-        try {
-          const user = await api.get('github/user');
-          if (!user || user.error) {
-            showToast(t('issueNotLoggedIn'), 'error');
-            return;
-          }
-        } catch (e) {
-          showToast(t('issueNotLoggedIn'), 'error');
-          return;
-        }
-        // 使用 DOM API 创建 Issue 对话框
-        const overlay = document.createElement('div');
-        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px;';
-        overlay.innerHTML = `
-          <div style="background:var(--card-background-color,#fff);border-radius:16px;padding:24px;max-width:580px;width:100%;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.3);animation:slideUp .2s ease;transition:all .2s;" id="hv-issue-dialog-body">
-            <div style="font-size:17px;font-weight:600;margin-bottom:4px;color:var(--primary-text-color,#212121);">${t('reportIssue')}</div>
-            <div style="font-size:13px;color:var(--secondary-text-color,#727272);margin-bottom:16px;">${fullName}</div>
-            <!-- 标题 -->
-            <input id="hv-issue-title" placeholder="${t('issueTitlePlaceholder')}" autofocus
-              style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid var(--divider-color,#e0e0e0);border-radius:8px;background:var(--input-background-color,#f5f5f5);color:var(--primary-text-color);font-size:14px;margin-bottom:10px;">
-            <!-- 描述（双击放大） -->
-            <textarea id="hv-issue-body" placeholder="${t('issueBody')}" rows="6"
-              style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid var(--divider-color,#e0e0e0);border-radius:8px;background:var(--input-background-color,#f5f5f5);color:var(--primary-text-color);font-size:14px;min-height:180px;resize:vertical;margin-bottom:10px;line-height:1.6;"></textarea>
-            <!-- 多图上传 -->
-             <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--secondary-text-color);margin-bottom:8px;cursor:pointer;">
-              <input type="file" accept="image/*" id="hv-issue-screenshots" multiple style="display:none;">
-              <span style="font-size:20px;">📷</span> <span id="hv-issue-screenshot-label">添加上传截图（可选，可多选）</span>
-            </label>
-            <div id="hv-issue-screenshot-list" style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:10px;"></div>
-            <!-- 预览开关 -->
-            <details style="margin-bottom:10px;font-size:13px;color:var(--secondary-text-color);">
-              <summary style="cursor:pointer;user-select:none;">📋 预览提交内容（含自动收集的日志）</summary>
-              <div id="hv-issue-preview" style="margin-top:8px;padding:10px;background:var(--secondary-background-color,#f5f5f5);border-radius:8px;font-size:12px;line-height:1.5;white-space:pre-wrap;word-break:break-all;max-height:200px;overflow-y:auto;">加载中...</div>
-            </details>
-            <!-- 按钮 -->
-            <div style="display:flex;gap:8px;justify-content:flex-end;">
-              <button id="hv-issue-cancel"
-                style="padding:8px 20px;border-radius:8px;border:1px solid var(--divider-color);background:var(--card-background-color);color:var(--primary-text-color);cursor:pointer;font-size:13px;">${t('issueCancel')}</button>
-              <button id="hv-issue-submit"
-                style="padding:8px 20px;border-radius:8px;border:none;background:var(--primary-color,#03a9f4);color:#fff;cursor:pointer;font-size:13px;font-weight:500;">${t('issueConfirm')}</button>
-            </div>
-            <div id="hv-issue-status" style="color:#f44336;font-size:12px;margin-top:8px;display:none;"></div>
-          </div>
-        `;
-        overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
-        const shadowRoot = this.shadowRoot || this.renderRoot;
-        if (shadowRoot) shadowRoot.appendChild(overlay);
-
-        // 双击描述框放大
-        const bodyTa = overlay.querySelector('#hv-issue-body');
-        if (bodyTa) {
-            bodyTa.addEventListener('dblclick', () => {
-                bodyTa.style.height = Math.max(bodyTa.scrollHeight + 50, 400) + 'px';
-                const dialog = overlay.querySelector('#hv-issue-dialog-body') || overlay.firstElementChild;
-                if (dialog) dialog.style.maxHeight = '95vh';
-            });
-        }
-
-        // 异步加载预览（静默失败不弹错误提示）
-        api.get(`github/issue-logs?repo=${encodeURIComponent(fullName)}`, { suppressNetworkError: true }).then(preview => {
-          const el = overlay.querySelector('#hv-issue-preview');
-          if (!el) return;
-          if (preview && !preview.error) {
-            const parts = [];
-            parts.push(`HA 版本: ${preview.ha_version || '?'}`);
-            parts.push(`HACS Vision: v${preview.vision_version || '?'}`);
-            if (preview.repo_version) parts.push(`集成版本: ${preview.repo_version}`);
-            if (preview.repo_domain) parts.push(`领域: ${preview.repo_domain}`);
-            parts.push('');
-            if (preview.logs) {
-              parts.push('--- 相关日志 ---');
-              parts.push(preview.logs.substring(0, 1500));
-              if (preview.logs.length > 1500) parts.push('...(截断)');
-            } else {
-              parts.push('(无相关错误日志)');
-            }
-            el.textContent = parts.join('\n');
-          } else {
-            el.textContent = '(无法获取预览信息)';
-          }
-        }).catch(() => {
-          const el = overlay.querySelector('#hv-issue-preview');
-          if (el) el.textContent = '(预览加载失败)';
-        });
-
-        // 多图上传处理
-        const screenshots = [];
-        const fileInput = overlay.querySelector('#hv-issue-screenshots');
-        const screenshotLabel = overlay.querySelector('#hv-issue-screenshot-label');
-        const screenshotList = overlay.querySelector('#hv-issue-screenshot-list');
-        fileInput.addEventListener('change', () => {
-          const files = fileInput.files;
-          if (!files || files.length === 0) return;
-          screenshotList.innerHTML = '';
-          for (const file of files) {
-            if (file.size > 5 * 1024 * 1024) {
-              showToast(`"${file.name}" 过大（>5MB），已跳过`, 'error');
-              continue;
-            }
-            const reader = new FileReader();
-            reader.index = screenshots.length;
-            reader.onload = (ev) => {
-              screenshots.push({ name: file.name, data: ev.target.result });
-              const thumb = document.createElement('div');
-              thumb.style.cssText = 'width:60px;height:60px;border-radius:6px;overflow:hidden;border:1px solid var(--divider-color);position:relative;flex-shrink:0;';
-              thumb.innerHTML = `<img src="${ev.target.result}" style="width:100%;height:100%;object-fit:cover;"><span style="position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,0.5);color:#fff;font-size:9px;text-align:center;padding:1px 0;">${file.name.slice(-12)}</span>`;
-              screenshotList.appendChild(thumb);
-              screenshotLabel.textContent = `✓ 已选 ${screenshots.length} 张截图`;
-            };
-            reader.readAsDataURL(file);
-          }
-        });
-
-        // 取消
-        overlay.querySelector('#hv-issue-cancel').addEventListener('click', () => overlay.remove());
-
-        // 提交
-        overlay.querySelector('#hv-issue-submit').addEventListener('click', async () => {
-          const title = overlay.querySelector('#hv-issue-title').value.trim();
-          const body = overlay.querySelector('#hv-issue-body').value.trim();
-          if (!title) { showToast('请输入 Issue 标题', 'error'); return; }
-          const submitBtn = overlay.querySelector('#hv-issue-submit');
-          const cancelBtn = overlay.querySelector('#hv-issue-cancel');
-          const statusEl = overlay.querySelector('#hv-issue-status');
-          submitBtn.disabled = true;
-          submitBtn.textContent = '提交中…';
-          submitBtn.style.opacity = '0.6';
-          cancelBtn.style.display = 'none';
-          statusEl.style.display = 'block';
-          statusEl.textContent = '正在提交 Issue...';
-          try {
-            // 上传截图到后端，由后端统一上传到图床再嵌入 Issue
-            const screenshotB64s = screenshots.map(ss => ss.data);
-            const result = await api.createIssue(fullName, title, body || '', repo.domain, screenshotB64s);
-            if (result.ok) {
-              overlay.remove();
-              this._closeDetail();
-              if (result.issue_url) window.open(result.issue_url, '_blank');
-            } else {
-              statusEl.textContent = result.error || t('issueFailed');
-              submitBtn.disabled = false;
-              submitBtn.textContent = '重试';
-              submitBtn.style.opacity = '1';
-              cancelBtn.style.display = '';
-            }
-          } catch (e) {
-            statusEl.textContent = `${t('issueFailed')}: ${e.message}`;
-            submitBtn.disabled = false;
-            submitBtn.textContent = '重试';
-            submitBtn.style.opacity = '1';
-            cancelBtn.style.display = '';
-          }
-        });
+        await this._handleIssueReport(this._detailRepo);
         return;
       } else if (action === 'enable') {
         this._closeDetail();
@@ -1617,6 +1479,26 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
       } else if (action === 'view-logs') {
         window.location.href = `/config/logs?filter=${encodeURIComponent(repo.domain || '')}`;
         return;
+      } else if (action === 'ignore') {
+        const fullName = repo.full_name || (repo.repository || '').replace('https://github.com/', '');
+        if (!fullName) return;
+        const { ConfirmDialog } = await import('./shared/confirm-dialog.js');
+        const ok = await ConfirmDialog.show(this, {
+          message: t('confirmIgnore', { repo: fullName }),
+          confirmText: t('ignore'), danger: false,
+        });
+        if (!ok) return;
+        await api.ignoreRepo(fullName);
+        showToast(`${t('ignore')}: ${fullName}`, 'success');
+        this._loadStats(); // refresh to update ignored list + update count
+        return;
+      } else if (action === 'unignore') {
+        const fullName = repo.full_name || (repo.repository || '').replace('https://github.com/', '');
+        if (!fullName) return;
+        await api.unignoreRepo(fullName);
+        showToast(`${t('unignore')}: ${fullName}`, 'success');
+        this._loadStats();
+        return;
       } else if (action === 'configure') {
         this._closeDetail();
         const domain = repo.domain;
@@ -1637,6 +1519,155 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
     } catch(e) {
       showToast(`${t('updateFailed')}: ${e.message}`, 'error');
     }
+  }
+
+  /** Open the Issue submission dialog for a given repo */
+  async _handleIssueReport(repo) {
+    const fullName = repo.full_name || (repo.repository && repo.repository.replace('https://github.com/', ''));
+    if (!fullName || !fullName.includes('/')) {
+      showToast('Invalid repository', 'error');
+      return;
+    }
+    // Check login first
+    try {
+      const user = await api.get('github/user');
+      if (!user || user.error) {
+        showToast(t('issueNotLoggedIn'), 'error');
+        return;
+      }
+    } catch (e) {
+      showToast(t('issueNotLoggedIn'), 'error');
+      return;
+    }
+    // Build the dialog overlay
+    const overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px;';
+    overlay.innerHTML = `
+      <div style="background:var(--card-background-color,#fff);border-radius:16px;padding:24px;max-width:580px;width:100%;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.3);animation:slideUp .2s ease;transition:all .2s;" id="hv-issue-dialog-body">
+        <div style="font-size:17px;font-weight:600;margin-bottom:4px;color:var(--primary-text-color,#212121);">${t('reportIssue')}</div>
+        <div style="font-size:13px;color:var(--secondary-text-color,#727272);margin-bottom:16px;">${fullName}</div>
+        <input id="hv-issue-title" placeholder="${t('issueTitlePlaceholder')}" autofocus style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid var(--divider-color,#e0e0e0);border-radius:8px;background:var(--input-background-color,#f5f5f5);color:var(--primary-text-color);font-size:14px;margin-bottom:10px;">
+        <div style="position:relative;">
+          <span id="hv-issue-expand-btn" style="position:absolute;top:6px;right:6px;z-index:10;font-size:11px;color:var(--primary-color,#03a9f4);cursor:pointer;user-select:none;padding:2px 7px;border-radius:4px;background:var(--card-background-color,#fff);border:1px solid var(--divider-color,#e0e0e0);opacity:0.7;line-height:1.4;" title="放大/缩小编辑器">⛶</span>
+          <textarea id="hv-issue-body" placeholder="${t('issueBody')}" rows="8" style="width:100%;box-sizing:border-box;padding:10px 40px 10px 12px;border:1px solid var(--divider-color,#e0e0e0);border-radius:8px;background:var(--input-background-color,#f5f5f5);color:var(--primary-text-color);font-size:14px;min-height:250px;resize:vertical;margin-bottom:10px;line-height:1.6;"></textarea>
+        </div>
+        <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--secondary-text-color);margin-bottom:8px;cursor:pointer;">
+          <input type="file" accept="image/*" id="hv-issue-screenshots" multiple style="display:none;">
+          <span style="font-size:20px;">📷</span> <span id="hv-issue-screenshot-label">添加上传截图（可选，可多选）</span>
+        </label>
+        <div id="hv-issue-screenshot-list" style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:10px;"></div>
+        <details style="margin-bottom:10px;font-size:13px;color:var(--secondary-text-color);">
+          <summary style="cursor:pointer;user-select:none;">📋 预览提交内容（含自动收集的日志）</summary>
+          <textarea id="hv-issue-preview" style="margin-top:8px;padding:10px;background:var(--secondary-background-color,#f5f5f5);border-radius:8px;font-size:12px;line-height:1.5;width:100%;box-sizing:border-box;min-height:80px;max-height:250px;resize:vertical;border:1px solid var(--divider-color,#e0e0e0);color:var(--primary-text-color);font-family:inherit;" readonly>加载中...</textarea>
+        </details>
+        <div style="display:flex;gap:8px;justify-content:flex-end;">
+          <button id="hv-issue-cancel" style="padding:8px 20px;border-radius:8px;border:1px solid var(--divider-color);background:var(--card-background-color);color:var(--primary-text-color);cursor:pointer;font-size:13px;">${t('issueCancel')}</button>
+          <button id="hv-issue-submit" style="padding:8px 20px;border-radius:8px;border:none;background:var(--primary-color,#03a9f4);color:#fff;cursor:pointer;font-size:13px;font-weight:500;">${t('issueConfirm')}</button>
+        </div>
+        <div id="hv-issue-status" style="color:#f44336;font-size:12px;margin-top:8px;display:none;"></div>
+      </div>`;
+    overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+    const shadowRoot = this.shadowRoot || this.renderRoot;
+    if (shadowRoot) shadowRoot.appendChild(overlay);
+
+    // Expand toggle
+    const bodyTa = overlay.querySelector('#hv-issue-body');
+    const expandBtn = overlay.querySelector('#hv-issue-expand-btn');
+    if (bodyTa && expandBtn) {
+      let _expanded = false;
+      const toggle = () => {
+        _expanded = !_expanded;
+        const dlg = overlay.querySelector('#hv-issue-dialog-body') || overlay.firstElementChild;
+        if (_expanded) {
+          bodyTa.style.height = '55vh'; bodyTa.style.minHeight = '55vh';
+          expandBtn.title = '还原';
+          if (dlg) { dlg.style.position = 'fixed'; dlg.style.top = '20px'; dlg.style.left = '50%'; dlg.style.transform = 'translateX(-50%)'; dlg.style.maxWidth = '900px'; dlg.style.width = '90vw'; dlg.style.maxHeight = '95vh'; dlg.style.overflow = 'auto'; }
+        } else {
+          bodyTa.style.height = ''; bodyTa.style.minHeight = '250px';
+          expandBtn.title = '放大';
+          if (dlg) { dlg.style.position = ''; dlg.style.top = ''; dlg.style.left = ''; dlg.style.transform = ''; dlg.style.maxWidth = '580px'; dlg.style.width = '100%'; dlg.style.maxHeight = '90vh'; }
+        }
+      };
+      expandBtn.addEventListener('click', toggle);
+      bodyTa.addEventListener('dblclick', toggle);
+    }
+
+    // Load preview and make editable
+    const previewEl = overlay.querySelector('#hv-issue-preview');
+    api.get(`github/issue-logs?repo=${encodeURIComponent(fullName)}`, { suppressNetworkError: true }).then(preview => {
+      if (!previewEl) return;
+      if (preview && !preview.error) {
+        const p = [];
+        p.push(`HA 版本: ${preview.ha_version || '?'}`);
+        if (preview.repo_version) p.push(`集成版本: ${preview.repo_version}`);
+        if (preview.repo_domain) p.push(`领域: ${preview.repo_domain}`);
+        p.push('');
+        if (preview.logs) { p.push('--- 相关日志 ---'); p.push(preview.logs.substring(0, 1500)); if (preview.logs.length > 1500) p.push('...(截断)'); }
+        else { p.push('(无相关错误日志)'); }
+        previewEl.value = p.join('\n');
+        previewEl.readOnly = false; // Allow editing
+      } else { previewEl.value = '(无法获取预览信息)'; }
+    }).catch(() => { if (previewEl) previewEl.value = '(预览加载失败)'; });
+
+    // Screenshot handling
+    const screenshots = [];
+    const fileInput = overlay.querySelector('#hv-issue-screenshots');
+    const screenshotLabel = overlay.querySelector('#hv-issue-screenshot-label');
+    const screenshotList = overlay.querySelector('#hv-issue-screenshot-list');
+    fileInput.addEventListener('change', () => {
+      const files = fileInput.files;
+      if (!files || files.length === 0) return;
+      screenshotList.innerHTML = '';
+      for (const file of files) {
+        if (file.size > 5 * 1024 * 1024) { showToast(`"${file.name}" 过大（>5MB），已跳过`, 'error'); continue; }
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+          screenshots.push({ name: file.name, data: ev.target.result });
+          const thumb = document.createElement('div');
+          thumb.style.cssText = 'width:60px;height:60px;border-radius:6px;overflow:hidden;border:1px solid var(--divider-color);position:relative;flex-shrink:0;';
+          thumb.innerHTML = '<img src="' + ev.target.result + '" style="width:100%;height:100%;object-fit:cover;"><span style="position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,0.5);color:#fff;font-size:9px;text-align:center;padding:1px 0;">' + file.name.slice(-12) + '</span>';
+          screenshotList.appendChild(thumb);
+          screenshotLabel.textContent = '✓ 已选 ' + screenshots.length + ' 张截图';
+        };
+        reader.readAsDataURL(file);
+      }
+    });
+
+    // Cancel
+    overlay.querySelector('#hv-issue-cancel').addEventListener('click', () => overlay.remove());
+
+    // Submit
+    overlay.querySelector('#hv-issue-submit').addEventListener('click', async () => {
+      const title = overlay.querySelector('#hv-issue-title').value.trim();
+      const body = overlay.querySelector('#hv-issue-body').value.trim();
+      if (!title) { showToast('请输入 Issue 标题', 'error'); return; }
+      const submitBtn = overlay.querySelector('#hv-issue-submit');
+      const cancelBtn = overlay.querySelector('#hv-issue-cancel');
+      const statusEl = overlay.querySelector('#hv-issue-status');
+      submitBtn.disabled = true; submitBtn.textContent = '提交中…'; submitBtn.style.opacity = '0.6';
+      cancelBtn.style.display = 'none';
+      statusEl.style.display = 'block'; statusEl.textContent = '正在提交 Issue...';
+      try {
+        const screenshotB64s = screenshots.map(ss => ss.data);
+        // Combine user description + editable preview (with logs)
+        const editedPreview = overlay.querySelector('#hv-issue-preview')?.value?.trim() || '';
+        const finalBody = body ? body + '\n\n---\n' + editedPreview : editedPreview;
+        const result = await api.createIssue(fullName, title, finalBody, repo.domain, screenshotB64s);
+        if (result.ok) {
+          overlay.remove();
+          if (this._showDetail) this._closeDetail();
+          if (result.issue_url) window.open(result.issue_url, '_blank');
+        } else {
+          statusEl.textContent = result.error || t('issueFailed');
+          submitBtn.disabled = false; submitBtn.textContent = '重试'; submitBtn.style.opacity = '1';
+          cancelBtn.style.display = '';
+        }
+      } catch (e) {
+        statusEl.textContent = t('issueFailed') + ': ' + e.message;
+        submitBtn.disabled = false; submitBtn.textContent = '重试'; submitBtn.style.opacity = '1';
+        cancelBtn.style.display = '';
+      }
+    });
   }
 
   _checkTabsScrollable() {
