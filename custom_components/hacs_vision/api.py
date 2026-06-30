@@ -1017,6 +1017,8 @@ class HACSEnhancedAPI(HomeAssistantView):
             return await self._get_repo_rt_status(path[12:])
         if path in ("favorites", "favorites/"):
             return await self._get_favorites()
+        if path in ("ignored-versions", "ignored-versions/"):
+            return await self._get_ignored_versions()
         if path in ("settings", "settings/"):
             return await self._get_settings()
         if path.startswith("devices/"):
@@ -1087,6 +1089,10 @@ class HACSEnhancedAPI(HomeAssistantView):
             return await self._ignore_repo(body)
         if path in ("unignore", "unignore/"):
             return await self._unignore_repo(body)
+        if path in ("ignore-version", "ignore-version/"):
+            return await self._ignore_version(body)
+        if path in ("unignore-version", "unignore-version/"):
+            return await self._unignore_version(body)
         if path == "repos/install_version":
             return await self._install_repo_version(body)
         if path in ("favorites", "favorites/"):
@@ -1704,12 +1710,22 @@ class HACSEnhancedAPI(HomeAssistantView):
         repos = await self.operator.get_all_repos_from_hacs()
         if not repos:
             repos = await self.data.get_all_repositories()
-        # Get HACS ignored repos to exclude from update count
+        # Get HACS ignored repos + version ignored versions
         config = await self.data.get_config()
         ignored_set = set(config.get("ignored_repositories", []))
+        ignored_ver_data = await self.data.read_storage("ignored_versions")
+        ignored_versions = ignored_ver_data.get("data", {}) if ignored_ver_data else {}
         installed_count = sum(1 for r in repos if r.get("installed"))
-        updates_count = sum(1 for r in repos if r.get("has_update") and
-                            (r.get("full_name") or r.get("id")) not in ignored_set)
+        # Exclude: whole-repo ignored + version-ignored
+        def _is_update_ignored(r):
+            if not r.get("has_update"):
+                return True  # no update = ignore from update count
+            rid = r.get("full_name") or r.get("id")
+            if rid in ignored_set:
+                return True
+            av = r.get("available_version", "")
+            return rid in ignored_versions and ignored_versions[rid] == av
+        updates_count = sum(1 for r in repos if not _is_update_ignored(r))
         new_count = sum(1 for r in repos if r.get("new") or r.get("status") == "new")
         pending_restart_count = sum(1 for r in repos if r.get("pending_restart"))
         custom_count = sum(1 for r in repos if r.get("custom") or r.get("is_custom"))
@@ -1937,6 +1953,37 @@ class HACSEnhancedAPI(HomeAssistantView):
             config["ignored_repositories"] = ignored
             await self.data.update_config(config)
         return web.json_response({"success": True, "repository": repo})
+
+    async def _ignore_version(self, body: dict) -> web.Response:
+        """Ignore a specific version update for a repository."""
+        repo = body.get("repository", "")
+        version = body.get("version", "")
+        if not repo or not version:
+            return web.json_response({"error": "repository and version required"}, status=400)
+        data = await self.data.read_storage("ignored_versions")
+        if not data:
+            data = {"data": {}}
+        ignored = data.get("data", {})
+        ignored[repo] = version
+        data["data"] = ignored
+        await self.data.write_storage("ignored_versions", data)
+        return web.json_response({"success": True, "repository": repo, "version": version})
+
+    async def _unignore_version(self, body: dict) -> web.Response:
+        """Remove version ignore for a repository."""
+        repo = body.get("repository", "")
+        if not repo:
+            return web.json_response({"error": "repository required"}, status=400)
+        data = await self.data.read_storage("ignored_versions")
+        if data and repo in data.get("data", {}):
+            del data["data"][repo]
+            await self.data.write_storage("ignored_versions", data)
+        return web.json_response({"success": True, "repository": repo})
+
+    async def _get_ignored_versions(self) -> web.Response:
+        """Get all ignored versions."""
+        data = await self.data.read_storage("ignored_versions")
+        return web.json_response(data.get("data", {}) if data else {})
 
     async def _update_config(self, body: dict) -> web.Response:
         result = await self.data.update_config(body)

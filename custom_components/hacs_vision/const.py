@@ -17,6 +17,7 @@ STORAGE_PATHS = {
     "custom_repos": ".storage/hacs_vision_custom_repos.json",
     "settings": ".storage/hacs_vision_settings.json",
     "github_token": ".storage/hacs_vision_github_token.json",
+    "ignored_versions": ".storage/hacs_vision_ignored_versions.json",
 }
 
 API_BASE = "/api/hacs_vision"

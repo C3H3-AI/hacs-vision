@@ -99,6 +99,9 @@ class HACSEnhancedAPI {
   redownload(repository, category) { return this.post('redownload', { repository, category }); }
   ignoreRepo(repository) { return this.post('ignore', { repository }); }
   unignoreRepo(repository) { return this.post('unignore', { repository }); }
+  ignoreVersion(repository, version) { return this.post('ignore-version', { repository, version }); }
+  unignoreVersion(repository) { return this.post('unignore-version', { repository }); }
+  getIgnoredVersions() { return this.get('ignored-versions'); }
   restartHA() { return this.post('restart'); }
   reloadHA() {
     // Clear any pending reload markers on success

@@ -43,6 +43,7 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
     _showConfigFlow: { type: Boolean, state: true },
     _configEntries: { type: Object, state: true },
     _ignoredRepos: { type: Array, state: true },
+    _ignoredVersions: { type: Object, state: true },
     // Entry selector (multiple entries for same domain)
     _showEntrySelector: { type: Boolean, state: true },
     _entrySelectorDomain: { type: String, state: true },
@@ -772,6 +773,10 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
         const cfg = await api.getConfig();
         this._ignoredRepos = cfg.ignored_repositories || [];
       } catch(e) { /* non-critical */ }
+      // Load version-specific ignores
+      try {
+        this._ignoredVersions = await api.getIgnoredVersions();
+      } catch(e) { /* non-critical */ }
     } catch(e) {
       console.error('Stats error:', e);
       this.stats = {};
@@ -1362,13 +1367,24 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
         </button>`);
     }
 
-    // Ignore/Unignore toggle
+    // Version-specific ignore (when update is available)
     const fullName = this._detailRepo?.full_name || (this._detailRepo?.repository || '').replace('https://github.com/', '');
+    if (isUpdateAvailable && fullName) {
+      const availVer = r.available_version;
+      const isVerIgnored = this._ignoredVersions?.[fullName] === availVer;
+      buttons.push(html`
+        <button class="modal-btn" style="color:${isVerIgnored ? '#4caf50' : '#ff9800'};border-color:${isVerIgnored ? '#4caf50' : '#ff9800'};"
+                @click=${() => this._modalAction(isVerIgnored ? 'unignore-version' : 'ignore-version')}>
+          <span style="font-size:14px;">${isVerIgnored ? '🔇' : '🔕'}</span>
+          ${isVerIgnored ? t('unignoreVersion') : t('ignoreVersion')}
+        </button>`);
+    }
+
+    // Whole-repo ignore
     const isIgnored = fullName && this._ignoredRepos?.includes(fullName);
     buttons.push(html`
-      <button class="modal-btn" style="color:${isIgnored ? '#4caf50' : '#ff9800'};border-color:${isIgnored ? '#4caf50' : '#ff9800'};"
+      <button class="modal-btn" style="color:${isIgnored ? '#4caf50' : '#999'};border-color:${isIgnored ? '#4caf50' : '#ccc'};font-size:12px;"
               @click=${() => this._modalAction(isIgnored ? 'unignore' : 'ignore')}>
-        <span style="font-size:14px;">${isIgnored ? '🔇' : '🔕'}</span>
         ${isIgnored ? t('unignore') : t('ignore')}
       </button>`);
 
@@ -1497,6 +1513,27 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
         if (!fullName) return;
         await api.unignoreRepo(fullName);
         showToast(`${t('unignore')}: ${fullName}`, 'success');
+        this._loadStats();
+        return;
+      } else if (action === 'ignore-version') {
+        const fullName = repo.full_name || (repo.repository || '').replace('https://github.com/', '');
+        const version = repo.available_version;
+        if (!fullName || !version) return;
+        const { ConfirmDialog } = await import('./shared/confirm-dialog.js');
+        const ok = await ConfirmDialog.show(this, {
+          message: t('confirmIgnoreVersion', { repo: fullName, version }),
+          confirmText: t('ignoreVersion'), danger: false,
+        });
+        if (!ok) return;
+        await api.ignoreVersion(fullName, version);
+        showToast(`${t('ignoreVersion')}: ${version}`, 'success');
+        this._loadStats();
+        return;
+      } else if (action === 'unignore-version') {
+        const fullName = repo.full_name || (repo.repository || '').replace('https://github.com/', '');
+        if (!fullName) return;
+        await api.unignoreVersion(fullName);
+        showToast(`${t('unignoreVersion')}: ${fullName}`, 'success');
         this._loadStats();
         return;
       } else if (action === 'configure') {
