@@ -17,26 +17,27 @@ _PRERELEASE_RE = re.compile(r'(?i)(?:[-_.]?(?:alpha|beta|pre|rc|dev)\d*|b\d+)')
 
 
 def _compare_versions(v1: str, v2: str) -> int:
-    """Compare two stripped version strings. Returns 1 if v1 > v2, -1 if v1 < v2, 0 if equal.
-    Handles semver-like versions: '5.0.0' > '4.1.0', '5.0.0-beta.3' > '5.0.0-beta.2'."""
-    def _split(v: str) -> list:
-        parts = []
-        for segment in v.split('.'):
-            try:
-                parts.append(int(segment))
-            except ValueError:
-                # Non-numeric segment (e.g. 'beta', '3' in 'beta.3')
-                for sub in segment.split('-'):
-                    try:
-                        parts.append(int(sub))
-                    except ValueError:
-                        parts.append(ord(sub[0]) if sub else 0)
-        return parts
-    p1, p2 = _split(v1), _split(v2)
-    for a, b in zip(p1, p2):
-        if a > b: return 1
-        if a < b: return -1
-    return 0 if len(p1) == len(p2) else (1 if len(p1) > len(p2) else -1)
+    """Compare two version strings using PEP 440 semantics.
+    Returns 1 if v1 > v2, -1 if v1 < v2, 0 if equal.
+    Handles semver-style and PEP 440 versions: '2.0.0' > '2.0.0b24', '5.0.0.alpha1' < '5.0.0'."""
+    # import lazily to avoid startup overhead when HA may not have it in path
+    try:
+        from packaging.version import Version, InvalidVersion
+        p1, p2 = Version(v1), Version(v2)
+        if p1 > p2:
+            return 1
+        if p1 < p2:
+            return -1
+        return 0
+    except (ImportError, InvalidVersion):
+        # Fallback: lexicographic sort on cleaned strings
+        pass
+    v1c, v2c = v1.strip().lower(), v2.strip().lower()
+    if v1c > v2c:
+        return 1
+    if v1c < v2c:
+        return -1
+    return 0
 
 
 def _is_prerelease_version(version: str | None) -> bool:
@@ -342,7 +343,7 @@ class HACSOperator:
                 available = repo.display_available_version
                 installed_prerelease = _is_prerelease_version(installed)
                 available_prerelease = _is_prerelease_version(available)
-                same_channel = installed_prerelease == available_prerelease
+                same_channel = installed_prerelease or installed_prerelease == available_prerelease
                 has_update = installed and available and installed != available and same_channel
                 domain = getattr(repo.data, 'domain', None)
                 manifest = getattr(repo.data, 'repository_manifest', None)
@@ -381,9 +382,7 @@ class HACSOperator:
                 hacs_available = repo.display_available_version
                 available = await self._get_available_with_prerelease(repo, installed, hacs_available)
                 installed_prerelease = _is_prerelease_version(installed)
-                same_channel = installed_prerelease == _is_prerelease_version(available)
-                if installed_prerelease and available != hacs_available:
-                    same_channel = True
+                same_channel = installed_prerelease or installed_prerelease == _is_prerelease_version(available)
                 if installed and available and installed != available and same_channel:
                     updates.append({
                         "id": str(repo.data.id),
@@ -498,10 +497,7 @@ class HACSOperator:
                     # version from GitHub (not just the stale HACS cache)
                     installed_prerelease = _is_prerelease_version(installed_ver)
                     latest_prerelease = _is_prerelease_version(latest_ver)
-                    same_channel = installed_prerelease == latest_prerelease
-                    if installed_prerelease and latest_ver != hacs_available:
-                        # _get_available_with_prerelease found a newer version from GitHub
-                        same_channel = True
+                    same_channel = installed_prerelease or installed_prerelease == latest_prerelease
                     has_update = bool(
                         installed_ver and latest_ver
                         and installed_ver != latest_ver
