@@ -183,6 +183,7 @@ Configure panel behavior, check version info, restart HA, or add new HA integrat
 ## 更新日志 / Changelog
 
 ### v5.2.0 (2026-06-30) — 跳过版本 + 全面优化
+- **New**: 🐛 **直接提交 GitHub Issue** — 在卡片和详情弹窗中一键提交 Issue，自动收集日志、系统信息、上传截图，支持 GitHub 截图粘贴
 - **New**: 🔕 **版本级跳过更新** — 支持跳过指定版本，下个新版本正常提醒。与 HA 原生 `update.skip`/`update.clear_skipped` 同步，Vision 面板 + HA 设置 → Updates 完全一致
 - **New**: 👁️ **已跳过更新面板** — 更新页筛选栏显示 `🔇 显示/隐藏已跳过更新 (N)`，点击展开/收起已跳过的版本卡片，支持"取消跳过"
 - **New**: ⚡ **Updates 数据源切到 HA 实体** — 从 HA 状态机直接读取 `update.*` 实体，替代 HACS 内部 API。更实时、更准确。HACS 降级备用
@@ -196,7 +197,6 @@ Configure panel behavior, check version info, restart HA, or add new HA integrat
 - **Chore**: 版本号升级至 v5.2.0
 
 ### v5.1.0 (2026-06-21) — 优化版
-- **New**: 🐛 **直接提交 GitHub Issue** — 在卡片和详情弹窗中一键提交 Issue，自动收集日志、系统信息、上传截图，支持 GitHib 截图粘贴
 - **New**: 📊 **集成卡片显示设备/实体数** — 每个集成卡片、列表行展示设备和实体数量
 - **New**: ⭐ **GitHub 登录自动星标** — Token/OAuth/HACS 导入后自动星标本仓库
 - **New**: 🏷️ **侧边栏+标题图标统一** — 全部使用 `hacs:hacs` 图标，去掉蓝底背景
