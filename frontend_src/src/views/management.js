@@ -1198,7 +1198,7 @@ export class ManagementView extends LitElement {
       ${this._showAddCustom ? html`
         <div class="add-repo-form">
           <div class="form-row" style="display:flex;gap:8px;flex-wrap:wrap;">
-            <input class="form-input" type="text" style="flex:1;min-width:200px;" .value=${this._customRepoUrl} @input=${e => { this._customRepoUrl = e.target.value; clearTimeout(this._orgLoadTimer); if (!this._isRepoUrl(this._customRepoUrl) && this._customRepoUrl.trim()) { this._orgLoadTimer = setTimeout(() => this._loadMgmtOrgRepos(), 300); }} } placeholder="owner/repo、GitHub URL 或组织名" @keydown=${e => {
+            <input class="form-input" type="text" style="flex:1;min-width:200px;" .value=${this._customRepoUrl} @input=${e => { this._customRepoUrl = e.target.value; clearTimeout(this._orgLoadTimer); if (!this._isRepoUrl(this._customRepoUrl) && this._customRepoUrl.trim()) { this._orgLoadTimer = setTimeout(() => this._loadMgmtOrgRepos(), 300); }} } placeholder="${t('inputRepoPlaceholder')}" @keydown=${e => {
               if (e.key === 'Enter') {
                 if (this._orgRepos.length > 0) this._syncSelectedMgmtOrg();
                 else this._addCustomRepo();

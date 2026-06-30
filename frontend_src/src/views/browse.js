@@ -1283,7 +1283,7 @@ class BrowseView extends LitElement {
       ${this._showAddRepo ? html`
         <div class="add-repo-form">
           <div class="form-row">
-            <input class="form-input" type="text" placeholder="owner/repo、${t('repoUrl')} 或组织名" .value=${this._newRepoUrl}
+            <input class="form-input" type="text" placeholder="${t('inputRepoPlaceholder')}" .value=${this._newRepoUrl}
               @input=${e => { this._newRepoUrl = e.target.value; clearTimeout(this._orgLoadTimer); if (!this._isRepoUrl(this._newRepoUrl) && this._newRepoUrl.trim()) { this._orgLoadTimer = setTimeout(() => this._loadBrowseOrgRepos(), 300); }} }
               @keydown=${e => { if (e.key === 'Enter' && this._parseRepoUrl(this._newRepoUrl)) this._addRepo(); }}
               style="flex:1;min-width:200px;">

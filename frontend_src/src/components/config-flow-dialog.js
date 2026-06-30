@@ -1493,7 +1493,7 @@ class ConfigFlowDialog extends LitElement {
           ${isPassword ? html`
             <button type="button" @click=${() => { this._passwordVisible = !this._passwordVisible; this.requestUpdate(); }}
                     style="position:absolute;right:8px;background:none;border:none;cursor:pointer;padding:4px;color:var(--secondary-text-color,#727272);font-size:14px;line-height:1;"
-                    title="${this._passwordVisible ? '隐藏' : '显示'}">
+                    title="${this._passwordVisible ? t('togglePasswordHide') : t('togglePasswordShow')}">
               ${this._passwordVisible ? '🙈' : '👁'}
             </button>
           ` : ''}

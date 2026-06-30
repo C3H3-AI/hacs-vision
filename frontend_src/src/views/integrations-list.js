@@ -693,7 +693,7 @@ class IntegrationsList extends LitElement {
     this._selectedDomains = {};
     this.requestUpdate();
     const { showToast } = await import('../hacs-vision-panel.js');
-    showToast(`${t('batchComplete') } (${domains.length} 集成, ${entries.length} 条目)`, 'success');
+    showToast(`${t('batchComplete')} (${domains.length} ${t('catIntegration')}, ${entries.length} ${t('entryCount', { n: entries.length }).trim()})`, 'success');
   }
   _translateDomain(domain) {
     return this._domainNames?.[domain] || domain;

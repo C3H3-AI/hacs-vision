@@ -396,11 +396,11 @@ class RepoCard extends LitElement {
     try {
       const user = await api.get('github/user', { suppressNetworkError: true });
       if (!user || user.error) {
-        this._showCardToast('请先登录 GitHub（设置 → GitHub Token）', 'error');
+        this._showCardToast(t('issueNotLoggedIn'), 'error');
         return;
       }
     } catch {
-      this._showCardToast('请先登录 GitHub（设置 → GitHub Token）', 'error');
+      this._showCardToast(t('issueNotLoggedIn'), 'error');
       return;
     }
     // Delegate to parent panel's full Issue dialog

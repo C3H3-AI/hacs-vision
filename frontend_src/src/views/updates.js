@@ -602,7 +602,7 @@ class UpdatesView extends LitElement {
     const ids = Object.keys(this._selectedIds).filter(k => this._selectedIds[k]);
     if (ids.length === 0) return;
     const confirmed = await ConfirmDialog.show(this, {
-      message: `确定要跳过 ${ids.length} 个仓库的当前版本？下个新版本会正常提醒。`,
+      message: t('confirmSkipVersion', { n: ids.length }),
       confirmText: t('ignoreVersion'),
       danger: false,
     });
@@ -618,7 +618,7 @@ class UpdatesView extends LitElement {
         console.warn(`Skip failed for ${repo.full_name}:`, e);
       }
     }
-    showToast(`已跳过 ${skipped}/${ids.length} 个版本`, 'success');
+    showToast(t('skipVersionDone', { ok: skipped, total: ids.length }), 'success');
     this._selectedIds = {};
     this._load();
     this._loadSkippedVersions();
@@ -788,7 +788,7 @@ class UpdatesView extends LitElement {
       this._loadSkippedVersions();
       this.dispatchEvent(new CustomEvent('refresh-stats', { bubbles: true, composed: true }));
     } catch(e) {
-      showToast(`${t('ignoreVersion')} 失败: ${e.message}`, 'error');
+      showToast(`${t('unskipVersionFailed')}: ${e.message}`, 'error');
     }
   }
 
@@ -804,7 +804,7 @@ class UpdatesView extends LitElement {
 
   async _unskipVersion(sv) {
     const ok = await ConfirmDialog.show(this, {
-      message: `确定取消跳过 ${sv.full_name} 的版本 ${sv.skipped_version}？`,
+      message: t('confirmUnskipVersion', { name: sv.full_name, ver: sv.skipped_version }),
       confirmText: t('unignoreVersion'),
       danger: false,
     });
@@ -816,7 +816,7 @@ class UpdatesView extends LitElement {
       this._load();  // Reload updates list to show the now-available update
       this.dispatchEvent(new CustomEvent('refresh-stats', { bubbles: true, composed: true }));
     } catch(e) {
-      showToast(`取消跳过失败: ${e.message}`, 'error');
+      showToast(`${t('unskipVersionFailed')}: ${e.message}`, 'error');
     }
   }
 
@@ -1008,7 +1008,7 @@ class UpdatesView extends LitElement {
           <div class="fs-actions">
             ${this._skippedVersions && this._skippedVersions.length > 0 ? html`
               <button class="chip" @click=${() => { this._showSkipped = !this._showSkipped; this.requestUpdate(); }}>
-                🔇 ${this._showSkipped ? '隐藏' : '显示'}已跳过更新 (${this._skippedVersions.length})
+                🔇 ${this._showSkipped ? t('hideSkipped') : t('showSkipped')} (${this._skippedVersions.length})
               </button>
             ` : ''}
             ${this._selectedCount() > 0 ? html`
@@ -1064,7 +1064,7 @@ class UpdatesView extends LitElement {
             <span style="font-weight:600;">${t('selected')}: ${this._selectedCount()}</span>
             <div class="batch-actions">
               <button class="batch-bar-btn" @click=${this._updateSelected} ?disabled=${this.updating}>${t('batchUpdate')}</button>
-              <button class="batch-bar-btn" style="color:var(--warning-color,#ff9800);border-color:var(--warning-color,#ff9800);" @click=${this._skipSelected} ?disabled=${this.updating}>🔕 批量跳过</button>
+              <button class="batch-bar-btn" style="color:var(--warning-color,#ff9800);border-color:var(--warning-color,#ff9800);" @click=${this._skipSelected} ?disabled=${this.updating}>🔕 ${t('batchSkip')}</button>
               <button class="batch-bar-btn danger" @click=${() => this._batchDo('remove')} ?disabled=${this.updating}>${t('batchRemove')}</button>
               <button class="batch-bar-btn" style="background:transparent;border-color:transparent;font-size:14px;" @click=${() => { this._selectedIds = {}; this.requestUpdate(); }}>✕</button>
             </div>
@@ -1176,13 +1176,13 @@ class UpdatesView extends LitElement {
           </div>
         `}
 
-        <!-- 已跳过的版本 (按钮控制显示) -->
+        <!-- 已${t("skippedVersionTitle")} (按钮控制显示) -->
         ${this._showSkipped && this._skippedVersions && this._skippedVersions.length > 0 ? html`
           <div style="margin-top:16px;padding:16px;background:var(--card-background-color,#fff);border-radius:14px;border:1px solid var(--divider-color,#e0e0e0);">
             <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
               <span style="font-size:14px;">🔇</span>
-              <span style="font-size:14px;font-weight:600;color:var(--primary-text-color);">已跳过版本</span>
-              <span style="font-size:12px;color:var(--secondary-text-color);">· ${this._skippedVersions.length} 个 · 点击上方按钮可隐藏</span>
+              <span style="font-size:14px;font-weight:600;color:var(--primary-text-color);">${t('skippedVersionLabel')}</span>
+              <span style="font-size:12px;color:var(--secondary-text-color);">${t('skippedVersionCount', { n: this._skippedVersions.length })}</span>
             </div>
             <div class="grid">
               ${this._skippedVersions.map(sv => html`
@@ -1191,7 +1191,7 @@ class UpdatesView extends LitElement {
                     <div class="avatar" style="background:#9e9e9e;display:flex;align-items:center;justify-content:center;">
                       <span class="initials">${(sv.full_name || '?').charAt(0).toUpperCase()}</span>
                     </div>
-                    <span class="status-badge-update" style="background:rgba(158,158,158,0.85)">🔇 已跳过</span>
+                    <span class="status-badge-update" style="background:rgba(158,158,158,0.85)">${t('skippedBadge')}</span>
                   </div>
                   <div class="card-body">
                     <div class="card-name">${sv.full_name || '?'}</div>
@@ -1201,7 +1201,7 @@ class UpdatesView extends LitElement {
                         <div class="version-value old">${sv.installed_version || '?'}</div>
                       </div>
                       <div class="version-item">
-                        <div class="version-label">跳过的版本</div>
+                        <div class="version-label">${t('skippedVersionTitle')}</div>
                         <div class="version-value" style="color:#9e9e9e;text-decoration:line-through;">${sv.skipped_version || '?'}</div>
                       </div>
                     </div>
@@ -1209,7 +1209,7 @@ class UpdatesView extends LitElement {
                   <div class="actions" style="justify-content:flex-end;">
                     <button class="action-btn" @click=${() => this._unskipVersion(sv)}
                       style="color:var(--primary-color);border-color:var(--primary-color);padding:8px 16px;">
-                      取消跳过
+                      ${t('unskipBtn')}
                     </button>
                   </div>
                 </div>

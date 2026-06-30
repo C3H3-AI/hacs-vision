@@ -791,7 +791,7 @@ class ConfigView extends LitElement {
         this._githubOAuthing = false;
       }
     } catch(e) {
-      this._githubVerifyMsg = `OAuth 错误: ${e.message}`;
+      this._githubVerifyMsg = `${t('oauthError')}: ${e.message}`;
       this._githubOAuthing = false;
     }
   }

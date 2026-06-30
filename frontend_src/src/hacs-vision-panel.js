@@ -728,6 +728,9 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
       if (!document.hidden) this._checkCacheVersion();
     };
     document.addEventListener('visibilitychange', this._visibilityHandler);
+    // Language change listener
+    this._langChangeHandler = () => this.requestUpdate();
+    window.addEventListener('hacs-lang-changed', this._langChangeHandler);
   }
 
   disconnectedCallback() {
@@ -744,6 +747,10 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
     if (this._visibilityHandler) {
       document.removeEventListener('visibilitychange', this._visibilityHandler);
       this._visibilityHandler = null;
+    }
+    if (this._langChangeHandler) {
+      window.removeEventListener('hacs-lang-changed', this._langChangeHandler);
+      this._langChangeHandler = null;
     }
   }
 
@@ -1593,17 +1600,17 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
         <div style="font-size:13px;color:var(--secondary-text-color,#727272);margin-bottom:16px;">${fullName}</div>
         <input id="hv-issue-title" placeholder="${t('issueTitlePlaceholder')}" autofocus style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid var(--divider-color,#e0e0e0);border-radius:8px;background:var(--input-background-color,#f5f5f5);color:var(--primary-text-color);font-size:14px;margin-bottom:10px;">
         <div style="position:relative;">
-          <span id="hv-issue-expand-btn" style="position:absolute;top:6px;right:6px;z-index:10;font-size:11px;color:var(--primary-color,#03a9f4);cursor:pointer;user-select:none;padding:2px 7px;border-radius:4px;background:var(--card-background-color,#fff);border:1px solid var(--divider-color,#e0e0e0);opacity:0.7;line-height:1.4;" title="放大/缩小编辑器">⛶</span>
+          <span id="hv-issue-expand-btn" style="position:absolute;top:6px;right:6px;z-index:10;font-size:11px;color:var(--primary-color,#03a9f4);cursor:pointer;user-select:none;padding:2px 7px;border-radius:4px;background:var(--card-background-color,#fff);border:1px solid var(--divider-color,#e0e0e0);opacity:0.7;line-height:1.4;" title="${t('issueExpand')}/${t('issueRestore')} editor">⛶</span>
           <textarea id="hv-issue-body" placeholder="${t('issueBody')}" rows="8" style="width:100%;box-sizing:border-box;padding:10px 40px 10px 12px;border:1px solid var(--divider-color,#e0e0e0);border-radius:8px;background:var(--input-background-color,#f5f5f5);color:var(--primary-text-color);font-size:14px;min-height:250px;resize:vertical;margin-bottom:10px;line-height:1.6;"></textarea>
         </div>
         <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--secondary-text-color);margin-bottom:8px;cursor:pointer;">
           <input type="file" accept="image/*" id="hv-issue-screenshots" multiple style="display:none;">
-          <span style="font-size:20px;">📷</span> <span id="hv-issue-screenshot-label">添加上传截图（可选，可多选）</span>
+          <span style="font-size:20px;">📷</span> <span id="hv-issue-screenshot-label">${t('addScreenshots')}</span>
         </label>
         <div id="hv-issue-screenshot-list" style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:10px;"></div>
         <details style="margin-bottom:10px;font-size:13px;color:var(--secondary-text-color);">
-          <summary style="cursor:pointer;user-select:none;">📋 预览提交内容（含自动收集的日志）</summary>
-          <textarea id="hv-issue-preview" style="margin-top:8px;padding:10px;background:var(--secondary-background-color,#f5f5f5);border-radius:8px;font-size:12px;line-height:1.5;width:100%;box-sizing:border-box;min-height:80px;max-height:250px;resize:vertical;border:1px solid var(--divider-color,#e0e0e0);color:var(--primary-text-color);font-family:inherit;" readonly>加载中...</textarea>
+          <summary style="cursor:pointer;user-select:none;">${t('previewContent')}</summary>
+          <textarea id="hv-issue-preview" style="margin-top:8px;padding:10px;background:var(--secondary-background-color,#f5f5f5);border-radius:8px;font-size:12px;line-height:1.5;width:100%;box-sizing:border-box;min-height:80px;max-height:250px;resize:vertical;border:1px solid var(--divider-color,#e0e0e0);color:var(--primary-text-color);font-family:inherit;" readonly>${t("loadingUpdates")}</textarea>
         </details>
         <div style="display:flex;gap:8px;justify-content:flex-end;">
           <button id="hv-issue-cancel" style="padding:8px 20px;border-radius:8px;border:1px solid var(--divider-color);background:var(--card-background-color);color:var(--primary-text-color);cursor:pointer;font-size:13px;">${t('issueCancel')}</button>
@@ -1625,11 +1632,11 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
         const dlg = overlay.querySelector('#hv-issue-dialog-body') || overlay.firstElementChild;
         if (_expanded) {
           bodyTa.style.height = '55vh'; bodyTa.style.minHeight = '55vh';
-          expandBtn.title = '还原';
+          expandBtn.title = t('issueRestore');
           if (dlg) { dlg.style.position = 'fixed'; dlg.style.top = '20px'; dlg.style.left = '50%'; dlg.style.transform = 'translateX(-50%)'; dlg.style.maxWidth = '900px'; dlg.style.width = '90vw'; dlg.style.maxHeight = '95vh'; dlg.style.overflow = 'auto'; }
         } else {
           bodyTa.style.height = ''; bodyTa.style.minHeight = '250px';
-          expandBtn.title = '放大';
+          expandBtn.title = t('issueExpand');
           if (dlg) { dlg.style.position = ''; dlg.style.top = ''; dlg.style.left = ''; dlg.style.transform = ''; dlg.style.maxWidth = '580px'; dlg.style.width = '100%'; dlg.style.maxHeight = '90vh'; }
         }
       };
@@ -1643,16 +1650,16 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
       if (!previewEl) return;
       if (preview && !preview.error) {
         const p = [];
-        p.push(`HA 版本: ${preview.ha_version || '?'}`);
-        if (preview.repo_version) p.push(`集成版本: ${preview.repo_version}`);
-        if (preview.repo_domain) p.push(`领域: ${preview.repo_domain}`);
+        p.push(`${t('haVersion')}: ${preview.ha_version || '?'}`);
+        if (preview.repo_version) p.push(`${t('repoVersion')}: ${preview.repo_version}`);
+        if (preview.repo_domain) p.push(`${t('repoDomain')}: ${preview.repo_domain}`);
         p.push('');
-        if (preview.logs) { p.push('--- 相关日志 ---'); p.push(preview.logs.substring(0, 1500)); if (preview.logs.length > 1500) p.push('...(截断)'); }
-        else { p.push('(无相关错误日志)'); }
+        if (preview.logs) { p.push(`--- ${t('relatedLogs')} ---`); p.push(preview.logs.substring(0, 1500)); if (preview.logs.length > 1500) p.push('...(truncated)'); }
+        else { p.push(t('noRelatedLogs')); }
         previewEl.value = p.join('\n');
         previewEl.readOnly = false; // Allow editing
-      } else { previewEl.value = '(无法获取预览信息)'; }
-    }).catch(() => { if (previewEl) previewEl.value = '(预览加载失败)'; });
+      } else { previewEl.value = t('cantGetPreview'); }
+    }).catch(() => { if (previewEl) previewEl.value = t('previewLoadFailed'); });
 
     // Screenshot handling
     const screenshots = [];
@@ -1664,7 +1671,7 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
       if (!files || files.length === 0) return;
       screenshotList.innerHTML = '';
       for (const file of files) {
-        if (file.size > 5 * 1024 * 1024) { showToast(`"${file.name}" 过大（>5MB），已跳过`, 'error'); continue; }
+        if (file.size > 5 * 1024 * 1024) { showToast(t("fileTooLarge", { name: file.name }), 'error'); continue; }
         const reader = new FileReader();
         reader.onload = (ev) => {
           screenshots.push({ name: file.name, data: ev.target.result });
@@ -1672,7 +1679,7 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
           thumb.style.cssText = 'width:60px;height:60px;border-radius:6px;overflow:hidden;border:1px solid var(--divider-color);position:relative;flex-shrink:0;';
           thumb.innerHTML = '<img src="' + ev.target.result + '" style="width:100%;height:100%;object-fit:cover;"><span style="position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,0.5);color:#fff;font-size:9px;text-align:center;padding:1px 0;">' + file.name.slice(-12) + '</span>';
           screenshotList.appendChild(thumb);
-          screenshotLabel.textContent = '✓ 已选 ' + screenshots.length + ' 张截图';
+          screenshotLabel.textContent = t('screenshotsSelected', { n: screenshots.length });
         };
         reader.readAsDataURL(file);
       }
@@ -1685,13 +1692,13 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
     overlay.querySelector('#hv-issue-submit').addEventListener('click', async () => {
       const title = overlay.querySelector('#hv-issue-title').value.trim();
       const body = overlay.querySelector('#hv-issue-body').value.trim();
-      if (!title) { showToast('请输入 Issue 标题', 'error'); return; }
+      if (!title) { showToast(t('enterIssueTitle'), 'error'); return; }
       const submitBtn = overlay.querySelector('#hv-issue-submit');
       const cancelBtn = overlay.querySelector('#hv-issue-cancel');
       const statusEl = overlay.querySelector('#hv-issue-status');
-      submitBtn.disabled = true; submitBtn.textContent = '提交中…'; submitBtn.style.opacity = '0.6';
+      submitBtn.disabled = true; submitBtn.textContent = t('submitting'); submitBtn.style.opacity = '0.6';
       cancelBtn.style.display = 'none';
-      statusEl.style.display = 'block'; statusEl.textContent = '正在提交 Issue...';
+      statusEl.style.display = 'block'; statusEl.textContent = t('submittingIssue');
       try {
         const screenshotB64s = screenshots.map(ss => ss.data);
         // Combine user description + editable preview (with logs)
@@ -1704,12 +1711,12 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
           if (result.issue_url) window.open(result.issue_url, '_blank');
         } else {
           statusEl.textContent = result.error || t('issueFailed');
-          submitBtn.disabled = false; submitBtn.textContent = '重试'; submitBtn.style.opacity = '1';
+          submitBtn.disabled = false; submitBtn.textContent = t('retry'); submitBtn.style.opacity = '1';
           cancelBtn.style.display = '';
         }
       } catch (e) {
         statusEl.textContent = t('issueFailed') + ': ' + e.message;
-        submitBtn.disabled = false; submitBtn.textContent = '重试'; submitBtn.style.opacity = '1';
+        submitBtn.disabled = false; submitBtn.textContent = t('retry'); submitBtn.style.opacity = '1';
         cancelBtn.style.display = '';
       }
     });
@@ -1743,6 +1750,7 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
       const color = this._getDomainColor(domain);
 
       const onLoad = () => {
+        if (!img.parentElement) return;
         if (img.naturalWidth > 0) {
           img.style.display = '';
           const letter = img.parentElement.querySelector('.detail-avatar-letter');
@@ -1751,6 +1759,7 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
         }
       };
       const onError = () => {
+        if (!img.parentElement) return;
         if (!img.dataset.fb) {
           img.dataset.fb = '1';
           img.src = localUrl;

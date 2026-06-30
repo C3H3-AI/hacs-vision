@@ -666,6 +666,51 @@ const T = {
   // Missing keys audit fix
   loadingUpdates: { zh: '正在加载更新...', en: 'Loading updates...', de: 'Lade Aktualisierungen...' },
   processing: { zh: '处理中...', en: 'Processing...', de: 'Verarbeite...' },
+
+  // updates.js — skipped versions
+  confirmSkipVersion: { zh: '确定要跳过 {n} 个仓库的当前版本？下个新版本会正常提醒。', en: 'Skip current version for {n} repos? Next new version will notify normally.', de: 'Aktuelle Version für {n} Repositorys überspringen? Nächste neue Version benachrichtigt normal.' },
+  skipVersionDone: { zh: '已跳过 {ok}/{total} 个版本', en: 'Skipped {ok}/{total} versions', de: '{ok}/{total} Versionen übersprungen' },
+  confirmUnskipVersion: { zh: '确定取消跳过 {name} 的版本 {ver}？', en: 'Unskip version {ver} of {name}?', de: 'Überspringen von Version {ver} von {name} rückgängig?' },
+  unskipVersionFailed: { zh: '取消跳过失败', en: 'Unskip failed', de: 'Rückgängig fehlgeschlagen' },
+  showSkipped: { zh: '显示已跳过更新', en: 'Show skipped updates', de: 'Übersprungene anzeigen' },
+  hideSkipped: { zh: '隐藏已跳过更新', en: 'Hide skipped updates', de: 'Übersprungene ausblenden' },
+  skippedVersionLabel: { zh: '已跳过版本', en: 'Skipped Versions', de: 'Übersprungene Versionen' },
+  skippedVersionCount: { zh: '{n} 个 · 点击按钮可隐藏', en: '{n} items · Click button to hide', de: '{n} Einträge · Klicken zum Ausblenden' },
+  skippedBadge: { zh: '🔇 已跳过', en: '🔇 Skipped', de: '🔇 Übersprungen' },
+  skippedVersionTitle: { zh: '跳过的版本', en: 'Skipped version', de: 'Übersprungene Version' },
+  unskipBtn: { zh: '取消跳过', en: 'Unskip', de: 'Rückgängig' },
+
+  // hacs-vision-panel.js — Issue submission
+  issueRestore: { zh: '还原', en: 'Restore', de: 'Wiederherstellen' },
+  issueExpand: { zh: '放大', en: 'Expand', de: 'Vergrößern' },
+  haVersion: { zh: 'HA 版本', en: 'HA Version', de: 'HA-Version' },
+  repoVersion: { zh: '集成版本', en: 'Integration Version', de: 'Integrationsversion' },
+  repoDomain: { zh: '领域', en: 'Domain', de: 'Bereich' },
+  relatedLogs: { zh: '相关日志', en: 'Related logs', de: 'Verwandte Logs' },
+  noRelatedLogs: { zh: '(无相关错误日志)', en: '(No related error logs)', de: '(Keine verwandten Fehler-Logs)' },
+  cantGetPreview: { zh: '(无法获取预览信息)', en: '(Cannot get preview info)', de: '(Keine Vorschauinfo verfügbar)' },
+  previewLoadFailed: { zh: '(预览加载失败)', en: '(Preview load failed)', de: '(Vorschauladen fehlgeschlagen)' },
+  fileTooLarge: { zh: '{name} 过大（>5MB），已跳过', en: '{name} too large (>5MB), skipped', de: '{name} zu groß (>5MB), übersprungen' },
+  screenshotsSelected: { zh: '✓ 已选 {n} 张截图', en: '✓ {n} screenshot(s) selected', de: '✓ {n} Screenshot(s) ausgewählt' },
+  enterIssueTitle: { zh: '请输入 Issue 标题', en: 'Please enter an issue title', de: 'Bitte geben Sie einen Issue-Titel ein' },
+  submitting: { zh: '提交中…', en: 'Submitting…', de: 'Sende…' },
+  submittingIssue: { zh: '正在提交 Issue...', en: 'Submitting issue...', de: 'Sende Issue...' },
+  retry: { zh: '重试', en: 'Retry', de: 'Wiederholen' },
+  addScreenshots: { zh: '添加上传截图（可选，可多选）', en: 'Add screenshots (optional, multiple)', de: 'Screenshots hinzufügen (optional, mehrere)' },
+  previewContent: { zh: '📋 预览提交内容（含自动收集的日志）', en: '📋 Preview content (with auto-collected logs)', de: '📋 Vorschau (mit automatisch gesammelten Logs)' },
+
+  // config-flow-dialog.js — password toggle
+  togglePasswordShow: { zh: '显示', en: 'Show', de: 'Anzeigen' },
+  togglePasswordHide: { zh: '隐藏', en: 'Hide', de: 'Ausblenden' },
+
+  // Batch operations
+  batchSkip: { zh: '批量跳过', en: 'Skip Selected', de: 'Ausgewählte überspringen' },
+
+  // OAuth
+  oauthError: { zh: 'OAuth 错误', en: 'OAuth Error', de: 'OAuth-Fehler' },
+
+  // Input placeholders
+  inputRepoPlaceholder: { zh: 'owner/repo、GitHub URL 或组织名', en: 'owner/repo, GitHub URL or org name', de: 'owner/repo, GitHub-URL oder Organisationsname' },
 };
 
 /* ── Translation Lookup ─────────────────────────────────── */
@@ -718,6 +763,8 @@ export function setLang(lang) {
     _USER_LANG = null;
     _LANG = _HA_LANG || 'en';
   }
+  // Notify all components to re-render with new language
+  window.dispatchEvent(new CustomEvent('hacs-lang-changed', { detail: { lang: getLang() } }));
 }
 
 /**
