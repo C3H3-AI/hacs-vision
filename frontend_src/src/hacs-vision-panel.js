@@ -1627,12 +1627,33 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
           </div>
         </div>
       </div>`;
-    overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+    // 点击外部不关闭（防止编辑内容误触丢失）
     const shadowRoot = this.shadowRoot || this.renderRoot;
     if (shadowRoot) shadowRoot.appendChild(overlay);
 
-    // Expand toggle (header dblclick or expand button)
+    // ── 自动暂存（localStorage 草稿） ──
+    const _DRAFT_KEY = 'hv-issue-draft-' + fullName.replace('/', '-');
+    const titleInput = overlay.querySelector('#hv-issue-title');
     const bodyTa = overlay.querySelector('#hv-issue-body');
+    // 恢复草稿
+    try {
+      const raw = localStorage.getItem(_DRAFT_KEY);
+      if (raw) {
+        const draft = JSON.parse(raw);
+        if (draft.title) titleInput.value = draft.title;
+        if (draft.body) bodyTa.value = draft.body;
+      }
+    } catch(e) {}
+    // 自动保存（输入即存）
+    let _draftTimer;
+    const _doSave = () => {
+      try { localStorage.setItem(_DRAFT_KEY, JSON.stringify({ title: titleInput.value, body: bodyTa.value, savedAt: Date.now() })); } catch(e) {}
+    };
+    titleInput.addEventListener('input', () => { clearTimeout(_draftTimer); _draftTimer = setTimeout(_doSave, 500); });
+    bodyTa.addEventListener('input', () => { clearTimeout(_draftTimer); _draftTimer = setTimeout(_doSave, 500); });
+    // 提交成功后清除草稿（在 submit 回调中处理）
+
+    // Expand toggle (header dblclick or expand button)
     const expandBtn = overlay.querySelector('#hv-issue-expand-btn');
     const headerEl = overlay.querySelector('#hv-issue-header');
     if (bodyTa && expandBtn) {
@@ -1720,6 +1741,7 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
         const result = await api.createIssue(fullName, title, finalBody, repo.domain, screenshotB64s);
         if (result.ok) {
           overlay.remove();
+          try { localStorage.removeItem(_DRAFT_KEY); } catch(e) {}
           if (this._showDetail) this._closeDetail();
           if (result.issue_url) window.open(result.issue_url, '_blank');
         } else {
