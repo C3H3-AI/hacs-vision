@@ -1598,53 +1598,63 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
     const overlay = document.createElement('div');
     overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px;';
     overlay.innerHTML = `
-      <div style="background:var(--card-background-color,#fff);border-radius:16px;padding:24px;max-width:580px;width:100%;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.3);animation:slideUp .2s ease;transition:all .2s;" id="hv-issue-dialog-body">
-        <div style="font-size:17px;font-weight:600;margin-bottom:4px;color:var(--primary-text-color,#212121);">${t('reportIssue')}</div>
-        <div style="font-size:13px;color:var(--secondary-text-color,#727272);margin-bottom:16px;">${fullName}</div>
-        <input id="hv-issue-title" placeholder="${t('issueTitlePlaceholder')}" autofocus style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid var(--divider-color,#e0e0e0);border-radius:8px;background:var(--input-background-color,#f5f5f5);color:var(--primary-text-color);font-size:14px;margin-bottom:10px;">
-        <div style="position:relative;">
-          <span id="hv-issue-expand-btn" style="position:absolute;top:6px;right:6px;z-index:10;font-size:11px;color:var(--primary-color,#03a9f4);cursor:pointer;user-select:none;padding:2px 7px;border-radius:4px;background:var(--card-background-color,#fff);border:1px solid var(--divider-color,#e0e0e0);opacity:0.7;line-height:1.4;" title="${t('issueExpand')}/${t('issueRestore')} editor">⛶</span>
-          <textarea id="hv-issue-body" placeholder="${t('issueBody')}" rows="8" style="width:100%;box-sizing:border-box;padding:10px 40px 10px 12px;border:1px solid var(--divider-color,#e0e0e0);border-radius:8px;background:var(--input-background-color,#f5f5f5);color:var(--primary-text-color);font-size:14px;min-height:250px;resize:vertical;margin-bottom:10px;line-height:1.6;"></textarea>
+      <div style="background:var(--card-background-color,#fff);border-radius:16px;padding:24px;max-width:860px;width:100%;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.3);animation:slideUp .2s ease;transition:all .2s;" id="hv-issue-dialog-body">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;cursor:pointer;user-select:none;" id="hv-issue-header">
+          <div>
+            <div style="font-size:17px;font-weight:600;color:var(--primary-text-color,#212121);">${t('reportIssue')}</div>
+            <div style="font-size:13px;color:var(--secondary-text-color,#727272);margin-top:2px;">${fullName} <span style="font-size:11px;opacity:0.6;">— ${t('issueExpand')}</span></div>
+          </div>
+          <span id="hv-issue-expand-btn" style="font-size:13px;color:var(--primary-color,#03a9f4);cursor:pointer;user-select:none;padding:4px 10px;border-radius:6px;background:var(--card-background-color,#fff);border:1px solid var(--divider-color,#e0e0e0);line-height:1.4;" title="${t('issueExpand')}/${t('issueRestore')}">⛶ ${t('issueExpand')}</span>
         </div>
-        <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--secondary-text-color);margin-bottom:8px;cursor:pointer;">
-          <input type="file" accept="image/*" id="hv-issue-screenshots" multiple style="display:none;">
-          <span style="font-size:20px;">📷</span> <span id="hv-issue-screenshot-label">${t('addScreenshots')}</span>
-        </label>
-        <div id="hv-issue-screenshot-list" style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:10px;"></div>
-        <details style="margin-bottom:10px;font-size:13px;color:var(--secondary-text-color);">
-          <summary style="cursor:pointer;user-select:none;">${t('previewContent')}</summary>
-          <textarea id="hv-issue-preview" style="margin-top:8px;padding:10px;background:var(--secondary-background-color,#f5f5f5);border-radius:8px;font-size:12px;line-height:1.5;width:100%;box-sizing:border-box;min-height:80px;max-height:250px;resize:vertical;border:1px solid var(--divider-color,#e0e0e0);color:var(--primary-text-color);font-family:inherit;" readonly>${t("loadingUpdates")}</textarea>
-        </details>
-        <div style="display:flex;gap:8px;justify-content:flex-end;">
-          <button id="hv-issue-cancel" style="padding:8px 20px;border-radius:8px;border:1px solid var(--divider-color);background:var(--card-background-color);color:var(--primary-text-color);cursor:pointer;font-size:13px;">${t('issueCancel')}</button>
-          <button id="hv-issue-submit" style="padding:8px 20px;border-radius:8px;border:none;background:var(--primary-color,#03a9f4);color:#fff;cursor:pointer;font-size:13px;font-weight:500;">${t('issueConfirm')}</button>
+        <div style="display:flex;gap:16px;">
+          <div style="flex:1;min-width:0;">
+            <input id="hv-issue-title" placeholder="${t('issueTitlePlaceholder')}" autofocus style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid var(--divider-color,#e0e0e0);border-radius:8px;background:var(--input-background-color,#f5f5f5);color:var(--primary-text-color);font-size:14px;margin-bottom:10px;">
+            <textarea id="hv-issue-body" placeholder="${t('issueBody')}" rows="8" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid var(--divider-color,#e0e0e0);border-radius:8px;background:var(--input-background-color,#f5f5f5);color:var(--primary-text-color);font-size:14px;min-height:250px;resize:vertical;margin-bottom:10px;line-height:1.6;"></textarea>
+            <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--secondary-text-color);margin-bottom:8px;cursor:pointer;">
+              <input type="file" accept="image/*" id="hv-issue-screenshots" multiple style="display:none;">
+              <span style="font-size:20px;">📷</span> <span id="hv-issue-screenshot-label">${t('addScreenshots')}</span>
+            </label>
+            <div id="hv-issue-screenshot-list" style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:10px;"></div>
+            <div style="display:flex;gap:8px;justify-content:flex-end;">
+              <button id="hv-issue-cancel" style="padding:8px 20px;border-radius:8px;border:1px solid var(--divider-color);background:var(--card-background-color);color:var(--primary-text-color);cursor:pointer;font-size:13px;">${t('issueCancel')}</button>
+              <button id="hv-issue-submit" style="padding:8px 20px;border-radius:8px;border:none;background:var(--primary-color,#03a9f4);color:#fff;cursor:pointer;font-size:13px;font-weight:500;">${t('issueConfirm')}</button>
+            </div>
+            <div id="hv-issue-status" style="color:#f44336;font-size:12px;margin-top:8px;display:none;"></div>
+          </div>
+          <div style="width:320px;flex-shrink:0;display:flex;flex-direction:column;">
+            <div style="font-size:13px;font-weight:600;color:var(--primary-text-color);margin-bottom:6px;">${t('previewContent')}</div>
+            <textarea id="hv-issue-preview" style="flex:1;padding:10px;background:var(--secondary-background-color,#f5f5f5);border-radius:8px;font-size:12px;line-height:1.5;width:100%;box-sizing:border-box;min-height:200px;resize:vertical;border:1px solid var(--divider-color,#e0e0e0);color:var(--primary-text-color);font-family:inherit;" readonly>${t("loadingUpdates")}</textarea>
+          </div>
         </div>
-        <div id="hv-issue-status" style="color:#f44336;font-size:12px;margin-top:8px;display:none;"></div>
       </div>`;
     overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
     const shadowRoot = this.shadowRoot || this.renderRoot;
     if (shadowRoot) shadowRoot.appendChild(overlay);
 
-    // Expand toggle
+    // Expand toggle (header dblclick or expand button)
     const bodyTa = overlay.querySelector('#hv-issue-body');
     const expandBtn = overlay.querySelector('#hv-issue-expand-btn');
+    const headerEl = overlay.querySelector('#hv-issue-header');
     if (bodyTa && expandBtn) {
       let _expanded = false;
       const toggle = () => {
         _expanded = !_expanded;
         const dlg = overlay.querySelector('#hv-issue-dialog-body') || overlay.firstElementChild;
+        const previewTa = overlay.querySelector('#hv-issue-preview');
         if (_expanded) {
           bodyTa.style.height = '55vh'; bodyTa.style.minHeight = '55vh';
+          if (previewTa) { previewTa.style.minHeight = '55vh'; }
           expandBtn.title = t('issueRestore');
-          if (dlg) { dlg.style.position = 'fixed'; dlg.style.top = '20px'; dlg.style.left = '50%'; dlg.style.transform = 'translateX(-50%)'; dlg.style.maxWidth = '900px'; dlg.style.width = '90vw'; dlg.style.maxHeight = '95vh'; dlg.style.overflow = 'auto'; }
+          if (dlg) { dlg.style.position = 'fixed'; dlg.style.top = '20px'; dlg.style.left = '50%'; dlg.style.transform = 'translateX(-50%)'; dlg.style.maxWidth = '1200px'; dlg.style.width = '95vw'; dlg.style.maxHeight = '95vh'; dlg.style.overflow = 'auto'; }
         } else {
           bodyTa.style.height = ''; bodyTa.style.minHeight = '250px';
+          if (previewTa) { previewTa.style.minHeight = '200px'; }
           expandBtn.title = t('issueExpand');
-          if (dlg) { dlg.style.position = ''; dlg.style.top = ''; dlg.style.left = ''; dlg.style.transform = ''; dlg.style.maxWidth = '580px'; dlg.style.width = '100%'; dlg.style.maxHeight = '90vh'; }
+          if (dlg) { dlg.style.position = ''; dlg.style.top = ''; dlg.style.left = ''; dlg.style.transform = ''; dlg.style.maxWidth = '860px'; dlg.style.width = '100%'; dlg.style.maxHeight = '90vh'; }
         }
       };
       expandBtn.addEventListener('click', toggle);
-      bodyTa.addEventListener('dblclick', toggle);
+      headerEl.addEventListener('dblclick', toggle);
     }
 
     // Load preview and make editable
