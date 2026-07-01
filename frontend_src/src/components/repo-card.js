@@ -466,15 +466,7 @@ class RepoCard extends LitElement {
   }
 
   updated(changed) {
-    // Sync parent's starred prop to internal _starred
-    if (changed.has('starred') && this.starred !== undefined && this.starred !== null) {
-      this._starred = this.starred;
-    }
-    // Reset transient state on repo change
-    if (changed.has('repo')) {
-      this._updating = false;
-      this._removing = false;
-    }
+    // Placeholder for future post-render work
   }
 
   render() {

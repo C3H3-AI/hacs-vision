@@ -171,7 +171,7 @@ class HACSEnhancedAPI(HomeAssistantView):
                 except json.JSONDecodeError:
                     return {"status": resp.status, "text": text}
         except Exception as e:
-            return {"error": str(e), "status": 0}
+            return {"error": "操作失败", "status": 0}
 
     async def _github_verify_token(self, body: dict) -> web.Response:
         """Verify and store a GitHub personal access token."""
@@ -196,7 +196,7 @@ class HACSEnhancedAPI(HomeAssistantView):
                     rl = await rl_resp.json()
                     remaining = rl.get("rate", {}).get("remaining", 0)
         except Exception as e:
-            return web.json_response({"error": str(e)}, status=500)
+            return web.json_response({"error": "操作失败"}, status=500)
         # Store token to Vision's own storage
         await self.data.write_storage("github_token", {"token": token, "user": login})
         return web.json_response({"ok": True, "user": login, "avatar_url": user.get("avatar_url"), "rate_limit_remaining": remaining})
@@ -215,7 +215,7 @@ class HACSEnhancedAPI(HomeAssistantView):
                     return web.json_response({"error": "token_invalid"}, status=401)
                 user = await resp.json()
         except Exception as e:
-            return web.json_response({"error": str(e)}, status=500)
+            return web.json_response({"error": "操作失败"}, status=500)
         return web.json_response({"login": user.get("login"), "avatar_url": user.get("avatar_url")})
 
     async def _github_import_token(self) -> web.Response:
@@ -236,7 +236,7 @@ class HACSEnhancedAPI(HomeAssistantView):
             await self.data.write_storage("github_token", {"token": token, "user": login})
             return web.json_response({"ok": True, "user": login, "avatar_url": user.get("avatar_url", "")})
         except Exception as e:
-            return web.json_response({"error": str(e)}, status=500)
+            return web.json_response({"error": "操作失败"}, status=500)
 
     async def _github_oauth_start(self, body: dict) -> web.Response:
         """Start GitHub OAuth device flow using bare aiohttp to bypass SSRF."""
@@ -269,7 +269,7 @@ class HACSEnhancedAPI(HomeAssistantView):
             return web.json_response({"error": "连接 GitHub 超时，请稍后重试"}, status=504)
         except Exception as e:
             _LOGGER.error("OAuth start error: %s", e, exc_info=True)
-            return web.json_response({"error": str(e)}, status=500)
+            return web.json_response({"error": "操作失败"}, status=500)
 
     async def _github_oauth_poll(self, body: dict) -> web.Response:
         """Poll for OAuth device flow activation using bare aiohttp."""
@@ -330,7 +330,7 @@ class HACSEnhancedAPI(HomeAssistantView):
             if "pending" in err_str.lower() or "authorization_pending" in err_str.lower():
                 return web.json_response({"status": "pending"})
             _LOGGER.error("OAuth poll error: %s", e, exc_info=True)
-            return web.json_response({"error": str(e)}, status=500)
+            return web.json_response({"error": "操作失败"}, status=500)
 
     async def _github_star(self, body: dict) -> web.Response:
         """Star a repository."""
@@ -350,7 +350,7 @@ class HACSEnhancedAPI(HomeAssistantView):
                     return web.json_response({"ok": True})
                 return web.json_response({"error": f"star_failed_{resp.status}"}, status=resp.status)
         except Exception as e:
-            return web.json_response({"error": str(e)}, status=500)
+            return web.json_response({"error": "操作失败"}, status=500)
 
     async def _github_auto_star(self) -> web.Response:
         """Auto-star hacs-vision repo if not already starred."""
@@ -717,7 +717,7 @@ class HACSEnhancedAPI(HomeAssistantView):
                     return web.json_response({"ok": True})
                 return web.json_response({"error": f"unstar_failed_{resp.status}"}, status=resp.status)
         except Exception as e:
-            return web.json_response({"error": str(e)}, status=500)
+            return web.json_response({"error": "操作失败"}, status=500)
 
     async def _github_check_starred(self, repo: str) -> web.Response:
         """Check if the authenticated user has starred a repo."""
@@ -733,7 +733,7 @@ class HACSEnhancedAPI(HomeAssistantView):
                                    timeout=aiohttp.ClientTimeout(total=10)) as resp:
                 return web.json_response({"starred": resp.status == 204})
         except Exception as e:
-            return web.json_response({"starred": False, "error": str(e)})
+            return web.json_response({"starred": False, "error": "操作失败"})
 
     async def _github_list_starred(self) -> web.Response:
         """Fetch all starred repos for the authenticated user, paginated."""
@@ -780,7 +780,7 @@ class HACSEnhancedAPI(HomeAssistantView):
                         page += 1
         except Exception as e:
             _LOGGER.error("_github_list_starred error: %s", e, exc_info=True)
-            return web.json_response({"error": str(e), "repos": repos}, status=500)
+            return web.json_response({"error": "操作失败", "repos": repos}, status=500)
         return web.json_response({"repos": repos, "total": len(repos)})
 
     async def _github_list_org_repos(self, query) -> web.Response:
@@ -849,7 +849,7 @@ class HACSEnhancedAPI(HomeAssistantView):
                     page += 1
         except Exception as e:
             _LOGGER.error("_github_list_org_repos error: %s", e, exc_info=True)
-            return web.json_response({"error": str(e), "repos": repos}, status=500)
+            return web.json_response({"error": "操作失败", "repos": repos}, status=500)
         return web.json_response({"repos": repos, "total": len(repos)})
 
     def _detect_hacs_category(self, repo: dict) -> str:
@@ -912,7 +912,7 @@ class HACSEnhancedAPI(HomeAssistantView):
                 results.append({"full_name": full_name, "success": result.get("success", False),
                                 "error": result.get("error", "")})
             except Exception as e:
-                results.append({"full_name": full_name, "success": False, "error": str(e)})
+                results.append({"full_name": full_name, "success": False, "error": "操作失败"})
         return web.json_response({"results": results})
 
     async def _github_sync_favorites(self) -> web.Response:
@@ -947,7 +947,7 @@ class HACSEnhancedAPI(HomeAssistantView):
                         page += 1
         except Exception as e:
             _LOGGER.error("_github_sync_favorites fetch error: %s", e, exc_info=True)
-            return web.json_response({"error": str(e), "added": [], "synced": 0, "total": 0}, status=502)
+            return web.json_response({"error": "操作失败", "added": [], "synced": 0, "total": 0}, status=502)
         # Get known HACS repos (catalog + custom) to filter — ensures favorites match what browse view can display
         hacs_repos = await self.operator.get_all_repos_from_hacs()
         if not hacs_repos:
@@ -1185,7 +1185,7 @@ class HACSEnhancedAPI(HomeAssistantView):
                 return web.Response(text=json.dumps(data), content_type="application/json", status=resp.status)
         except Exception as e:
             _LOGGER.error("Config flow handlers error: %s", e, exc_info=True)
-            return web.json_response({"error": str(e)}, status=500)
+            return web.json_response({"error": "操作失败"}, status=500)
 
     async def _config_flow_start(self, request: web.Request, body: dict) -> web.Response:
         """Start a config flow (initial or reconfigure) — proxy to HA native REST API."""
@@ -1947,7 +1947,7 @@ class HACSEnhancedAPI(HomeAssistantView):
             return web.json_response({"error": "network_error"}, status=502)
         except Exception as e:
             _LOGGER.error("README proxy unexpected error: %s", e, exc_info=True)
-            return web.json_response({"error": str(e)}, status=502)
+            return web.json_response({"error": "操作失败"}, status=502)
 
     async def _get_changelog(self, full_name: str, query) -> web.Response:
         """Proxy GitHub Releases API for changelog preview.
@@ -2545,7 +2545,7 @@ class HACSEnhancedAPI(HomeAssistantView):
             return web.json_response({"groups": result_groups})
         except Exception as e:
             _LOGGER.error("Failed to get devices: %s", e, exc_info=True)
-            return web.json_response({"error": str(e)}, status=500)
+            return web.json_response({"error": "操作失败"}, status=500)
 
     async def _get_config_entries(self) -> web.Response:
         """Get HA config entries map for installed integrations."""
@@ -2605,7 +2605,7 @@ class HACSEnhancedAPI(HomeAssistantView):
                 return web.json_response(result)
         except Exception as e:
             _LOGGER.error("Failed to get device counts for %s: %s", domain or "all", e, exc_info=True)
-            return web.json_response({"error": str(e)}, status=500)
+            return web.json_response({"error": "操作失败"}, status=500)
 
     async def _get_translations(self, domain: str, lang: str) -> web.Response:
         """Read translations from a custom component's translations directory.
@@ -2663,7 +2663,7 @@ class HACSEnhancedAPI(HomeAssistantView):
                     await self.data.set_install_time(repo_name, datetime.now(timezone.utc).isoformat())
                 results.append({"repository": repo_name, "result": result})
             except Exception as e:
-                results.append({"repository": repo_name, "result": {"success": False, "error": str(e)}})
+                results.append({"repository": repo_name, "result": {"success": False, "error": "操作失败"}})
         return web.json_response({"success": True, "results": results})
 
     async def _batch_remove(self, body: dict) -> web.Response:
@@ -2679,7 +2679,7 @@ class HACSEnhancedAPI(HomeAssistantView):
                     await self.data.remove_install_time(repo_name)
                 results.append({"repository": repo_name, "result": result})
             except Exception as e:
-                results.append({"repository": repo_name, "result": {"success": False, "error": str(e)}})
+                results.append({"repository": repo_name, "result": {"success": False, "error": "操作失败"}})
         self.operator.invalidate_index()
         return web.json_response({"success": True, "results": results})
 
@@ -2722,7 +2722,7 @@ class HACSEnhancedAPI(HomeAssistantView):
             })
         except Exception as e:
             _LOGGER.error("Check updates+notify failed: %s", e, exc_info=True)
-            return web.json_response({"success": False, "error": str(e)}, status=500)
+            return web.json_response({"success": False, "error": "操作失败"}, status=500)
 
     # ── Entity Reference Finder ─────────────────────────
 
@@ -2747,7 +2747,7 @@ class HACSEnhancedAPI(HomeAssistantView):
             })
         except Exception as e:
             _LOGGER.error("Entity refs find failed: %s", e, exc_info=True)
-            return web.json_response({"success": False, "error": str(e)}, status=500)
+            return web.json_response({"success": False, "error": "操作失败"}, status=500)
 
     async def _entity_refs_replace(self, body: dict, request: web.Request | None = None) -> web.Response:
         """Replace entity_id references (preview or execute)."""
@@ -2767,7 +2767,7 @@ class HACSEnhancedAPI(HomeAssistantView):
             return web.json_response(result)
         except Exception as e:
             _LOGGER.error("Entity refs replace failed: %s", e, exc_info=True)
-            return web.json_response({"success": False, "error": str(e)}, status=500)
+            return web.json_response({"success": False, "error": "操作失败"}, status=500)
 
     async def _entity_refs_reload(self) -> web.Response:
         """Reload automations/scripts/scenes after manual changes."""
@@ -2777,7 +2777,7 @@ class HACSEnhancedAPI(HomeAssistantView):
             return web.json_response(result)
         except Exception as e:
             _LOGGER.error("Entity refs reload failed: %s", e, exc_info=True)
-            return web.json_response({"success": False, "error": str(e)}, status=500)
+            return web.json_response({"success": False, "error": "操作失败"}, status=500)
 
     async def _restart(self) -> web.Response:
         """Restart Home Assistant via homeassistant.restart service."""
@@ -2786,7 +2786,7 @@ class HACSEnhancedAPI(HomeAssistantView):
             return web.json_response({"success": True})
         except Exception as e:
             _LOGGER.error("Restart failed: %s", e, exc_info=True)
-            return web.json_response({"success": False, "error": str(e)}, status=500)
+            return web.json_response({"success": False, "error": "操作失败"}, status=500)
 
     async def _reload_core(self) -> web.Response:
         """Reload core config without full restart (faster for plugins/themes)."""
@@ -2795,7 +2795,7 @@ class HACSEnhancedAPI(HomeAssistantView):
             return web.json_response({"success": True})
         except Exception as e:
             _LOGGER.error("Core reload failed: %s", e, exc_info=True)
-            return web.json_response({"success": False, "error": str(e)}, status=500)
+            return web.json_response({"success": False, "error": "操作失败"}, status=500)
 
 
 def _read_file_binary(path: str) -> bytes:

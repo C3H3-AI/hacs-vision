@@ -36,6 +36,7 @@ class HACSEnhancedAPI {
       credentials: 'include',
     };
     if (body) opts.body = JSON.stringify(body);
+    opts.signal = AbortSignal.timeout(30000);
     try {
       const resp = await fetch(`${API_BASE}/${path}`, opts);
       if (!resp.ok) {
@@ -181,7 +182,6 @@ class HACSEnhancedAPI {
   verifyGitHubToken(token) { return this.post('github/verify_token', { token }); }
   importHacsToken() { return this.get('github/import_token'); }
   getGitHubUser() { return this.get('github/oauth/user'); }
-  getGitHubOAuthUser() { return this.get('github/oauth/user'); }
   oauthStart() { return this.post('github/oauth/start', {}); }
   oauthPoll(device_code) { return this.post('github/oauth/poll', { device_code }); }
   starRepo(repo) { return this.post('github/star', { repo }); }
@@ -191,8 +191,6 @@ class HACSEnhancedAPI {
   listStarred() { return this.get('github/starred'); }
   syncStarred(repos) { return this.post('github/sync-starred', { repos }); }
   syncStarsToFavorites() { return this.post('github/sync-favorites'); }
-  /** Preview issue logs — returns system info + error logs for a repo */
-  previewIssueLogs(repo) { return this.get(`github/issue-logs?repo=${encodeURIComponent(repo)}`); }
   /** Create a GitHub issue with auto-collected error logs */
   createIssue(repo, title, body, domain, screenshots) { return this.post('github/create-issue', { repo, title, body, domain, screenshots }); }
   listOrgRepos(org) { return this.get(`github/repos?org=${encodeURIComponent(org)}`); }

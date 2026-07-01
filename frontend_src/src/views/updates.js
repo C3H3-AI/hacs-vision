@@ -307,8 +307,6 @@ class UpdatesView extends LitElement {
       }
       .changelog-expand-btn:hover { text-decoration: underline; }
 
-      .mini-icon { width: 14px; height: 14px; vertical-align: -2px; display: inline; flex-shrink: 0; }
-      .mini-icon.spin { animation: spin 1s linear infinite; }
       @keyframes spin { 100% { transform: rotate(360deg); } }
 
       /* ===== View Mode Toggle ===== */

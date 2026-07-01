@@ -442,8 +442,6 @@ export class ManagementView extends LitElement {
     .add-preview { font-size: 12px; color: var(--secondary-text-color); padding: 4px 2px; }
     .add-error { color: #f44336; }
 
-    .mini-icon { width: 14px; height: 14px; vertical-align: -2px; display: inline; flex-shrink: 0; }
-    .mini-icon.spin { animation: spin 1s linear infinite; }
     @keyframes spin { 100% { transform: rotate(360deg); } }
 
     /* ===== Batch Bar (aligned with browse) ===== */

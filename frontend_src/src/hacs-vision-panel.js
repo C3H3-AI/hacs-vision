@@ -305,8 +305,6 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
     .toast.info { background: var(--primary-color, #03a9f4); }
 
     /* ===== Utility icons ===== */
-    .mini-icon { width: 14px; height: 14px; vertical-align: -2px; display: inline; flex-shrink: 0; }
-    .mini-icon.spin { animation: spin 1s linear infinite; }
     @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
     .update-badge { background: var(--warning-color, #ff9800); color: #fff; padding: 1px 6px; border-radius: 8px; font-size: 10px; display: inline-flex; align-items: center; gap: 2px; }
 
@@ -1711,7 +1709,14 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
           screenshots.push({ name: file.name, data: ev.target.result });
           const thumb = document.createElement('div');
           thumb.style.cssText = 'width:60px;height:60px;border-radius:6px;overflow:hidden;border:1px solid var(--divider-color);position:relative;flex-shrink:0;';
-          thumb.innerHTML = '<img src="' + ev.target.result + '" style="width:100%;height:100%;object-fit:cover;"><span style="position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,0.5);color:#fff;font-size:9px;text-align:center;padding:1px 0;">' + file.name.slice(-12) + '</span>';
+          const img = document.createElement('img');
+          img.src = ev.target.result;
+          img.style.cssText = 'width:100%;height:100%;object-fit:cover;';
+          thumb.appendChild(img);
+          const label = document.createElement('span');
+          label.style.cssText = 'position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,0.5);color:#fff;font-size:9px;text-align:center;padding:1px 0;';
+          label.textContent = file.name.slice(-12);
+          thumb.appendChild(label);
           screenshotList.appendChild(thumb);
           screenshotLabel.textContent = t('screenshotsSelected', { n: screenshots.length });
         };

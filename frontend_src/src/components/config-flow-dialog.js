@@ -1,4 +1,5 @@
 import { LitElement, html, css } from 'lit';
+import DOMPurify from 'dompurify';
 import { api } from '../api.js';
 import { t } from '../i18n.js';
 import { getCommonStyles } from '../shared/styles.js';
@@ -1182,7 +1183,11 @@ class ConfigFlowDialog extends LitElement {
         .filter(Boolean);
       desc = lines.join('\n');
     }
-    return desc;
+    return desc ? DOMPurify.sanitize(desc, {
+      ALLOWED_TAGS: ['a', 'img', 'b', 'i', 'strong', 'em', 'code', 'br'],
+      ALLOWED_ATTR: ['href', 'target', 'rel', 'style', 'src', 'alt', 'loading'],
+      ALLOW_DATA_ATTR: false,
+    }) : '';
   }
 
   /* ── Derive domain for translation ── */

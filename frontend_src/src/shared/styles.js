@@ -128,6 +128,11 @@ export function getCommonStyles() {
     margin-bottom: 14px; flex-wrap: wrap;
   }
 
+  /* ===== Controls Right ===== */
+  .controls-right {
+    display: flex; align-items: center; gap: 6px; flex-shrink: 0;
+  }
+
   /* ===== Grid ===== */
   .grid {
     display: grid;

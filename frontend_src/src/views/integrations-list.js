@@ -1655,7 +1655,6 @@ class IntegrationsList extends LitElement {
     @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
     .spinning { animation: spin 1s linear infinite; display: inline-block; }
     .empty-state { text-align: center; padding: 60px 20px; }
-    .empty-icon { font-size: 48px; margin-bottom: 12px; }
     .empty-title { font-size: 16px; font-weight: 600; color: var(--primary-text-color); }
 
     /* ===== Card Grid ===== */

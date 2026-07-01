@@ -1,10 +1,12 @@
 import { LitElement, html, css } from 'lit';
+import DOMPurify from 'dompurify';
 import { t } from '../i18n.js';
 
 /** Auto-link bare URLs in text, return HTML-safe string */
 function _linkify(text) {
   if (!text) return '';
-  return String(text).replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener" style="color:var(--primary-color,#03a9f4);text-decoration:underline">$1</a>');
+  let html = String(text).replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener" style="color:var(--primary-color,#03a9f4);text-decoration:underline">$1</a>');
+  return DOMPurify.sanitize(html, { ALLOWED_TAGS: ['a'], ALLOWED_ATTR: ['href', 'target', 'rel', 'style'] });
 }
 
 /**
