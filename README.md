@@ -11,9 +11,9 @@
 [![English](https://img.shields.io/badge/lang-en-red.svg)](#)
 [![Deutsch](https://img.shields.io/badge/lang-de-green.svg)](#)
 
-> **当前版本**: v6.0.0b1 | **最低 HA 版本**: 2024.1.0
-> **Current version**: v6.0.0b1 | **Minimum HA**: 2024.1.0
-> **Aktuelle Version**: v6.0.0b1 | **Minimale HA-Version**: 2024.1.0
+> **当前版本**: v6.0.0b2 | **最低 HA 版本**: 2024.1.0
+> **Current version**: v6.0.0b2 | **Minimum HA**: 2024.1.0
+> **Aktuelle Version**: v6.0.0b2 | **Minimale HA-Version**: 2024.1.0
 
 > **⚠️ 前置条件 / Prerequisite / Voraussetzung**: 必须先安装并配置好 [HACS](https://hacs.xyz) / [HACS](https://hacs.xyz) must be installed and configured / [HACS](https://hacs.xyz) muss installiert und konfiguriert sein.
 
