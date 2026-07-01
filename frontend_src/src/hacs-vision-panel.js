@@ -1598,7 +1598,7 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
     const overlay = document.createElement('div');
     overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px;';
     overlay.innerHTML = `
-      <div style="background:var(--card-background-color,#fff);border-radius:16px;padding:24px;max-width:860px;width:100%;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.3);animation:slideUp .2s ease;transition:all .2s;" id="hv-issue-dialog-body">
+      <div style="background:var(--card-background-color,#fff);border-radius:16px;padding:24px;max-width:1000px;width:100%;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.3);animation:slideUp .2s ease;transition:all .2s;" id="hv-issue-dialog-body">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;cursor:pointer;user-select:none;" id="hv-issue-header">
           <div>
             <div style="font-size:17px;font-weight:600;color:var(--primary-text-color,#212121);">${t('reportIssue')}</div>
@@ -1621,7 +1621,7 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
             </div>
             <div id="hv-issue-status" style="color:#f44336;font-size:12px;margin-top:8px;display:none;"></div>
           </div>
-          <div style="width:320px;flex-shrink:0;display:flex;flex-direction:column;">
+          <div style="flex:1;min-width:0;display:flex;flex-direction:column;">
             <div style="font-size:13px;font-weight:600;color:var(--primary-text-color);margin-bottom:6px;">${t('previewContent')}</div>
             <textarea id="hv-issue-preview" style="flex:1;padding:10px;background:var(--secondary-background-color,#f5f5f5);border-radius:8px;font-size:12px;line-height:1.5;width:100%;box-sizing:border-box;min-height:200px;resize:vertical;border:1px solid var(--divider-color,#e0e0e0);color:var(--primary-text-color);font-family:inherit;" readonly>${t("loadingUpdates")}</textarea>
           </div>
@@ -1650,7 +1650,7 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
           bodyTa.style.height = ''; bodyTa.style.minHeight = '250px';
           if (previewTa) { previewTa.style.minHeight = '200px'; }
           expandBtn.title = t('issueExpand');
-          if (dlg) { dlg.style.position = ''; dlg.style.top = ''; dlg.style.left = ''; dlg.style.transform = ''; dlg.style.maxWidth = '860px'; dlg.style.width = '100%'; dlg.style.maxHeight = '90vh'; }
+          if (dlg) { dlg.style.position = ''; dlg.style.top = ''; dlg.style.left = ''; dlg.style.transform = ''; dlg.style.maxWidth = '1000px'; dlg.style.width = '100%'; dlg.style.maxHeight = '90vh'; }
         }
       };
       expandBtn.addEventListener('click', toggle);
