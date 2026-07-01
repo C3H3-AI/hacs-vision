@@ -863,7 +863,13 @@ class BrowseView extends LitElement {
     this._persistState();
     this._load();
   }
-  _refresh() { this.page = 1; this._persistState(); this._load(); }
+  async _refresh() {
+    this.page = 1;
+    this._persistState();
+    // Force clear star cache + re-sync favorites from GitHub
+    try { await api.post('refresh', {}); } catch(e) { /* non-critical */ }
+    this._load();
+  }
 
   async _addRepo() {
     const fullName = this._parseRepoUrl(this._newRepoUrl);

@@ -1,10 +1,14 @@
 {
   "domain": "hacs_vision",
   "name": "HACS Vision",
-  "version": "6.0.0b1",
+  "version": "6.0.0b2",
   "requirements": [],
-  "dependencies": ["hacs"],
-  "codeowners": ["@C3H3-AI"],
+  "dependencies": [
+    "hacs"
+  ],
+  "codeowners": [
+    "@C3H3-AI"
+  ],
   "config_flow": true,
   "documentation": "https://github.com/C3H3-AI/hacs-vision",
   "issue_tracker": "https://github.com/C3H3-AI/hacs-vision/issues",
