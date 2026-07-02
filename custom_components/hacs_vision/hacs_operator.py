@@ -427,7 +427,7 @@ class HACSOperator:
                 repo = self._find_repo_by_full_name(full_name)
                 category = repo.data.category if repo else "integration"
                 name = (repo.data.name or parts[1]) if repo else parts[1]
-                pending_restart = repo.data.pending_restart if repo else False
+                pending_restart = getattr(repo.data, 'pending_restart', False) if repo else False
                 updates.append({
                     "id": str(repo.data.id) if repo else full_name,
                     "full_name": full_name,
