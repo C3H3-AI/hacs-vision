@@ -1,10 +1,9 @@
-// HACS Vision Sidebar Badge
-// Finds HACS Vision by href="/hacs-vision" in ALL shadow DOMs recursively
+// HACS Vision Sidebar Badge (v2 - WebSocket, no HTTP fetch)
+// Uses HA's native WebSocket connection (already authenticated) instead of HTTP fetch.
 
 (function() {
   'use strict';
 
-  const BADGE_URL = '/api/hacs_vision/updates?v=' + Date.now();
   const POLL_INTERVAL = 5 * 60 * 1000;
   const BADGE_CLASS = 'hacs-vision-sb-badge';
   let lastCount = -1;
@@ -14,14 +13,12 @@
   // Get HACS Vision panel title from HA's panel registry
   async function getPanelName() {
     try {
-      if (window.hassConnection) {
-        const conn = await Promise.resolve(window.hassConnection);
-        if (conn?.conn) {
-          const result = await conn.conn.sendMessagePromise({type: 'get_panels'});
-          for (const [path, panel] of Object.entries(result)) {
-            if (path === 'hacs-vision' && panel?.title) {
-              return panel.title;
-            }
+      const conn = await Promise.resolve(window.hassConnection);
+      if (conn?.conn) {
+        const result = await conn.conn.sendMessagePromise({type: 'get_panels'});
+        for (const [path, panel] of Object.entries(result)) {
+          if (path === 'hacs-vision' && panel?.title) {
+            return panel.title;
           }
         }
       }
@@ -120,29 +117,14 @@
     } catch(e) {}
   }
 
-  async function getAuthToken() {
-    for (let i = 0; i < 10; i++) {
-      try {
-        if (window.hassConnection) {
-          const conn = await Promise.resolve(window.hassConnection);
-          if (conn?.auth?.data?.access_token) return conn.auth.data.access_token;
-        }
-      } catch(e) {}
-      await new Promise(r => setTimeout(r, 1000));
-    }
-    return '';
-  }
-
+  // Get update count via WebSocket (already authenticated, no tokens needed)
   async function fetchUpdateCount() {
     try {
-      const token = await getAuthToken();
-      if (!token) return;
-      const resp = await fetch(BADGE_URL, {
-        headers: { 'Authorization': 'Bearer ' + token }
-      });
-      if (!resp.ok) return;
-      const data = await resp.json();
-      updateBadge((data.updates || []).length);
+      const conn = await Promise.resolve(window.hassConnection);
+      if (!conn?.conn) return;
+      const result = await conn.conn.sendMessagePromise({type: 'hacs_vision/updates'});
+      const updates = result?.updates || [];
+      updateBadge(updates.length);
     } catch(e) {}
   }
 
@@ -184,5 +166,5 @@
     waitForHA();
   }
 
-  console.log('[HACS Vision] Sidebar badge initialized (shadow-aware)');
+  console.log('[HACS Vision] Sidebar badge v2 initialized (WebSocket)');
 })();

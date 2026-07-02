@@ -58,6 +58,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigType) -> bool:
     except Exception as exc:
         _LOGGER.warning("Sidebar badge registration failed: %s", exc)
 
+    # Register WebSocket handler for sidebar badge
+    await _register_ws_handler(hass)
+
     hass.data.setdefault(DOMAIN, {})
     hass.data[DOMAIN]["entry"] = entry
     hass.data[DOMAIN]["api"] = api_view
@@ -172,6 +175,54 @@ def _register_sidebar_badge(hass: HomeAssistant) -> None:
         _LOGGER.info("✅ Sidebar badge registered via frontend.add_extra_js_url")
     except Exception as exc:
         _LOGGER.warning("Sidebar badge failed: %s", exc)
+
+
+async def _register_ws_handler(hass: HomeAssistant) -> None:
+    """Register WebSocket command for sidebar badge to get update count."""
+    from homeassistant.components.websocket_api import (
+        async_register_command,
+        websocket_command,
+        async_response,
+        ActiveConnection,
+    )
+
+    @websocket_command({"type": "hacs_vision/updates"})
+    @async_response
+    async def ws_get_updates(
+        hass: HomeAssistant, connection: ActiveConnection, msg: dict
+    ) -> None:
+        """Return updates list via WebSocket (already authenticated)."""
+        api = hass.data.get(DOMAIN, {}).get("api")
+        if not api:
+            connection.send_result(msg["id"], {"updates": []})
+            return
+        try:
+            updates = await api.operator.get_updates_from_ha_entities()
+            if not updates:
+                hacs_updates = await api.operator.get_available_updates()
+                if hacs_updates:
+                    skipped_or_pending = set()
+                    for state in hass.states.async_all():
+                        if not state.entity_id.startswith("update."):
+                            continue
+                        ru = (state.attributes.get("release_url", "") or "")
+                        if "github.com" not in ru.lower():
+                            continue
+                        path = ru.replace("https://github.com/", "").replace("http://github.com/", "")
+                        parts = path.split("/")
+                        if len(parts) < 2:
+                            continue
+                        fn = f"{parts[0]}/{parts[1]}"
+                        if state.state != "on":
+                            skipped_or_pending.add(fn)
+                    updates = [u for u in hacs_updates if (u.get("full_name") or "") not in skipped_or_pending]
+            connection.send_result(msg["id"], {"updates": updates})
+        except Exception as exc:
+            _LOGGER.warning("WS updates error: %s", exc)
+            connection.send_result(msg["id"], {"updates": []})
+
+    async_register_command(hass, ws_get_updates)
+    _LOGGER.debug("Registered WS handler: hacs_vision/updates")
 
 
 async def _async_register_lovelace_resource(hass: HomeAssistant, url: str) -> None:
