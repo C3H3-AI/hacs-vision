@@ -1,5 +1,16 @@
 # Changelog
 
+## v6.1.0 (2026-07-02)
+
+### 🔧 修复
+
+- **register_static_path 兼容性** — 完全移除了该冗余调用，sidebar-badge.js 通过已有的 HACSEnhancedStaticView 提供服务，兼容无 register_static_path 方法的旧版 HA
+- **pending_restart 兼容性** — 某些 HACS 版本的 RepositoryData 没有 pending_restart 属性，改用 getattr() 安全取值
+
+### ♻️ 重构
+
+- **Phase 3：api.py 架构拆分** — 2001 → 349 行，按职责拆分为 3 个 Mixin（GitHubAuthMixin、GitHubActionsMixin、HACSOpsMixin）
+
 ## v6.0.1 (2026-07-02)
 
 ### 🔧 修复
