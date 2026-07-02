@@ -164,8 +164,12 @@ def _register_sidebar_badge(hass: HomeAssistant) -> None:
     try:
         from homeassistant.components.http import StaticPathConfig
         hass.http.register_static_path(static_url, badge_js_path, cache_headers=False)
-    except TypeError:
-        hass.http.register_static_path(static_url, badge_js_path)
+    except (TypeError, AttributeError):
+        try:
+            hass.http.register_static_path(static_url, badge_js_path)
+        except (TypeError, AttributeError) as inner:
+            _LOGGER.warning("register_static_path not supported on this HA version: %s", inner)
+            return
     _LOGGER.debug("Registered static path: %s", static_url)
 
     # 2. Inject into every HA page via frontend.add_extra_js_url
