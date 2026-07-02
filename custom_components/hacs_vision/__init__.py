@@ -156,29 +156,17 @@ def _register_sidebar_badge(hass: HomeAssistant) -> None:
 
     Uses frontend.add_extra_js_url() to add the badge script to
     every HA frontend page, including panels and settings.
+    The JS file is served via the existing HACSEnhancedStaticView
+    at /api/hacs_vision/static/ (no separate register_static_path needed).
     """
-    badge_js_path = os.path.join(FRONTEND_DIR, "sidebar-badge.js")
     static_url = f"/api/hacs_vision/static/sidebar-badge.js?v={VERSION}"
 
-    # 1. Register static path so the JS file is served
-    try:
-        from homeassistant.components.http import StaticPathConfig
-        hass.http.register_static_path(static_url, badge_js_path, cache_headers=False)
-    except (TypeError, AttributeError):
-        try:
-            hass.http.register_static_path(static_url, badge_js_path)
-        except (TypeError, AttributeError) as inner:
-            _LOGGER.warning("register_static_path not supported on this HA version: %s", inner)
-            return
-    _LOGGER.debug("Registered static path: %s", static_url)
-
-    # 2. Inject into every HA page via frontend.add_extra_js_url
     try:
         from homeassistant.components.frontend import add_extra_js_url
         add_extra_js_url(hass, static_url)
-        _LOGGER.info("✅ Sidebar badge registered via frontend.add_extra_js_url")
+        _LOGGER.info("Sidebar badge registered via frontend.add_extra_js_url")
     except Exception as exc:
-        _LOGGER.warning("Sidebar badge failed: %s", exc)
+        _LOGGER.debug("Sidebar badge skipped (non-critical): %s", exc)
 
 
 async def _register_ws_handler(hass: HomeAssistant) -> None:
