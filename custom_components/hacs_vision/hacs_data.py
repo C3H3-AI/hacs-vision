@@ -474,16 +474,25 @@ class HACSData:
         self._cache_ready = False
         self._config_cache = None
 
-    async def send_persistent_notification(self, title: str, message: str) -> None:
-        """Send a persistent notification to HA."""
+    async def send_persistent_notification(self, title: str, message: str, notification_id: str | None = None) -> None:
+        """Send a persistent notification to HA.
+
+        Args:
+            title: Notification title.
+            message: Notification body (supports markdown).
+            notification_id: Optional fixed ID. If provided, new notifications
+                             replace old ones with the same ID. Defaults to
+                             a unique monotonic ID.
+        """
         try:
+            nid = notification_id or f"hacs_vision_{int(time.monotonic())}"
             await self.hass.services.async_call(
                 "persistent_notification",
                 "create",
                 {
                     "title": title,
                     "message": message,
-                    "notification_id": f"hacs_vision_{int(time.monotonic())}",
+                    "notification_id": nid,
                 },
                 blocking=False,
             )

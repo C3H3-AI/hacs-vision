@@ -1,6 +1,6 @@
 import { LitElement, html, css } from 'lit';
 import { api } from '../api.js';
-import { showToast } from '../hacs-vision-panel.js';
+import { showToast } from '../shared/toast.js';
 import { t } from '../i18n.js';
 import { getCommonStyles } from '../shared/styles.js';
 import { ConfirmDialog } from '../shared/confirm-dialog.js';
@@ -26,6 +26,7 @@ class UpdatesView extends LitElement {
     _updateProgress: { type: Object, state: true },
     _skippedVersions: { type: Array, state: true },
     _showSkipped: { type: Boolean },
+    autoUpdateRepos: { type: Array },
     // Re-render trigger on language change
     langVersion: { type: Number },
   };
@@ -50,6 +51,8 @@ class UpdatesView extends LitElement {
     this._updateProgress = null;
     this._skippedVersions = [];
     this._showSkipped = false;
+    this.autoUpdateRepos = [];
+    this.__auLoaded = false;
     const saved = (() => { try { return localStorage.getItem('hacs_vision_view_mode'); } catch { return null; } })();
     this._viewMode = saved || 'card';
     this._filterExpanded = false;
@@ -60,7 +63,7 @@ class UpdatesView extends LitElement {
     css`
       :host { display: block; touch-action: manipulation; background: var(--primary-background-color); }
 
-      .controls-right { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+      .controls-right { flex-shrink: 0; }
       .controls-right .btn-icon {
         width: 36px; height: 36px; padding: 0; border-radius: 10px;
         border: 1px solid var(--divider-color); background: var(--card-background-color);
@@ -264,6 +267,33 @@ class UpdatesView extends LitElement {
       }
       .action-btn svg { width: 16px; height: 16px; flex-shrink: 0; }
       @keyframes btnPulse { 0%, 100% { opacity: 0.7; } 50% { opacity: 0.45; } }
+
+      /* Auto-update toggle row (in card body, not actions bar) */
+      .au-toggle-row {
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 8px 14px 4px; margin: 0;
+        border-top: 1px solid var(--divider-color, #e0e0e0);
+        font-size: 12px;
+      }
+      .au-toggle-row .au-label {
+        color: var(--secondary-text-color); display: flex; align-items: center; gap: 4px;
+      }
+      .au-toggle-row .au-label svg {
+        width: 14px; height: 14px;
+      }
+      .au-toggle { position: relative; width: 36px; height: 20px; flex-shrink: 0; cursor: pointer; }
+      .au-toggle input { opacity: 0; width: 0; height: 0; position: absolute; }
+      .au-toggle .slider {
+        position: absolute; inset: 0; background: var(--divider-color, #ccc);
+        border-radius: 20px; transition: 0.3s; cursor: pointer;
+      }
+      .au-toggle .slider::before {
+        content: ''; position: absolute; height: 16px; width: 16px;
+        left: 2px; bottom: 2px; background: #fff;
+        border-radius: 50%; transition: 0.3s;
+      }
+      .au-toggle input:checked + .slider { background: #4caf50; }
+      .au-toggle input:checked + .slider::before { transform: translateX(16px); }
 
       /* ===== Filter bar (matches browse/integrations) ===== */
       .filter-bar {
@@ -476,6 +506,10 @@ class UpdatesView extends LitElement {
     }
     this.loading = false;
     await this._loadSkippedVersions();
+    if (!this.__auLoaded) {
+      this._loadAutoUpdateSettings();
+      this.__auLoaded = true;
+    }
   }
 
   /* 检查更新：refresh + 刷新列表 + 显示进度 */
@@ -820,6 +854,48 @@ class UpdatesView extends LitElement {
     }
   }
 
+  /* ---- Auto-update toggle ---- */
+
+  async _loadAutoUpdateSettings() {
+    try {
+      const settings = await api.getSettings();
+      this.autoUpdateRepos = settings?.auto_update_repos || [];
+    } catch(e) {
+      console.debug('Failed to load auto-update settings', e);
+      this.autoUpdateRepos = [];
+    }
+  }
+
+  _isAutoUpdate(repo) {
+    return Array.isArray(this.autoUpdateRepos) && this.autoUpdateRepos.includes(repo?.full_name);
+  }
+
+  async _handleAutoUpdateToggle(repo) {
+    const fullName = repo?.full_name;
+    if (!fullName) return;
+
+    // Optimistic update
+    const prevRepos = [...this.autoUpdateRepos];
+    const newRepos = [...this.autoUpdateRepos];
+    const idx = newRepos.indexOf(fullName);
+    if (idx >= 0) {
+      newRepos.splice(idx, 1);
+    } else {
+      newRepos.push(fullName);
+    }
+    this.autoUpdateRepos = newRepos;
+
+    try {
+      await api.updateSettings({ auto_update_repos: newRepos });
+      await api.reloadAutoUpdateSettings();
+      showToast(fullName + (idx >= 0 ? ' 自动更新已关闭' : ' 自动更新已开启'), 'success');
+    } catch(e) {
+      // Rollback on failure
+      this.autoUpdateRepos = prevRepos;
+      showToast(`自动更新设置失败: ${e.message}`, 'error');
+    }
+  }
+
   _getFiltered() {
     let list = this.updates;
     if (this._categoryFilter && this._categoryFilter !== 'all') {
@@ -923,6 +999,14 @@ class UpdatesView extends LitElement {
             ${isInstalling
               ? html`<svg class="mini-icon spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>`
               : html`<svg class="mini-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg> ${t('updateNow')}`}
+          </button>
+          <button class="btn" style="padding:4px 8px;font-size:11px;margin-left:4px;${this._isAutoUpdate(r) ? 'background:rgba(76,175,80,0.12);border-color:#4caf50;color:#4caf50;' : 'color:var(--secondary-text-color);'}"
+                  @click=${(e) => { e.stopPropagation(); this._handleAutoUpdateToggle(r); }}
+                  title="${this._isAutoUpdate(r) ? (t('autoUpdateEnabledText') || 'ON') : (t('autoUpdateDisabledText') || 'OFF')}">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:12px;height:12px;vertical-align:middle;margin-right:2px;">
+              <path d="M1 4v6h6"/>
+              <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>
+            </svg>
           </button>
           <button class="btn" style="padding:4px 8px;font-size:11px;margin-left:4px;color:var(--secondary-text-color);"
                   @click=${(e) => { e.stopPropagation(); this._skipVersion(r); }}>
@@ -1150,6 +1234,20 @@ class UpdatesView extends LitElement {
                       </div>
                     </div>
                   ` : ''}
+                <div class="au-toggle-row">
+                  <span class="au-label">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M1 4v6h6"/>
+                      <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>
+                    </svg>
+                    ${t('autoUpdateSection')}
+                  </span>
+                  <label class="au-toggle" @click=${(e) => e.stopPropagation()}>
+                    <input type="checkbox" .checked=${this._isAutoUpdate(r)}
+                      @change=${() => this._handleAutoUpdateToggle(r)}>
+                    <span class="slider"></span>
+                  </label>
+                </div>
                 </div>
                 <div class="actions">
                   ${r.pending_restart ? html`

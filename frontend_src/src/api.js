@@ -138,6 +138,27 @@ class HACSEnhancedAPI {
   getSettings() { return this.get('settings'); }
   updateSettings(settings) { return this.post('settings', settings); }
 
+  /* Auto-update service calls */
+  async callService(domain, service, data = {}) {
+    const hass = this._hassRef;
+    if (hass?.callService) {
+      return hass.callService(domain, service, data);
+    }
+    // Fallback: call the service via REST API
+    const headers = this._getHeaders();
+    const resp = await fetch(`/api/services/${domain}/${service}`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(data),
+    });
+    if (!resp.ok) throw new Error(`Service call failed: ${resp.status}`);
+    return resp.json();
+  }
+  triggerAutoUpdate() { return this.callService('hacs_vision', 'auto_update_trigger'); }
+  reloadAutoUpdateSettings() { return this.callService('hacs_vision', 'auto_update_reload_settings'); }
+  startAutoUpdate() { return this.callService('hacs_vision', 'auto_update_start'); }
+  stopAutoUpdate() { return this.callService('hacs_vision', 'auto_update_stop'); }
+
   /* Config Entries (for Add Integration button) */
   getConfigEntries() { return this.get('config_entries'); }
   getDeviceCounts(domain) { return this.get(`device_counts/${domain}`, { suppressNetworkError: true }); }

@@ -2,7 +2,7 @@ import { LitElement, html, css } from 'lit';
 import { classMap } from 'lit/directives/class-map.js';
 import { api } from '../api.js';
 import { t } from '../i18n.js';
-import { showToast } from '../hacs-vision-panel.js';
+import { showToast } from '../shared/toast.js';
 import { ConfirmDialog } from '../shared/confirm-dialog.js';
 import { getCategoryColor } from '../shared/constants.js';
 import { getCommonStyles } from '../shared/styles.js';
@@ -234,7 +234,7 @@ export class ManagementView extends LitElement {
     .filter-chip .chip-count { font-size: 10px; opacity: 0.7; margin-left: 3px; }
 
     /* ===== Controls (aligned with browse) ===== */
-    .controls-right { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+    .controls-right { flex-shrink: 0; }
     .view-toggle {
       display: flex; border: 1px solid var(--divider-color); border-radius: 8px;
       overflow: hidden; flex-shrink: 0;

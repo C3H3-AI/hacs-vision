@@ -3,7 +3,7 @@ import { api } from '../api.js';
 import { t, setLang, getLang, getAvailableLanguages } from '../i18n.js';
 import { getCommonStyles } from '../shared/styles.js';
 import { ConfirmDialog } from '../shared/confirm-dialog.js';
-import { showToast } from '../hacs-vision-panel.js';
+import { showToast } from '../shared/toast.js';
 
 class ConfigView extends LitElement {
   static properties = {
@@ -25,6 +25,14 @@ class ConfigView extends LitElement {
     _starredLoading: { type: Boolean, state: true },
     _starredSyncing: { type: Boolean, state: true },
     _starredSyncResult: { type: String, state: true },
+    _auRunning: { type: Boolean, state: true },
+    _auScheduled: { type: Boolean, state: true },
+    _installedRepos: { type: Array, state: true },
+    _installedLoaded: { type: Boolean, state: true },
+    _auFilter: { type: String, state: true },
+    _auPage: { type: Number, state: true },
+    _showAuDialog: { type: Boolean, state: true },
+    _auDialogWhitelist: { type: Array, state: true },
     _starredFilter: { type: String, state: true },
     _selectedStarred: { type: Object, state: true },
     _orgInput: { type: String, state: true },
@@ -75,6 +83,7 @@ class ConfigView extends LitElement {
     super();
     this._settings = {};
     this._saving = false;
+    this.__unsubAutoUpdateState = null;
     this._version = '';
     this._importing = false;
     this._exporting = false;
@@ -98,6 +107,14 @@ class ConfigView extends LitElement {
     this._starredSyncing = false;
     this._starredSyncResult = '';
     this._starredSyncFailed = false;
+    this._auRunning = false;
+    this._auScheduled = false;
+    this._installedRepos = [];
+    this._installedLoaded = false;
+    this._auFilter = '';
+    this._auPage = 1;
+    this._showAuDialog = false;
+    this._auDialogWhitelist = [];
     this._starredFilter = '';
     this._selectedStarred = {};
     this._orgInput = '';
@@ -122,6 +139,35 @@ class ConfigView extends LitElement {
   connectedCallback() {
     super.connectedCallback();
     this._load();
+    this._subscribeAutoUpdateState();
+  }
+
+  disconnectedCallback() {
+    super.disconnectedCallback();
+    if (this.__unsubAutoUpdateState) {
+      this.__unsubAutoUpdateState();
+      this.__unsubAutoUpdateState = null;
+    }
+  }
+
+  async _subscribeAutoUpdateState() {
+    if (!this.hass?.connection) {
+      // hass may not be available yet; retry after a tick
+      await new Promise(r => setTimeout(r, 0));
+      if (!this.hass?.connection) return;
+    }
+    try {
+      const unsub = await this.hass.connection.subscribeEvents(
+        (event) => {
+          this._auRunning = event.data.running;
+          this._auScheduled = event.data.scheduled;
+        },
+        'hacs_vision_auto_update_state'
+      );
+      this.__unsubAutoUpdateState = unsub;
+    } catch(e) {
+      console.debug('Auto-update state subscription failed:', e);
+    }
   }
 
   async _load() {
@@ -139,6 +185,18 @@ class ConfigView extends LitElement {
       const data = await api.getVersion();
       this._version = data?.version || '';
     } catch(e) { console.debug('Version fetch failed (optional):', e); }
+    // Load installed repos for auto-update whitelist
+    try {
+      const installed = await api.getInstalled();
+      this._installedRepos = (installed?.installed || installed?.repositories || [])
+        .filter(r => r.full_name)
+        .map(r => ({ full_name: r.full_name, category: r.category || 'integration', name: r.name || r.full_name.split('/')[1] }))
+        .sort((a, b) => a.full_name.localeCompare(b.full_name));
+    } catch(e) {
+      console.debug('Installed repos fetch failed:', e);
+      this._installedRepos = [];
+    }
+    this._installedLoaded = true;
     // Step 1: Check frontend cache first — show immediately if cached
     const cached = ConfigView._getLoginCache();
     if (cached) {
@@ -207,6 +265,184 @@ class ConfigView extends LitElement {
     this._saving = false;
   }
 
+  async _onAutoUpdateEnabled(val) {
+    this._settings = { ...this._settings, auto_update_enabled: val };
+    await this._save();
+    await this._reloadAutoUpdateSettings();
+  }
+
+  _onAutoUpdateNotify(val) {
+    this._set('auto_update_notify', val);
+  }
+
+  async _onAutoUpdateInterval(val) {
+    this._settings = { ...this._settings, auto_update_interval: parseInt(val) || 21600 };
+    await this._save();
+    await this._reloadAutoUpdateSettings();
+  }
+
+  get _auFilteredInstalled() {
+    const q = (this._auFilter || '').trim().toLowerCase();
+    if (!q) return this._installedRepos;
+    return this._installedRepos.filter(r => r.full_name.toLowerCase().includes(q));
+  }
+
+  get _auCandidateRepos() {
+    const whitelist = new Set(this._settings.auto_update_repos || []);
+    const q = (this._auFilter || '').trim().toLowerCase();
+    let list = this._installedRepos;
+    if (q) list = list.filter(r => r.full_name.toLowerCase().includes(q));
+    return list.filter(r => !whitelist.has(r.full_name));
+  }
+
+  get _auTotalPages() {
+    return Math.max(1, Math.ceil(this._auCandidateRepos.length / 15));
+  }
+
+  get _auPagedCandidates() {
+    const start = (this._auPage - 1) * 15;
+    return this._auCandidateRepos.slice(start, start + 15);
+  }
+
+  _onAuFilterInput(e) {
+    this._auFilter = e.target.value;
+    this._auPage = 1;
+    this.requestUpdate();
+  }
+
+  _auPrevPage() {
+    if (this._auPage > 1) { this._auPage--; this.requestUpdate(); }
+  }
+
+  _auNextPage() {
+    if (this._auPage < this._auTotalPages) { this._auPage++; this.requestUpdate(); }
+  }
+
+  async _auToggleRepo(fullName) {
+    const whitelist = [...(this._settings.auto_update_repos || [])];
+    const idx = whitelist.indexOf(fullName);
+    if (idx >= 0) {
+      whitelist.splice(idx, 1);
+    } else {
+      whitelist.push(fullName);
+    }
+    this._settings = { ...this._settings, auto_update_repos: whitelist };
+    await this._save();
+    await this._reloadAutoUpdateSettings();
+  }
+
+  async _auSelectAll() {
+    const names = this._auFilteredInstalled.map(r => r.full_name);
+    const current = new Set(this._settings.auto_update_repos || []);
+    names.forEach(n => current.add(n));
+    this._settings = { ...this._settings, auto_update_repos: [...current] };
+    await this._save();
+    await this._reloadAutoUpdateSettings();
+  }
+
+  async _auDeselectAll() {
+    const names = new Set(this._auFilteredInstalled.map(r => r.full_name));
+    const current = (this._settings.auto_update_repos || []).filter(n => !names.has(n));
+    this._settings = { ...this._settings, auto_update_repos: current };
+    await this._save();
+    await this._reloadAutoUpdateSettings();
+  }
+
+  // Dialog-specific getters (operate on _auDialogWhitelist copy)
+  get _dialogCandidates() {
+    const whitelist = new Set(this._auDialogWhitelist || []);
+    const q = (this._auFilter || '').trim().toLowerCase();
+    let list = this._installedRepos;
+    if (q) list = list.filter(r => r.full_name.toLowerCase().includes(q));
+    return list.filter(r => !whitelist.has(r.full_name));
+  }
+
+  get _dialogTotalPages() {
+    return Math.max(1, Math.ceil(this._dialogCandidates.length / 15));
+  }
+
+  get _dialogPagedCandidates() {
+    const start = (this._auPage - 1) * 15;
+    return this._dialogCandidates.slice(start, start + 15);
+  }
+
+  _openAuDialog() {
+    this._auDialogWhitelist = [...(this._settings.auto_update_repos || [])];
+    this._auFilter = '';
+    this._auPage = 1;
+    this._showAuDialog = true;
+  }
+
+  _closeAuDialog() {
+    this._showAuDialog = false;
+    this._auFilter = '';
+    this._auDialogWhitelist = [];
+  }
+
+  async _saveAuDialog() {
+    this._settings = { ...this._settings, auto_update_repos: this._auDialogWhitelist };
+    this._saving = true;
+    try {
+      await api.updateSettings(this._settings);
+      showToast('白名单已保存', 'success');
+      await this._reloadAutoUpdateSettings();
+    } catch(e) {
+      showToast(`保存失败: ${e.message}`, 'error');
+    }
+    this._saving = false;
+    this._closeAuDialog();
+  }
+
+  _dialogAuToggleRepo(fullName) {
+    const list = [...this._auDialogWhitelist];
+    const idx = list.indexOf(fullName);
+    if (idx >= 0) {
+      list.splice(idx, 1);
+    } else {
+      list.push(fullName);
+    }
+    this._auDialogWhitelist = list;
+    this.requestUpdate();
+  }
+
+  _dialogAuSelectAll() {
+    const names = new Set(this._installedRepos.map(r => r.full_name));
+    const current = new Set(this._auDialogWhitelist);
+    names.forEach(n => current.add(n));
+    this._auDialogWhitelist = [...current];
+    this.requestUpdate();
+  }
+
+  _dialogAuDeselectAll() {
+    const names = new Set(this._installedRepos.map(r => r.full_name));
+    this._auDialogWhitelist = (this._auDialogWhitelist || []).filter(n => !names.has(n));
+    this.requestUpdate();
+  }
+
+  async _triggerAutoUpdate() {
+    try {
+      this._auRunning = true;
+      const result = await api.triggerAutoUpdate();
+      if (result?.queued) {
+        showToast('更新已排队，将在当前周期完成后执行', 'info');
+      } else {
+        showToast(t('autoUpdateTriggered'), 'info');
+      }
+    } catch(e) {
+      showToast(`${t('autoUpdateTriggerFailed')}: ${e.message}`, 'error');
+    }
+    this._auRunning = false;
+  }
+
+  async _reloadAutoUpdateSettings() {
+    try {
+      await api.reloadAutoUpdateSettings();
+      showToast(t('autoUpdateReloaded'), 'success');
+    } catch(e) {
+      showToast(`${t('autoUpdateReloadFailed')}: ${e.message}`, 'error');
+    }
+  }
+
   async _set(key, val) {
     this._settings = { ...this._settings, [key]: val };
     await this._save();
@@ -220,7 +456,6 @@ class ConfigView extends LitElement {
 
   async _reloadCore() {
     try {
-      const { showToast } = await import('../hacs-vision-panel.js');
       showToast(t('reloadingHA'), 'info');
       const result = await api.reloadHA();
       if (result.success) {
@@ -229,7 +464,6 @@ class ConfigView extends LitElement {
         showToast(`${t('coreReloadFailed')}: ${result.error}`, 'error');
       }
     } catch(e) {
-      const { showToast } = await import('../hacs-vision-panel.js');
       showToast(`${t('coreReloadFailed')}: ${e.message}`, 'error');
     }
   }
@@ -338,6 +572,99 @@ class ConfigView extends LitElement {
     .version {
       text-align: center; font-size: 12px; color: var(--secondary-text-color, #727272);
       padding: 12px 0 4px;
+    }
+
+    .au-textarea {
+      width: 100%; box-sizing: border-box;
+      padding: 8px; border-radius: 8px; font-size: 12px; font-family: monospace;
+      border: 1px solid var(--divider-color, #e0e0e0);
+      background: var(--secondary-background-color, #f5f5f5);
+      color: var(--primary-text-color); resize: vertical; min-height: 60px;
+    }
+    .au-textarea:focus {
+      border-color: var(--primary-color, #03a9f4); outline: none;
+    }
+
+    /* Whitelist chips */
+    .au-chips {
+      display: flex; flex-wrap: wrap; gap: 6px; padding: 8px 0 6px;
+    }
+    .au-chip {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 3px 6px 3px 10px; border-radius: 14px;
+      background: rgba(76,175,80,0.12); color: #2e7d32;
+      font-size: 11px; line-height: 1.4;
+    }
+    .au-chip .remove {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 16px; height: 16px; border-radius: 50%; border: none;
+      background: transparent; color: #2e7d32; cursor: pointer;
+      font-size: 12px; line-height: 1; padding: 0; transition: background 0.15s;
+    }
+    .au-chip .remove:hover { background: rgba(76,175,80,0.25); }
+
+    .au-candidate-item {
+      display: flex; align-items: center; gap: 8px;
+      padding: 6px 8px; border-radius: 6px; cursor: pointer;
+      transition: background 0.15s;
+    }
+    .au-candidate-item:hover { background: var(--secondary-background-color, #f0f0f0); }
+    .au-candidate-item .add-btn {
+      width: 22px; height: 22px; border-radius: 50%; border: 1px solid var(--primary-color, #03a9f4);
+      background: transparent; color: var(--primary-color, #03a9f4);
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+      font-size: 14px; font-weight: 700; flex-shrink: 0; padding: 0; line-height: 1; transition: all 0.15s;
+    }
+    .au-candidate-item .add-btn:hover { background: var(--primary-color, #03a9f4); color: #fff; }
+
+    /* Whitelist dialog modal */
+    .au-dialog-overlay {
+      position: fixed; inset: 0; z-index: 1000;
+      display: grid; place-items: center;
+      background: rgba(0,0,0,0.5);
+      padding: 16px;
+    }
+    @media (max-width: 600px) {
+      .au-dialog-overlay {
+        padding: 0;
+        align-items: flex-end;
+      }
+    }
+    .au-dialog {
+      background: var(--card-background-color, #fff);
+      border-radius: 16px; width: 100%; max-width: 520px;
+      max-height: 80vh; display: flex; flex-direction: column;
+      box-shadow: 0 8px 40px rgba(0,0,0,0.2);
+      color: var(--primary-text-color);
+    }
+    @media (max-width: 600px) {
+      .au-dialog {
+        max-width: 100%; max-height: 85vh;
+        border-radius: 16px 16px 0 0;
+        padding-bottom: env(safe-area-inset-bottom, 0);
+      }
+    }
+    .au-dialog-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 16px 16px 12px; border-bottom: 1px solid var(--divider-color, #e0e0e0);
+      font-size: 15px; font-weight: 600;
+    }
+    .au-dialog-close {
+      width: 28px; height: 28px; border-radius: 50%; border: none;
+      background: transparent; color: var(--secondary-text-color, #727272);
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+      font-size: 16px; transition: background 0.15s;
+    }
+    .au-dialog-close:hover { background: var(--secondary-background-color, #f0f0f0); }
+    .au-dialog-body {
+      flex: 1; overflow-y: auto; padding: 12px 16px;
+    }
+    .au-dialog-footer {
+      display: flex; justify-content: flex-end; gap: 8px;
+      padding: 12px 16px 16px; border-top: 1px solid var(--divider-color, #e0e0e0);
+    }
+    .au-dialog-summary {
+      font-size: 11px; color: var(--secondary-text-color); padding: 4px 0 8px;
     }
   `];
 
@@ -626,6 +953,190 @@ class ConfigView extends LitElement {
               </div>
             </div>
           </div>
+
+        <!-- 🔄 自动更新 -->
+        <div class="section">
+          <div class="section-title">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 4v6h6M23 20v-6h-6"/><path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"/></svg>
+            ${t('autoUpdateSection')}
+          </div>
+          <div class="setting-row">
+            <div class="setting-info">
+              <div class="label">${t('autoUpdateEnabled')}</div>
+              <div class="desc">${t('autoUpdateEnabledDesc')}</div>
+            </div>
+            <div class="setting-control">
+              <label class="toggle">
+                <input type="checkbox" .checked=${this._settings.auto_update_enabled ?? false}
+                  @change=${e => this._onAutoUpdateEnabled(e.target.checked)}>
+                <span class="slider"></span>
+              </label>
+            </div>
+          </div>
+          <div class="setting-row">
+            <div class="setting-info">
+              <div class="label">${t('autoUpdateInterval')}</div>
+              <div class="desc">${t('autoUpdateIntervalDesc')}</div>
+            </div>
+            <div class="setting-control">
+              <select @change=${e => this._onAutoUpdateInterval(e.target.value)}
+                .value=${this._settings.auto_update_interval ?? 21600}>
+                <option value="3600">${t('autoUpdateInterval1h')}</option>
+                <option value="10800">${t('autoUpdateInterval3h')}</option>
+                <option value="21600">${t('autoUpdateInterval6h')}</option>
+                <option value="43200">${t('autoUpdateInterval12h')}</option>
+                <option value="86400">${t('autoUpdateInterval24h')}</option>
+              </select>
+            </div>
+          </div>
+          <div class="setting-row">
+            <div class="setting-info">
+              <div class="label">${t('autoUpdateNotify')}</div>
+              <div class="desc">${t('autoUpdateNotifyDesc')}</div>
+            </div>
+            <div class="setting-control">
+              <label class="toggle">
+                <input type="checkbox" .checked=${this._settings.auto_update_notify ?? true}
+                  @change=${e => this._onAutoUpdateNotify(e.target.checked)}>
+                <span class="slider"></span>
+              </label>
+            </div>
+          </div>
+          <div class="setting-row" style="border-bottom:none;">
+            <div class="setting-info">
+              <div class="label">${t('autoUpdateRepos')}</div>
+              <div class="desc">${t('autoUpdateReposDesc')}</div>
+            </div>
+          </div>
+          <!-- Chips + button to open dialog -->
+          ${(() => {
+            const list = this._settings.auto_update_repos || [];
+            return list.length === 0 ? html`
+              <div style="padding:6px 0 4px;font-size:11px;color:var(--secondary-text-color);font-style:italic;">
+                暂未添加仓库
+              </div>
+            ` : html`
+              <div class="au-chips">
+              ${list.map(fn => html`
+                <span class="au-chip">
+                  ${fn}
+                  <button class="remove" @click=${(e) => { e.stopPropagation(); this._auToggleRepo(fn); }}>✕</button>
+                </span>
+              `)}
+              </div>
+            `;
+          })()}
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0 8px;">
+            <span style="font-size:11px;color:var(--secondary-text-color);">
+              ${(this._settings.auto_update_repos || []).length} / ${this._installedRepos.length} 已选
+            </span>
+            <button class="btn btn-md primary" @click=${this._openAuDialog} ?disabled=${!this._installedLoaded || this._installedRepos.length === 0}>
+              ${t('autoUpdateRepos')}
+            </button>
+          </div>
+          <div class="setting-row" style="border-bottom:none;">
+            <div class="setting-info">
+              <div class="label" style="font-size:11px;color:var(--secondary-text-color);">
+                ${this._auRunning ? html`<span style="color:var(--primary-color);">⟳ ${t('autoUpdateRunning')}</span>`
+                  : this._auScheduled ? html`<span style="color:#4caf50;">● ${t('autoUpdateScheduled')}</span>`
+                  : html`<span style="color:#999;">○ ${t('autoUpdateStopped')}</span>`}
+              </div>
+            </div>
+            <div class="setting-control" style="display:flex;gap:6px;">
+              <button class="btn btn-sm primary" @click=${this._triggerAutoUpdate} ?disabled=${this._auRunning}>
+                ${t('autoUpdateTrigger')}
+              </button>
+              <button class="btn btn-sm" @click=${this._reloadAutoUpdateSettings}>
+                ${t('autoUpdateReload')}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Dialog modal for whitelist settings -->
+        ${this._showAuDialog ? html`
+        <div class="au-dialog-overlay" @click=${this._closeAuDialog}>
+          <div class="au-dialog" @click=${e => e.stopPropagation()}>
+            <div class="au-dialog-header">
+              <span>${t('autoUpdateRepos')}</span>
+              <button class="au-dialog-close" @click=${this._closeAuDialog}>✕</button>
+            </div>
+            <div class="au-dialog-body">
+              <!-- Chips in dialog -->
+              ${(() => {
+                const list = this._auDialogWhitelist || [];
+                return list.length === 0 ? html`
+                  <div style="padding:4px 0 6px;font-size:11px;color:var(--secondary-text-color);font-style:italic;">
+                    暂未选择仓库
+                  </div>
+                ` : html`
+                  <div class="au-chips" style="padding-top:2px;">
+                  ${list.map(fn => html`
+                    <span class="au-chip">
+                      ${fn}
+                      <button class="remove" @click=${(e) => { e.stopPropagation(); this._dialogAuToggleRepo(fn); }}>✕</button>
+                    </span>
+                  `)}
+                  </div>
+                `;
+              })()}
+              <!-- Search -->
+              <div style="padding:4px 0;">
+                <input type="text" class="search-input" placeholder="输入仓库名搜索添加..."
+                  .value=${this._auFilter}
+                  @input=${this._onAuFilterInput}
+                  style="width:100%;box-sizing:border-box;padding:6px 8px;border:1px solid var(--divider-color);border-radius:6px;font-size:12px;background:var(--card-background-color);color:var(--primary-text-color);">
+              </div>
+              <!-- Candidate list -->
+              ${!this._installedLoaded ? html`
+                <div style="padding:12px;text-align:center;font-size:12px;color:var(--secondary-text-color);">
+                  正在加载已安装仓库...
+                </div>
+              ` : this._installedRepos.length === 0 ? html`
+                <div style="padding:12px;text-align:center;font-size:12px;color:var(--secondary-text-color);">
+                  尚未安装任何仓库
+                </div>
+              ` : this._dialogCandidates.length === 0 ? html`
+                <div style="padding:12px;text-align:center;font-size:12px;color:var(--secondary-text-color);">
+                  没有可添加的仓库（所有已安装仓库已在白名单中）
+                </div>
+              ` : html`
+              <div class="scroll-list" style="max-height:240px;overflow-y:auto;">
+                ${this._dialogPagedCandidates.map(r => html`
+                  <div class="au-candidate-item" @click=${() => this._dialogAuToggleRepo(r.full_name)}>
+                    <button class="add-btn" @click=${(e) => { e.stopPropagation(); this._dialogAuToggleRepo(r.full_name); }}>+</button>
+                    <span style="flex:1;font-size:12px;">
+                      <strong>${r.full_name}</strong>
+                      <span style="margin-left:4px;font-size:10px;padding:1px 5px;border-radius:3px;background:var(--primary-color);color:#fff;">${r.category}</span>
+                    </span>
+                  </div>
+                `)}
+              </div>
+              ${this._dialogTotalPages > 1 ? html`
+              <div style="display:flex;align-items:center;justify-content:center;gap:8px;padding:6px 0 0;font-size:12px;">
+                <button class="btn btn-xs" @click=${this._auPrevPage} ?disabled=${this._auPage <= 1}>‹ 上一页</button>
+                <span style="color:var(--secondary-text-color);">${this._auPage} / ${this._dialogTotalPages}</span>
+                <button class="btn btn-xs" @click=${this._auNextPage} ?disabled=${this._auPage >= this._dialogTotalPages}>下一页 ›</button>
+              </div>
+              ` : ''}
+              `}
+              <!-- Summary + select all -->
+              <div class="au-dialog-summary">
+                ${(this._auDialogWhitelist || []).length} / ${this._installedRepos.length} 已选
+              </div>
+              <div style="display:flex;gap:6px;padding:2px 0 4px;">
+                <button class="btn btn-xs" @click=${this._dialogAuSelectAll}>${t('selectAll')}</button>
+                <button class="btn btn-xs" @click=${this._dialogAuDeselectAll}>${t('deselectAll')}</button>
+              </div>
+            </div>
+            <div class="au-dialog-footer">
+              <button class="btn" @click=${this._closeAuDialog}>${t('cancel')}</button>
+              <button class="btn primary" @click=${this._saveAuDialog}>${t('save')}</button>
+            </div>
+          </div>
+        </div>
+        ` : ''}
+
         </div>
 
         <!-- 列3：🛠️ 维护 + 数据 + 依赖 -->
@@ -722,7 +1233,7 @@ class ConfigView extends LitElement {
     this._githubVerifying = true;
     this._githubVerifyMsg = '';
     try {
-      const { showToast } = await import('../hacs-vision-panel.js');
+      
       const result = await api.verifyGitHubToken(this._githubTokenInput.trim());
       if (result?.ok) {
         this._githubUser = result.user;
@@ -747,7 +1258,7 @@ class ConfigView extends LitElement {
   async _autoStar() {
     try {
       const result = await api.autoStarRepo();
-      const { showToast } = await import('../hacs-vision-panel.js');
+      
       if (result?.already_starred) {
         showToast(t('alreadyStarred'), 'info');
       } else if (result?.ok) {
@@ -772,7 +1283,6 @@ class ConfigView extends LitElement {
       this._githubOAuthCode = '';
       this._githubOAuthDeviceCode = '';
       this._githubOAuthing = false;
-      const { showToast } = await import('../hacs-vision-panel.js');
       showToast(t('logoutGithub'), 'info');
     } catch(e) { /* ignore */ }
   }
@@ -813,7 +1323,6 @@ class ConfigView extends LitElement {
         this._githubVerifyMsg = `${t('githubLoginSuccess', { user: result.user })} (OAuth)`;
         this._githubVerifyOk = true;
         ConfigView._saveLoginCache(result.user, result.avatar_url || '');
-        const { showToast } = await import('../hacs-vision-panel.js');
         showToast(t('githubLoginSuccess', { user: result.user }), 'success');
         this._autoStar();
       } else if (result?.status === 'pending') {
@@ -848,12 +1357,10 @@ class ConfigView extends LitElement {
         ? t('syncResultPartial', { ok, fail })
         : t('syncResultSuccess', { n: ok });
       if (fail > 0) {
-        const { showToast } = await import('../hacs-vision-panel.js');
         showToast(t('noPermissionMsg', { n: fail }), 'warning');
       }
     } catch(e) {
       this._syncFavToStarResult = t('errorPrefix', { action: t('syncFavToStar'), err: e.message });
-      const { showToast } = await import('../hacs-vision-panel.js');
       showToast(t('errorPrefix', { action: t('syncFavToStar'), err: e.message }), 'error');
     }
     this._syncFavToStarring = false;
@@ -883,7 +1390,6 @@ class ConfigView extends LitElement {
       }
     } catch(e) {
       this._syncStarToFavResult = t('errorPrefix', { action: t('syncStarToFav'), err: e.message });
-      const { showToast } = await import('../hacs-vision-panel.js');
       showToast(t('errorPrefix', { action: t('syncStarToFav'), err: e.message }), 'error');
     }
     this._syncStarToFaving = false;
@@ -898,15 +1404,13 @@ class ConfigView extends LitElement {
       if (result?.repos) {
         this._starredRepos = result.repos;
         if (result.repos.length === 0) {
-          const { showToast } = await import('../hacs-vision-panel.js');
+          
           showToast(t('noStarredRepos'), 'info');
         }
       } else {
-        const { showToast } = await import('../hacs-vision-panel.js');
         showToast(result?.error || t('loadFailedSimple'), 'error');
       }
     } catch(e) {
-      const { showToast } = await import('../hacs-vision-panel.js');
       showToast(t('errorPrefix', { action: t('loadStarred'), err: e.message }), 'error');
     }
     this._starredLoading = false;
@@ -960,12 +1464,10 @@ class ConfigView extends LitElement {
       const fail = results.filter(r => !r.success).length;
       const failPart = fail ? t('failPartSuffix', { fail }) : '';
       this._starredSyncResult = t('syncDoneResult', { ok, failPart });
-      const { showToast } = await import('../hacs-vision-panel.js');
       showToast(t('addStarredToCustomList', { n: ok }), fail ? 'warning' : 'success');
     } catch(e) {
       this._starredSyncResult = t('errorPrefix', { action: t('syncing'), err: e.message });
       this._starredSyncFailed = true;
-      const { showToast } = await import('../hacs-vision-panel.js');
       showToast(t('errorPrefix', { action: t('syncing'), err: e.message }), 'error');
     }
     this._starredSyncing = false;
@@ -991,7 +1493,7 @@ class ConfigView extends LitElement {
     this._githubVerifying = true;
     this._githubVerifyMsg = '';
     try {
-      const { showToast } = await import('../hacs-vision-panel.js');
+      
       const result = await api.importHacsToken();
       if (result?.ok) {
         this._githubUser = result.user;
@@ -1014,7 +1516,6 @@ class ConfigView extends LitElement {
   async _loadOrgRepos() {
     const org = this._orgInput?.trim();
     if (!org) {
-      const { showToast } = await import('../hacs-vision-panel.js');
       showToast(t('orgInputRequired'), 'warning');
       return;
     }
@@ -1027,15 +1528,13 @@ class ConfigView extends LitElement {
       if (result?.repos) {
         this._orgRepos = result.repos;
         if (result.repos.length === 0) {
-          const { showToast } = await import('../hacs-vision-panel.js');
+          
           showToast(t('noOrgRepos'), 'info');
         }
       } else {
-        const { showToast } = await import('../hacs-vision-panel.js');
         showToast(result?.error || t('loadFailedSimple'), 'error');
       }
     } catch(e) {
-      const { showToast } = await import('../hacs-vision-panel.js');
       showToast(t('errorPrefix', { action: t('load'), err: e.message }), 'error');
     }
     this._orgLoading = false;
@@ -1086,12 +1585,10 @@ class ConfigView extends LitElement {
       const fail = results.filter(r => !r.success).length;
       const failPart = fail ? t('failPartSuffix', { fail }) : '';
       this._orgSyncResult = t('syncDoneResult', { ok, failPart });
-      const { showToast } = await import('../hacs-vision-panel.js');
       showToast(t('addReposToCustomList', { n: ok }), fail ? 'warning' : 'success');
     } catch(e) {
       this._orgSyncResult = t('errorPrefix', { action: t('syncing'), err: e.message });
       this._orgSyncFailed = true;
-      const { showToast } = await import('../hacs-vision-panel.js');
       showToast(t('errorPrefix', { action: t('syncing'), err: e.message }), 'error');
     }
     this._orgSyncing = false;
@@ -1108,7 +1605,6 @@ class ConfigView extends LitElement {
       a.download = `hacs_backup_${new Date().toISOString().slice(0, 10)}.json`;
       a.click();
       URL.revokeObjectURL(url);
-      const { showToast } = await import('../hacs-vision-panel.js');
       showToast(t('exportSuccess'), 'success');
     } catch(e) {
       showToast(`${t('exportFailed')}: ${e.message}`, 'error');
@@ -1130,7 +1626,7 @@ class ConfigView extends LitElement {
       const text = await file.text();
       const data = JSON.parse(text);
       const result = await api.importBackup(data);
-      const { showToast } = await import('../hacs-vision-panel.js');
+      
       if (result.success) {
         showToast(t('importSuccess'), 'success');
         this._load();
@@ -1147,7 +1643,7 @@ class ConfigView extends LitElement {
   async _checkUpdates() {
     try {
       const result = await api.checkUpdatesWithNotify();
-      const { showToast } = await import('../hacs-vision-panel.js');
+      
       if (result.success) {
         if (result.updates_found > 0) {
           showToast(t('updatesChecked', { n: result.updates_found }), 'success');
@@ -1170,7 +1666,6 @@ class ConfigView extends LitElement {
     if (!ok) return;
     try {
       await api.restartHA();
-      const { showToast } = await import('../hacs-vision-panel.js');
       showToast(t('haRestarting'), 'info');
     } catch(e) {
       showToast(`${t('restartFailed')}: ${e.message}`, 'error');
@@ -1195,12 +1690,10 @@ class ConfigView extends LitElement {
       // Clear only HACS Vision localStorage keys (not all localStorage)
       const hacsKeys = Object.keys(localStorage).filter(k => k.startsWith('hacs_vision'));
       hacsKeys.forEach(k => localStorage.removeItem(k));
-      const { showToast } = await import('../hacs-vision-panel.js');
       showToast(t('clearCacheDone'), 'success');
       // Cache-busting reload: add a timestamp param to force fresh load
       setTimeout(() => { location.href = location.pathname + '?_t=' + Date.now(); }, 1500);
     } catch(e) {
-      const { showToast } = await import('../hacs-vision-panel.js');
       showToast(`${t('clearCache')}: ${e.message}`, 'error');
     }
   }

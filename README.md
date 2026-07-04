@@ -11,9 +11,9 @@
 [![English](https://img.shields.io/badge/lang-en-red.svg)](#)
 [![Deutsch](https://img.shields.io/badge/lang-de-green.svg)](#)
 
-> **当前版本**: v6.0.0 | **最低 HA 版本**: 2024.1.0
-> **Current version**: v6.0.0 | **Minimum HA**: 2024.1.0
-> **Aktuelle Version**: v6.0.0 | **Minimale HA-Version**: 2024.1.0
+> **当前版本**: v6.2.0 | **最低 HA 版本**: 2024.1.0
+> **Current version**: v6.2.0 | **Minimum HA**: 2024.1.0
+> **Aktuelle Version**: v6.2.0 | **Minimale HA-Version**: 2024.1.0
 
 > **⚠️ 前置条件 / Prerequisite / Voraussetzung**: 必须先安装并配置好 [HACS](https://hacs.xyz) / [HACS](https://hacs.xyz) must be installed and configured / [HACS](https://hacs.xyz) muss installiert und konfiguriert sein.
 
@@ -56,6 +56,7 @@
 - **⛔ 忽略仓库** — 将仓库加入忽略列表，不再出现在搜索结果和更新提醒中
 - **🖼️ 集成配置页内嵌** — 集成管理视图点击卡片，弹窗内 iframe 加载 HA 原生配置页，双击全屏，关闭即回
 - **🧩 配置流表单渲染** — 下拉选择改为单选按钮 + 下一步按钮，配置操作更直观
+- **🤖 自动更新** — 后台定时检测并自动安装仓库更新，支持白名单管理、可调检测频率（1h/3h/6h/12h/24h）、更新通知、仓库级开关
 
 <!-- en -->
 - **🛒 Store Browsing** — Search, category filter, multi-dimensional sorting, favorites. Card/list dual views, **merged filter+sort row** for better space utilization. Filter by **favorites**
@@ -79,6 +80,7 @@
 - **⛔ Ignore Repo** — Add repos to ignore list, hide from search results and update notifications
 - **🖼️ Config Page Embed** — Click integration card to open HA native config page in iframe modal, double-click to fullscreen, close to return
 - **🧩 Config Flow Form** — Dropdown select rendered as radio buttons with next-step button, more intuitive configuration
+- **🤖 Auto Update** — Scheduled background updates with whitelist management, configurable intervals (1h/3h/6h/12h/24h), update notifications, per-repo toggle
 
 <!-- de -->
 - **🛒 Shop-Durchsuchen** — Suche, Kategorie-Filter, mehrdimensionale Sortierung, Favoriten. Karten-/Listenansicht, **Filter+Sortierung in einer Zeile**. Filterung nach **Favoriten**. Versionsauswahl mit Changelog-Vorschau
@@ -102,6 +104,7 @@
 - **⛔ Repo ignorieren** — Repositorys zur Ignorierliste hinzufügen, aus Suchergebnissen und Update-Benachrichtigungen ausblenden
 - **🖼️ Konfigurationsseite einbetten** — Integrationskarte klicken, um native HA-Konfigurationsseite im Iframe-Modal zu öffnen, Doppelklick für Vollbild
 - **🧩 Config-Flow-Formular** — Dropdown-Menü als Radio-Buttons mit Weiter-Button dargestellt, intuitivere Konfiguration
+- **🤖 Automatische Updates** — Geplante Hintergrundupdates mit Whitelist, konfigurierbare Intervalle (1h/3h/6h/12h/24h), Update-Benachrichtigungen, Pro-Repo-Schalter
 
 ---
 
@@ -246,6 +249,21 @@ Konfigurieren Sie das Panel-Verhalten, prüfen Sie Versionsinformationen, starte
 ---
 
 ## 更新日志 / Changelog / Änderungsprotokoll
+
+### v6.2.0 (2026-07-04) — 自动更新 / Auto Update
+- **New**: 🤖 **自动更新引擎** — 后台定时检测并自动安装白名单中的仓库更新。非重叠运行，Coalescing 防竞争。加载设置后 60 秒首次执行，随后按配置间隔周期性运行。双通道事件通知（`async_dispatcher_send` + `hass.bus.async_fire`），设置页面实时显示运行/已调度/已停止状态
+  — *Background scheduler with non-overlapping execution, coalescing, 60s initial delay, configurable interval. Dual-channel event dispatch for real-time status display*
+- **New**: 📋 **白名单管理** — 设置面板弹窗分页设置自动更新白名单，支持搜索、分页（15条/页）、chips 已选展示、全选/取消全选、保存/取消
+  — *Whitelist in a modal dialog with pagination (15/page), search, chip display, select/deselect all, save/cancel*
+- **New**: 🔘 **仓库级自动更新开关** — 商店浏览页面和更新页面每个仓库卡片上添加滑块开关，乐观更新 + API 失败自动回滚
+  — *Per-repo auto-update toggle on browse and updates pages, with optimistic UI update and rollback on failure*
+- **New**: ⏰ **可调检测频率** — 支持 1h / 3h / 6h / 12h / 24h 五种间隔
+  — *Configurable check intervals: 1h/3h/6h/12h/24h*
+- **New**: 🔔 **更新通知** — 自动更新完成后发送 HA 持久通知（可开关），固定通知 ID 防堆积
+  — *HA persistent notification on completed auto-update, fixed notification ID to prevent stacking*
+- **New**: 🛠️ **4 个后端服务** — `trigger_auto_update`（手动触发）、`reload_auto_update_settings`（重载设置）、`start_auto_update`/`stop_auto_update`（启停调度）
+  — *4 backend services for manual trigger, reload, start/stop*
+- **Chore**: 版本号升级至 v6.2.0 / Version bump to v6.2.0
 
 ### v6.0.0b1 (2026-07-01) — 架构拆分 Beta / Architecture Split Beta
 - **New**: 🏗️ **api.py 拆分** — 3,717 行 api.py 拆分为 `api.py` + `api_config_flow.py` + `api_repos.py`，通过 Mixin 组合继承

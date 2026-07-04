@@ -1,0 +1,1 @@
+"""API Mixins for HACS Enhanced API — split by responsibility."""

@@ -49,14 +49,19 @@ export function getCommonStyles() {
     to { transform: rotate(360deg); }
   }
 
+  /* ===== Mini Icon (inline SVG helper) ===== */
+  .mini-icon { width: 14px; height: 14px; vertical-align: -2px; display: inline; flex-shrink: 0; }
+  .mini-icon.spin { animation: spin 1s linear infinite; }
+
   /* ===== Empty ===== */
   .empty {
     text-align: center; padding: 60px 20px;
     color: var(--secondary-text-color, #727272);
   }
   .empty svg { width: 60px; height: 60px; margin-bottom: 16px; opacity: 0.3; }
+  .empty-icon { font-size: 48px; margin-bottom: 12px; }
 
-  /* ===== Info Bar ===== */
+  /* ===== Info bar ===== */
   .info-bar {
     display: flex; justify-content: space-between; align-items: center;
     margin-bottom: 12px; padding: 8px 14px;

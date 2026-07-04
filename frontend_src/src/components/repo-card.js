@@ -18,6 +18,7 @@ class RepoCard extends LitElement {
     renamedFrom: { type: String },
     showRemoveBtn: { type: Boolean },
     configEntries: { type: Object },
+    autoUpdateRepos: { type: Array },
   };
 
   constructor() {
@@ -33,6 +34,7 @@ class RepoCard extends LitElement {
     this.renamedFrom = null;
     this.showRemoveBtn = false;
     this.configEntries = {};
+    this.autoUpdateRepos = [];
   }
 
   willUpdate(changedProps) {
@@ -233,6 +235,12 @@ class RepoCard extends LitElement {
       background: var(--primary-color, #03a9f4); border-color: var(--primary-color, #03a9f4); color: #fff;
     }
     .action-btn.primary:hover { opacity: 0.9; }
+    .action-btn.au-active {
+      background: rgba(76,175,80,0.12); border-color: #4caf50; color: #4caf50;
+    }
+    .action-btn.au-active:hover {
+      background: rgba(76,175,80,0.25);
+    }
     .action-btn.readme-btn {
       flex: 0 0 auto; min-width: auto; padding: 8px 10px;
       background: rgba(var(--rgb-primary-color, 3,169,244), 0.08);
@@ -262,6 +270,33 @@ class RepoCard extends LitElement {
     }
     @keyframes btnPulse { 0%, 100% { opacity: 0.7; } 50% { opacity: 0.45; } }
 
+    /* Auto-update toggle row (in card body, not actions bar) */
+    .au-toggle-row {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 8px 0 4px; margin: 0 0 2px;
+      border-top: 1px solid var(--divider-color, #e0e0e0);
+      font-size: 12px;
+    }
+    .au-toggle-row .au-label {
+      color: var(--secondary-text-color); display: flex; align-items: center; gap: 4px;
+    }
+    .au-toggle-row .au-label svg {
+      width: 14px; height: 14px;
+    }
+    .au-toggle { position: relative; width: 36px; height: 20px; flex-shrink: 0; cursor: pointer; }
+    .au-toggle input { opacity: 0; width: 0; height: 0; position: absolute; }
+    .au-toggle .slider {
+      position: absolute; inset: 0; background: var(--divider-color, #ccc);
+      border-radius: 20px; transition: 0.3s; cursor: pointer;
+    }
+    .au-toggle .slider::before {
+      content: ''; position: absolute; height: 16px; width: 16px;
+      left: 2px; bottom: 2px; background: #fff;
+      border-radius: 50%; transition: 0.3s;
+    }
+    .au-toggle input:checked + .slider { background: #4caf50; }
+    .au-toggle input:checked + .slider::before { transform: translateX(16px); }
+
     @media (max-width: 768px) {
       :host { width: 100%; max-width: 100%; min-width: 0; }
       .card { width: 100%; max-width: 100%; min-height: 270px; box-sizing: border-box; }
@@ -282,8 +317,6 @@ class RepoCard extends LitElement {
       .remove-btn { width: 36px; height: 36px; font-size: 18px; }
     }
 
-    .mini-icon { width: 14px; height: 14px; vertical-align: -2px; display: inline; flex-shrink: 0; }
-    .mini-icon.spin { animation: spin 1s linear infinite; }
     @keyframes spin { 100% { transform: rotate(360deg); } }
   `;
 
@@ -465,6 +498,18 @@ class RepoCard extends LitElement {
     }));
   }
 
+  _handleAutoUpdateToggle(e) {
+    e.stopPropagation();
+    this.dispatchEvent(new CustomEvent('auto-update-toggle', {
+      detail: { repo: this.repo },
+      bubbles: true, composed: true,
+    }));
+  }
+
+  get _isAutoUpdate() {
+    return Array.isArray(this.autoUpdateRepos) && this.autoUpdateRepos.includes(this.repo?.full_name);
+  }
+
   updated(changed) {
     // Placeholder for future post-render work
   }
@@ -539,6 +584,22 @@ class RepoCard extends LitElement {
           <div class="name" title=${name}>${name}</div>
           <div class="fullname">${r.full_name || ''}</div>
           <div class="desc">${desc || t('noDesc')}</div>
+          ${this.viewMode !== 'management' && isInstalled ? html`
+          <div class="au-toggle-row">
+            <span class="au-label">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M1 4v6h6"/>
+                <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>
+              </svg>
+              ${t('autoUpdateSection')}
+            </span>
+            <label class="au-toggle" @click=${(e) => e.stopPropagation()}>
+              <input type="checkbox" .checked=${this._isAutoUpdate}
+                @change=${this._handleAutoUpdateToggle}>
+              <span class="slider"></span>
+            </label>
+          </div>
+          ` : ''}
           <div class="meta">
             <div class="tags">
               ${r.topics && r.topics.length ? r.topics.slice(0, 3).map(t => html`<span class="topic-tag">${t}</span>`) : ''}

@@ -1,7 +1,7 @@
 import { LitElement, html, css } from 'lit';
 import '../components/repo-card.js';
 import { api } from '../api.js';
-import { showToast } from '../hacs-vision-panel.js';
+import { showToast } from '../shared/toast.js';
 import { t } from '../i18n.js';
 import { getCommonStyles } from '../shared/styles.js';
 import { getCategoryColor } from '../shared/constants.js';
@@ -61,6 +61,7 @@ class BrowseView extends LitElement {
     _orgSyncResult: { type: String, state: true },
     // Re-render trigger on language change
     langVersion: { type: Number },
+    _autoUpdateRepos: { type: Array, state: true },
   };
 
   constructor() {
@@ -103,6 +104,8 @@ class BrowseView extends LitElement {
     this._favorites = [];
     this._selectedRepos = [];
     this._tagFilters = [];
+    this._autoUpdateRepos = [];
+    this.__auLoaded = false;
     this._rebuildOptions();
   }
 
@@ -121,9 +124,7 @@ class BrowseView extends LitElement {
       display: flex; align-items: center; gap: 10px;
       margin-bottom: 14px;
     }
-    .controls-right {
-      display: flex; align-items: center; gap: 6px; flex-shrink: 0;
-    }
+    .controls-right { flex-shrink: 0; }
     .search input {
       box-sizing: border-box;
       border: 1px solid var(--divider-color); border-radius: 10px;
@@ -438,6 +439,11 @@ class BrowseView extends LitElement {
     window.addEventListener('hacs-lang-changed', this._boundLangRefresh);
     await this._loadFavorites();
     await this._load();
+    // Load auto-update whitelist (only once)
+    if (!this.__auLoaded) {
+      this._loadAutoUpdateSettings();
+      this.__auLoaded = true;
+    }
     // After repos loaded, silently sync GitHub stars → local favorites (only known repos)
     this._syncGitHubStarsToFavs();
     this.addEventListener('install', (e) => this._handleInstall(e.detail.repo));
@@ -479,6 +485,7 @@ class BrowseView extends LitElement {
       }
       this._syncFavoriteCount();
     });
+    this.addEventListener('auto-update-toggle', (e) => this._handleAutoUpdateToggle(e.detail.repo));
   }
 
   disconnectedCallback() {
@@ -740,6 +747,42 @@ class BrowseView extends LitElement {
       this._load();
     } catch(e) {
       showToast(`${t('updateFailed')}: ${e.message}`, 'error');
+    }
+  }
+
+  async _loadAutoUpdateSettings() {
+    try {
+      const settings = await api.getSettings();
+      this._autoUpdateRepos = settings?.auto_update_repos || [];
+    } catch(e) {
+      console.debug('Failed to load auto-update settings:', e);
+      this._autoUpdateRepos = [];
+    }
+  }
+
+  async _handleAutoUpdateToggle(repo) {
+    const fullName = repo?.full_name;
+    if (!fullName) return;
+
+    // Optimistic update: toggle immediately
+    const prevRepos = [...this._autoUpdateRepos];
+    const newRepos = [...this._autoUpdateRepos];
+    const idx = newRepos.indexOf(fullName);
+    if (idx >= 0) {
+      newRepos.splice(idx, 1);
+    } else {
+      newRepos.push(fullName);
+    }
+    this._autoUpdateRepos = newRepos;
+
+    try {
+      await api.updateSettings({ auto_update_repos: newRepos });
+      await api.reloadAutoUpdateSettings();
+      showToast(fullName + (idx >= 0 ? ' 自动更新已关闭' : ' 自动更新已开启'), 'success');
+    } catch(e) {
+      // Rollback on failure
+      this._autoUpdateRepos = prevRepos;
+      showToast(`自动更新设置失败: ${e.message}`, 'error');
     }
   }
 
@@ -1158,6 +1201,7 @@ class BrowseView extends LitElement {
         ?showCheckbox=${true} ?selected=${this._selectedRepos.includes(r.full_name)}
         .starred=${this._starredMap?.[r.full_name] ?? false}
         .configEntries=${this.configEntries}
+        .autoUpdateRepos=${this._autoUpdateRepos}
         @check-change=${(e) => { if (e.detail?.fullName) this._toggleSelect(e.detail.fullName); }}>
       </repo-card>
     `)}</div>`;

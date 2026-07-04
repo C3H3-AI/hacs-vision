@@ -2,7 +2,7 @@ import { LitElement, html, css } from 'lit';
 import { getCommonStyles } from '../shared/styles.js';
 import { api } from '../api.js';
 import { t } from '../i18n.js';
-import { showToast } from '../hacs-vision-panel.js';
+import { showToast } from '../shared/toast.js';
 
 class IntegrationsList extends LitElement {
   static properties = {
@@ -644,7 +644,6 @@ class IntegrationsList extends LitElement {
     }
     this._selectedEntryIds = {};
     this.requestUpdate();
-    const { showToast } = await import('../hacs-vision-panel.js');
     showToast(`${t('batchComplete') } (${ids.length})`, 'success');
   }
 
@@ -694,7 +693,6 @@ class IntegrationsList extends LitElement {
     }
     this._selectedDomains = {};
     this.requestUpdate();
-    const { showToast } = await import('../hacs-vision-panel.js');
     showToast(`${t('batchComplete')} (${domains.length} ${t('catIntegration')}, ${entries.length} ${t('entryCount', { n: entries.length }).trim()})`, 'success');
   }
   _translateDomain(domain) {
@@ -1468,7 +1466,6 @@ class IntegrationsList extends LitElement {
       display: flex; align-items: center; gap: 12px; margin-bottom: 14px; flex-wrap: wrap;
     }
     .page-title { margin: 0; font-size: 20px; font-weight: 700; color: var(--primary-text-color); }
-    .controls-right { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
 
     .action-btn {
       padding: 9px 18px; border-radius: 10px; font-size: 12px; font-weight: 600;

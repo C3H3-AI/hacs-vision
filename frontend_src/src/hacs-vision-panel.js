@@ -4,6 +4,7 @@ import { themeMixin } from './theme.js';
 import { t, setLang, setLangFromHass } from './i18n.js';
 import { getCategoryColor } from './shared/constants.js';
 import { getCommonStyles } from './shared/styles.js';
+import { showToast, registerPanel } from './shared/toast.js';
 import { updateSidebarBadge } from './shared/sidebar-badge.js';
 import DOMPurify from 'dompurify';
 
@@ -1446,7 +1447,6 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
         return;
       } else if (action === 'enable') {
         this._closeDetail();
-        const { showToast } = await import('./hacs-vision-panel.js');
         const entries = this._configEntries?.[repo.domain];
         if (entries && entries.length > 0) {
           const { ConfirmDialog } = await import('./shared/confirm-dialog.js');
@@ -2195,53 +2195,4 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
       </config-flow-dialog>
     `;
   }
-}
-
-// Global toast helper with queue support
-const _panelMap = new WeakMap();
-export function registerPanel(panel) { _panelMap.set(panel, true); }
-
-const _toastQueue = [];
-let _toastShowing = false;
-
-export function showToast(msg, type = 'info') {
-  // Find panel via WeakMap or DOM query
-  let panel = null;
-  try {
-    // Check registered panels in WeakMap (no GC leak)
-    const candidates = document.querySelectorAll('hacs-vision-panel');
-    for (const c of candidates) {
-      if (_panelMap.has(c)) { panel = c; break; }
-    }
-    if (!panel) panel = candidates[0];
-  } catch(e) { /* ignore */ }
-  const container = panel?.shadowRoot?.querySelector('#toast-container');
-  if (!container) { console.warn('Toast container not found:', msg); return; }
-
-  _toastQueue.push({ msg, type });
-  if (!_toastShowing) _showNextToast(container);
-}
-
-function _showNextToast(container) {
-  if (_toastQueue.length === 0) { _toastShowing = false; return; }
-  _toastShowing = true;
-  const { msg, type } = _toastQueue.shift();
-
-  const toast = document.createElement('div');
-  toast.className = 'toast';
-  if (type) toast.classList.add(type);
-  toast.textContent = msg;
-  container.appendChild(toast);
-
-  requestAnimationFrame(() => {
-    toast.classList.add('show');
-  });
-
-  setTimeout(() => {
-    toast.classList.remove('show');
-    setTimeout(() => {
-      toast.remove();
-      _showNextToast(container);
-    }, 350);
-  }, 3000);
 }

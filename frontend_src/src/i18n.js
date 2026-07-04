@@ -209,6 +209,7 @@ const T = {
   updateStarted: { zh: '已开始更新', en: 'Update started', de: 'Update gestartet' },
   updateFailed: { zh: '更新失败', en: 'Update failed', de: 'Update fehlgeschlagen' },
   selectAll: { zh: '全选', en: 'Select All', de: 'Alle auswählen' },
+  deselectAll: { zh: '取消全选', en: 'Deselect All', de: 'Alle abwählen' },
 
   // Config
   customRepos: { zh: '自定义仓库', en: 'Custom Repositories', de: 'Benutzerdefinierte Repositorys' },
@@ -711,6 +712,37 @@ const T = {
 
   // Input placeholders
   inputRepoPlaceholder: { zh: 'owner/repo、GitHub URL 或组织名', en: 'owner/repo, GitHub URL or org name', de: 'owner/repo, GitHub-URL oder Organisationsname' },
+
+  // Auto-update settings (config-view.js)
+  autoUpdateSection: { zh: '自动更新', en: 'Auto Update', de: 'Automatisches Update' },
+  autoUpdateEnabled: { zh: '启用自动更新', en: 'Enable Auto Update', de: 'Automatisches Update aktivieren' },
+  autoUpdateEnabledDesc: { zh: '按设定间隔自动检查并更新已安装的仓库', en: 'Automatically check and update installed repos at set intervals', de: 'Automatisch nach Updates suchen und installieren' },
+  autoUpdateInterval: { zh: '检查间隔', en: 'Check Interval', de: 'Prüfintervall' },
+  autoUpdateIntervalDesc: { zh: '两次自动更新之间的最小间隔时间', en: 'Minimum time between auto-update cycles', de: 'Mindestabstand zwischen Update-Zyklen' },
+  autoUpdateInterval1h: { zh: '1 小时', en: '1 hour', de: '1 Stunde' },
+  autoUpdateInterval3h: { zh: '3 小时', en: '3 hours', de: '3 Stunden' },
+  autoUpdateInterval6h: { zh: '6 小时', en: '6 hours', de: '6 Stunden' },
+  autoUpdateInterval12h: { zh: '12 小时', en: '12 hours', de: '12 Stunden' },
+  autoUpdateInterval24h: { zh: '24 小时', en: '24 hours', de: '24 Stunden' },
+  autoUpdateNotify: { zh: '更新通知', en: 'Update Notifications', de: 'Update-Benachrichtigungen' },
+  autoUpdateNotifyDesc: { zh: '每次自动更新完成后发送 HA 通知', en: 'Send a HA notification after each auto-update cycle', de: 'Benachrichtigung nach jedem Update-Zyklus senden' },
+  autoUpdateRepos: { zh: '白名单仓库', en: 'Whitelisted Repos', de: 'Weiße Liste' },
+  autoUpdateReposDesc: { zh: '每行一个 owner/repo，仅白名单中的仓库会被自动更新', en: 'One owner/repo per line. Only whitelisted repos will be auto-updated', de: 'Ein owner/repo pro Zeile. Nur gelistete Repositorys werden aktualisiert' },
+  autoUpdateReposPlaceholder: { zh: 'owner/repo1\nowner/repo2', en: 'owner/repo1\nowner/repo2', de: 'owner/repo1\nowner/repo2' },
+  autoUpdateTrigger: { zh: '立即检查更新', en: 'Check Now', de: 'Jetzt prüfen' },
+  autoUpdateTriggerDesc: { zh: '立即执行一次自动更新检查', en: 'Trigger an auto-update cycle immediately', de: 'Sofort einen Update-Zyklus ausführen' },
+  autoUpdateReload: { zh: '重载设置', en: 'Reload Settings', de: 'Einstellungen neu laden' },
+  autoUpdateReloadDesc: { zh: '重新读取设置并调整定时调度', en: 'Reload settings and reschedule', de: 'Einstellungen neu laden und Zeitplan anpassen' },
+  autoUpdateRunning: { zh: '运行中...', en: 'Running...', de: 'Läuft...' },
+  autoUpdateScheduled: { zh: '已调度', en: 'Scheduled', de: 'Geplant' },
+  autoUpdateStopped: { zh: '未运行', en: 'Not Running', de: 'Nicht aktiv' },
+  autoUpdateDone: { zh: '自动更新完成', en: 'Auto-update complete', de: 'Automatisches Update abgeschlossen' },
+  autoUpdateTriggered: { zh: '已触发自动更新', en: 'Auto-update triggered', de: 'Update ausgelöst' },
+  autoUpdateReloaded: { zh: '设置已重载', en: 'Settings reloaded', de: 'Einstellungen neu geladen' },
+  autoUpdateTriggerFailed: { zh: '触发自动更新失败', en: 'Failed to trigger auto-update', de: 'Update auslösen fehlgeschlagen' },
+  autoUpdateReloadFailed: { zh: '重载设置失败', en: 'Failed to reload settings', de: 'Einstellungen neu laden fehlgeschlagen' },
+  autoUpdateEnabledText: { zh: '自动更新已开启', en: 'Auto-update ON', de: 'Auto-Update EIN' },
+  autoUpdateDisabledText: { zh: '点击开启自动更新', en: 'Enable auto-update', de: 'Auto-Update aktivieren' },
 };
 
 /* ── Translation Lookup ─────────────────────────────────── */

@@ -3,7 +3,7 @@ from homeassistant.const import Platform
 
 DOMAIN = "hacs_vision"
 DOMAIN_HACS = "hacs"
-VERSION = "6.1.0"
+VERSION = "6.2.0"
 
 PANEL_TITLE = "HACS Vision"
 PANEL_ICON = "hacs:hacs"
@@ -24,6 +24,17 @@ API_BASE = "/api/hacs_vision"
 
 CONF_UPDATE_INTERVAL = "update_interval"
 DEFAULT_UPDATE_INTERVAL = 3600
+
+# ── Auto-update settings ──
+CONF_AUTO_UPDATE_ENABLED = "auto_update_enabled"
+CONF_AUTO_UPDATE_REPOS = "auto_update_repos"
+CONF_AUTO_UPDATE_INTERVAL = "auto_update_interval"
+CONF_AUTO_UPDATE_NOTIFY = "auto_update_notify"
+
+DEFAULT_AUTO_UPDATE_ENABLED = False
+DEFAULT_AUTO_UPDATE_REPOS = []
+DEFAULT_AUTO_UPDATE_INTERVAL = 21600  # 6 hours
+DEFAULT_AUTO_UPDATE_NOTIFY = True
 
 PLATFORMS: list[Platform] = []
 

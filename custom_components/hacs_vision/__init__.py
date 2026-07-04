@@ -66,6 +66,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigType) -> bool:
     hass.data[DOMAIN]["api"] = api_view
     hass.data[DOMAIN]["listeners"] = []
 
+    # Create and start AutoUpdateManager
+    from .auto_update import AutoUpdateManager
+    auto_update = AutoUpdateManager(hass, operator=operator, data=shared_data)
+    hass.data[DOMAIN]["auto_update"] = auto_update
+    await auto_update.start()
+
     # Register services
     _register_services(hass, operator)
 
@@ -387,6 +393,37 @@ def _register_services(hass: HomeAssistant, operator) -> None:
         }),
     )
 
+    # ── Auto-update services ──
+
+    async def handle_auto_update_start(call: ServiceCall) -> None:
+        """Start periodic auto-update scheduling."""
+        mgr = hass.data.get(DOMAIN, {}).get("auto_update")
+        if mgr:
+            await mgr.start()
+
+    async def handle_auto_update_stop(call: ServiceCall) -> None:
+        """Stop periodic auto-update scheduling."""
+        mgr = hass.data.get(DOMAIN, {}).get("auto_update")
+        if mgr:
+            mgr.stop()
+
+    async def handle_auto_update_trigger(call: ServiceCall) -> None:
+        """Trigger a one-shot auto-update cycle."""
+        mgr = hass.data.get(DOMAIN, {}).get("auto_update")
+        if mgr:
+            await mgr.trigger()
+
+    async def handle_auto_update_reload_settings(call: ServiceCall) -> None:
+        """Reload auto-update settings and reschedule."""
+        mgr = hass.data.get(DOMAIN, {}).get("auto_update")
+        if mgr:
+            await mgr.reload_settings()
+
+    hass.services.async_register(DOMAIN, "auto_update_start", handle_auto_update_start)
+    hass.services.async_register(DOMAIN, "auto_update_stop", handle_auto_update_stop)
+    hass.services.async_register(DOMAIN, "auto_update_trigger", handle_auto_update_trigger)
+    hass.services.async_register(DOMAIN, "auto_update_reload_settings", handle_auto_update_reload_settings)
+
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigType) -> bool:
     """Unload HACS Vision."""
@@ -398,20 +435,30 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigType) -> bool:
     except Exception:
         pass
 
-    # 2. Remove all services
+    # 2. Stop AutoUpdateManager
+    mgr = hass.data.get(DOMAIN, {}).get("auto_update")
+    if mgr:
+        mgr.stop()
+
+    # 3. Remove all services
     hass.services.async_remove(DOMAIN, "refresh")
     hass.services.async_remove(DOMAIN, "install_repository")
     hass.services.async_remove(DOMAIN, "find_entity_refs")
     hass.services.async_remove(DOMAIN, "replace_entity_refs")
+    for svc in ("auto_update_start", "auto_update_stop", "auto_update_trigger", "auto_update_reload_settings"):
+        try:
+            hass.services.async_remove(DOMAIN, svc)
+        except Exception:
+            pass
 
-    # 3. Remove event listeners
+    # 4. Remove event listeners
     for listener in hass.data.get(DOMAIN, {}).get("listeners", []):
         try:
             listener()
         except Exception:
             pass
 
-    # 4. Close shared aiohttp session
+    # 5. Close shared aiohttp session
     api = hass.data.get(DOMAIN, {}).get("api")
     if api and hasattr(api, 'async_close'):
         try:
@@ -419,6 +466,6 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigType) -> bool:
         except Exception:
             pass
 
-    # 5. Clean up data
+    # 6. Clean up data
     hass.data.pop(DOMAIN, None)
     return True
