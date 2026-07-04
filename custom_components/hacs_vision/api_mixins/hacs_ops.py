@@ -966,7 +966,12 @@ class HACSOpsMixin:
                     )
             except Exception as exc:
                 _LOGGER.warning("Failed to toggle HACS panel: %s", exc)
-        ok = await self.data.set_settings(body)
+        # Merge with existing settings instead of replacing — partial updates
+        # from browse.js/updates.js (e.g. {auto_update_repos: [...]}) must not
+        # discard unrelated settings like hide_hacs_panel
+        existing = await self.data.get_settings()
+        merged = {**existing, **body}
+        ok = await self.data.set_settings(merged)
         return web.json_response({"success": ok})
 
     async def _get_devices(self, entry_id: str) -> web.Response:

@@ -726,6 +726,8 @@ const T = {
   autoUpdateInterval24h: { zh: '24 小时', en: '24 hours', de: '24 Stunden' },
   autoUpdateNotify: { zh: '更新通知', en: 'Update Notifications', de: 'Update-Benachrichtigungen' },
   autoUpdateNotifyDesc: { zh: '每次自动更新完成后发送 HA 通知', en: 'Send a HA notification after each auto-update cycle', de: 'Benachrichtigung nach jedem Update-Zyklus senden' },
+  autoUpdateRestartTime: { zh: '预约重启', en: 'Scheduled Restart', de: 'Geplanter Neustart' },
+  autoUpdateRestartTimeDesc: { zh: '设置自动重启时间（HH:MM），更新完成后将在指定时间重启 HA。留空不自动重启', en: 'Set restart time (HH:MM). HA will restart at this time after updates are installed. Leave empty to disable', de: 'Neustart-Zeit (HH:MM). HA wird nach Updates um diese Zeit neu gestartet. Leer lassen zum Deaktivieren' },
   autoUpdateRepos: { zh: '白名单仓库', en: 'Whitelisted Repos', de: 'Weiße Liste' },
   autoUpdateReposDesc: { zh: '每行一个 owner/repo，仅白名单中的仓库会被自动更新', en: 'One owner/repo per line. Only whitelisted repos will be auto-updated', de: 'Ein owner/repo pro Zeile. Nur gelistete Repositorys werden aktualisiert' },
   autoUpdateReposPlaceholder: { zh: 'owner/repo1\nowner/repo2', en: 'owner/repo1\nowner/repo2', de: 'owner/repo1\nowner/repo2' },

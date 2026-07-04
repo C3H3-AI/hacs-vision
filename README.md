@@ -11,9 +11,9 @@
 [![English](https://img.shields.io/badge/lang-en-red.svg)](#)
 [![Deutsch](https://img.shields.io/badge/lang-de-green.svg)](#)
 
-> **当前版本**: v6.2.0 | **最低 HA 版本**: 2024.1.0
-> **Current version**: v6.2.0 | **Minimum HA**: 2024.1.0
-> **Aktuelle Version**: v6.2.0 | **Minimale HA-Version**: 2024.1.0
+> **当前版本**: v6.2.1 | **最低 HA 版本**: 2024.1.0
+> **Current version**: v6.2.1 | **Minimum HA**: 2024.1.0
+> **Aktuelle Version**: v6.2.1 | **Minimale HA-Version**: 2024.1.0
 
 > **⚠️ 前置条件 / Prerequisite / Voraussetzung**: 必须先安装并配置好 [HACS](https://hacs.xyz) / [HACS](https://hacs.xyz) must be installed and configured / [HACS](https://hacs.xyz) muss installiert und konfiguriert sein.
 
@@ -249,6 +249,18 @@ Konfigurieren Sie das Panel-Verhalten, prüfen Sie Versionsinformationen, starte
 ---
 
 ## 更新日志 / Changelog / Änderungsprotokoll
+
+### v6.2.1 (2026-07-04) — 优化修复 / Optimization & Fixes
+- **New**: 🕐 **预约重启** — 设置面板时间选择器，自动更新安装完成后在指定时间重启 HA，不留空不重启
+  — *Scheduled restart: set a time (HH:MM) for HA to restart after updates are installed*
+- **New**: 💬 **白名单弹窗分页** — 设置面板白名单改为按钮 + 模态弹窗，分页搜索、chips、全选/取消、保存/取消
+  — *Whitelist in modal dialog with pagination, search, chips, select/deselect all, save/cancel*
+- **New**: 🔄 **HACS 数据刷新** — 自动更新前先刷新 HACS 仓库数据，确保获取最新版本，不再漏更新
+  — *Refresh HACS repository data before auto-update check to ensure latest versions*
+- **Fix**: 🛡️ **设置合并保存** — 后端 `_update_settings` 改为 `{**existing, **body}` 合并，避免部分更新覆盖其他设置
+  — *Merge settings instead of replace to prevent partial updates from discarding other settings*
+- **Fix**: ⏳ **前端加载保护** — 添加 `_installedLoaded` 标志，防止无限加载状态
+  — *Add loading guard flag to prevent infinite loading state*
 
 ### v6.2.0 (2026-07-04) — 自动更新 / Auto Update
 - **New**: 🤖 **自动更新引擎** — 后台定时检测并自动安装白名单中的仓库更新。非重叠运行，Coalescing 防竞争。加载设置后 60 秒首次执行，随后按配置间隔周期性运行。双通道事件通知（`async_dispatcher_send` + `hass.bus.async_fire`），设置页面实时显示运行/已调度/已停止状态

@@ -5,16 +5,18 @@ Design:
   - Non-overlapping runs: skips if previous cycle still in progress
   - Whitelist-based: only auto-updates repos the user has explicitly opted in
   - Sends HA persistent notifications for results
+  - Supports scheduled restart at user-defined time after updates installed
   - Respects GitHub API rate limits via existing HACSOperator mechanisms
 """
 from __future__ import annotations
 
 import logging
-from datetime import timedelta
+from datetime import timedelta, datetime, time
 
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.event import async_track_time_interval
+from homeassistant.helpers.event import async_track_time_interval, async_track_point_in_time
 from homeassistant.helpers.dispatcher import async_dispatcher_send
+from homeassistant.util import dt as dt_util
 
 from .const import (
     DOMAIN,
@@ -22,17 +24,18 @@ from .const import (
     CONF_AUTO_UPDATE_REPOS,
     CONF_AUTO_UPDATE_INTERVAL,
     CONF_AUTO_UPDATE_NOTIFY,
+    CONF_AUTO_UPDATE_RESTART_TIME,
     DEFAULT_AUTO_UPDATE_ENABLED,
     DEFAULT_AUTO_UPDATE_REPOS,
     DEFAULT_AUTO_UPDATE_INTERVAL,
     DEFAULT_AUTO_UPDATE_NOTIFY,
+    DEFAULT_AUTO_UPDATE_RESTART_TIME,
 )
 
 _LOGGER = logging.getLogger(__name__)
 
 SIGNAL_AUTO_UPDATE_STATE = f"{DOMAIN}_auto_update_state"
 
-# Fixed notification ID so new notifications replace old ones
 NOTIFICATION_ID = "hacs_vision_auto_update"
 
 
@@ -51,41 +54,34 @@ class AutoUpdateManager:
         self.operator = operator
         self.data = data
         self._unsub_interval: callable | None = None
-        self._running: bool = False  # True when a cycle is in progress
-        self._pending_trigger: bool = False  # coalesce trigger() during a run
-        self._coalescing: bool = False  # coalesced task scheduled but not yet started
-
-    # ── Public API ───────────────────────────────────────
+        self._running: bool = False
+        self._pending_trigger: bool = False
+        self._coalescing: bool = False
+        self._pending_restart: bool = False
+        self._restart_timer: callable | None = None
 
     @property
     def is_running(self) -> bool:
-        """Whether an update cycle is currently in progress."""
         return self._running
 
     @property
     def is_scheduled(self) -> bool:
-        """Whether periodic scheduling is active."""
         return self._unsub_interval is not None
 
-    async def start(self) -> None:
-        """Start periodic auto-update scheduling from current settings.
+    @property
+    def has_pending_restart(self) -> bool:
+        return self._pending_restart
 
-        Uses a short initial delay before the first cycle so HA can
-        fully boot before making API calls.
-        """
+    async def start(self) -> None:
         await self._apply_settings(reschedule=True)
         _LOGGER.info("AutoUpdateManager started")
 
     def stop(self) -> None:
-        """Stop periodic scheduling. Safe to call multiple times."""
         self._cancel_interval()
+        self._cancel_restart_timer()
         _LOGGER.info("AutoUpdateManager stopped")
 
     async def trigger(self) -> dict:
-        """Trigger a one-shot update cycle immediately.
-
-        Returns the result dict from the cycle (or an error dict if skipped).
-        """
         if self._running or self._coalescing:
             _LOGGER.warning("Auto-update trigger: cycle already in progress, coalescing")
             self._pending_trigger = True
@@ -98,18 +94,17 @@ class AutoUpdateManager:
         return await self._run_update_cycle(source="manual")
 
     async def reload_settings(self) -> None:
-        """Reload settings and reschedule. Called when user updates config."""
         await self._apply_settings(reschedule=True)
 
     # ── Internal ─────────────────────────────────────────
 
     async def _apply_settings(self, reschedule: bool = False) -> None:
-        """Read settings and apply config. Optionally reschedule interval."""
         settings = await self.data.get_settings()
         enabled = settings.get(CONF_AUTO_UPDATE_ENABLED, DEFAULT_AUTO_UPDATE_ENABLED)
 
         if not enabled:
             self._cancel_interval()
+            self._cancel_restart_timer()
             _LOGGER.info("Auto-update is disabled in settings")
             return
 
@@ -118,16 +113,9 @@ class AutoUpdateManager:
             self._schedule_interval(interval)
 
     def _schedule_interval(self, interval_seconds: int) -> None:
-        """Set up periodic scheduling with the given interval.
-
-        Uses async_call_later for the initial fire to prevent HA startup
-        burst, then async_track_time_interval for subsequent cycles.
-        """
         self._cancel_interval()
-        interval = timedelta(seconds=max(interval_seconds, 600))  # minimum 10 min
+        interval = timedelta(seconds=max(interval_seconds, 600))
 
-        # First cycle: fire after a 60s delay to let HA fully boot
-        # Then switch to the regular interval
         async def _first_then_interval(_now=None):
             self._unsub_interval = async_track_time_interval(
                 self.hass, self._on_interval, interval
@@ -140,11 +128,6 @@ class AutoUpdateManager:
         _LOGGER.info("Auto-update scheduled every %d seconds (first cycle in 60s)", interval_seconds)
 
     def _cancel_interval(self) -> None:
-        """Remove the current interval callback if any.
-
-        Handles both async_track_time_interval callables and
-        call_later TimerHandle objects.
-        """
         if self._unsub_interval is not None:
             if hasattr(self._unsub_interval, 'cancel'):
                 self._unsub_interval.cancel()
@@ -155,8 +138,55 @@ class AutoUpdateManager:
                     pass
             self._unsub_interval = None
 
+    def _cancel_restart_timer(self) -> None:
+        if self._restart_timer is not None:
+            if hasattr(self._restart_timer, 'cancel'):
+                self._restart_timer.cancel()
+            else:
+                try:
+                    self._restart_timer()
+                except Exception:
+                    pass
+            self._restart_timer = None
+        self._pending_restart = False
+
+    def _schedule_restart_at_time(self, time_str: str) -> None:
+        """Schedule a restart at the next occurrence of HH:MM.
+
+        If the time has passed today, schedule for tomorrow.
+        The restart only fires if _pending_restart is still True.
+        """
+        self._cancel_restart_timer()
+        if not time_str:
+            return
+
+        try:
+            parts = time_str.split(":")
+            hour, minute = int(parts[0]), int(parts[1])
+        except (ValueError, IndexError):
+            _LOGGER.warning("Invalid restart time format: %s", time_str)
+            return
+
+        now = dt_util.now()
+        target = now.replace(hour=hour, minute=minute, second=0, microsecond=0)
+
+        if target <= now:
+            target += timedelta(days=1)
+
+        _LOGGER.info("Scheduled restart at %02d:%02d (in %s)", hour, minute, target - now)
+
+        async def _do_restart(_now):
+            if self._pending_restart:
+                _LOGGER.info("Scheduled restart: pending updates found, restarting HA")
+                await self.hass.services.async_call("homeassistant", "restart", blocking=False)
+            else:
+                _LOGGER.debug("Scheduled restart: no pending updates, skipping")
+            self._restart_timer = None
+            self._pending_restart = False
+
+        self._restart_timer = async_track_point_in_time(self.hass, _do_restart, target)
+
     async def _on_interval(self, _now) -> None:
-        """Interval callback — start a non-overlapping update cycle."""
         if self._running:
             _LOGGER.debug("Auto-update interval: previous cycle still running, skipping")
             return
@@ -168,22 +198,12 @@ class AutoUpdateManager:
         await self._run_update_cycle(source="scheduled")
 
     async def _ensure_operator_ready(self) -> dict | None:
-        """Check HACS availability. Returns error dict or None."""
         if not self.operator.available:
             _LOGGER.warning("Auto-update skipped: HACS not available")
             return {"success": False, "error": "HACS not available"}
         return None
 
     async def _run_update_cycle(self, source: str = "scheduled") -> dict:
-        """Execute one full update cycle.
-
-        Steps:
-          1. Read settings for whitelist and notification preferences
-          2. Fetch available updates from HACS
-          3. Filter to whitelisted repos only
-          4. Install each in sequence (respecting per-repo locks in operator)
-          5. Send notification with results
-        """
         self._coalescing = False
         self._running = True
         self._dispatch_state()
@@ -191,8 +211,18 @@ class AutoUpdateManager:
         try:
             settings = await self.data.get_settings()
             notify = settings.get(CONF_AUTO_UPDATE_NOTIFY, DEFAULT_AUTO_UPDATE_NOTIFY)
-            # 1. Fetch available updates
+            restart_time = settings.get(CONF_AUTO_UPDATE_RESTART_TIME, DEFAULT_AUTO_UPDATE_RESTART_TIME)
+
             _LOGGER.debug("Auto-update cycle starting (source=%s)", source)
+
+            # Refresh HACS repository data from GitHub before checking updates
+            refresh_result = await self.operator.refresh_repositories()
+            if not refresh_result.get("success", False):
+                _LOGGER.warning("Auto-update: repository refresh failed: %s", refresh_result.get("error"))
+            else:
+                _LOGGER.info("Auto-update: refreshed %d repos (%d errors)",
+                             refresh_result.get("updated", 0), len(refresh_result.get("errors", [])))
+
             updates = await self.operator.get_available_updates()
             if not updates:
                 _LOGGER.info("Auto-update: no updates available")
@@ -204,7 +234,6 @@ class AutoUpdateManager:
                     )
                 return {"success": True, "updated": [], "errors": [], "source": source}
 
-            # 2. Filter to whitelisted repos
             whitelist_raw = settings.get(CONF_AUTO_UPDATE_REPOS, DEFAULT_AUTO_UPDATE_REPOS)
             whitelist = {r.lower() for r in whitelist_raw if isinstance(r, str)} if isinstance(whitelist_raw, list) else set()
             if not whitelist:
@@ -219,7 +248,6 @@ class AutoUpdateManager:
             _LOGGER.info("Auto-update: %d repos to update (of %d available, whitelist=%d)",
                          len(target_updates), len(updates), len(whitelist))
 
-            # 3. Install each in sequence
             updated = []
             errors = []
             for repo in target_updates:
@@ -237,7 +265,9 @@ class AutoUpdateManager:
                     errors.append({"full_name": full_name, "error": str(e)})
                     _LOGGER.error("Auto-update error for %s: %s", full_name, e, exc_info=True)
 
-            # 4. Send notification
+            has_updates = bool(updated)
+
+            # Notification
             if notify:
                 msg_lines = [f"🔄 HACS Vision 自动更新 ({source})"]
                 if updated:
@@ -250,11 +280,20 @@ class AutoUpdateManager:
                         msg_lines.append(f"  • {r['full_name']}: {r['error']}")
                 if not updated and not errors:
                     msg_lines.append("\n没有需要更新的仓库")
+                elif has_updates and restart_time:
+                    msg_lines.append(f"\n🕐 已预约在 {restart_time} 重启 HA 使更新生效")
                 await self.data.send_persistent_notification(
                     "HACS Vision - 自动更新",
                     "\n".join(msg_lines),
                     notification_id=NOTIFICATION_ID,
                 )
+
+            # Schedule restart at user-defined time if updates were installed
+            if has_updates and restart_time:
+                self._pending_restart = True
+                self._schedule_restart_at_time(restart_time)
+            elif has_updates and not restart_time:
+                self._pending_restart = False
 
             result = {"success": True, "updated": updated, "errors": errors, "source": source}
             _LOGGER.info("Auto-update cycle complete: %d updated, %d errors", len(updated), len(errors))
@@ -273,7 +312,6 @@ class AutoUpdateManager:
         finally:
             self._running = False
             self._dispatch_state()
-            # Handle coalesced trigger
             if self._pending_trigger:
                 self._pending_trigger = False
                 if not self._running:
@@ -281,14 +319,13 @@ class AutoUpdateManager:
                     self.hass.async_create_task(self._run_update_cycle(source="manual"))
 
     def _dispatch_state(self) -> None:
-        """Dispatch state signal so frontend can react."""
         payload = {
             "running": self._running,
             "scheduled": self._unsub_interval is not None,
             "pending": self._pending_trigger,
             "coalescing": self._coalescing,
+            "pending_restart": self._pending_restart,
+            "restart_scheduled": self._restart_timer is not None,
         }
-        # Internal signal for other HA components
         async_dispatcher_send(self.hass, SIGNAL_AUTO_UPDATE_STATE, payload)
-        # HA event bus for frontend subscription
         self.hass.bus.async_fire(SIGNAL_AUTO_UPDATE_STATE, payload)

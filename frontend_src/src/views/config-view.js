@@ -275,6 +275,14 @@ class ConfigView extends LitElement {
     this._set('auto_update_notify', val);
   }
 
+  _onAutoUpdateRestart(val) {
+    this._set('auto_update_restart', val);
+  }
+
+  _onAutoUpdateRestartTime(val) {
+    this._set('auto_update_restart_time', val);
+  }
+
   async _onAutoUpdateInterval(val) {
     this._settings = { ...this._settings, auto_update_interval: parseInt(val) || 21600 };
     await this._save();
@@ -1000,6 +1008,17 @@ class ConfigView extends LitElement {
                   @change=${e => this._onAutoUpdateNotify(e.target.checked)}>
                 <span class="slider"></span>
               </label>
+            </div>
+          </div>
+          <div class="setting-row">
+            <div class="setting-info">
+              <div class="label">${t('autoUpdateRestartTime')}</div>
+              <div class="desc">${t('autoUpdateRestartTimeDesc')}</div>
+            </div>
+            <div class="setting-control">
+              <input type="time" .value=${this._settings.auto_update_restart_time || ''}
+                @change=${e => this._onAutoUpdateRestartTime(e.target.value)}
+                style="padding:4px 8px;border-radius:8px;font-size:13px;border:1px solid var(--divider-color);background:var(--secondary-background-color);color:var(--primary-text-color);">
             </div>
           </div>
           <div class="setting-row" style="border-bottom:none;">
