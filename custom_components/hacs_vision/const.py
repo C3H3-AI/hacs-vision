@@ -3,7 +3,7 @@ from homeassistant.const import Platform
 
 DOMAIN = "hacs_vision"
 DOMAIN_HACS = "hacs"
-VERSION = "6.2.1"
+VERSION = "6.3.0"
 
 PANEL_TITLE = "HACS Vision"
 PANEL_ICON = "hacs:hacs"
@@ -18,6 +18,7 @@ STORAGE_PATHS = {
     "settings": ".storage/hacs_vision_settings.json",
     "github_token": ".storage/hacs_vision_github_token.json",
     "ignored_versions": ".storage/hacs_vision_ignored_versions.json",
+    "history": ".storage/hacs_vision_update_history.json",
 }
 
 API_BASE = "/api/hacs_vision"

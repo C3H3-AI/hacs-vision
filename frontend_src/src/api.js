@@ -104,6 +104,10 @@ class HACSEnhancedAPI {
   unignoreVersion(repository) { return this.post('unignore-version', { repository }); }
   getIgnoredVersions() { return this.get('ignored-versions'); }
   getSkippedVersions() { return this.get('skipped-versions'); }
+
+  getHistory() {
+    return this.get('history');
+  }
   restartHA() { return this.post('restart'); }
   reloadHA() {
     // Clear any pending reload markers on success

@@ -15,6 +15,7 @@ from .dependency_checker import DependencyChecker
 from .api_mixins.github_auth import GitHubAuthMixin
 from .api_mixins.github_actions import GitHubActionsMixin
 from .api_mixins.hacs_ops import HACSOpsMixin
+from .hacs_history import HACSHubHistory
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -149,6 +150,8 @@ class HACSEnhancedAPI(GitHubAuthMixin, GitHubActionsMixin, HACSOpsMixin, HomeAss
             return await self._config_flow_handlers(request)
         if path == "version":
             return web.json_response({"version": VERSION})
+        if path in ("history", "history/"):
+            return await self._get_history()
         if path.startswith("translations/"):
             domain = path.split("/", 1)[1]
             lang = request.query.get("lang", "en")
@@ -178,6 +181,11 @@ class HACSEnhancedAPI(GitHubAuthMixin, GitHubActionsMixin, HACSOpsMixin, HomeAss
             return await self._github_issue_preview(query)
 
         return web.json_response({"error": "not_found"}, status=404)
+
+    async def _get_history(self) -> web.Response:
+        history = HACSHubHistory(self.hass)
+        records = await history.get_history()
+        return web.json_response({"history": records})
 
     # ── POST ─────────────────────────────────────────────
 

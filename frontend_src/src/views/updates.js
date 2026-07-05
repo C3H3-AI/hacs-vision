@@ -26,6 +26,9 @@ class UpdatesView extends LitElement {
     _updateProgress: { type: Object, state: true },
     _skippedVersions: { type: Array, state: true },
     _showSkipped: { type: Boolean },
+    _history: { type: Array, state: true },
+    _showUpdatable: { type: Boolean },
+    _showUpdated: { type: Boolean },
     autoUpdateRepos: { type: Array },
     // Re-render trigger on language change
     langVersion: { type: Number },
@@ -51,6 +54,9 @@ class UpdatesView extends LitElement {
     this._updateProgress = null;
     this._skippedVersions = [];
     this._showSkipped = false;
+    this._history = [];
+    this._showUpdatable = true;
+    this._showUpdated = false;
     this.autoUpdateRepos = [];
     this.__auLoaded = false;
     const saved = (() => { try { return localStorage.getItem('hacs_vision_view_mode'); } catch { return null; } })();
@@ -82,6 +88,71 @@ class UpdatesView extends LitElement {
       @keyframes fadeSlideIn {
         from { opacity: 0; transform: translateY(-8px); }
         to { opacity: 1; transform: translateY(0); }
+      }
+
+      /* ===== Collapsible Section ===== */
+      .section-header {
+        display: flex; align-items: center; gap: 8px;
+        padding: 12px 14px; margin-bottom: 10px;
+        background: var(--card-background-color, #fff);
+        border: 1px solid var(--divider-color, #e0e0e0);
+        border-radius: 12px; cursor: pointer;
+        transition: all 0.15s; user-select: none;
+      }
+      .section-header:hover { border-color: var(--primary-color); }
+      .section-header-icon {
+        width: 20px; height: 20px; flex-shrink: 0;
+        display: flex; align-items: center; justify-content: center;
+        color: var(--secondary-text-color);
+        transition: transform 0.2s;
+      }
+      .section-header-icon.expanded { transform: rotate(90deg); }
+      .section-header-label {
+        flex: 1; font-size: 14px; font-weight: 600;
+        color: var(--primary-text-color);
+      }
+      .section-header-count {
+        font-size: 12px; font-weight: 500;
+        padding: 2px 10px; border-radius: 10px;
+        background: var(--primary-color, #03a9f4);
+        color: #fff; flex-shrink: 0;
+      }
+      .section-header-count.updated-count { background: var(--success-color, #0f9d58); }
+      .section-header-count.skipped-count { background: #9e9e9e; }
+
+      /* ===== History (updated) section ===== */
+      .history-grid {
+        display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 8px; margin-bottom: 12px;
+      }
+      .history-card {
+        display: flex; align-items: center; gap: 10px;
+        padding: 10px 12px; border-radius: 10px;
+        background: var(--card-background-color, #fff);
+        border: 1px solid var(--divider-color, #e0e0e0);
+        cursor: pointer; transition: all 0.15s;
+        opacity: 0.75;
+      }
+      .history-card:hover { opacity: 1; border-color: var(--primary-color); }
+      .history-avatar {
+        width: 32px; height: 32px; border-radius: 6px; flex-shrink: 0;
+        display: flex; align-items: center; justify-content: center;
+        color: #fff; font-size: 13px; font-weight: 700;
+        background: #78909c;
+      }
+      .history-body { flex: 1; min-width: 0; }
+      .history-name {
+        font-size: 13px; font-weight: 600; color: var(--primary-text-color);
+        overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+      }
+      .history-meta {
+        font-size: 11px; color: var(--secondary-text-color);
+        margin-top: 2px;
+      }
+      .history-arrow { color: var(--warning-color); font-weight: 600; }
+      .history-time {
+        font-size: 11px; color: var(--secondary-text-color); flex-shrink: 0;
+        white-space: nowrap;
       }
       .skipped-header {
         display: flex; align-items: center; gap: 8px; margin-bottom: 12px;
@@ -489,6 +560,28 @@ class UpdatesView extends LitElement {
         font-size: 12px; color: var(--secondary-text-color);
         white-space: nowrap; flex-shrink: 0;
       }
+
+      /* Install progress bar inside card */
+      .card-install-progress {
+        flex: 1;
+        display: flex; align-items: center; gap: 8px;
+        padding: 6px 10px; border-radius: 10px;
+        background: var(--secondary-background-color, #f5f5f5);
+      }
+      .card-install-progress-track {
+        flex: 1; height: 8px; border-radius: 4px;
+        background: var(--divider-color, #e0e0e0); overflow: hidden;
+      }
+      .card-install-progress-fill {
+        height: 100%; border-radius: 4px;
+        background: linear-gradient(90deg, var(--primary-color, #03a9f4), #4caf50);
+        transition: width 0.5s ease;
+      }
+      .card-install-progress-label {
+        font-size: 12px; font-weight: 700;
+        color: var(--primary-color, #03a9f4);
+        flex-shrink: 0; min-width: 36px; text-align: right;
+      }
     `
   ];
 
@@ -506,6 +599,7 @@ class UpdatesView extends LitElement {
     }
     this.loading = false;
     await this._loadSkippedVersions();
+    await this._loadHistory();
     if (!this.__auLoaded) {
       this._loadAutoUpdateSettings();
       this.__auLoaded = true;
@@ -524,6 +618,7 @@ class UpdatesView extends LitElement {
       this._changelogs = {};
       this._lazyLoadChangelogs();
       this._loadSkippedVersions();
+      this._loadHistory();
       this.dispatchEvent(new CustomEvent('refresh-stats', { bubbles: true, composed: true }));
     } catch(e) {
       console.error('Refresh failed', e);
@@ -552,6 +647,7 @@ class UpdatesView extends LitElement {
       const result = await api.getUpdates();
       this.updates = Array.isArray(result) ? result : (result.updates || []);
       this._loadSkippedVersions();
+      this._loadHistory();
     } catch(e) {
       console.error('Failed to load updates', e);
       this.updates = [];
@@ -765,10 +861,11 @@ class UpdatesView extends LitElement {
   /* F3: Single update with progress indicator + polling */
   async _updateOne(repo) {
     const repoId = repo.id || repo.full_name;
-    this._installingIds = { ...this._installingIds, [repoId]: true };
+    this._installingIds = { ...this._installingIds, [repoId]: { percentage: 0, stage: 'starting', message: t('updatingProgress') } };
+    this.requestUpdate();
     try {
       await api.update([repoId]);
-      // Poll for completion
+      // Poll for completion with progress
       const targetVer = repo.latest_version;
       let attempts = 0;
       const poll = async () => {
@@ -776,15 +873,22 @@ class UpdatesView extends LitElement {
           const next = { ...this._installingIds };
           delete next[repoId];
           this._installingIds = next;
+          this.requestUpdate();
           showToast(`${t('updateFailed')}: timeout`, 'error');
           return;
         }
         try {
           const status = await api.getRepoStatus(repoId);
+          // Update progress from backend if available
+          if (status?.progress) {
+            this._installingIds = { ...this._installingIds, [repoId]: status.progress };
+            this.requestUpdate();
+          }
           if (status?.installed_version === targetVer || (status?.installed && !status?.has_update)) {
             const next = { ...this._installingIds };
             delete next[repoId];
             this._installingIds = next;
+            this.requestUpdate();
             showToast(`${t('updateComplete')}: ${repo.full_name || repo.name}`, 'success');
             this._load();
             this.dispatchEvent(new CustomEvent('refresh-stats', { bubbles: true, composed: true }));
@@ -798,6 +902,7 @@ class UpdatesView extends LitElement {
       const next = { ...this._installingIds };
       delete next[repoId];
       this._installingIds = next;
+      this.requestUpdate();
       showToast(`${t('updateFailed')}: ${e.message}`, 'error');
     }
   }
@@ -855,6 +960,32 @@ class UpdatesView extends LitElement {
   }
 
   /* ---- Auto-update toggle ---- */
+
+  async _loadHistory() {
+    try {
+      const result = await api.getHistory();
+      this._history = (result && result.history) || [];
+    } catch(e) {
+      this._history = [];
+    }
+    this.requestUpdate();
+  }
+
+  _timeAgo(isoStr) {
+    if (!isoStr) return '';
+    const then = new Date(isoStr);
+    const now = Date.now();
+    const diffMs = now - then.getTime();
+    if (diffMs < 0) return t('justNow');
+    const diffSec = Math.floor(diffMs / 1000);
+    if (diffSec < 60) return t('justNow');
+    const diffMin = Math.floor(diffSec / 60);
+    if (diffMin < 60) return t('minAgo', { n: diffMin });
+    const diffHour = Math.floor(diffMin / 60);
+    if (diffHour < 24) return t('hourAgo', { n: diffHour });
+    const diffDay = Math.floor(diffHour / 24);
+    return t('dayAgo', { n: diffDay });
+  }
 
   async _loadAutoUpdateSettings() {
     try {
@@ -1132,157 +1263,213 @@ class UpdatesView extends LitElement {
             </div>
           `)}
         </div>
-      ` : this.updates.length === 0 ? html`
-        <div class="empty">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
-            <polyline points="22 4 12 14.01 9 11.01"/>
-          </svg>
-          <div>${t('allUpToDate')}</div>
-        </div>
       ` : html`
 
-        ${this._selectedCount() > 0 ? html`
-          <div class="batch-bar" style="margin-bottom:10px;">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
-            <span style="font-weight:600;">${t('selected')}: ${this._selectedCount()}</span>
-            <div class="batch-actions">
-              <button class="batch-bar-btn" @click=${this._updateSelected} ?disabled=${this.updating}>${t('batchUpdate')}</button>
-              <button class="batch-bar-btn" style="color:var(--warning-color,#ff9800);border-color:var(--warning-color,#ff9800);" @click=${this._skipSelected} ?disabled=${this.updating}>🔕 ${t('batchSkip')}</button>
-              <button class="batch-bar-btn danger" @click=${() => this._batchDo('remove')} ?disabled=${this.updating}>${t('batchRemove')}</button>
-              <button class="batch-bar-btn" style="background:transparent;border-color:transparent;font-size:14px;" @click=${() => { this._selectedIds = {}; this.requestUpdate(); }}>✕</button>
+        <div class="section-header" @click=${() => { this._showUpdatable = !this._showUpdatable; this.requestUpdate(); }}
+             style="margin-bottom:${this._showUpdatable ? '6px' : '16px'};">
+          <span class="section-header-icon ${this._showUpdatable ? 'expanded' : ''}">▶</span>
+          <span class="section-header-label">${t('sectionUpdatable')}</span>
+          <span class="section-header-count">${this.updates.length}</span>
+        </div>
+
+        ${this._showUpdatable ? html`
+
+          ${this._selectedCount() > 0 ? html`
+            <div class="batch-bar" style="margin-bottom:10px;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+              <span style="font-weight:600;">${t('selected')}: ${this._selectedCount()}</span>
+              <div class="batch-actions">
+                <button class="batch-bar-btn" @click=${this._updateSelected} ?disabled=${this.updating}>${t('batchUpdate')}</button>
+                <button class="batch-bar-btn" style="color:var(--warning-color,#ff9800);border-color:var(--warning-color,#ff9800);" @click=${this._skipSelected} ?disabled=${this.updating}>🔕 ${t('batchSkip')}</button>
+                <button class="batch-bar-btn danger" @click=${() => this._batchDo('remove')} ?disabled=${this.updating}>${t('batchRemove')}</button>
+                <button class="batch-bar-btn" style="background:transparent;border-color:transparent;font-size:14px;" @click=${() => { this._selectedIds = {}; this.requestUpdate(); }}>✕</button>
+              </div>
             </div>
-          </div>
-        ` : ''}
+          ` : ''}
 
-        ${this._batchMode && this._selectedRepos.length > 0 ? html`
-          <div class="batch-bar">
-            <span>${t('batchSelected', { n: this._selectedRepos.length })}</span>
-            <button class="batch-bar-btn" @click=${() => this._batchDo('update')}>${t('batchUpdate')}</button>
-            <button class="batch-bar-btn danger" @click=${() => this._batchDo('remove')}>${t('batchRemove')}</button>
-            <button class="batch-bar-btn" @click=${() => { this._selectedRepos = []; this._batchMode = false; }}>${t('cancel')}</button>
-          </div>
-        ` : ''}
+          ${this._batchMode && this._selectedRepos.length > 0 ? html`
+            <div class="batch-bar">
+              <span>${t('batchSelected', { n: this._selectedRepos.length })}</span>
+              <button class="batch-bar-btn" @click=${() => this._batchDo('update')}>${t('batchUpdate')}</button>
+              <button class="batch-bar-btn danger" @click=${() => this._batchDo('remove')}>${t('batchRemove')}</button>
+              <button class="batch-bar-btn" @click=${() => { this._selectedRepos = []; this._batchMode = false; }}>${t('cancel')}</button>
+            </div>
+          ` : ''}
 
-        ${this._viewMode === 'list' ? html`
-          <div class="list-view">${this._renderListTable(filtered)}</div>
-        ` : html`
-          <div class="grid">
-            ${filtered.map(r => {
-              const repoId = r.id || r.full_name;
-              const isInstalling = !!this._installingIds?.[repoId];
-              const changelog = this._changelogs?.[r.full_name];
-              const isChecked = !!this._selectedIds[repoId];
-              return html`
-              <div class="card" @click=${(e) => { if (e.target.closest('.action-btn') || e.target.closest('a') || e.target.closest('.checkbox') || e.target.closest('.fav-btn')) return; this._openDetail(r); }}>
-                <div class="img-container">
-                  <div class="top-bar">
-                    <input type="checkbox" class="checkbox" .checked=${isChecked}
-                           @click=${(e) => e.stopPropagation()}
-                           @change=${() => this._toggleSelect(repoId)}>
-                    <span class="badge-corner ${r.category || 'integration'}">${t('cat' + (r.category || 'integration').charAt(0).toUpperCase() + (r.category || 'integration').slice(1))}</span>
-                  </div>
-                  <div class="avatar">
-                    ${(() => {
-                      const urls = [];
-                      if (r.domain && r.category === 'integration') urls.push('https://brands.home-assistant.io/' + r.domain + '/icon.png');
-                      if (r.full_name) { const o = r.full_name.split('/')[0]; if (o) urls.push('https://github.com/' + o + '.png'); }
-                      const catColor = getCategoryColor(r.category);
-                      if (urls.length > 0) {
-                        return html`
-                          <img src="${urls[0]}" alt=""
-                            @error=${function() {
-                              this.style.display = 'none';
-                              const el = this.parentElement?.querySelector('.initials');
-                              if (el) { el.style.display = 'flex'; el.style.background = catColor; }
-                            }}>
-                          <span class="initials" style="display:none">${(r.name || r.full_name || '?').charAt(0).toUpperCase()}</span>
-                        `;
-                      }
-                      return html`<span class="initials" style="display:flex;background:${catColor}">${(r.name || r.full_name || '?').charAt(0).toUpperCase()}</span>`;
-                    })()}
-                  </div>
-                  <span class="status-badge-update">${t('statusPendingUpgrade')}</span>
-                  <button class="fav-btn ${this._favs?.[r.id || r.full_name] ? 'active' : ''}"
-                    @click=${(e) => { e.stopPropagation(); this._toggleFav(r); }}
-                    title=${this._favs?.[r.id || r.full_name] ? (t('favOn') ) : (t('favOff') )}>
-                    <svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
-                    </svg>
-                  </button>
-                </div>
-                <div class="card-body">
-                  <div class="card-name" title="${r.name || r.full_name}">${r.name || r.full_name}</div>
-                  <div class="version-row">
-                    <div class="version-item">
-                      <div class="version-label">${t('currentVersion')}</div>
-                      <div class="version-value old">${r.installed_version || '?'}</div>
+          ${filtered.length === 0 ? html`
+            <div class="empty" style="margin-bottom:16px;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                <polyline points="22 4 12 14.01 9 11.01"/>
+              </svg>
+              <div>${t('allUpToDate')}</div>
+            </div>
+          ` : this._viewMode === 'list' ? html`
+            <div class="list-view" style="margin-bottom:16px;">${this._renderListTable(filtered)}</div>
+          ` : html`
+            <div class="grid" style="margin-bottom:16px;">
+              ${filtered.map(r => {
+                const repoId = r.id || r.full_name;
+                const isInstalling = !!this._installingIds?.[repoId];
+                const changelog = this._changelogs?.[r.full_name];
+                const isChecked = !!this._selectedIds[repoId];
+                return html`
+                <div class="card" @click=${(e) => { if (e.target.closest('.action-btn') || e.target.closest('a') || e.target.closest('.checkbox') || e.target.closest('.fav-btn')) return; this._openDetail(r); }}>
+                  <div class="img-container">
+                    <div class="top-bar">
+                      <input type="checkbox" class="checkbox" .checked=${isChecked}
+                             @click=${(e) => e.stopPropagation()}
+                             @change=${() => this._toggleSelect(repoId)}>
+                      <span class="badge-corner ${r.category || 'integration'}">${t('cat' + (r.category || 'integration').charAt(0).toUpperCase() + (r.category || 'integration').slice(1))}</span>
                     </div>
-                    <div class="version-item">
-                      <div class="version-label">${t('latestVersion')}</div>
-                      <div class="version-value new">${r.latest_version || '?'}</div>
+                    <div class="avatar">
+                      ${(() => {
+                        const urls = [];
+                        if (r.domain && r.category === 'integration') urls.push('https://brands.home-assistant.io/' + r.domain + '/icon.png');
+                        if (r.full_name) { const o = r.full_name.split('/')[0]; if (o) urls.push('https://github.com/' + o + '.png'); }
+                        const catColor = getCategoryColor(r.category);
+                        if (urls.length > 0) {
+                          return html`
+                            <img src="${urls[0]}" alt=""
+                              @error=${function() {
+                                this.style.display = 'none';
+                                const el = this.parentElement?.querySelector('.initials');
+                                if (el) { el.style.display = 'flex'; el.style.background = catColor; }
+                              }}>
+                            <span class="initials" style="display:none">${(r.name || r.full_name || '?').charAt(0).toUpperCase()}</span>
+                          `;
+                        }
+                        return html`<span class="initials" style="display:flex;background:${catColor}">${(r.name || r.full_name || '?').charAt(0).toUpperCase()}</span>`;
+                      })()}
                     </div>
+                    <span class="status-badge-update">${t('statusPendingUpgrade')}</span>
+                    <button class="fav-btn ${this._favs?.[r.id || r.full_name] ? 'active' : ''}"
+                      @click=${(e) => { e.stopPropagation(); this._toggleFav(r); }}
+                      title=${this._favs?.[r.id || r.full_name] ? (t('favOn') ) : (t('favOff') )}>
+                      <svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                      </svg>
+                    </button>
                   </div>
-                  <div class="card-desc">${r.description || ''}</div>
-                  ${changelog?.body ? html`
-                    <div class="changelog-preview">
-                      <div class="changelog-preview-title">${t('changelogTitle')} ${changelog.tag ? html`<small>(${changelog.tag})</small>` : ''}</div>
-                      <div class="changelog-preview-body${this._expandedChangelogs?.[r.full_name] ? ' expanded' : ''}">${changelog.body}</div>
-                      <div>
-                        <button class="changelog-expand-btn" @click=${() => this._toggleChangelog(r.full_name)}>${this._expandedChangelogs?.[r.full_name] ? t('changelogShowLess') : t('changelogShowMore')}</button>
-                        <a class="changelog-preview-link" href="${changelog.url || `https://github.com/${r.full_name}/releases`}" target="_blank" rel="noopener">${t('viewFullChangelog')} →</a>
+                  <div class="card-body">
+                    <div class="card-name" title="${r.name || r.full_name}">${r.name || r.full_name}</div>
+                    <div class="version-row">
+                      <div class="version-item">
+                        <div class="version-label">${t('currentVersion')}</div>
+                        <div class="version-value old">${r.installed_version || '?'}</div>
+                      </div>
+                      <div class="version-item">
+                        <div class="version-label">${t('latestVersion')}</div>
+                        <div class="version-value new">${r.latest_version || '?'}</div>
                       </div>
                     </div>
-                  ` : ''}
-                <div class="au-toggle-row">
-                  <span class="au-label">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                      <path d="M1 4v6h6"/>
-                      <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>
-                    </svg>
-                    ${t('autoUpdateSection')}
-                  </span>
-                  <label class="au-toggle" @click=${(e) => e.stopPropagation()}>
-                    <input type="checkbox" .checked=${this._isAutoUpdate(r)}
-                      @change=${() => this._handleAutoUpdateToggle(r)}>
-                    <span class="slider"></span>
-                  </label>
-                </div>
-                </div>
-                <div class="actions">
-                  ${r.pending_restart ? html`
-                    <button class="action-btn primary" @click=${(e) => { e.stopPropagation(); this.dispatchEvent(new CustomEvent('restart-ha', { bubbles: true, composed: true })); }}
-                      style="flex:1;background:var(--primary-color,#03a9f4);color:#fff;border-color:var(--primary-color,#03a9f4);">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
-                      ${t('pendingRestart')}
+                    <div class="card-desc">${r.description || ''}</div>
+                    ${changelog?.body ? html`
+                      <div class="changelog-preview">
+                        <div class="changelog-preview-title">${t('changelogTitle')} ${changelog.tag ? html`<small>(${changelog.tag})</small>` : ''}</div>
+                        <div class="changelog-preview-body${this._expandedChangelogs?.[r.full_name] ? ' expanded' : ''}">${changelog.body}</div>
+                        <div>
+                          <button class="changelog-expand-btn" @click=${() => this._toggleChangelog(r.full_name)}>${this._expandedChangelogs?.[r.full_name] ? t('changelogShowLess') : t('changelogShowMore')}</button>
+                          <a class="changelog-preview-link" href="${changelog.url || `https://github.com/${r.full_name}/releases`}" target="_blank" rel="noopener">${t('viewFullChangelog')} →</a>
+                        </div>
+                      </div>
+                    ` : ''}
+                  <div class="au-toggle-row">
+                    <span class="au-label">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M1 4v6h6"/>
+                        <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>
+                      </svg>
+                      ${t('autoUpdateSection')}
+                    </span>
+                    <label class="au-toggle" @click=${(e) => e.stopPropagation()}>
+                      <input type="checkbox" .checked=${this._isAutoUpdate(r)}
+                        @change=${() => this._handleAutoUpdateToggle(r)}>
+                      <span class="slider"></span>
+                    </label>
+                  </div>
+                  </div>
+                  <div class="actions">
+                    ${r.pending_restart ? html`
+                      <button class="action-btn primary" @click=${(e) => { e.stopPropagation(); this.dispatchEvent(new CustomEvent('restart-ha', { bubbles: true, composed: true })); }}
+                        style="flex:1;background:var(--primary-color,#03a9f4);color:#fff;border-color:var(--primary-color,#03a9f4);">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
+                        ${t('pendingRestart')}
+                      </button>
+                    ` : html`
+                    ${isInstalling ? html`
+                      <div class="card-install-progress" @click=${(e) => e.stopPropagation()}>
+                        <div class="card-install-progress-track">
+                          <div class="card-install-progress-fill" style="width:${(this._installingIds[repoId]?.percentage || 0)}%"></div>
+                        </div>
+                        <span class="card-install-progress-label">${this._installingIds[repoId]?.percentage || 0}%</span>
+                      </div>
+                      <button class="action-btn" @click=${() => this._skipVersion(r)}
+                        style="color:var(--secondary-text-color);font-size:12px;min-width:auto;padding:8px 10px;" ?disabled=${true}>
+                        🔕 ${t('ignoreVersion')}
+                      </button>
+                    ` : html`
+                    <button class="action-btn primary"
+                      @click=${() => this._updateOne(r)} ?disabled=${isInstalling || this.updating}>
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg> ${t('updateNow')}
                     </button>
-                  ` : html`
-                  <button class="action-btn primary ${isInstalling ? 'installing' : ''}"
-                    @click=${() => this._updateOne(r)} ?disabled=${isInstalling || this.updating}>
-                    ${isInstalling
-                      ? html`<svg class="mini-icon spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> ${t('updatingProgress')}`
-                      : html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg> ${t('updateNow')}`}
-                  </button>
-                  <button class="action-btn" @click=${() => this._skipVersion(r)}
-                    style="color:var(--secondary-text-color);font-size:12px;min-width:auto;padding:8px 10px;">
-                    🔕 ${t('ignoreVersion')}
-                  </button>
-                  `}
+                    <button class="action-btn" @click=${() => this._skipVersion(r)}
+                      style="color:var(--secondary-text-color);font-size:12px;min-width:auto;padding:8px 10px;">
+                      🔕 ${t('ignoreVersion')}
+                    </button>
+                    `}
+                    `}
+                  </div>
                 </div>
-              </div>
-            `;})}
-          </div>
-        `}
-
-        <!-- 已${t("skippedVersionTitle")} (按钮控制显示) -->
-        ${this._showSkipped && this._skippedVersions && this._skippedVersions.length > 0 ? html`
-          <div style="margin-top:16px;padding:16px;background:var(--card-background-color,#fff);border-radius:14px;border:1px solid var(--divider-color,#e0e0e0);">
-            <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
-              <span style="font-size:14px;">🔇</span>
-              <span style="font-size:14px;font-weight:600;color:var(--primary-text-color);">${t('skippedVersionLabel')}</span>
-              <span style="font-size:12px;color:var(--secondary-text-color);">${t('skippedVersionCount', { n: this._skippedVersions.length })}</span>
+              `;})}
             </div>
-            <div class="grid">
+          `}
+
+        ` : ''}
+
+
+        <div class="section-header" @click=${() => { this._showUpdated = !this._showUpdated; this.requestUpdate(); }}
+             style="margin-bottom:${this._showUpdated ? '6px' : '16px'};">
+          <span class="section-header-icon ${this._showUpdated ? 'expanded' : ''}">▶</span>
+          <span class="section-header-label">${t('sectionUpdated')}</span>
+          <span class="section-header-count updated-count">${this._history.length}</span>
+        </div>
+
+        ${this._showUpdated ? html`
+          ${this._history.length === 0 ? html`
+            <div class="empty" style="margin-bottom:16px;">${t('noUpdateHistory')}</div>
+          ` : html`
+            <div class="history-grid" style="margin-bottom:16px;">
+              ${this._history.map(h => {
+                const initial = (h.full_name || '?').charAt(0).toUpperCase();
+                return html`
+                  <div class="history-card" @click=${() => { if (h.full_name) this._openDetail({ full_name: h.full_name }); }}>
+                    <div class="history-avatar">${initial}</div>
+                    <div class="history-body">
+                      <div class="history-name">${h.full_name || '?'}</div>
+                      <div class="history-meta">
+                        <span class="history-arrow">${t('updatedFromTo', { from: h.from_version || '?', to: h.to_version || '?' })}</span>
+                      </div>
+                    </div>
+                    <div class="history-time">${this._timeAgo(h.updated_at)}</div>
+                  </div>
+                `;
+              })}
+            </div>
+          `}
+        ` : ''}
+
+
+        ${this._skippedVersions && this._skippedVersions.length > 0 ? html`
+          <div class="section-header" @click=${() => { this._showSkipped = !this._showSkipped; this.requestUpdate(); }}
+               style="margin-bottom:${this._showSkipped ? '6px' : '0'};">
+            <span class="section-header-icon ${this._showSkipped ? 'expanded' : ''}">▶</span>
+            <span class="section-header-label">${t('sectionSkipped')}</span>
+            <span class="section-header-count skipped-count">${this._skippedVersions.length}</span>
+          </div>
+
+          ${this._showSkipped ? html`
+            <div class="grid" style="margin-bottom:16px;">
               ${this._skippedVersions.map(sv => html`
                 <div class="card" style="opacity:0.75;">
                   <div class="img-container">
@@ -1313,7 +1500,7 @@ class UpdatesView extends LitElement {
                 </div>
               `)}
             </div>
-          </div>
+          ` : ''}
         ` : ''}
       `}
     `;

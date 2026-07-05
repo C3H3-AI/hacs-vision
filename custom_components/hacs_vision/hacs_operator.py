@@ -10,6 +10,7 @@ from homeassistant.core import HomeAssistant
 
 from .const import DOMAIN_HACS, VERSION
 from .hacs_data import HACSData
+from .hacs_history import HACSHubHistory
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -57,6 +58,7 @@ class HACSOperator:
         self.hass = hass
         # N3: Accept shared HACSData instance to avoid redundant file reads
         self._data = shared_data or HACSData(hass)
+        self._history = HACSHubHistory(hass)
         self._repo_index_by_id = None
         self._repo_index_by_name = None
         self._index_lock = threading.Lock()
@@ -64,6 +66,8 @@ class HACSOperator:
         self._install_locks: dict[str, asyncio.Lock] = {}
         # F1: Track whether custom repos have been verified from config in this session
         self._custom_repos_verified: bool = False
+        # P2: Real-time install progress tracking (for frontend progress bar)
+        self._install_progress: dict[str, dict] = {}
 
     @property
     def _hacs(self):
@@ -171,6 +175,22 @@ class HACSOperator:
         if lock and not lock.locked():
             del self._install_locks[repo_id]
 
+    def set_install_progress(self, repo_key: str, percentage: int, stage: str, message: str = "") -> None:
+        self._install_progress[repo_key] = {
+            "percentage": min(100, max(0, percentage)),
+            "stage": stage,
+            "message": message,
+        }
+
+    def get_install_progress(self, repo_key: str) -> dict | None:
+        entry = self._install_progress.get(repo_key)
+        if not entry:
+            return None
+        return entry
+
+    def clear_install_progress(self, repo_key: str) -> None:
+        self._install_progress.pop(repo_key, None)
+
     def _find_repo_by_id(self, repo_id: str):
         """Find a repository object by its string ID."""
         if not self.available:
@@ -250,8 +270,15 @@ class HACSOperator:
                     results["failed"].append({"id": rid, "error": "not found"})
                     continue
                 try:
+                    from_version = repo.data.installed_version or ""
+                    repo_key = repo.data.full_name or rid
+                    self.set_install_progress(repo_key, 5, "starting", "准备下载...")
                     await repo.async_install(version=repo.display_available_version)
+                    self.set_install_progress(repo_key, 100, "complete", "更新完成")
                     results["success"].append(rid)
+                    to_version = repo.display_installed_version or ""
+                    if from_version and to_version and from_version != to_version:
+                        await self._history.add_record(repo.data.full_name, from_version, to_version)
                 except (AttributeError, KeyError, ValueError) as e:
                     _LOGGER.error("Update failed for %s: %s", rid, e, exc_info=True)
                     results["failed"].append({"id": rid, "error": str(e)})
@@ -693,9 +720,17 @@ class HACSOperator:
                 repo = self._find_repo(repo_id_or_name)
                 if not repo:
                     return {"success": False, "error": "not found"}
+                from_version = repo.data.installed_version or ""
+                repo_key = repo.data.full_name or repo_id_or_name
+                self.set_install_progress(repo_key, 5, "starting", "准备下载...")
                 await repo.async_install(version=version or repo.display_available_version)
+                self.set_install_progress(repo_key, 75, "installing", "正在安装...")
                 self.invalidate_index()
                 self._cleanup_lock(repo_id_or_name)
+                to_version = version or repo.display_installed_version or ""
+                if from_version and to_version and from_version != to_version:
+                    await self._history.add_record(repo.data.full_name, from_version, to_version)
+                self.set_install_progress(repo_key, 100, "complete", "更新完成")
                 return {"success": True, "repository": repo.data.full_name, "version": version or repo.display_installed_version}
             except Exception as e:
                 _LOGGER.error("Install version failed: %s", e, exc_info=True)
@@ -708,7 +743,7 @@ class HACSOperator:
             return None
         installed = repo.data.installed_version
         available = repo.display_available_version
-        return {
+        result = {
             "id": str(repo.data.id),
             "full_name": repo.data.full_name,
             "installed": repo.data.installed or False,
@@ -717,6 +752,11 @@ class HACSOperator:
             "has_update": bool(installed and available and installed != available),
             "pending_restart": getattr(repo, 'pending_restart', False),
         }
+        # Attach install progress if available
+        progress = self.get_install_progress(repo.data.full_name) or self.get_install_progress(repo_id_or_name)
+        if progress:
+            result["progress"] = progress
+        return result
 
     async def refresh_repositories(self) -> dict:
         """Refresh HACS repository data — concurrent update with rate-limit awareness."""

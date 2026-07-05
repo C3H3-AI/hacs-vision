@@ -11,9 +11,9 @@
 [![English](https://img.shields.io/badge/lang-en-red.svg)](#)
 [![Deutsch](https://img.shields.io/badge/lang-de-green.svg)](#)
 
-> **当前版本**: v6.2.1 | **最低 HA 版本**: 2024.1.0
-> **Current version**: v6.2.1 | **Minimum HA**: 2024.1.0
-> **Aktuelle Version**: v6.2.1 | **Minimale HA-Version**: 2024.1.0
+> **当前版本**: v6.3.0 | **最低 HA 版本**: 2024.1.0
+> **Current version**: v6.3.0 | **Minimum HA**: 2024.1.0
+> **Aktuelle Version**: v6.3.0 | **Minimale HA-Version**: 2024.1.0
 
 > **⚠️ 前置条件 / Prerequisite / Voraussetzung**: 必须先安装并配置好 [HACS](https://hacs.xyz) / [HACS](https://hacs.xyz) must be installed and configured / [HACS](https://hacs.xyz) muss installiert und konfiguriert sein.
 
@@ -249,6 +249,15 @@ Konfigurieren Sie das Panel-Verhalten, prüfen Sie Versionsinformationen, starte
 ---
 
 ## 更新日志 / Changelog / Änderungsprotokoll
+
+### v6.3.0 (2026-07-05) — 三段式更新面板 / Three-Section Updates UI
+- **New**: 🗂️ **三段式折叠更新页** — 可更新（默认展开）、已更新（默认折叠，近 30 天记录）、已略过（默认折叠），分类清晰
+  — *Three collapsible sections: Updatable (expanded), Updated (collapsed, 30-day history), Skipped (collapsed)*
+- **New**: 📜 **更新历史追踪** — 每次更新自动记录（仓库名、版本变更、时间），30 天自动清理，支持 API 查询
+  — *Auto-record update history with repo name, version changes, and timestamp; 30-day auto-cleanup*
+- **New**: ⏳ **实时更新进度** — 更新卡片显示进度条 + 百分比（5%→75%→100%），轮询实时刷新
+  — *Real-time update progress bar with percentage, poll-based refresh*
+- **Chore**: 版本号升级至 v6.3.0 / Version bump to v6.3.0
 
 ### v6.2.1 (2026-07-04) — 优化修复 / Optimization & Fixes
 - **New**: 🕐 **预约重启** — 设置面板时间选择器，自动更新安装完成后在指定时间重启 HA，不留空不重启

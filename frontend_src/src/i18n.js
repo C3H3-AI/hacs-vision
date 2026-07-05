@@ -745,6 +745,20 @@ const T = {
   autoUpdateReloadFailed: { zh: '重载设置失败', en: 'Failed to reload settings', de: 'Einstellungen neu laden fehlgeschlagen' },
   autoUpdateEnabledText: { zh: '自动更新已开启', en: 'Auto-update ON', de: 'Auto-Update EIN' },
   autoUpdateDisabledText: { zh: '点击开启自动更新', en: 'Enable auto-update', de: 'Auto-Update aktivieren' },
+
+  // Update history
+  sectionUpdatable: { zh: '可更新', en: 'Updatable', de: 'Aktualisierbar' },
+  sectionUpdated: { zh: '已更新', en: 'Updated', de: 'Aktualisiert' },
+  sectionSkipped: { zh: '已略过', en: 'Skipped', de: 'Übersprungen' },
+  updatedLabel: { zh: '已更新', en: 'Updated', de: 'Aktualisiert' },
+  updatedFromTo: { zh: '{from} → {to}', en: '{from} → {to}', de: '{from} → {to}' },
+  updatedAt: { zh: '更新于', en: 'Updated at', de: 'Aktualisiert am' },
+  updatedTimeAgo: { zh: '{ago}前', en: '{ago} ago', de: 'vor {ago}' },
+  justNow: { zh: '刚刚', en: 'just now', de: 'gerade eben' },
+  minAgo: { zh: '{n}分钟', en: '{n}m', de: '{n} Min.' },
+  hourAgo: { zh: '{n}小时', en: '{n}h', de: '{n} Std.' },
+  dayAgo: { zh: '{n}天', en: '{n}d', de: '{n} T.' },
+  noUpdateHistory: { zh: '暂无更新记录', en: 'No update history', de: 'Keine Update-Verlauf' },
 };
 
 /* ── Translation Lookup ─────────────────────────────────── */
