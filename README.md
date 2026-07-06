@@ -255,6 +255,8 @@ Konfigurieren Sie das Panel-Verhalten, prüfen Sie Versionsinformationen, starte
   — *Search & add merged: input owner/repo or GitHub URL → inline add bar; input org name → auto-load org repos for batch select. Removed standalone "+ Add Repo" button*
 - **New**: 🎯 **搜索能力增强** — 所有视图搜索统一支持 GitHub URL 解析、作者名搜索、组织名搜索
   — *All views now support GitHub URL parsing, author search, and org name search*
+- **New**: 🔗 **详情弹窗仓库名可点击** — 详情弹窗中的仓库名变为可点击链接，直接跳转 GitHub 仓库页
+  — *Repo full_name in detail dialog is now a clickable link to GitHub*
 - **Fix**: ✅ **自定义仓库注册失败** — `add_custom_repository` 使用 `check=False` 避免 GitHub API 限流导致仓库注册失败
   — *Fix custom repo registration: use check=False to bypass GitHub API rate limits*
 
