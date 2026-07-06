@@ -10,6 +10,7 @@ import aiohttp
 from aiohttp import web
 
 from ..const import VERSION
+from ..response import _error, _ok, _not_found, _bad_request, _unauthorized, _server_error
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -23,10 +24,10 @@ class GitHubActionsMixin:
         """Star a repository."""
         repo = body.get("repo", "").strip()
         if not repo or "/" not in repo:
-            return web.json_response({"error": "invalid_repo"}, status=400)
+            return _bad_request("invalid_repo")
         token = await self._get_active_github_token()
         if not token:
-            return web.json_response({"error": "not_authenticated"}, status=401)
+            return _unauthorized()
         headers = {"Authorization": f"Bearer {token}", "Accept": "application/vnd.github.v3+json",
                    "Content-Length": "0"}
         try:
@@ -34,10 +35,10 @@ class GitHubActionsMixin:
             async with session.put(f"https://api.github.com/user/starred/{repo}", headers=headers,
                                    timeout=aiohttp.ClientTimeout(total=10)) as resp:
                 if resp.status == 204:
-                    return web.json_response({"ok": True})
-                return web.json_response({"error": f"star_failed_{resp.status}"}, status=resp.status)
+                    return _ok(ok=True)
+                return _error(f"star_failed_{resp.status}", resp.status)
         except Exception as e:
-            return web.json_response({"error": "操作失败"}, status=500)
+            return _server_error()
 
     async def _github_auto_star(self) -> web.Response:
         """Auto-star hacs-vision repo if not already starred."""
@@ -52,25 +53,25 @@ class GitHubActionsMixin:
         """Unstar a repository."""
         repo = body.get("repo", "").strip()
         if not repo or "/" not in repo:
-            return web.json_response({"error": "invalid_repo"}, status=400)
+            return _bad_request("invalid_repo")
         token = await self._get_active_github_token()
         if not token:
-            return web.json_response({"error": "not_authenticated"}, status=401)
+            return _unauthorized()
         headers = {"Authorization": f"Bearer {token}", "Accept": "application/vnd.github.v3+json"}
         try:
             session = await self._get_session()
             async with session.delete(f"https://api.github.com/user/starred/{repo}", headers=headers,
                                       timeout=aiohttp.ClientTimeout(total=10)) as resp:
                 if resp.status == 204:
-                    return web.json_response({"ok": True})
-                return web.json_response({"error": f"unstar_failed_{resp.status}"}, status=resp.status)
+                    return _ok(ok=True)
+                return _error(f"unstar_failed_{resp.status}", resp.status)
         except Exception as e:
-            return web.json_response({"error": "操作失败"}, status=500)
+            return _server_error()
 
     async def _github_check_starred(self, repo: str) -> web.Response:
         """Check if the authenticated user has starred a repo."""
         if not repo or "/" not in repo:
-            return web.json_response({"error": "invalid_repo"}, status=400)
+            return _bad_request("invalid_repo")
         token = await self._get_active_github_token()
         if not token:
             return web.json_response({"starred": False})
@@ -81,13 +82,13 @@ class GitHubActionsMixin:
                                    timeout=aiohttp.ClientTimeout(total=10)) as resp:
                 return web.json_response({"starred": resp.status == 204})
         except Exception as e:
-            return web.json_response({"starred": False, "error": "操作失败"})
+            return web.json_response({"starred": False, "error": "operation_failed"})
 
     async def _github_list_starred(self) -> web.Response:
         """Fetch all starred repos for the authenticated user, paginated."""
         token = await self._get_active_github_token()
         if not token:
-            return web.json_response({"error": "not_authenticated", "repos": []}, status=401)
+            return _unauthorized(repos=[])
         headers = {"Authorization": f"Bearer {token}", "Accept": "application/vnd.github.v3+json"}
         repos = []
         page = 1
@@ -127,21 +128,21 @@ class GitHubActionsMixin:
                         page += 1
         except Exception as e:
             _LOGGER.error("_github_list_starred error: %s", e, exc_info=True)
-            return web.json_response({"error": "操作失败", "repos": repos}, status=500)
+            return _server_error(repos=repos)
         return web.json_response({"repos": repos, "total": len(repos)})
 
     async def _github_list_org_repos(self, query) -> web.Response:
         """List repos of a GitHub user or organization, optionally filtering for HA-related."""
         org = query.get("org", "").strip()
         if not org:
-            return web.json_response({"error": "org_required", "repos": []}, status=400)
+            return _bad_request("org_required")
         org = org.rstrip("/")
         for prefix in ["https://github.com/", "http://github.com/", "github.com/"]:
             if org.startswith(prefix):
                 org = org[len(prefix):]
         org = org.replace(".git", "").rstrip("/")
         if not org or "/" in org:
-            return web.json_response({"error": "invalid_org", "repos": []}, status=400)
+            return _bad_request("invalid_org")
 
         token = await self._get_active_github_token()
         headers = {"Accept": "application/vnd.github.v3+json"}
@@ -166,7 +167,7 @@ class GitHubActionsMixin:
                             timeout=aiohttp.ClientTimeout(total=15)
                         ) as org_resp:
                             if org_resp.status != 200:
-                                return web.json_response({"error": f"user_or_org_not_found: {org}", "repos": []}, status=404)
+                                return _error(f"user_or_org_not_found: {org}", 404)
                             data = await org_resp.json()
                     else:
                         data = await resp.json()
@@ -193,7 +194,7 @@ class GitHubActionsMixin:
                     page += 1
         except Exception as e:
             _LOGGER.error("_github_list_org_repos error: %s", e, exc_info=True)
-            return web.json_response({"error": "操作失败", "repos": repos}, status=500)
+            return _server_error()
         return web.json_response({"repos": repos, "total": len(repos)})
 
     def _detect_hacs_category(self, repo: dict) -> str:
@@ -242,7 +243,7 @@ class GitHubActionsMixin:
         """Add selected starred repos as custom repositories."""
         selected = body.get("repos", [])
         if not selected:
-            return web.json_response({"error": "no_repos"}, status=400)
+            return _bad_request("no_repos")
         results = []
         for item in selected:
             full_name = item.get("full_name", "")
@@ -255,14 +256,14 @@ class GitHubActionsMixin:
                 results.append({"full_name": full_name, "success": result.get("success", False),
                                 "error": result.get("error", "")})
             except Exception as e:
-                results.append({"full_name": full_name, "success": False, "error": "操作失败"})
+                results.append({"full_name": full_name, "success": False, "error": "operation_failed"})
         return web.json_response({"results": results})
 
     async def _github_sync_favorites(self) -> web.Response:
         """Sync GitHub starred repos to local favorites. One backend call, all internal."""
         token = await self._get_active_github_token()
         if not token:
-            return web.json_response({"error": "not_authenticated", "added": [], "synced": 0, "total": 0}, status=401)
+            return _unauthorized(added=[], synced=0, total=0)
         headers = {"Authorization": f"Bearer {token}", "Accept": "application/vnd.github.v3+json"}
         starred_all: set[str] = set()
         page = 1
@@ -289,7 +290,7 @@ class GitHubActionsMixin:
                         page += 1
         except Exception as e:
             _LOGGER.error("_github_sync_favorites fetch error: %s", e, exc_info=True)
-            return web.json_response({"error": "操作失败", "added": [], "synced": 0, "total": 0}, status=502)
+            return _error("operation_failed", 502, added=[], synced=0, total=0)
         hacs_repos = await self.operator.get_all_repos_from_hacs()
         if not hacs_repos:
             hacs_repos = await self.data.get_all_repositories()
@@ -566,9 +567,9 @@ class GitHubActionsMixin:
         repo_domain = body.get("domain")
 
         if not repo or "/" not in repo:
-            return web.json_response({"error": "repo required (format: owner/repo)"}, status=400)
+            return _bad_request("repo required (format: owner/repo)")
         if not title:
-            return web.json_response({"error": "title required"}, status=400)
+            return _bad_request("title required")
 
         repo_info = None
         if not repo_domain:
@@ -618,17 +619,17 @@ class GitHubActionsMixin:
         elif status == 401:
             if screenshot_files:
                 self._cleanup_screenshots(screenshot_files)
-            return web.json_response({"error": "GitHub token not authorized"}, status=401)
+            return _unauthorized("GitHub token not authorized")
         elif status == 403:
             if screenshot_files:
                 self._cleanup_screenshots(screenshot_files)
-            return web.json_response({"error": "Rate limited or no permission"}, status=403)
+            return _error("Rate limited or no permission", 403)
         elif status == 404:
             if screenshot_files:
                 self._cleanup_screenshots(screenshot_files)
-            return web.json_response({"error": "Repository not found"}, status=404)
+            return _not_found("Repository not found")
         else:
             if screenshot_files:
                 self._cleanup_screenshots(screenshot_files)
             err_msg = result.get("error", result.get("message", f"GitHub API error ({status})"))
-            return web.json_response({"error": err_msg}, status=502)
+            return _error(err_msg, 502)

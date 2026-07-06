@@ -7,6 +7,7 @@ import { getCommonStyles } from './shared/styles.js';
 import { showToast, registerPanel } from './shared/toast.js';
 import { updateSidebarBadge } from './shared/sidebar-badge.js';
 import DOMPurify from 'dompurify';
+import './components/card-preview-dialog.js';
 
 export class HacsVisionPanel extends themeMixin(LitElement) {
   static properties = {
@@ -41,6 +42,9 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
     _configFlowIsReconfigure: { type: Boolean, state: true },
     _configFlowAction: { type: String, state: true },
     _showConfigFlow: { type: Boolean, state: true },
+    // Card preview
+    _previewRepo: { type: Object, state: true },
+    _showPreview: { type: Boolean, state: true },
     _configEntries: { type: Object, state: true },
     _ignoredRepos: { type: Array, state: true },
     _ignoredVersions: { type: Object, state: true },
@@ -82,6 +86,8 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
     this._configFlowDomain = '';
     this._configFlowEntryId = null;
     this._showConfigFlow = false;
+    this._previewRepo = null;
+    this._showPreview = false;
     this._configEntries = {};
     this._showEntrySelector = false;
     this._entrySelectorDomain = '';
@@ -697,6 +703,10 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
     super.connectedCallback();
     this.addEventListener('refresh-stats', () => this._loadStats());
     this.addEventListener('detail', (e) => this._openDetail(e.detail.repo));
+    this.addEventListener('preview', (e) => {
+      this._previewRepo = e.detail?.repo;
+      this._showPreview = true;
+    });
     this.addEventListener('favorite', () => this._loadStats());
     // Config flow events from child views
     this.addEventListener('open-flow', (e) => {
@@ -2193,6 +2203,13 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
         .open=${this._showConfigFlow}
         @close=${this._onFlowClose}>
       </config-flow-dialog>
+
+      <!-- Card Preview Dialog -->
+      <card-preview-dialog
+        .repo=${this._previewRepo}
+        .open=${this._showPreview}
+        @close=${() => { this._showPreview = false; this._previewRepo = null; }}>
+      </card-preview-dialog>
     `;
   }
 }

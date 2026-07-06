@@ -11,6 +11,7 @@ from aiohttp import web
 
 from ..const import VERSION
 from ..entity_ref_finder import EntityRefFinder
+from ..response import _error, _ok, _not_found, _bad_request, _unauthorized, _rate_limited, _server_error, _upstream_error
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -352,7 +353,7 @@ class HACSOpsMixin:
     async def _get_repository(self, repo_id: str) -> web.Response:
         repo = await self.data.get_repository(repo_id)
         if not repo:
-            return web.json_response({"error": "not_found"}, status=404)
+            return _not_found()
         return web.json_response(repo)
 
     async def _list_installed(self) -> web.Response:
@@ -539,24 +540,24 @@ class HACSOpsMixin:
                 if remaining is not None and int(remaining) <= 0:
                     reset_time = resp.headers.get("X-RateLimit-Reset", "0")
                     _LOGGER.warning("GitHub API rate limit exceeded, resets at %s", reset_time)
-                    return web.json_response({"error": "rate_limited", "reset_at": reset_time}, status=429)
+                    return _rate_limited(reset_at=reset_time)
                 if resp.status == 200:
                     content = await resp.text()
                     _cache_put(_README_CACHE, full_name,
                                {"html": content, "timestamp": time.monotonic()}, _README_CACHE_MAX)
                     return web.Response(text=content, content_type="text/html")
                 elif resp.status == 404:
-                    return web.json_response({"error": "not_found"}, status=404)
+                    return _not_found()
                 elif resp.status == 403:
-                    return web.json_response({"error": "rate_limited"}, status=429)
+                    return _rate_limited()
                 else:
-                    return web.json_response({"error": f"github_api_{resp.status}"}, status=502)
+                    return _upstream_error(f"github_api_{resp.status}")
         except (aiohttp.ClientError, TimeoutError, OSError) as e:
             _LOGGER.error("README proxy network error: %s", e)
-            return web.json_response({"error": "network_error"}, status=502)
+            return _upstream_error("network_error")
         except Exception as e:
             _LOGGER.error("README proxy unexpected error: %s", e, exc_info=True)
-            return web.json_response({"error": "操作失败"}, status=502)
+            return _upstream_error("operation_failed")
 
     async def _get_changelog(self, full_name: str, query) -> web.Response:
         session = await self._get_session()
@@ -573,7 +574,7 @@ class HACSOpsMixin:
             async with session.get(url, headers=headers) as resp:
                 remaining = resp.headers.get("X-RateLimit-Remaining")
                 if remaining is not None and int(remaining) <= 0:
-                    return web.json_response({"error": "rate_limited"}, status=429)
+                    return _rate_limited()
                 if resp.status == 200:
                     data = await resp.json()
                     body = data.get("body", "")
@@ -586,15 +587,15 @@ class HACSOpsMixin:
                 elif resp.status == 404:
                     return web.json_response({"tag": tag or "", "body": "", "not_found": True})
                 else:
-                    return web.json_response({"error": f"github_api_{resp.status}"}, status=502)
+                    return _upstream_error(f"github_api_{resp.status}")
         except (aiohttp.ClientError, TimeoutError, OSError) as e:
             _LOGGER.error("Changelog proxy network error: %s", e)
-            return web.json_response({"error": "network_error"}, status=502)
+            return _upstream_error("network_error")
 
     async def _get_repo_releases(self, query) -> web.Response:
         repo_id = query.get("id", "")
         if not repo_id:
-            return web.json_response({"error": "id required"}, status=400)
+            return _bad_request("id required")
         releases = await self.operator.get_repo_releases(repo_id)
         if len(releases) < 3:
             repo = self.operator._find_repo(repo_id)
@@ -628,7 +629,7 @@ class HACSOpsMixin:
     async def _get_repo_rt_status(self, repo_id: str) -> web.Response:
         status = self.operator.get_repo_rt_status(repo_id)
         if not status:
-            return web.json_response({"error": "not_found"}, status=404)
+            return _not_found()
         return web.json_response(status)
 
     # ── Write operations ─────────────────────────────────
@@ -638,7 +639,7 @@ class HACSOpsMixin:
         category = body.get("category", "integration")
         VALID_CATEGORIES = {"integration", "plugin", "python_script", "theme", "appdaemon", "netdaemon", "template"}
         if category not in VALID_CATEGORIES:
-            return web.json_response({"error": f"invalid_category: {category}"}, status=400)
+            return _bad_request(f"invalid_category: {category}")
         result = await self.operator.install_repository(repo, category)
         if result.get("success"):
             from datetime import datetime, timezone
@@ -676,7 +677,7 @@ class HACSOpsMixin:
     async def _ignore_repo(self, body: dict) -> web.Response:
         repo = body.get("repository", "")
         if not repo:
-            return web.json_response({"error": "repository required"}, status=400)
+            return _bad_request("repository required")
         config = await self.data.get_config()
         ignored = config.get("ignored_repositories", [])
         if repo not in ignored:
@@ -688,7 +689,7 @@ class HACSOpsMixin:
     async def _unignore_repo(self, body: dict) -> web.Response:
         repo = body.get("repository", "")
         if not repo:
-            return web.json_response({"error": "repository required"}, status=400)
+            return _bad_request("repository required")
         config = await self.data.get_config()
         ignored = config.get("ignored_repositories", [])
         if repo in ignored:
@@ -701,7 +702,7 @@ class HACSOpsMixin:
         repo = body.get("repository", "")
         version = body.get("version", "")
         if not repo or not version:
-            return web.json_response({"error": "repository and version required"}, status=400)
+            return _bad_request("repository and version required")
         data = await self.data.read_storage("ignored_versions")
         if not data:
             data = {"data": {}}
@@ -715,7 +716,7 @@ class HACSOpsMixin:
     async def _unignore_version(self, body: dict) -> web.Response:
         repo = body.get("repository", "")
         if not repo:
-            return web.json_response({"error": "repository required"}, status=400)
+            return _bad_request("repository required")
         data = await self.data.read_storage("ignored_versions")
         if data and repo in data.get("data", {}):
             del data["data"][repo]
@@ -794,7 +795,7 @@ class HACSOpsMixin:
         repo_id = body.get("id", "")
         version = body.get("version")
         if not repo_id:
-            return web.json_response({"error": "id required"}, status=400)
+            return _bad_request("id required")
         result = await self.operator.install_repository_version(repo_id, version)
         if result.get("success"):
             self.operator.invalidate_index()
@@ -854,7 +855,7 @@ class HACSOpsMixin:
     async def _remove_archived(self, body: dict) -> web.Response:
         repo_name = body.get("repository", "")
         if not repo_name:
-            return web.json_response({"error": "repository required"}, status=400)
+            return _bad_request("repository required")
         config = await self.data.get_config()
         archived = config.get("archived_repositories", [])
         if repo_name in archived:
@@ -884,7 +885,7 @@ class HACSOpsMixin:
         old_name = body.get("old_name", "")
         new_name = body.get("new_name", "")
         if not old_name or not new_name:
-            return web.json_response({"error": "old_name and new_name required"}, status=400)
+            return _bad_request("old_name and new_name required")
         category = "integration"
         repos_data = await self.data.read_storage("repositories")
         if repos_data and "data" in repos_data:
@@ -916,7 +917,7 @@ class HACSOpsMixin:
     async def _remove_renamed_entry(self, body: dict) -> web.Response:
         old_name = body.get("old_name", "")
         if not old_name:
-            return web.json_response({"error": "old_name required"}, status=400)
+            return _bad_request("old_name required")
         config = await self.data.get_config()
         renamed = config.get("renamed_repositories", {})
         if old_name in renamed:
@@ -1043,14 +1044,14 @@ class HACSOpsMixin:
 
             groups = {}
             for dev in devices:
-                area = dev.pop("area") or "其他"
+                area = dev.pop("area") or "Other"
                 groups.setdefault(area, []).append(dev)
 
-            sorted_groups = sorted(groups.items(), key=lambda x: (x[0] == "其他", x[0] or ""))
+            sorted_groups = sorted(groups.items(), key=lambda x: (x[0] == "Other", x[0] or ""))
             result_groups = [{"area": area, "devices": devs} for area, devs in sorted_groups]
             if orphan_entities:
-                result_groups.append({"area": "无关联设备", "devices": [{
-                    "id": "_orphan", "name": "未关联设备的实体",
+                result_groups.append({"area": "Unassigned", "devices": [{
+                    "id": "_orphan", "name": "Entities without device",
                     "model": None, "manufacturer": None,
                     "sw_version": None, "hw_version": None,
                     "entities": orphan_entities,
@@ -1059,7 +1060,7 @@ class HACSOpsMixin:
             return web.json_response({"groups": result_groups})
         except Exception as e:
             _LOGGER.error("Failed to get devices: %s", e, exc_info=True)
-            return web.json_response({"error": "操作失败"}, status=500)
+            return _server_error()
 
     async def _get_config_entries(self) -> web.Response:
         mapping = await self.data.get_config_entries_map()
@@ -1070,7 +1071,7 @@ class HACSOpsMixin:
         import re
         if domain is not None:
             if not re.match(r'^[a-zA-Z0-9_-]+$', domain):
-                return web.json_response({"error": "invalid_domain"}, status=400)
+                return _bad_request("invalid_domain")
         try:
             dev_reg = dr.async_get(self.hass)
             ent_reg = er.async_get(self.hass)
@@ -1113,13 +1114,13 @@ class HACSOpsMixin:
                 return web.json_response(result)
         except Exception as e:
             _LOGGER.error("Failed to get device counts for %s: %s", domain or "all", e, exc_info=True)
-            return web.json_response({"error": "操作失败"}, status=500)
+            return _server_error()
 
     async def _get_translations(self, domain: str, lang: str) -> web.Response:
         import os
         import re
         if not re.match(r'^[a-zA-Z0-9_-]+$', domain):
-            return web.json_response({"error": "invalid_domain"}, status=400)
+            return _bad_request("invalid_domain")
         safe_domain = domain
         lang_files = []
         if lang and lang != "en":
@@ -1161,7 +1162,7 @@ class HACSOpsMixin:
                     await self.data.set_install_time(repo_name, datetime.now(timezone.utc).isoformat())
                 results.append({"repository": repo_name, "result": result})
             except Exception as e:
-                results.append({"repository": repo_name, "result": {"success": False, "error": "操作失败"}})
+                results.append({"repository": repo_name, "result": {"success": False, "error": "operation_failed"}})
         return web.json_response({"success": True, "results": results})
 
     async def _batch_remove(self, body: dict) -> web.Response:
@@ -1176,7 +1177,7 @@ class HACSOpsMixin:
                     await self.data.remove_install_time(repo_name)
                 results.append({"repository": repo_name, "result": result})
             except Exception as e:
-                results.append({"repository": repo_name, "result": {"success": False, "error": "操作失败"}})
+                results.append({"repository": repo_name, "result": {"success": False, "error": "operation_failed"}})
         self.operator.invalidate_index()
         return web.json_response({"success": True, "results": results})
 
@@ -1192,16 +1193,16 @@ class HACSOpsMixin:
             pending_restart = [r for r in repos if r.get("pending_restart")]
             if updatable:
                 names = "\n".join(f"- **{r.get('manifest_name') or r.get('name', r.get('full_name', '?'))}**: {r.get('installed_version', '?')} → {r.get('latest_version', '?')}" for r in updatable[:10])
-                title = f"HACS Vision: {len(updatable)} 个仓库可更新"
-                message = f"发现 **{len(updatable)}** 个仓库可以更新：\n{names}"
+                title = f"HACS Vision: {len(updatable)} repos updatable"
+                message = f"Found **{len(updatable)}** repos with updates available:\n{names}"
                 if len(updatable) > 10:
-                    message += f"\n…以及 {len(updatable) - 10} 个其他仓库"
+                    message += f"\n...and {len(updatable) - 10} more"
                 await self.data.send_persistent_notification(title, message)
             if pending_restart:
                 names = ", ".join(r.get('manifest_name') or r.get('full_name', '?') for r in pending_restart)
                 await self.data.send_persistent_notification(
-                    f"HACS Vision: {len(pending_restart)} 个仓库待重启",
-                    f"以下仓库更新后需要重启 HA：{names}"
+                    f"HACS Vision: {len(pending_restart)} repos need restart",
+                    f"The following repos require HA restart after update: {names}"
                 )
             return web.json_response({
                 "success": True, "updates_found": len(updatable),
@@ -1209,14 +1210,14 @@ class HACSOpsMixin:
             })
         except Exception as e:
             _LOGGER.error("Check updates+notify failed: %s", e, exc_info=True)
-            return web.json_response({"success": False, "error": "操作失败"}, status=500)
+            return _server_error()
 
     # ── Entity Reference Finder ─────────────────────────
 
     async def _entity_refs_find(self, query) -> web.Response:
         entity_id = query.get("q", "")
         if not entity_id:
-            return web.json_response({"error": "q (entity_id) required"}, status=400)
+            return _bad_request("q (entity_id) required")
         try:
             finder = EntityRefFinder(self.hass)
             refs = await finder.find(entity_id)
@@ -1230,14 +1231,14 @@ class HACSOpsMixin:
             })
         except Exception as e:
             _LOGGER.error("Entity refs find failed: %s", e, exc_info=True)
-            return web.json_response({"success": False, "error": "操作失败"}, status=500)
+            return _server_error()
 
     async def _entity_refs_replace(self, body: dict, request: web.Request | None = None) -> web.Response:
         old_id = body.get("old_id", "")
         new_id = body.get("new_id", "")
         preview = body.get("preview", True)
         if not old_id or not new_id:
-            return web.json_response({"error": "old_id and new_id required"}, status=400)
+            return _bad_request("old_id and new_id required")
         try:
             token = self._extract_token(request) if request else self._current_token
             finder = EntityRefFinder(self.hass, hass_token=token)
@@ -1248,7 +1249,7 @@ class HACSOpsMixin:
             return web.json_response(result)
         except Exception as e:
             _LOGGER.error("Entity refs replace failed: %s", e, exc_info=True)
-            return web.json_response({"success": False, "error": "操作失败"}, status=500)
+            return _server_error()
 
     async def _entity_refs_reload(self) -> web.Response:
         try:
@@ -1257,7 +1258,7 @@ class HACSOpsMixin:
             return web.json_response(result)
         except Exception as e:
             _LOGGER.error("Entity refs reload failed: %s", e, exc_info=True)
-            return web.json_response({"success": False, "error": "操作失败"}, status=500)
+            return _server_error()
 
     # ── Restart / Reload ─────────────────────────────────
 
@@ -1267,7 +1268,7 @@ class HACSOpsMixin:
             return web.json_response({"success": True})
         except Exception as e:
             _LOGGER.error("Restart failed: %s", e, exc_info=True)
-            return web.json_response({"success": False, "error": "操作失败"}, status=500)
+            return _server_error()
 
     async def _reload_core(self) -> web.Response:
         try:
@@ -1275,7 +1276,7 @@ class HACSOpsMixin:
             return web.json_response({"success": True})
         except Exception as e:
             _LOGGER.error("Core reload failed: %s", e, exc_info=True)
-            return web.json_response({"success": False, "error": "操作失败"}, status=500)
+            return _server_error()
 
     # ── Config Flow proxy ────────────────────────────────
 
@@ -1288,7 +1289,7 @@ class HACSOpsMixin:
     async def _config_flow_handlers(self, request: web.Request) -> web.Response:
         token = self._extract_token(request)
         if not token:
-            return web.json_response({"error": "unauthorized"}, status=401)
+            return _unauthorized()
         try:
             session = await self._get_session()
             url = f"{self._ha_base_url}/api/config/config_entries/flow_handlers"
@@ -1298,15 +1299,15 @@ class HACSOpsMixin:
                 return web.Response(text=json.dumps(data), content_type="application/json", status=resp.status)
         except Exception as e:
             _LOGGER.error("Config flow handlers error: %s", e, exc_info=True)
-            return web.json_response({"error": "操作失败"}, status=500)
+            return _server_error()
 
     async def _config_flow_start(self, request: web.Request, body: dict) -> web.Response:
         handler = body.get("handler")
         if not handler:
-            return web.json_response({"error": "handler required"}, status=400)
+            return _bad_request("handler required")
         token = self._extract_token(request)
         if not token:
-            return web.json_response({"error": "unauthorized"}, status=401)
+            return _unauthorized()
         try:
             session = await self._get_session()
             url = f"{self._ha_base_url}/api/config/config_entries/flow"
@@ -1322,12 +1323,12 @@ class HACSOpsMixin:
                 return web.Response(text=json.dumps(data), content_type="application/json", status=resp.status)
         except Exception as e:
             _LOGGER.error("Config flow start error for %s: %s", handler, e, exc_info=True)
-            return web.json_response({"error": f"flow_start_error: {e}"}, status=500)
+            return _error(f"flow_start_error: {e}", 500)
 
     async def _config_flow_step(self, request: web.Request, flow_id: str, body: dict) -> web.Response:
         token = self._extract_token(request)
         if not token:
-            return web.json_response({"error": "unauthorized"}, status=401)
+            return _unauthorized()
         try:
             session = await self._get_session()
             url = f"{self._ha_base_url}/api/config/config_entries/flow/{flow_id}"
@@ -1337,12 +1338,12 @@ class HACSOpsMixin:
                 return web.Response(text=json.dumps(data), content_type="application/json", status=resp.status)
         except Exception as e:
             _LOGGER.error("Config flow step error %s: %s", flow_id, e, exc_info=True)
-            return web.json_response({"error": f"flow_step_error: {e}"}, status=500)
+            return _error(f"flow_step_error: {e}", 500)
 
     async def _config_flow_cancel(self, request: web.Request, flow_id: str) -> web.Response:
         token = self._extract_token(request)
         if not token:
-            return web.json_response({"error": "unauthorized"}, status=401)
+            return _unauthorized()
         try:
             session = await self._get_session()
             url = f"{self._ha_base_url}/api/config/config_entries/flow/{flow_id}"
@@ -1352,12 +1353,12 @@ class HACSOpsMixin:
                 return web.Response(text=json.dumps(data), content_type="application/json", status=resp.status)
         except Exception as e:
             _LOGGER.error("Config flow cancel error %s: %s", flow_id, e, exc_info=True)
-            return web.json_response({"error": f"flow_cancel_error: {e}"}, status=500)
+            return _error(f"flow_cancel_error: {e}", 500)
 
     async def _config_flow_subentry_cancel(self, request: web.Request, flow_id: str) -> web.Response:
         token = self._extract_token(request)
         if not token:
-            return web.json_response({"error": "unauthorized"}, status=401)
+            return _unauthorized()
         try:
             session = await self._get_session()
             url = f"{self._ha_base_url}/api/config/config_entries/subentries/flow/{flow_id}"
@@ -1367,15 +1368,15 @@ class HACSOpsMixin:
                 return web.Response(text=json.dumps(data), content_type="application/json", status=resp.status)
         except Exception as e:
             _LOGGER.error("Subentry flow cancel error %s: %s", flow_id, e, exc_info=True)
-            return web.json_response({"error": f"subentry_cancel_error: {e}"}, status=500)
+            return _error(f"subentry_cancel_error: {e}", 500)
 
     async def _config_flow_options_start(self, request: web.Request, body: dict) -> web.Response:
         handler = body.get("handler")
         if not handler:
-            return web.json_response({"error": "handler (entry_id) required"}, status=400)
+            return _bad_request("handler (entry_id) required")
         token = self._extract_token(request)
         if not token:
-            return web.json_response({"error": "unauthorized"}, status=401)
+            return _unauthorized()
         try:
             session = await self._get_session()
             url = f"{self._ha_base_url}/api/config/config_entries/options/flow"
@@ -1386,12 +1387,12 @@ class HACSOpsMixin:
                 return web.Response(text=json.dumps(data), content_type="application/json", status=resp.status)
         except Exception as e:
             _LOGGER.error("Options flow start error %s: %s", handler, e, exc_info=True)
-            return web.json_response({"error": f"options_start_error: {e}"}, status=500)
+            return _error(f"options_start_error: {e}", 500)
 
     async def _config_flow_options_step(self, request: web.Request, flow_id: str, body: dict) -> web.Response:
         token = self._extract_token(request)
         if not token:
-            return web.json_response({"error": "unauthorized"}, status=401)
+            return _unauthorized()
         try:
             session = await self._get_session()
             url = f"{self._ha_base_url}/api/config/config_entries/options/flow/{flow_id}"
@@ -1401,15 +1402,15 @@ class HACSOpsMixin:
                 return web.Response(text=json.dumps(data), content_type="application/json", status=resp.status)
         except Exception as e:
             _LOGGER.error("Options flow step error %s: %s", flow_id, e, exc_info=True)
-            return web.json_response({"error": f"options_step_error: {e}"}, status=500)
+            return _error(f"options_step_error: {e}", 500)
 
     async def _config_flow_subentry_start(self, request: web.Request, body: dict) -> web.Response:
         handler = body.get("handler")
         if not handler or not isinstance(handler, list) or len(handler) != 2:
-            return web.json_response({"error": "handler must be [entry_id, subentry_type]"}, status=400)
+            return _bad_request("handler must be [entry_id, subentry_type]")
         token = self._extract_token(request)
         if not token:
-            return web.json_response({"error": "unauthorized"}, status=401)
+            return _unauthorized()
         try:
             session = await self._get_session()
             url = f"{self._ha_base_url}/api/config/config_entries/subentries/flow"
@@ -1424,12 +1425,12 @@ class HACSOpsMixin:
                 return web.Response(text=json.dumps(data), content_type="application/json", status=resp.status)
         except Exception as e:
             _LOGGER.error("Subentry flow start error %s: %s", handler, e, exc_info=True)
-            return web.json_response({"error": f"subentry_start_error: {e}"}, status=500)
+            return _error(f"subentry_start_error: {e}", 500)
 
     async def _get_subentries(self, request: web.Request, entry_id: str) -> web.Response:
         entry = self.hass.config_entries.async_get_entry(entry_id)
         if not entry:
-            return web.json_response({"error": "entry_not_found"}, status=404)
+            return _not_found("entry_not_found")
         result = [
             {
                 "subentry_id": se.subentry_id,
@@ -1444,7 +1445,7 @@ class HACSOpsMixin:
     async def _config_flow_subentry_step(self, request: web.Request, flow_id: str, body: dict) -> web.Response:
         token = self._extract_token(request)
         if not token:
-            return web.json_response({"error": "unauthorized"}, status=401)
+            return _unauthorized()
         try:
             session = await self._get_session()
             url = f"{self._ha_base_url}/api/config/config_entries/subentries/flow/{flow_id}"
@@ -1454,7 +1455,7 @@ class HACSOpsMixin:
                 return web.Response(text=json.dumps(data), content_type="application/json", status=resp.status)
         except Exception as e:
             _LOGGER.error("Subentry flow step error %s: %s", flow_id, e, exc_info=True)
-            return web.json_response({"error": f"subentry_step_error: {e}"}, status=500)
+            return _error(f"subentry_step_error: {e}", 500)
 
 
 def _read_json_text(path: str) -> dict | None:

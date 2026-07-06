@@ -1,5 +1,17 @@
 # Changelog
 
+## v6.4.0 (2026-07-06)
+
+### ✨ 新功能
+
+- **搜索+添加仓库合一** — 商店和仓库管理视图的搜索框直接支持添加仓库：输入 `owner/repo` 或 GitHub URL 自动显示内联添加栏，输入组织名自动加载仓库列表供批量勾选添加。移除独立的「+ 添加仓库」按钮和表单
+- **搜索能力增强** — 所有视图搜索统一支持 GitHub URL 解析、作者名搜索、组织名搜索
+- **提示词更新** — 搜索框占位提示改为「搜索或添加仓库...」，一目了然
+
+### 🔧 修复
+
+- **自定义仓库注册失败** — `add_custom_repository` 使用 `check=False` 避免 GitHub API 限流/网络波动导致仓库注册失败（[hacs_operator.py#L829](https://github.com/C3H3-AI/hacs-vision/blob/main/custom_components/hacs_vision/hacs_operator.py#L829)）
+
 ## v6.3.0 (2026-07-05)
 
 ### ✨ 新功能

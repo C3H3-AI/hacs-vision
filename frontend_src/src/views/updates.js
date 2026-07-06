@@ -1019,11 +1019,11 @@ class UpdatesView extends LitElement {
     try {
       await api.updateSettings({ auto_update_repos: newRepos });
       await api.reloadAutoUpdateSettings();
-      showToast(fullName + (idx >= 0 ? ' 自动更新已关闭' : ' 自动更新已开启'), 'success');
+      showToast(fullName + (idx >= 0 ? t('autoUpdateToggledOff') : t('autoUpdateToggledOn')), 'success');
     } catch(e) {
       // Rollback on failure
       this.autoUpdateRepos = prevRepos;
-      showToast(`自动更新设置失败: ${e.message}`, 'error');
+      showToast(`${t('autoUpdateToggleFailed')}: ${e.message}`, 'error');
     }
   }
 
@@ -1034,7 +1034,21 @@ class UpdatesView extends LitElement {
     }
     if (this.search) {
       const q = this.search.toLowerCase();
-      list = list.filter(r => (r.manifest_name || r.full_name || r.name || '').toLowerCase().includes(q));
+      let extractedPath = null;
+      const githubMatch = q.match(/github\.com\/([^/]+\/[^/\s?#]+)/i);
+      if (githubMatch) {
+        extractedPath = githubMatch[1].replace(/\.git$/, '').toLowerCase();
+      }
+      const isOwnerRepo = /^[a-zA-Z0-9_-]+\/[a-zA-Z0-9_.-]+$/.test(q);
+      list = list.filter(r => {
+        const fullName = (r.full_name || '').toLowerCase();
+        const name = (r.manifest_name || r.name || '').toLowerCase();
+        const authors = (r.authors || []).join(',').toLowerCase();
+        if (name.includes(q) || fullName.includes(q) || authors.includes(q)) return true;
+        if (extractedPath && fullName.includes(extractedPath)) return true;
+        if (isOwnerRepo && fullName.includes(q)) return true;
+        return false;
+      });
     }
     return list;
   }

@@ -99,7 +99,7 @@ const T = {
   tabIntegrations: { zh: '集成管理', en: 'Integrations', de: 'Integrationen' },
 
   // Browse
-  searchPlaceholder: { zh: '搜索仓库...', en: 'Search repositories...', de: 'Repositorys durchsuchen...' },
+  searchPlaceholder: { zh: '搜索或添加仓库...', en: 'Search or add repositories...', de: 'Repositorys suchen oder hinzufügen...' },
   searchInstalled: { zh: '搜索已安装...', en: 'Search installed...', de: 'Installierte durchsuchen...' },
   searchUpdates: { zh: '搜索可更新的仓库...', en: 'Search for updates...', de: 'Nach Updates suchen...' },
   filterStatus: { zh: '状态', en: 'Status', de: 'Status' },
@@ -138,6 +138,8 @@ const T = {
   catCustom: { zh: '自定义', en: 'Custom', de: 'Benutzerdefiniert' },
   totalRepos: { zh: '个仓库', en: 'repositories', de: 'Repositorys' },
   noMatch: { zh: '没有匹配的仓库', en: 'No matching repositories', de: 'Keine passenden Repositorys' },
+  noMatchAdd: { zh: '未在 HACS 中找到此仓库，点击下方直接添加为自定义仓库', en: 'Not found in HACS, click below to add as custom repository', de: 'Nicht in HACS gefunden, klicken Sie unten, um als benutzerdefiniertes Repository hinzuzufügen' },
+  addFromSearch: { zh: '添加为自定义仓库', en: 'Add as custom repository', de: 'Als benutzerdefiniertes Repository hinzufügen' },
   noData: { zh: '暂无仓库数据', en: 'No repository data', de: 'Keine Repository-Daten' },
   noDevicesOrEntities: { zh: '暂无设备或实体', en: 'No devices or entities', de: 'Keine Geräte oder Entitäten' },
   entityCount: { zh: '个实体', en: ' entities', de: ' Entitäten' },
@@ -745,6 +747,21 @@ const T = {
   autoUpdateReloadFailed: { zh: '重载设置失败', en: 'Failed to reload settings', de: 'Einstellungen neu laden fehlgeschlagen' },
   autoUpdateEnabledText: { zh: '自动更新已开启', en: 'Auto-update ON', de: 'Auto-Update EIN' },
   autoUpdateDisabledText: { zh: '点击开启自动更新', en: 'Enable auto-update', de: 'Auto-Update aktivieren' },
+  autoUpdateToggledOn: { zh: ' 自动更新已开启', en: ' auto-update enabled', de: ' Auto-Update aktiviert' },
+  autoUpdateToggledOff: { zh: ' 自动更新已关闭', en: ' auto-update disabled', de: ' Auto-Update deaktiviert' },
+  autoUpdateToggleFailed: { zh: '自动更新设置失败', en: 'Auto-update setting failed', de: 'Auto-Update-Einstellung fehlgeschlagen' },
+  whitelistSaved: { zh: '白名单已保存', en: 'Whitelist saved', de: 'Whitelist gespeichert' },
+  whitelistSaveFailed: { zh: '保存失败', en: 'Save failed', de: 'Speichern fehlgeschlagen' },
+  updateQueued: { zh: '更新已排队，将在当前周期完成后执行', en: 'Update queued, will run after current cycle completes', de: 'Update in Warteschlange, läuft nach aktuellem Zyklus' },
+  noReposAdded: { zh: '暂未添加仓库', en: 'No repos added yet', de: 'Noch keine Repositorys hinzugefügt' },
+  noReposSelected: { zh: '暂未选择仓库', en: 'No repos selected', de: 'Keine Repositorys ausgewählt' },
+  selectedCount: { zh: '{n} / {total} 已选', en: '{n} / {total} selected', de: '{n} / {total} ausgewählt' },
+  searchToAdd: { zh: '输入仓库名搜索添加...', en: 'Search repos to add...', de: 'Repositorys zum Hinzufügen suchen...' },
+  loadingRepos: { zh: '正在加载已安装仓库...', en: 'Loading installed repos...', de: 'Installierte Repositorys laden...' },
+  noInstalledRepos: { zh: '尚未安装任何仓库', en: 'No repos installed', de: 'Keine Repositorys installiert' },
+  allInWhitelist: { zh: '没有可添加的仓库（所有已安装仓库已在白名单中）', en: 'No repos to add (all installed repos are already in whitelist)', de: 'Keine Repositorys zum Hinzufügen (alle installierten sind bereits in der Whitelist)' },
+  prevPage: { zh: '‹ 上一页', en: '‹ Prev', de: '‹ Zurück' },
+  nextPage: { zh: '下一页 ›', en: 'Next ›', de: 'Weiter ›' },
 
   // Update history
   sectionUpdatable: { zh: '可更新', en: 'Updatable', de: 'Aktualisierbar' },
@@ -759,6 +776,28 @@ const T = {
   hourAgo: { zh: '{n}小时', en: '{n}h', de: '{n} Std.' },
   dayAgo: { zh: '{n}天', en: '{n}d', de: '{n} T.' },
   noUpdateHistory: { zh: '暂无更新记录', en: 'No update history', de: 'Keine Update-Verlauf' },
+
+  // Card preview
+  previewTitle: { zh: '预览', en: 'Preview', de: 'Vorschau' },
+  preview: { zh: '预览', en: 'Preview', de: 'Vorschau' },
+  previewLoading: { zh: '正在加载插件...', en: 'Loading plugin...', de: 'Plugin wird geladen...' },
+  previewNoRepo: { zh: '未指定仓库', en: 'No repository specified', de: 'Kein Repository angegeben' },
+  previewNoJs: { zh: '未找到插件 JS 文件', en: 'Plugin JS file not found', de: 'Plugin-JS-Datei nicht gefunden' },
+
+  // Gitee
+  giteeLogin: { zh: 'Gitee 登录', en: 'Gitee Login', de: 'Gitee Anmeldung' },
+  giteeLoginDesc: { zh: '输入 Gitee Access Token 登录', en: 'Enter Gitee Access Token to login', de: 'Gitee Access Token eingeben' },
+  giteeTokenPlaceholder: { zh: '输入 Gitee Access Token', en: 'Enter Gitee Access Token', de: 'Gitee Access Token eingeben' },
+  giteeLoginSuccess: { zh: 'Gitee 登录成功', en: 'Gitee login successful', de: 'Gitee-Anmeldung erfolgreich' },
+  giteeLoginFailed: { zh: 'Gitee 登录失败', en: 'Gitee login failed', de: 'Gitee-Anmeldung fehlgeschlagen' },
+  giteeLogout: { zh: '退出 Gitee', en: 'Logout Gitee', de: 'Gitee abmelden' },
+  giteeSearch: { zh: '搜索 Gitee 仓库', en: 'Search Gitee repos', de: 'Gitee-Repositorys suchen' },
+  giteeSearchPlaceholder: { zh: '搜索 Gitee 集成...', en: 'Search Gitee integrations...', de: 'Gitee-Integrationen suchen...' },
+  giteeSource: { zh: 'Gitee', en: 'Gitee', de: 'Gitee' },
+  giteeAddRepo: { zh: '添加到 HACS', en: 'Add to HACS', de: 'Zu HACS hinzufügen' },
+  giteeAddSuccess: { zh: '已添加到 HACS 自定义仓库', en: 'Added to HACS custom repos', de: 'Zu HACS benutzerdefinierten Repositorys hinzugefügt' },
+  sourceAll: { zh: '全部来源', en: 'All Sources', de: 'Alle Quellen' },
+  sourceGithub: { zh: 'GitHub', en: 'GitHub', de: 'GitHub' },
 };
 
 /* ── Translation Lookup ─────────────────────────────────── */

@@ -392,10 +392,10 @@ class ConfigView extends LitElement {
     this._saving = true;
     try {
       await api.updateSettings(this._settings);
-      showToast('白名单已保存', 'success');
+      showToast(t('whitelistSaved'), 'success');
       await this._reloadAutoUpdateSettings();
     } catch(e) {
-      showToast(`保存失败: ${e.message}`, 'error');
+      showToast(`${t('whitelistSaveFailed')}: ${e.message}`, 'error');
     }
     this._saving = false;
     this._closeAuDialog();
@@ -432,7 +432,7 @@ class ConfigView extends LitElement {
       this._auRunning = true;
       const result = await api.triggerAutoUpdate();
       if (result?.queued) {
-        showToast('更新已排队，将在当前周期完成后执行', 'info');
+        showToast(t('updateQueued'), 'info');
       } else {
         showToast(t('autoUpdateTriggered'), 'info');
       }
@@ -1032,7 +1032,7 @@ class ConfigView extends LitElement {
             const list = this._settings.auto_update_repos || [];
             return list.length === 0 ? html`
               <div style="padding:6px 0 4px;font-size:11px;color:var(--secondary-text-color);font-style:italic;">
-                暂未添加仓库
+                ${t('noReposAdded')}
               </div>
             ` : html`
               <div class="au-chips">
@@ -1047,7 +1047,7 @@ class ConfigView extends LitElement {
           })()}
           <div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0 8px;">
             <span style="font-size:11px;color:var(--secondary-text-color);">
-              ${(this._settings.auto_update_repos || []).length} / ${this._installedRepos.length} 已选
+              ${t('selectedCount', { n: (this._settings.auto_update_repos || []).length, total: this._installedRepos.length })}
             </span>
             <button class="btn btn-md primary" @click=${this._openAuDialog} ?disabled=${!this._installedLoaded || this._installedRepos.length === 0}>
               ${t('autoUpdateRepos')}
@@ -1086,7 +1086,7 @@ class ConfigView extends LitElement {
                 const list = this._auDialogWhitelist || [];
                 return list.length === 0 ? html`
                   <div style="padding:4px 0 6px;font-size:11px;color:var(--secondary-text-color);font-style:italic;">
-                    暂未选择仓库
+                    ${t('noReposSelected')}
                   </div>
                 ` : html`
                   <div class="au-chips" style="padding-top:2px;">
@@ -1101,7 +1101,7 @@ class ConfigView extends LitElement {
               })()}
               <!-- Search -->
               <div style="padding:4px 0;">
-                <input type="text" class="search-input" placeholder="输入仓库名搜索添加..."
+                <input type="text" class="search-input" placeholder="${t('searchToAdd')}"
                   .value=${this._auFilter}
                   @input=${this._onAuFilterInput}
                   style="width:100%;box-sizing:border-box;padding:6px 8px;border:1px solid var(--divider-color);border-radius:6px;font-size:12px;background:var(--card-background-color);color:var(--primary-text-color);">
@@ -1109,15 +1109,15 @@ class ConfigView extends LitElement {
               <!-- Candidate list -->
               ${!this._installedLoaded ? html`
                 <div style="padding:12px;text-align:center;font-size:12px;color:var(--secondary-text-color);">
-                  正在加载已安装仓库...
+                  ${t('loadingRepos')}
                 </div>
               ` : this._installedRepos.length === 0 ? html`
                 <div style="padding:12px;text-align:center;font-size:12px;color:var(--secondary-text-color);">
-                  尚未安装任何仓库
+                  ${t('noInstalledRepos')}
                 </div>
               ` : this._dialogCandidates.length === 0 ? html`
                 <div style="padding:12px;text-align:center;font-size:12px;color:var(--secondary-text-color);">
-                  没有可添加的仓库（所有已安装仓库已在白名单中）
+                  ${t('allInWhitelist')}
                 </div>
               ` : html`
               <div class="scroll-list" style="max-height:240px;overflow-y:auto;">
@@ -1133,15 +1133,15 @@ class ConfigView extends LitElement {
               </div>
               ${this._dialogTotalPages > 1 ? html`
               <div style="display:flex;align-items:center;justify-content:center;gap:8px;padding:6px 0 0;font-size:12px;">
-                <button class="btn btn-xs" @click=${this._auPrevPage} ?disabled=${this._auPage <= 1}>‹ 上一页</button>
+                <button class="btn btn-xs" @click=${this._auPrevPage} ?disabled=${this._auPage <= 1}>${t('prevPage')}</button>
                 <span style="color:var(--secondary-text-color);">${this._auPage} / ${this._dialogTotalPages}</span>
-                <button class="btn btn-xs" @click=${this._auNextPage} ?disabled=${this._auPage >= this._dialogTotalPages}>下一页 ›</button>
+                <button class="btn btn-xs" @click=${this._auNextPage} ?disabled=${this._auPage >= this._dialogTotalPages}>${t('nextPage')}</button>
               </div>
               ` : ''}
               `}
               <!-- Summary + select all -->
               <div class="au-dialog-summary">
-                ${(this._auDialogWhitelist || []).length} / ${this._installedRepos.length} 已选
+                ${t('selectedCount', { n: (this._auDialogWhitelist || []).length, total: this._installedRepos.length })}
               </div>
               <div style="display:flex;gap:6px;padding:2px 0 4px;">
                 <button class="btn btn-xs" @click=${this._dialogAuSelectAll}>${t('selectAll')}</button>

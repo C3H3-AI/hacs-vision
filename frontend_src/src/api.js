@@ -287,6 +287,39 @@ class HACSEnhancedAPI {
       return null;
     }
   }
+
+  // ── Gitee ────────────────────────────────────────────
+
+  async giteeVerifyToken(token) {
+    return this.post('gitee/verify_token', { token });
+  }
+
+  async giteeUser() {
+    return this.get('gitee/user');
+  }
+
+  async giteeSearch(q, opts = {}) {
+    const params = new URLSearchParams({ q, ...opts });
+    return this.get(`gitee/search?${params}`);
+  }
+
+  async giteeListRepos(owner, opts = {}) {
+    const params = new URLSearchParams({ owner, ...opts });
+    return this.get(`gitee/repos?${params}`);
+  }
+
+  async giteeRepo(full_name) {
+    return this.get(`gitee/repo?full_name=${encodeURIComponent(full_name)}`);
+  }
+
+  async giteeReleases(full_name, opts = {}) {
+    const params = new URLSearchParams({ full_name, ...opts });
+    return this.get(`gitee/releases?${params}`);
+  }
+
+  async giteeAddRepo(full_name, category = 'integration') {
+    return this.post('gitee/add_repo', { full_name, category });
+  }
 }
 
 export const api = new HACSEnhancedAPI();

@@ -85,7 +85,7 @@ class AutoUpdateManager:
         if self._running or self._coalescing:
             _LOGGER.warning("Auto-update trigger: cycle already in progress, coalescing")
             self._pending_trigger = True
-            return {"success": True, "queued": True, "message": "更新已排队，将在当前周期完成后执行"}
+            return {"success": True, "queued": True, "message": "Update queued, will run after current cycle"}
 
         error = await self._ensure_operator_ready()
         if error:

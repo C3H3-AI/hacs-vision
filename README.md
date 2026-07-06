@@ -11,9 +11,9 @@
 [![English](https://img.shields.io/badge/lang-en-red.svg)](#)
 [![Deutsch](https://img.shields.io/badge/lang-de-green.svg)](#)
 
-> **当前版本**: v6.3.0 | **最低 HA 版本**: 2024.1.0
-> **Current version**: v6.3.0 | **Minimum HA**: 2024.1.0
-> **Aktuelle Version**: v6.3.0 | **Minimale HA-Version**: 2024.1.0
+> **当前版本**: v6.4.0 | **最低 HA 版本**: 2024.1.0
+> **Current version**: v6.4.0 | **Minimum HA**: 2024.1.0
+> **Aktuelle Version**: v6.4.0 | **Minimale HA-Version**: 2024.1.0
 
 > **⚠️ 前置条件 / Prerequisite / Voraussetzung**: 必须先安装并配置好 [HACS](https://hacs.xyz) / [HACS](https://hacs.xyz) must be installed and configured / [HACS](https://hacs.xyz) muss installiert und konfiguriert sein.
 
@@ -249,6 +249,14 @@ Konfigurieren Sie das Panel-Verhalten, prüfen Sie Versionsinformationen, starte
 ---
 
 ## 更新日志 / Changelog / Änderungsprotokoll
+
+### v6.4.0 (2026-07-06) — 搜索+添加仓库合一 / Search & Add Merged / Suche & Hinzufügen vereint
+- **New**: 🔍 **搜索+添加仓库合一** — 商店和仓库管理视图的搜索框直接支持添加仓库：输入 owner/repo 或 GitHub URL 显示内联添加栏，输入组织名自动加载仓库列表供批量勾选。移除独立的「+ 添加仓库」按钮和表单
+  — *Search & add merged: input owner/repo or GitHub URL → inline add bar; input org name → auto-load org repos for batch select. Removed standalone "+ Add Repo" button*
+- **New**: 🎯 **搜索能力增强** — 所有视图搜索统一支持 GitHub URL 解析、作者名搜索、组织名搜索
+  — *All views now support GitHub URL parsing, author search, and org name search*
+- **Fix**: ✅ **自定义仓库注册失败** — `add_custom_repository` 使用 `check=False` 避免 GitHub API 限流导致仓库注册失败
+  — *Fix custom repo registration: use check=False to bypass GitHub API rate limits*
 
 ### v6.3.0 (2026-07-05) — 三段式更新面板 / Three-Section Updates UI
 - **New**: 🗂️ **三段式折叠更新页** — 可更新（默认展开）、已更新（默认折叠，近 30 天记录）、已略过（默认折叠），分类清晰

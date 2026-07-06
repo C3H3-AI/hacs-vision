@@ -12,9 +12,11 @@ from .hacs_data import HACSData
 from .hacs_operator import HACSOperator
 from .backup import BackupManager
 from .dependency_checker import DependencyChecker
+from .response import _error, _ok, _not_found, _bad_request
 from .api_mixins.github_auth import GitHubAuthMixin
 from .api_mixins.github_actions import GitHubActionsMixin
 from .api_mixins.hacs_ops import HACSOpsMixin
+from .api_mixins.gitee import GiteeMixin
 from .hacs_history import HACSHubHistory
 
 _LOGGER = logging.getLogger(__name__)
@@ -42,7 +44,7 @@ class HACSEnhancedStaticView(HomeAssistantView):
         filepath = os.path.join(FRONTEND_DIR, filename)
         # Prevent path traversal
         if ".." in filepath or not os.path.realpath(filepath).startswith(os.path.realpath(FRONTEND_DIR)):
-            return web.json_response({"error": "invalid_path"}, status=400)
+            return _bad_request("invalid_path")
         try:
             content = await self.hass.async_add_executor_job(self._read_file, filepath)
             ctype = "application/javascript" if filename.endswith(".js") else "text/html" if filename.endswith(".html") else "text/plain"
@@ -58,7 +60,7 @@ class HACSEnhancedStaticView(HomeAssistantView):
                 resp.headers["Cache-Control"] = "public, max-age=3600"
             return resp
         except FileNotFoundError:
-            return web.json_response({"error": "file_not_found"}, status=404)
+            return _error("file_not_found", 404)
 
     def _read_file(self, path: str) -> str:
         """Synchronous file read."""
@@ -66,7 +68,7 @@ class HACSEnhancedStaticView(HomeAssistantView):
             return f.read()
 
 
-class HACSEnhancedAPI(GitHubAuthMixin, GitHubActionsMixin, HACSOpsMixin, HomeAssistantView):
+class HACSEnhancedAPI(GitHubAuthMixin, GitHubActionsMixin, HACSOpsMixin, GiteeMixin, HomeAssistantView):
     """HACS Vision REST API — data endpoints (requires auth)."""
 
     url = f"{API_BASE}/{{path:.*}}"
@@ -101,7 +103,7 @@ class HACSEnhancedAPI(GitHubAuthMixin, GitHubActionsMixin, HACSOpsMixin, HomeAss
     async def get(self, request, path: str = "") -> web.Response:
         """Handle GET requests."""
         if path.startswith("static/"):
-            return web.json_response({"error": "use_static_view"}, status=404)
+            return _error("use_static_view", 404)
 
         query = request.query
 
@@ -180,7 +182,19 @@ class HACSEnhancedAPI(GitHubAuthMixin, GitHubActionsMixin, HACSOpsMixin, HomeAss
         if path in ("github/issue-logs", "github/issue-logs/"):
             return await self._github_issue_preview(query)
 
-        return web.json_response({"error": "not_found"}, status=404)
+        # ── Gitee ──
+        if path in ("gitee/user", "gitee/user/"):
+            return await self._gitee_user()
+        if path in ("gitee/search", "gitee/search/"):
+            return await self._gitee_search(query)
+        if path.startswith("gitee/repos"):
+            return await self._gitee_list_repos(query)
+        if path.startswith("gitee/repo"):
+            return await self._gitee_repo(query)
+        if path.startswith("gitee/releases"):
+            return await self._gitee_releases(query)
+
+        return _not_found()
 
     async def _get_history(self) -> web.Response:
         history = HACSHubHistory(self.hass)
@@ -267,6 +281,12 @@ class HACSEnhancedAPI(GitHubAuthMixin, GitHubActionsMixin, HACSOpsMixin, HomeAss
         if path in ("github/oauth/poll", "github/oauth/poll/"):
             return await self._github_oauth_poll(body)
 
+        # ── Gitee ──
+        if path in ("gitee/verify_token", "gitee/verify_token/"):
+            return await self._gitee_verify_token(body)
+        if path in ("gitee/add_repo", "gitee/add_repo/"):
+            return await self._gitee_add_repo(body)
+
         # ── Config Flow proxy ──
         if path == "config_flow/start":
             return await self._config_flow_start(request, body)
@@ -285,7 +305,7 @@ class HACSEnhancedAPI(GitHubAuthMixin, GitHubActionsMixin, HACSOpsMixin, HomeAss
             flow_id = path.split("/")[-1]
             return await self._config_flow_subentry_step(request, flow_id, body)
 
-        return web.json_response({"error": "not_found"}, status=404)
+        return _not_found()
 
     # ── Config Flow proxy methods are inherited from HACSOpsMixin ──
 
@@ -297,7 +317,7 @@ class HACSEnhancedAPI(GitHubAuthMixin, GitHubActionsMixin, HACSOpsMixin, HomeAss
             try:
                 body = await request.json()
             except (json.JSONDecodeError, ValueError):
-                return web.json_response({"error": "invalid_json"}, status=400)
+                return _bad_request("invalid_json")
             return await self._remove_custom_repo(body)
         # Config flow cancellation
         if path.startswith("config_flow/flow/"):
@@ -307,7 +327,7 @@ class HACSEnhancedAPI(GitHubAuthMixin, GitHubActionsMixin, HACSOpsMixin, HomeAss
         if path.startswith("config_flow/subentry/flow/"):
             flow_id = path.split("/")[-1]
             return await self._config_flow_subentry_cancel(request, flow_id)
-        return web.json_response({"error": "not_found"}, status=404)
+        return _not_found()
 
 
 def _read_file_binary(path: str) -> bytes:

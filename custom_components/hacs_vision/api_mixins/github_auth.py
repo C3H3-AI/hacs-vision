@@ -8,6 +8,8 @@ import logging
 import aiohttp
 from aiohttp import web
 
+from ..response import _error, _ok, _not_found, _bad_request, _unauthorized, _server_error, _timeout
+
 _LOGGER = logging.getLogger(__name__)
 
 
@@ -66,7 +68,7 @@ class GitHubAuthMixin:
                 except json.JSONDecodeError:
                     return {"status": resp.status, "text": text}
         except Exception as e:
-            return {"error": "操作失败", "status": 0}
+            return {"error": "operation_failed", "status": 0}
 
     # ── Token verification ─────────────────────────────
 
@@ -84,7 +86,7 @@ class GitHubAuthMixin:
             async with session.get("https://api.github.com/user", headers=headers,
                                    timeout=aiohttp.ClientTimeout(total=10)) as resp:
                 if resp.status != 200:
-                    return web.json_response({"error": "invalid_token", "status": resp.status}, status=400)
+                    return _bad_request("invalid_token")
                 user = await resp.json()
                 login = user.get("login", "?")
                 # Check rate limit
@@ -93,7 +95,7 @@ class GitHubAuthMixin:
                     rl = await rl_resp.json()
                     remaining = rl.get("rate", {}).get("remaining", 0)
         except Exception as e:
-            return web.json_response({"error": "操作失败"}, status=500)
+            return _server_error()
         # Store token to Vision's own storage
         await self.data.write_storage("github_token", {"token": token, "user": login})
         return web.json_response({"ok": True, "user": login, "avatar_url": user.get("avatar_url"), "rate_limit_remaining": remaining})
@@ -102,24 +104,24 @@ class GitHubAuthMixin:
         """Get current GitHub user info from Vision's stored token."""
         token = await self._get_active_github_token()
         if not token:
-            return web.json_response({"error": "not_authenticated"}, status=401)
+            return _unauthorized()
         headers = {"Authorization": f"Bearer {token}", "Accept": "application/vnd.github.v3+json"}
         try:
             session = await self._get_session()
             async with session.get("https://api.github.com/user", headers=headers,
                                    timeout=aiohttp.ClientTimeout(total=10)) as resp:
                 if resp.status != 200:
-                    return web.json_response({"error": "token_invalid"}, status=401)
+                    return _unauthorized("token_invalid")
                 user = await resp.json()
         except Exception as e:
-            return web.json_response({"error": "操作失败"}, status=500)
+            return _server_error()
         return web.json_response({"login": user.get("login"), "avatar_url": user.get("avatar_url")})
 
     async def _github_import_token(self) -> web.Response:
         """Import GitHub token from HACS and save to Vision's own storage."""
         token = self._get_hacs_token()
         if not token:
-            return web.json_response({"error": "hacs_no_token"}, status=404)
+            return _not_found("hacs_no_token")
         # Verify the token before saving
         headers = {"Authorization": f"Bearer {token}", "Accept": "application/vnd.github.v3+json"}
         try:
@@ -127,13 +129,13 @@ class GitHubAuthMixin:
             async with session.get("https://api.github.com/user", headers=headers,
                                    timeout=aiohttp.ClientTimeout(total=10)) as resp:
                 if resp.status != 200:
-                    return web.json_response({"error": "token_invalid", "status": resp.status}, status=400)
+                    return _bad_request("token_invalid")
                 user = await resp.json()
                 login = user.get("login", "?")
             await self.data.write_storage("github_token", {"token": token, "user": login})
-            return web.json_response({"ok": True, "user": login, "avatar_url": user.get("avatar_url", "")})
+            return _ok(user=login, avatar_url=user.get("avatar_url", ""))
         except Exception as e:
-            return web.json_response({"error": "操作失败"}, status=500)
+            return _server_error()
 
     # ── OAuth device flow ──────────────────────────────
 
@@ -153,7 +155,7 @@ class GitHubAuthMixin:
                     data = await resp.json()
                     _LOGGER.debug("GitHub device code response: %s (status=%d)", data, resp.status)
                     if "error" in data:
-                        return web.json_response({"error": data.get("error_description", data["error"])}, status=400)
+                        return _bad_request(data.get("error_description", data["error"]))
                     # Store device_code for poll
                     self._oauth_device_code = data.get("device_code", "")
                     return web.json_response({
@@ -164,16 +166,16 @@ class GitHubAuthMixin:
                     })
         except asyncio.TimeoutError:
             _LOGGER.error("OAuth start timeout after 15s")
-            return web.json_response({"error": "连接 GitHub 超时，请稍后重试"}, status=504)
+            return _timeout("github_connection_timeout")
         except Exception as e:
             _LOGGER.error("OAuth start error: %s", e, exc_info=True)
-            return web.json_response({"error": "操作失败"}, status=500)
+            return _server_error()
 
     async def _github_oauth_poll(self, body: dict) -> web.Response:
         """Poll for OAuth device flow activation using bare aiohttp."""
         device_code = body.get("device_code", "")
         if not device_code:
-            return web.json_response({"error": "device_code_required"}, status=400)
+            return _bad_request("device_code_required")
         try:
             from custom_components.hacs.const import CLIENT_ID
 
@@ -197,7 +199,7 @@ class GitHubAuthMixin:
             if err == "slow_down":
                 return web.json_response({"status": "pending", "slow_down": True})
             if err:
-                return web.json_response({"error": data.get("error_description", err)}, status=400)
+                return _bad_request(data.get("error_description", err))
 
             token = data["access_token"]
 
@@ -221,10 +223,10 @@ class GitHubAuthMixin:
             })
         except asyncio.TimeoutError:
             _LOGGER.error("OAuth poll timeout")
-            return web.json_response({"error": "连接 GitHub 超时，请稍后重试"}, status=504)
+            return _timeout("github_connection_timeout")
         except Exception as e:
             err_str = str(e)
             if "pending" in err_str.lower() or "authorization_pending" in err_str.lower():
                 return web.json_response({"status": "pending"})
             _LOGGER.error("OAuth poll error: %s", e, exc_info=True)
-            return web.json_response({"error": "操作失败"}, status=500)
+            return _server_error()

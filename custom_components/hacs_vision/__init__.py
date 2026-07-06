@@ -312,15 +312,15 @@ def _register_services(hass: HomeAssistant, operator) -> None:
             by_type = {}
             for r in refs:
                 by_type.setdefault(r["source_type"], []).append(r["source_id"])
-            lines = [f"🔍 {entity_id} 的引用结果：", f"共 {len(refs)} 处引用，涉及 {len({(r['source_type'], r['source_id']) for r in refs})} 个来源\n"]
+            lines = [f"Entity reference results for {entity_id}:", f"Found {len(refs)} references across {len({(r['source_type'], r['source_id']) for r in refs})} sources\n"]
             for stype, sids in by_type.items():
                 unique_ids = list(set(sids))
-                lines.append(f"  **{stype}** ({len(unique_ids)} 个)：{', '.join(unique_ids[:5])}")
+                lines.append(f"  **{stype}** ({len(unique_ids)}): {', '.join(unique_ids[:5])}")
                 if len(unique_ids) > 5:
-                    lines[-1] += f" …及 {len(unique_ids) - 5} 个其他"
+                    lines[-1] += f" ...and {len(unique_ids) - 5} more"
             await hass.services.async_call(
                 "persistent_notification", "create",
-                {"title": f"HACS Vision - 实体引用查找", "message": "\n".join(lines)},
+                {"title": f"HACS Vision - Entity Reference Finder", "message": "\n".join(lines)},
                 blocking=False,
             )
         except Exception as e:
@@ -343,28 +343,28 @@ def _register_services(hass: HomeAssistant, operator) -> None:
             # Send result as persistent notification
             if preview:
                 msg = (
-                    f"📋 **预览**：替换 {old_id} → {new_id}\n"
-                    f"共 {result['total_refs']} 处引用，{result['affected_count']} 个来源受影响\n\n"
-                    f"发送 `preview: false` 以执行替换"
+                    f"**Preview**: Replace {old_id} → {new_id}\n"
+                    f"Found {result['total_refs']} references, {result['affected_count']} sources affected\n\n"
+                    f"Send `preview: false` to execute replacement"
                 )
             else:
                 updated = result.get("updated", {})
                 total = result.get("total_updated", 0)
                 reload = result.get("reload", {})
                 msg = (
-                    f"✅ **已执行替换** {old_id} → {new_id}\n"
-                    f"共更新 {total} 处\n"
-                    f"自动化: {len(updated.get('automations', []))} 个\n"
-                    f"脚本: {len(updated.get('scripts', []))} 个\n"
-                    f"场景: {len(updated.get('scenes', []))} 个\n"
-                    f"仪表盘: {len(updated.get('dashboards', []))} 个\n"
-                    f"重载状态: 自动化{'✅' if reload.get('automations') else '❌'} "
-                    f"脚本{'✅' if reload.get('scripts') else '❌'} "
-                    f"场景{'✅' if reload.get('scenes') else '❌'}"
+                    f"**Replacement executed**: {old_id} → {new_id}\n"
+                    f"Updated {total} references\n"
+                    f"Automations: {len(updated.get('automations', []))}\n"
+                    f"Scripts: {len(updated.get('scripts', []))}\n"
+                    f"Scenes: {len(updated.get('scenes', []))}\n"
+                    f"Dashboards: {len(updated.get('dashboards', []))}\n"
+                    f"Reload: automations{' OK' if reload.get('automations') else ' FAIL'} "
+                    f"scripts{' OK' if reload.get('scripts') else ' FAIL'} "
+                    f"scenes{' OK' if reload.get('scenes') else ' FAIL'}"
                 )
             await hass.services.async_call(
                 "persistent_notification", "create",
-                {"title": f"HACS Vision - 实体引用替换", "message": msg},
+                {"title": f"HACS Vision - Entity Reference Replace", "message": msg},
                 blocking=False,
             )
         except Exception as e:

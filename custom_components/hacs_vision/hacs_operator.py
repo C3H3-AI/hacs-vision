@@ -272,9 +272,9 @@ class HACSOperator:
                 try:
                     from_version = repo.data.installed_version or ""
                     repo_key = repo.data.full_name or rid
-                    self.set_install_progress(repo_key, 5, "starting", "准备下载...")
+                    self.set_install_progress(repo_key, 5, "starting", "Preparing download...")
                     await repo.async_install(version=repo.display_available_version)
-                    self.set_install_progress(repo_key, 100, "complete", "更新完成")
+                    self.set_install_progress(repo_key, 100, "complete", "Update complete")
                     results["success"].append(rid)
                     to_version = repo.display_installed_version or ""
                     if from_version and to_version and from_version != to_version:
@@ -722,15 +722,15 @@ class HACSOperator:
                     return {"success": False, "error": "not found"}
                 from_version = repo.data.installed_version or ""
                 repo_key = repo.data.full_name or repo_id_or_name
-                self.set_install_progress(repo_key, 5, "starting", "准备下载...")
+                self.set_install_progress(repo_key, 5, "starting", "Preparing download...")
                 await repo.async_install(version=version or repo.display_available_version)
-                self.set_install_progress(repo_key, 75, "installing", "正在安装...")
+                self.set_install_progress(repo_key, 75, "installing", "Installing...")
                 self.invalidate_index()
                 self._cleanup_lock(repo_id_or_name)
                 to_version = version or repo.display_installed_version or ""
                 if from_version and to_version and from_version != to_version:
                     await self._history.add_record(repo.data.full_name, from_version, to_version)
-                self.set_install_progress(repo_key, 100, "complete", "更新完成")
+                self.set_install_progress(repo_key, 100, "complete", "Update complete")
                 return {"success": True, "repository": repo.data.full_name, "version": version or repo.display_installed_version}
             except Exception as e:
                 _LOGGER.error("Install version failed: %s", e, exc_info=True)
@@ -829,6 +829,7 @@ class HACSOperator:
                     await self._hacs.async_register_repository(
                         repository_full_name=full_name,
                         category=category,
+                        check=False,
                     )
                 except Exception as e:
                     _LOGGER.warning("HACS register failed after add: %s", e, exc_info=True)
