@@ -433,11 +433,21 @@ class HACSOperator:
         # (handles restart race condition where HACS hasn't loaded custom repos yet)
         await self._ensure_custom_repos_registered()
 
-        # Pre-load custom repo names from HACS config for is_custom detection
+        # Pre-load custom repo names from HACS config + our backup storage for is_custom detection
+        # HACS 2.0 may not populate custom_repositories in hacs.hacs, so our backup
+        # (hacs_vision_custom_repos.json) ensures reliable detection across restarts.
         custom_repo_names = set()
         try:
             config = await self._data.get_config()
             for r in config.get("custom_repositories", []):
+                repo_name = r.get("repository", "")
+                if repo_name:
+                    custom_repo_names.add(repo_name.lower())
+        except Exception:
+            pass
+        try:
+            our_repos = await self._data.get_custom_repos_list()
+            for r in our_repos:
                 repo_name = r.get("repository", "")
                 if repo_name:
                     custom_repo_names.add(repo_name.lower())
@@ -769,6 +779,12 @@ class HACSOperator:
             if not ok:
                 return {"success": False, "error": "write_failed"}
 
+        # Also persist to our backup storage (HACS 2.0 may strip custom_repositories)
+        our_repos = await self._data.get_custom_repos_list()
+        if not any(r.get("repository") == full_name for r in our_repos):
+            our_repos.append({"repository": full_name, "category": category})
+            await self._data.set_custom_repos_list(our_repos)
+
         self.invalidate_index()
 
         if self.available:
@@ -809,6 +825,12 @@ class HACSOperator:
         """Remove a custom repository from HACS."""
         if not self.available:
             return {"success": False, "error": "HACS not available"}
+
+        # Clean up our backup storage
+        our_repos = await self._data.get_custom_repos_list()
+        filtered = [r for r in our_repos if r.get("repository", "").lower() != full_name.lower()]
+        if len(filtered) < len(our_repos):
+            await self._data.set_custom_repos_list(filtered)
 
         try:
             repository = self._hacs.repositories.get_by_full_name(full_name)
