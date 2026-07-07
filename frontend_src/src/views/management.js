@@ -605,8 +605,18 @@ export class ManagementView extends LitElement {
   }
 
   async _quickAddFromSearch() {
-    const fullName = this._parseRepoUrl(this._customRepoSearch);
-    if (!fullName) { showToast(t('invalidRepoUrl'), 'error'); return; }
+    let fullName = this._parseRepoUrl(this._customRepoSearch);
+    // If search text doesn't match owner/repo format, try to find a match in custom repos or use the text as-is
+    if (!fullName && this._customRepoSearch) {
+      // Check if it matches a repo in the list
+      const match = this.customRepos.find(r => {
+        const name = (r.full_name || r.repository || '').toLowerCase();
+        return name.includes(this._customRepoSearch.toLowerCase());
+      });
+      if (match) fullName = match.full_name || match.repository;
+      else fullName = this._customRepoSearch.trim(); // Use as-is
+    }
+    if (!fullName || !fullName.includes('/')) { showToast(t('invalidRepoUrl'), 'error'); return; }
     const exists = this.customRepos.some(r => (r.full_name || r.repository) === fullName);
     if (exists) { showToast(`${fullName} ${t('alreadyExists')}`, 'error'); return; }
     this._addFromSearchInstalling = true;

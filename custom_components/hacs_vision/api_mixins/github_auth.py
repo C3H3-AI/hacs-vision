@@ -217,7 +217,6 @@ class GitHubAuthMixin:
 
             return web.json_response({
                 "ok": True,
-                "token": token,
                 "user": login,
                 "avatar_url": avatar,
             })

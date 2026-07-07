@@ -566,7 +566,6 @@ class RepoCard extends LitElement {
           <div class="right-tags">
             ${r.config_entry_id ? html`<span class="tag configured">${t('badgeConfigured')}</span>` : ''}
             ${r.load_failed ? html`<span class="tag load-failed">${t('badgeLoadFailed')}</span>` : ''}
-            ${r.source === 'gitee' ? html`<span class="tag" style="background:#c71d23;color:#fff;font-size:9px;">Gitee</span>` : ''}
             ${r.is_custom && this.viewMode !== 'management' ? html`<span class="tag custom-tag">${t('customBadge')}</span>` : ''}
             ${this.renamedFrom ? html`<span class="tag rename-tag"><svg class="mini-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:10px;height:10px;"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg> ${this.renamedFrom}</span>` : ''}
           </div>

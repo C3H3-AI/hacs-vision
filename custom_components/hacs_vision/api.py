@@ -16,7 +16,6 @@ from .response import _error, _ok, _not_found, _bad_request
 from .api_mixins.github_auth import GitHubAuthMixin
 from .api_mixins.github_actions import GitHubActionsMixin
 from .api_mixins.hacs_ops import HACSOpsMixin
-from .api_mixins.gitee import GiteeMixin
 from .hacs_history import HACSHubHistory
 
 _LOGGER = logging.getLogger(__name__)
@@ -68,7 +67,7 @@ class HACSEnhancedStaticView(HomeAssistantView):
             return f.read()
 
 
-class HACSEnhancedAPI(GitHubAuthMixin, GitHubActionsMixin, HACSOpsMixin, GiteeMixin, HomeAssistantView):
+class HACSEnhancedAPI(GitHubAuthMixin, GitHubActionsMixin, HACSOpsMixin, HomeAssistantView):
     """HACS Vision REST API — data endpoints (requires auth)."""
 
     url = f"{API_BASE}/{{path:.*}}"
@@ -182,18 +181,6 @@ class HACSEnhancedAPI(GitHubAuthMixin, GitHubActionsMixin, HACSOpsMixin, GiteeMi
         if path in ("github/issue-logs", "github/issue-logs/"):
             return await self._github_issue_preview(query)
 
-        # ── Gitee ──
-        if path in ("gitee/user", "gitee/user/"):
-            return await self._gitee_user()
-        if path in ("gitee/search", "gitee/search/"):
-            return await self._gitee_search(query)
-        if path.startswith("gitee/repos"):
-            return await self._gitee_list_repos(query)
-        if path.startswith("gitee/repo"):
-            return await self._gitee_repo(query)
-        if path.startswith("gitee/releases"):
-            return await self._gitee_releases(query)
-
         return _not_found()
 
     async def _get_history(self) -> web.Response:
@@ -280,12 +267,6 @@ class HACSEnhancedAPI(GitHubAuthMixin, GitHubActionsMixin, HACSOpsMixin, GiteeMi
             return await self._github_oauth_start(body)
         if path in ("github/oauth/poll", "github/oauth/poll/"):
             return await self._github_oauth_poll(body)
-
-        # ── Gitee ──
-        if path in ("gitee/verify_token", "gitee/verify_token/"):
-            return await self._gitee_verify_token(body)
-        if path in ("gitee/add_repo", "gitee/add_repo/"):
-            return await self._gitee_add_repo(body)
 
         # ── Config Flow proxy ──
         if path == "config_flow/start":

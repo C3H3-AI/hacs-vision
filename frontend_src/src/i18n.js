@@ -783,21 +783,6 @@ const T = {
   previewLoading: { zh: '正在加载插件...', en: 'Loading plugin...', de: 'Plugin wird geladen...' },
   previewNoRepo: { zh: '未指定仓库', en: 'No repository specified', de: 'Kein Repository angegeben' },
   previewNoJs: { zh: '未找到插件 JS 文件', en: 'Plugin JS file not found', de: 'Plugin-JS-Datei nicht gefunden' },
-
-  // Gitee
-  giteeLogin: { zh: 'Gitee 登录', en: 'Gitee Login', de: 'Gitee Anmeldung' },
-  giteeLoginDesc: { zh: '输入 Gitee Access Token 登录', en: 'Enter Gitee Access Token to login', de: 'Gitee Access Token eingeben' },
-  giteeTokenPlaceholder: { zh: '输入 Gitee Access Token', en: 'Enter Gitee Access Token', de: 'Gitee Access Token eingeben' },
-  giteeLoginSuccess: { zh: 'Gitee 登录成功', en: 'Gitee login successful', de: 'Gitee-Anmeldung erfolgreich' },
-  giteeLoginFailed: { zh: 'Gitee 登录失败', en: 'Gitee login failed', de: 'Gitee-Anmeldung fehlgeschlagen' },
-  giteeLogout: { zh: '退出 Gitee', en: 'Logout Gitee', de: 'Gitee abmelden' },
-  giteeSearch: { zh: '搜索 Gitee 仓库', en: 'Search Gitee repos', de: 'Gitee-Repositorys suchen' },
-  giteeSearchPlaceholder: { zh: '搜索 Gitee 集成...', en: 'Search Gitee integrations...', de: 'Gitee-Integrationen suchen...' },
-  giteeSource: { zh: 'Gitee', en: 'Gitee', de: 'Gitee' },
-  giteeAddRepo: { zh: '添加到 HACS', en: 'Add to HACS', de: 'Zu HACS hinzufügen' },
-  giteeAddSuccess: { zh: '已添加到 HACS 自定义仓库', en: 'Added to HACS custom repos', de: 'Zu HACS benutzerdefinierten Repositorys hinzugefügt' },
-  sourceAll: { zh: '全部来源', en: 'All Sources', de: 'Alle Quellen' },
-  sourceGithub: { zh: 'GitHub', en: 'GitHub', de: 'GitHub' },
 };
 
 /* ── Translation Lookup ─────────────────────────────────── */

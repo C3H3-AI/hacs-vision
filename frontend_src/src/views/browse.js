@@ -46,8 +46,6 @@ class BrowseView extends LitElement {
     presetFilter: { type: String },
     presetTag: { type: String },
     configEntries: { type: Object },
-    _source: { type: String, state: true },  // 'all' | 'github' | 'gitee'
-    _giteeRepos: { type: Array, state: true },
     pendingRestart: { type: Number },
     _selectedRepos: { type: Array, state: true },
     _tagFilters: { type: Array, state: true },
@@ -90,8 +88,6 @@ class BrowseView extends LitElement {
     this._addFromSearchInstalling = false;
     this._collapsedGroups = {};
     this._filterExpanded = false;
-    this._source = 'all';
-    this._giteeRepos = [];
     this._starredMap = {};
     this._orgRepos = [];
     this._orgFilter = '';
@@ -635,15 +631,8 @@ class BrowseView extends LitElement {
     const repoId = repo.id || repo.full_name;
     this._installingIds = { ...this._installingIds, [repoId]: true };
     try {
-      // Gitee repos need different install path
-      if (repo.source === 'gitee') {
-        const result = await api.giteeAddRepo(repo.full_name, repo.category || 'integration');
-        if (result?.error) throw new Error(result.error);
-        showToast(`${t('giteeAddSuccess')}: ${repo.full_name}`, 'success');
-      } else {
-        await api.install(repoId, repo.category);
-        showToast(`${t('installComplete')}: ${repo.full_name || repo.name}`, 'success');
-      }
+      await api.install(repoId, repo.category);
+      showToast(`${t('installComplete')}: ${repo.full_name || repo.name}`, 'success');
       this.dispatchEvent(new CustomEvent('refresh-stats', { bubbles: true, composed: true }));
       this._load();
       this._showPostInstallPrompt(repo);
@@ -878,31 +867,6 @@ class BrowseView extends LitElement {
     this._load();
   }
 
-  async _searchGitee() {
-    this.loading = true;
-    this.repos = [];
-    this.total = 0;
-    try {
-      const q = this.search || 'home-assistant';
-      const result = await api.giteeSearch(q, {
-        page: this.page,
-        per_page: this.limit,
-        category: this.category || '',
-      });
-      this.repos = (result.repos || []).map(r => ({
-        ...r,
-        source: 'gitee',
-        _giteeId: r.id,
-      }));
-      this.total = result.total || 0;
-    } catch (e) {
-      console.error('Gitee search error:', e);
-      this.repos = [];
-      this.total = 0;
-    }
-    this.loading = false;
-  }
-
   _onSortColumn(key) {
     if (this.sort === key) {
       this.sortDir = this.sortDir === 'desc' ? 'asc' : 'desc';
@@ -936,8 +900,16 @@ class BrowseView extends LitElement {
   }
 
   async _quickAddFromSearch() {
-    const fullName = this._parseRepoUrl(this.search);
-    if (!fullName) { showToast(t('invalidRepoUrl'), 'error'); return; }
+    let fullName = this._parseRepoUrl(this.search);
+    // If search text doesn't match owner/repo format, use first org repo
+    if (!fullName && this._orgRepos && this._orgRepos.length > 0) {
+      fullName = this._orgRepos[0].full_name;
+    }
+    // Or use first HACS memory result
+    if (!fullName && this.repos && this.repos.length > 0) {
+      fullName = this.repos[0].full_name;
+    }
+    if (!fullName || !fullName.includes('/')) { showToast(t('invalidRepoUrl'), 'error'); return; }
     this._addFromSearchInstalling = true;
     try {
       const result = await api.addCustomRepo(fullName, this._addFromSearchCategory);
@@ -996,6 +968,14 @@ class BrowseView extends LitElement {
     this._orgLoading = false;
   }
 
+  _openOrgRepoDetail(repo) {
+    // Dispatch detail event to open the detail modal for org repos
+    this.dispatchEvent(new CustomEvent('detail', {
+      detail: { repo: { ...repo, source: 'github', custom: true } },
+      bubbles: true, composed: true
+    }));
+  }
+
   _toggleBrowseOrgRepo(fullName) {
     if (this._selectedOrgRepos[fullName]) {
       const updated = { ...this._selectedOrgRepos };
@@ -1022,13 +1002,21 @@ class BrowseView extends LitElement {
     if (selectedNames.length === 0) return;
     this._orgSyncing = true;
     try {
-      const result = await api.syncStarred(selectedNames);
-      const ok = result?.added || result?.success?.length || 0;
-      const fail = result?.failed?.length || 0;
-      this._orgSyncResult = fail ? `${t('addedToCustomList')} (${ok}), ${fail} ${t('failedSuffix')}` : `${t('addedToCustomList')} (${ok})`;
+      const selectedItems = selectedNames.map(name => ({ full_name: name, category: "integration" }));
+      const result = await api.syncStarred(selectedItems);
+      const results = result?.results || [];
+      const ok = results.filter(r => r.success).length;
+      const fail = results.filter(r => !r.success).length;
+      const failPart = fail ? t('failPartSuffix', { fail }) : '';
+      this._orgSyncResult = t('syncDoneResult', { ok, failPart });
       this._orgSyncFailed = !!fail;
+      if (ok > 0) {
+        showToast(t('addedToCustomList') + ` (${ok})`, 'success');
+        this._load();
+        this.dispatchEvent(new CustomEvent('refresh-stats', { bubbles: true, composed: true }));
+      }
     } catch(e) {
-      this._orgSyncResult = `${t('loadFailedSimple')}: ${e.message}`;
+      this._orgSyncResult = `${t('addFailed')}: ${e.message}`;
       this._orgSyncFailed = true;
     }
     this._orgSyncing = false;
@@ -1393,7 +1381,7 @@ class BrowseView extends LitElement {
           ${this._orgSyncResult ? html`<div style="font-size:11px;padding:4px 14px 8px;color:${this._orgSyncFailed ? '#f44336' : 'var(--primary-text-color)'};">${this._orgSyncResult}</div>` : ''}
           <div style="max-height:200px;overflow-y:auto;border-top:1px solid var(--divider-color);">
             ${this._browseFilteredSortedOrgRepos.map(r => html`
-              <div style="display:flex;align-items:center;gap:8px;padding:6px 14px;border-bottom:1px solid var(--divider-color);font-size:12px;cursor:pointer;transition:background 0.1s;color:var(--primary-text-color);" @click=${() => this._toggleBrowseOrgRepo(r.full_name)}>
+              <div style="display:flex;align-items:center;gap:8px;padding:6px 14px;border-bottom:1px solid var(--divider-color);font-size:12px;cursor:pointer;transition:background 0.1s;color:var(--primary-text-color);" @click=${() => this._openOrgRepoDetail(r)}>
                 <input type="checkbox" .checked=${!!this._selectedOrgRepos[r.full_name]}
                   @click=${(e) => { e.stopPropagation(); this._toggleBrowseOrgRepo(r.full_name); }}
                   style="width:14px;height:14px;cursor:pointer;accent-color:var(--primary-color);flex-shrink:0;">
@@ -1432,17 +1420,6 @@ class BrowseView extends LitElement {
           </button>
           <button class="filter-chip ${this._tagFilters.includes('custom') ? 'active' : ''}" @click=${() => this._onTagFilter('custom')}>
             ${t('tagCustom')}
-          </button>
-          <span class="fs-divider"></span>
-          <span class="fs-label">${t('sourceAll')}</span>
-          <button class="filter-chip ${this._source === 'all' ? 'active' : ''}" @click=${() => { this._source = 'all'; this.page = 1; this._load(); }}>
-            ${t('sourceAll')}
-          </button>
-          <button class="filter-chip ${this._source === 'github' ? 'active' : ''}" @click=${() => { this._source = 'github'; this.page = 1; this._load(); }}>
-            GitHub
-          </button>
-          <button class="filter-chip ${this._source === 'gitee' ? 'active' : ''}" @click=${() => { this._source = 'gitee'; this.page = 1; this._searchGitee(); }}>
-            Gitee
           </button>
           <span class="fs-divider"></span>
           <span class="fs-label">${t('filterType')}</span>

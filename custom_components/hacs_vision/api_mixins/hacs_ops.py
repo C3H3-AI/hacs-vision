@@ -13,6 +13,19 @@ from ..const import VERSION
 from ..entity_ref_finder import EntityRefFinder
 from ..response import _error, _ok, _not_found, _bad_request, _unauthorized, _rate_limited, _server_error, _upstream_error
 
+
+def _int_param(val, default: int, lo: int | None = None, hi: int | None = None) -> int:
+    """Safely convert a query parameter to int with bounds."""
+    try:
+        v = int(val)
+    except (TypeError, ValueError):
+        return default
+    if lo is not None and v < lo:
+        return lo
+    if hi is not None and v > hi:
+        return hi
+    return v
+
 _LOGGER = logging.getLogger(__name__)
 
 # Server-side caches (shared state for README, download counts, star counts)
@@ -250,8 +263,8 @@ class HACSOpsMixin:
         tag = query.get("tag", "")
         sort = query.get("sort", "stars")
         sort_dir = query.get("sortDir", "desc")
-        page = int(query.get("page", 1))
-        limit = min(int(query.get("limit", 50)), 200)
+        page = _int_param(query.get("page", 1), 1, lo=1)
+        limit = _int_param(query.get("limit", 50), 50, lo=1, hi=200)
 
         if search:
             repos = [
@@ -776,8 +789,18 @@ class HACSOpsMixin:
             _LOGGER.error("_get_skipped_versions error: %s", e, exc_info=True)
         return web.json_response({"skipped": skipped})
 
+    # Allowed config keys to prevent arbitrary overwrite
+    _ALLOWED_CONFIG_KEYS = {
+        "custom_repositories", "ignored_repositories", "archived_repositories",
+        "renamed_repositories",
+    }
+
     async def _update_config(self, body: dict) -> web.Response:
-        result = await self.data.update_config(body)
+        # Only allow whitelisted keys to prevent config injection
+        filtered = {k: v for k, v in body.items() if k in self._ALLOWED_CONFIG_KEYS}
+        if not filtered:
+            return _bad_request("no allowed keys in body")
+        result = await self.data.update_config(filtered)
         return web.json_response({"success": result})
 
     async def _add_custom_repo(self, body: dict) -> web.Response:
@@ -938,7 +961,16 @@ class HACSOpsMixin:
         settings = await self.data.get_settings()
         return web.json_response(settings)
 
+    # Allowed settings keys to prevent injection
+    _ALLOWED_SETTINGS_KEYS = {
+        "hide_hacs_panel", "default_view", "refresh_interval",
+        "auto_update_enabled", "auto_update_repos", "auto_update_interval",
+        "auto_update_notify", "auto_update_restart_time", "language",
+    }
+
     async def _update_settings(self, body: dict) -> web.Response:
+        # Only allow whitelisted keys
+        filtered = {k: v for k, v in body.items() if k in self._ALLOWED_SETTINGS_KEYS}
         if "hide_hacs_panel" in body:
             hide = body["hide_hacs_panel"]
             try:
@@ -971,7 +1003,7 @@ class HACSOpsMixin:
         # from browse.js/updates.js (e.g. {auto_update_repos: [...]}) must not
         # discard unrelated settings like hide_hacs_panel
         existing = await self.data.get_settings()
-        merged = {**existing, **body}
+        merged = {**existing, **filtered}
         ok = await self.data.set_settings(merged)
         return web.json_response({"success": ok})
 
@@ -1063,7 +1095,7 @@ class HACSOpsMixin:
             return _server_error()
 
     async def _get_config_entries(self) -> web.Response:
-        mapping = await self.data.get_config_entries_map()
+        mapping = await self.data.get_config_entries_map(force_refresh=True)
         return web.json_response({"entries": mapping})
 
     async def _get_device_counts(self, domain: str | None = None) -> web.Response:
@@ -1121,6 +1153,9 @@ class HACSOpsMixin:
         import re
         if not re.match(r'^[a-zA-Z0-9_-]+$', domain):
             return _bad_request("invalid_domain")
+        # Sanitize lang to prevent path traversal
+        if lang and not re.match(r'^[a-z]{2}(-[a-zA-Z]{2,10})?$', lang):
+            lang = "en"
         safe_domain = domain
         lang_files = []
         if lang and lang != "en":

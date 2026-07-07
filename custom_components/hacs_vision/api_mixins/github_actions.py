@@ -246,8 +246,12 @@ class GitHubActionsMixin:
             return _bad_request("no_repos")
         results = []
         for item in selected:
-            full_name = item.get("full_name", "")
-            category = item.get("category", "integration")
+            if isinstance(item, str):
+                full_name = item
+                category = "integration"
+            else:
+                full_name = item.get("full_name", "")
+                category = item.get("category", "integration")
             if not full_name or "/" not in full_name:
                 results.append({"full_name": full_name, "success": False, "error": "invalid_name"})
                 continue

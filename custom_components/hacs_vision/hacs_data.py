@@ -474,6 +474,23 @@ class HACSData:
         self._cache_ready = False
         self._config_cache = None
 
+    # ===== Custom Repositories (our own backup for HACS 2.0 compat) =====
+
+    async def get_custom_repos_list(self) -> list[dict]:
+        """Get custom repositories from our own backup storage.
+        
+        HACS 2.0 may strip custom_repositories from hacs.hacs, so we
+        maintain our own copy to ensure persistence across restarts.
+        """
+        data = await self.read_storage("custom_repos")
+        if not data:
+            return []
+        return data.get("data", [])
+
+    async def set_custom_repos_list(self, repos: list[dict]) -> bool:
+        """Save custom repositories to our own backup storage."""
+        return await self.write_storage("custom_repos", {"data": repos})
+
     async def send_persistent_notification(self, title: str, message: str, notification_id: str | None = None) -> None:
         """Send a persistent notification to HA.
 
