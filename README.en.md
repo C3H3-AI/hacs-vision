@@ -64,7 +64,9 @@
 
 ## Installation
 
-### Via HACS (Recommended)
+### Via HACS Custom Repository (Recommended)
+
+> ⚠️ **HACS Vision is NOT in the default HACS store** and cannot be installed by searching the store. Add this repo via "Custom repositories" using the URL below.
 
 1. Ensure [HACS](https://hacs.xyz) is installed
 2. Go to **HACS → Integrations → Custom repositories** (top-right menu)

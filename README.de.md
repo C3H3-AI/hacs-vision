@@ -64,7 +64,9 @@
 
 ## Installation
 
-### Über HACS installieren (Empfohlen)
+### Über HACS-Benutzerrepository installieren (Empfohlen)
+
+> ⚠️ **HACS Vision ist NICHT im standardmäßigen HACS-Store enthalten** und kann nicht über die Storesuche installiert werden. Fügen Sie dieses Repository über „Benutzerdefinierte Repositorys“ mit der unten stehenden URL hinzu.
 
 1. Stellen Sie sicher, dass [HACS](https://hacs.xyz) installiert ist
 2. Gehen Sie zu **HACS → Integrationen → Benutzerdefinierte Repositorys** (Menü oben rechts)
