@@ -1,16 +1,16 @@
 {
-  "domain": "hacs_vision",
-  "name": "HACS Vision",
-  "version": "6.4.1",
-  "requirements": [],
-  "dependencies": [
-    "hacs"
-  ],
   "codeowners": [
     "@C3H3-AI"
   ],
   "config_flow": true,
+  "dependencies": [
+    "hacs"
+  ],
   "documentation": "https://github.com/C3H3-AI/hacs-vision",
+  "domain": "hacs_vision",
+  "iot_class": "calculated",
   "issue_tracker": "https://github.com/C3H3-AI/hacs-vision/issues",
-  "iot_class": "calculated"
+  "name": "HACS Vision",
+  "requirements": [],
+  "version": "6.4.1"
 }
