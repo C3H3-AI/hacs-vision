@@ -11,7 +11,7 @@
 [![中文](https://img.shields.io/badge/lang-zh--CN-blue.svg)](README.md)
 [![Deutsch](https://img.shields.io/badge/lang-de-green.svg)](README.de.md)
 
-> **Current version**: v6.4.1 | **Minimum HA**: 2024.1.0
+> **Current version**: v6.4.2 | **Minimum HA**: 2024.1.0
 
 > **⚠️ Prerequisite**: [HACS](https://hacs.xyz) must be installed and configured.
 
