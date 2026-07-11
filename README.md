@@ -422,6 +422,15 @@ A: 通过 HACS 安装的会在更新页显示。手动安装的请下载最新 R
 - [提交 Issue](https://github.com/C3H3-AI/hacs-vision/issues)
 - [讨论区](https://github.com/C3H3-AI/hacs-vision/discussions)
 
+
+## 💝 赞助
+
+如果这个集成帮到了你，欢迎请我喝杯咖啡 ☕
+
+| 微信支付 | 支付宝 |
+|:--------:|:------:|
+| ![微信](sponsor/wechat.jpg) | ![支付宝](sponsor/alipay.jpg) |
+
 ## 许可证
 
 MIT License — 详见 [LICENSE](LICENSE)
