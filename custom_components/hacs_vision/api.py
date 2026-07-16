@@ -16,6 +16,7 @@ from .response import _error, _ok, _not_found, _bad_request
 from .api_mixins.github_auth import GitHubAuthMixin
 from .api_mixins.github_actions import GitHubActionsMixin
 from .api_mixins.hacs_ops import HACSOpsMixin
+from .api_mixins.readme_translate import ReadmeTranslateMixin
 from .hacs_history import HACSHubHistory
 
 _LOGGER = logging.getLogger(__name__)
@@ -67,7 +68,7 @@ class HACSEnhancedStaticView(HomeAssistantView):
             return f.read()
 
 
-class HACSEnhancedAPI(GitHubAuthMixin, GitHubActionsMixin, HACSOpsMixin, HomeAssistantView):
+class HACSEnhancedAPI(GitHubAuthMixin, GitHubActionsMixin, HACSOpsMixin, ReadmeTranslateMixin, HomeAssistantView):
     """HACS Vision REST API — data endpoints (requires auth)."""
 
     url = f"{API_BASE}/{{path:.*}}"
@@ -237,6 +238,8 @@ class HACSEnhancedAPI(GitHubAuthMixin, GitHubActionsMixin, HACSOpsMixin, HomeAss
             return await self._reload_core()
         if path in ("settings", "settings/"):
             return await self._update_settings(body)
+        if path in ("readme/translate", "readme/translate/"):
+            return await self._translate_readme_endpoint(body)
         if path in ("batch/install", "batch/install/"):
             return await self._batch_install(body)
         if path in ("batch/remove", "batch/remove/"):

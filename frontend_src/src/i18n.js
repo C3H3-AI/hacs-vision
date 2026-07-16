@@ -337,6 +337,19 @@ const T = {
   readmeLoadFailed: { zh: 'README 加载失败', en: 'README load failed', de: 'README-Laden fehlgeschlagen' },
   readmeTitle: { zh: '说明文档', en: 'README', de: 'README' },
 
+  // README translation
+  readmeTranslateAi: { zh: 'README 翻译 AI', en: 'README Translation AI', de: 'README-Übersetzung (KI)' },
+  readmeTranslateAiDesc: { zh: '选择用于翻译仓库说明文档的对话助手（在「设置 → 语音助手」中配置）', en: 'Choose the conversation agent used to translate repository READMEs (configured in Settings → Voice Assistants)', de: 'Wähle den Konversations-Agenten zur Übersetzung von READMEs (in Einstellungen → Sprachassistenten)' },
+  readmeTranslateAiNone: { zh: '不翻译（显示原文）', en: 'No translation (show original)', de: 'Keine Übersetzung (Original)' },
+  readmeLangOriginal: { zh: '原文', en: 'Original', de: 'Original' },
+  readmeLangZh: { zh: '中文', en: 'Chinese', de: 'Chinesisch' },
+  readmeLangEn: { zh: '英文', en: 'English', de: 'Englisch' },
+  readmeLangDe: { zh: '德文', en: 'German', de: 'Deutsch' },
+  readmeTranslateNoAgent: { zh: '请先在设置中选择「README 翻译 AI」', en: 'Select a "README Translation AI" in settings first', de: 'Wähle zuerst eine "README-Übersetzung (KI)" in den Einstellungen' },
+  readmeTranslateUnsupported: { zh: '不支持的目标语言', en: 'Unsupported target language', de: 'Nicht unterstützte Zielsprache' },
+  readmeTranslateRateLimited: { zh: '翻译请求过于频繁，请稍后再试', en: 'Too many translation requests — try again later', de: 'Zu viele Übersetzungsanfragen — später erneut' },
+  readmeTranslateFailed: { zh: '翻译失败，请确认所选 AI 可用', en: 'Translation failed — verify the selected AI is available', de: 'Übersetzung fehlgeschlagen — Agent verfügbar?' },
+
   // Detail Modal
   dblZoomHint: { zh: '双击放大', en: 'Double-click to expand', de: 'Doppelklicken zum Vergrößern' },
 

@@ -11,7 +11,7 @@
 [![English](https://img.shields.io/badge/lang-en-red.svg)](README.en.md)
 [![Deutsch](https://img.shields.io/badge/lang-de-green.svg)](README.de.md)
 
-> **当前版本**: v6.4.3 | **最低 HA 版本**: 2024.1.0
+> **当前版本**: v6.4.4 | **最低 HA 版本**: 2024.1.0
 
 > **⚠️ 前置条件**: 必须先安装并配置好 [HACS](https://hacs.xyz)
 
@@ -119,6 +119,11 @@
 ---
 
 ## 更新日志
+
+### v6.4.4 (2026-07-16) — README AI 翻译
+- **新增**: **README AI 翻译** — 仓库弹窗内新增语言切换条（原文 / 中文 / 英文 / 德文），调用你在 HA「设置 → 语音助手」中已配置的对话助手（如 MiMo / GPT / Ollama）就地翻译说明文档，无需任何额外 API 密钥或硬编码地址
+- **新增**: **翻译引擎可配置** — 设置页「基本设置」新增「README 翻译 AI」下拉，自动枚举系统内所有 `conversation.*` 实体，由你自由选择翻译所用的助手
+- **新增**: **翻译缓存** — 同一仓库同一目标语言的翻译结果服务端缓存 6 小时，减少重复调用
 
 ### v6.4.3 (2026-07-16) — 服务补全 & 可移植性优化
 - **改进**: **auto_update 服务定义补全** — 补全 `auto_update_start` / `auto_update_stop` / `auto_update_trigger` / `auto_update_reload_settings` 四个服务，开发者工具中现可看到名称与描述

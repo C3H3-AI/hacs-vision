@@ -462,6 +462,24 @@ class ConfigView extends LitElement {
     await this._save();
   }
 
+  /** Enumerate conversation.* agents (LLM translators) from HA states. */
+  get _translationAgents() {
+    if (!this.hass?.states) return [];
+    const agents = [];
+    for (const [entityId, stateObj] of Object.entries(this.hass.states)) {
+      if (!entityId.startsWith('conversation.')) continue;
+      if (entityId === 'conversation.home_assistant') continue; // built-in command router, not an LLM
+      const name = stateObj?.attributes?.friendly_name || entityId;
+      agents.push({ id: entityId, name });
+    }
+    return agents.sort((a, b) => a.name.localeCompare(b.name));
+  }
+
+  async _onTranslationAgentChange(value) {
+    await this._set('translation_agent', value || null);
+    showToast(t('settingsSaved'), 'success');
+  }
+
   async _reloadCore() {
     try {
       showToast(t('reloadingHA'), 'info');
@@ -956,6 +974,21 @@ class ConfigView extends LitElement {
                   .value=${this._settings.language || getLang()}>
                   ${getAvailableLanguages().map(lang => html`
                     <option value=${lang.code}>${lang.nativeLabel} (${lang.label})</option>
+                  `)}
+                </select>
+              </div>
+            </div>
+            <div class="setting-row">
+              <div class="setting-info">
+                <div class="label">${t('readmeTranslateAi')}</div>
+                <div class="desc">${t('readmeTranslateAiDesc')}</div>
+              </div>
+              <div class="setting-control">
+                <select @change=${e => this._onTranslationAgentChange(e.target.value)}
+                  .value=${this._settings.translation_agent || ''}>
+                  <option value="">${t('readmeTranslateAiNone')}</option>
+                  ${this._translationAgents.map(agent => html`
+                    <option value=${agent.id}>${agent.name}</option>
                   `)}
                 </select>
               </div>

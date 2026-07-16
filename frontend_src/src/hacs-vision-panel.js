@@ -22,6 +22,8 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
     _favoriteCount: { type: Number, state: true },
     _readmeHtml: { type: String, state: true },
     _readmeLoading: { type: Boolean, state: true },
+    _translationLoading: { type: Boolean, state: true },
+    _readmeLang: { type: String, state: true },
     _viewTransition: { type: Boolean, state: true },
     _networkStatus: { type: String, state: true },
     _restarting: { type: Boolean, state: true },
@@ -572,6 +574,26 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
       font-size: 14px; font-weight: 600;
       color: var(--primary-text-color); margin-bottom: 12px;
     }
+    .readme-lang-bar {
+      display: flex; align-items: center; gap: 8px;
+      margin-bottom: 12px; flex-wrap: wrap;
+    }
+    .readme-lang-btn {
+      padding: 4px 12px; border-radius: 16px; cursor: pointer;
+      border: 1px solid var(--divider-color, #e0e0e0);
+      background: var(--card-background-color, #fff);
+      color: var(--primary-text-color);
+      font-size: 12px; transition: all 0.15s ease;
+    }
+    .readme-lang-btn:hover:not(:disabled) {
+      border-color: var(--primary-color, #03a9f4);
+    }
+    .readme-lang-btn.active {
+      background: var(--primary-color, #03a9f4);
+      border-color: var(--primary-color, #03a9f4);
+      color: #fff;
+    }
+    .readme-lang-btn:disabled { opacity: 0.5; cursor: default; }
     .readme-content {
       font-size: 13px; line-height: 1.6;
       color: var(--primary-text-color); padding-right: 8px;
@@ -907,6 +929,8 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
     this._showDetail = true;
     this._readmeHtml = null;
     this._readmeLoading = true;
+    this._translationLoading = false;
+    this._readmeLang = 'original';
     this._showVersionSelector = false;
     this._releases = [];
     this._releasesLoading = false;
@@ -931,6 +955,43 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
       this._readmeHtml = null;
     }
     this._readmeLoading = false;
+  }
+
+  async _onReadmeLangChange(lang) {
+    if (lang === this._readmeLang || this._translationLoading) return;
+    const repo = this._detailRepo;
+    if (!repo?.full_name) return;
+
+    if (lang === 'original') {
+      this._readmeLang = 'original';
+      this._translationLoading = true;
+      const raw = await api.getReadme(repo.full_name);
+      this._translationLoading = false;
+      this._readmeHtml = raw ? DOMPurify.sanitize(raw) : null;
+      return;
+    }
+
+    this._readmeLang = lang;
+    this._translationLoading = true;
+    const result = await api.getReadmeTranslation(repo.full_name, lang);
+    this._translationLoading = false;
+    if (typeof result === 'string') {
+      this._readmeHtml = DOMPurify.sanitize(result);
+    } else {
+      const err = result && result.error;
+      showToast(this._translationErrorMsg(err), 'error');
+      this._readmeLang = 'original';
+    }
+  }
+
+  _translationErrorMsg(err) {
+    const map = {
+      no_translation_agent: t('readmeTranslateNoAgent'),
+      unsupported_lang: t('readmeTranslateUnsupported'),
+      rate_limited: t('readmeTranslateRateLimited'),
+      not_found: t('readmeLoadFailed'),
+    };
+    return map[err] || t('readmeTranslateFailed');
   }
 
   async _loadChangelog(repo) {
@@ -2153,6 +2214,17 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
               <!-- README Section — no max-height, single scroll via modal-body -->
               <div class="detail-readme">
                 <div class="detail-readme-title">${t('readmeTitle')}</div>
+                <div class="readme-lang-bar">
+                  ${['original', 'zh', 'en', 'de'].map(lang => html`
+                    <button
+                      class="readme-lang-btn ${this._readmeLang === lang ? 'active' : ''}"
+                      ?disabled=${this._translationLoading}
+                      @click=${() => this._onReadmeLangChange(lang)}>
+                      ${t('readmeLang' + lang.charAt(0).toUpperCase() + lang.slice(1))}
+                    </button>
+                  `)}
+                  ${this._translationLoading ? html`<div class="spinner-sm"></div>` : ''}
+                </div>
                 ${this._readmeLoading ? html`
                   <div class="readme-loading">
                     <div class="spinner-sm"></div>

@@ -287,6 +287,30 @@ class HACSEnhancedAPI {
       return null;
     }
   }
+
+  /* README translation via HA conversation agent (returns html string or {error}) */
+  async getReadmeTranslation(fullName, targetLang) {
+    try {
+      const resp = await fetch(`${API_BASE}/readme/translate`, {
+        method: 'POST',
+        headers: this._getHeaders(),
+        credentials: 'include',
+        body: JSON.stringify({ full_name: fullName, target_lang: targetLang }),
+      });
+      if (resp.ok) {
+        const data = await resp.json();
+        return data.html || null;
+      }
+      try {
+        const err = await resp.json();
+        if (err && err.error) return { error: err.error };
+      } catch (e) { /* fall through */ }
+      return { error: 'translation_failed' };
+    } catch (e) {
+      console.error('README translation failed:', e);
+      return { error: 'network_error' };
+    }
+  }
 }
 
 export const api = new HACSEnhancedAPI();
