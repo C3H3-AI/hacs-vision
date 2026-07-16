@@ -7,6 +7,7 @@ import { getCommonStyles } from './shared/styles.js';
 import { showToast, registerPanel } from './shared/toast.js';
 import { updateSidebarBadge } from './shared/sidebar-badge.js';
 import DOMPurify from 'dompurify';
+import { transCacheGet, transCachePut } from './trans-cache.mjs';
 import './components/card-preview-dialog.js';
 
 export class HacsVisionPanel extends themeMixin(LitElement) {
@@ -984,11 +985,21 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
       return;
     }
 
+    // Serve from local cache if available — no request, no token cost,
+    // works even with the window closed / HA restarted / no translation agent.
+    const cached = transCacheGet(repo.full_name, lang);
+    if (cached) {
+      this._readmeLang = lang;
+      this._readmeHtml = DOMPurify.sanitize(cached);
+      return;
+    }
+
     this._readmeLang = lang;
     this._translationLoading = true;
     const result = await api.getReadmeTranslation(repo.full_name, lang, this._readmeHtml);
     this._translationLoading = false;
     if (typeof result === 'string') {
+      transCachePut(repo.full_name, lang, result);
       this._readmeHtml = DOMPurify.sanitize(result);
     } else {
       const err = result && result.error;

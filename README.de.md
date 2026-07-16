@@ -11,7 +11,7 @@
 [![English](https://img.shields.io/badge/lang-en-red.svg)](README.en.md)
 [![Deutsch](https://img.shields.io/badge/lang-de-green.svg)](#)
 
-> **Aktuelle Version**: v6.5 | **Minimale HA-Version**: 2024.1.0
+> **Aktuelle Version**: v6.5.1 | **Minimale HA-Version**: 2024.1.0
 
 > **⚠️ Voraussetzung**: [HACS](https://hacs.xyz) muss installiert und konfiguriert sein.
 
@@ -117,6 +117,10 @@ Konfigurieren Sie das Panel-Verhalten, prüfen Sie Versionsinformationen, starte
 ---
 
 ## Änderungsprotokoll
+### v6.5.1 (2026-07-16) — Lokale Persistenz der Übersetzungsergebnisse
+- **Optimiert**: **Übersetzungsergebnisse lokal zwischengespeichert** — Die übersetzte README wird im `localStorage` des Browsers gespeichert (standardmäßig 7 Tage, max. 1 MB pro Eintrag, 50 Einträge LRU). Nach dem Schließen des Fensters, Aktualisieren oder Neustart von HA wird eine zwischengespeicherte Übersetzung **sofort ohne LLM-Aufruf** angezeigt — keine Latenz, keine Token-Kosten.
+- **Zusatznutzen**: Bereits übersetzte Repositorys lassen sich auch ohne konfigurierten Übersetzungs-Assistenten in den Einstellungen ansehen (Cache-Treffer benötigt keine Backend-Anfrage und umgeht so das GitHub-Token-404-Problem bei Drittrepos).
+
 ### v6.5 (2026-07-16) — README-KI-Übersetzung (Stabil) & UX-Optimierung
 - **Neu**: **README-KI-Übersetzung** — Sprachumschalter (Original / Chinesisch / Englisch / Deutsch, optional Japanisch / Koreanisch) im Repo-Dialog; nutzt den in HA («Einstellungen → Sprachassistenten») konfigurierten Konversations-Assistenten (z. B. MiMo / GPT / Ollama), keine zusätzlichen API-Schlüssel nötig
 - **Neu**: **Übersetzungs-Engine konfigurierbar** — Neues Dropdown «README-Übersetzungs-KI» in den Grundeinstellungen, listet automatisch alle `conversation.*`-Entitäten

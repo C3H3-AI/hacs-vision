@@ -11,7 +11,7 @@
 [![中文](https://img.shields.io/badge/lang-zh--CN-blue.svg)](README.md)
 [![Deutsch](https://img.shields.io/badge/lang-de-green.svg)](README.de.md)
 
-> **Current version**: v6.5 | **Minimum HA**: 2024.1.0
+> **Current version**: v6.5.1 | **Minimum HA**: 2024.1.0
 
 > **⚠️ Prerequisite**: [HACS](https://hacs.xyz) must be installed and configured.
 
@@ -113,6 +113,10 @@ Browse all installed HA integrations in a card grid, with Chinese name search, s
 ---
 
 ## Changelog
+
+### v6.5.1 (2026-07-16) — Local persistence of translation results
+- **Optimized**: **Translation results cached locally** — Translated README is stored in the browser `localStorage` (kept 7 days by default, 1 MB per entry, 50-entry LRU eviction). After closing the window, refreshing, or restarting HA, a cached translation shows **instantly without calling the LLM** — zero latency, zero token cost.
+- **Bonus**: Repositories translated before can still be viewed even without a translation AI configured in settings (cache hit needs no backend request, also sidestepping the third-party repo GitHub Token 404 issue).
 
 ### v6.5 (2026-07-16) — README AI Translation (Stable) & UX Optimization
 - **New**: **README AI Translation** — Language switcher (Original / Chinese / English / German, optional Japanese / Korean) in the repo dialog; uses your HA ("Settings → Voice Assistants") configured conversation assistant (e.g. MiMo / GPT / Ollama), no extra API key needed
