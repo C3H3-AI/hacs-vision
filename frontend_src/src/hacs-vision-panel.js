@@ -1173,6 +1173,11 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
     return ['original', ...langs];
   }
 
+  /** Whether a README translation agent is configured in settings. */
+  get _translationEnabled() {
+    return !!(this._settings && this._settings.translation_agent);
+  }
+
   _langLabel(code) {
     const map = {
       original: 'readmeLangOriginal',
@@ -2245,22 +2250,26 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
               <!-- README Section — no max-height, single scroll via modal-body -->
               <div class="detail-readme">
                 <div class="detail-readme-title">${t('readmeTitle')}</div>
-                <div class="readme-lang-bar">
-                  ${this._readmeLangOptions.map(lang => html`
-                    <button
-                      class="readme-lang-btn ${this._readmeLang === lang ? 'active' : ''}"
-                      ?disabled=${this._translationLoading}
-                      @click=${() => this._onReadmeLangChange(lang)}>
-                      ${this._langLabel(lang)}
-                    </button>
-                  `)}
-                  ${this._translationLoading ? html`
-                    <div class="readme-translating">
-                      <div class="spinner-sm"></div>
-                      <span>${t('readmeTranslating')}</span>
-                    </div>
-                  ` : ''}
-                </div>
+                ${this._translationEnabled ? html`
+                  <div class="readme-lang-bar">
+                    ${this._readmeLangOptions.map(lang => html`
+                      <button
+                        class="readme-lang-btn ${this._readmeLang === lang ? 'active' : ''}"
+                        ?disabled=${this._translationLoading}
+                        @click=${() => this._onReadmeLangChange(lang)}>
+                        ${this._langLabel(lang)}
+                      </button>
+                    `)}
+                    ${this._translationLoading ? html`
+                      <div class="readme-translating">
+                        <div class="spinner-sm"></div>
+                        <span>${t('readmeTranslating')}</span>
+                      </div>
+                    ` : ''}
+                  </div>
+                ` : html`
+                  <div class="readme-lang-hint">${t('readmeTranslateNoAgent')}</div>
+                `}
                 ${this._readmeLoading ? html`
                   <div class="readme-loading">
                     <div class="spinner-sm"></div>

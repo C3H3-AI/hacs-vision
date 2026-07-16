@@ -11,7 +11,7 @@
 [![中文](https://img.shields.io/badge/lang-zh--CN-blue.svg)](README.md)
 [![Deutsch](https://img.shields.io/badge/lang-de-green.svg)](README.de.md)
 
-> **Current version**: v6.4.6 | **Minimum HA**: 2024.1.0
+> **Current version**: v6.5 | **Minimum HA**: 2024.1.0
 
 > **⚠️ Prerequisite**: [HACS](https://hacs.xyz) must be installed and configured.
 
@@ -113,6 +113,13 @@ Browse all installed HA integrations in a card grid, with Chinese name search, s
 ---
 
 ## Changelog
+
+### v6.5 (2026-07-16) — README AI Translation (Stable) & UX Optimization
+- **New**: **README AI Translation** — Language switcher (Original / Chinese / English / German, optional Japanese / Korean) in the repo dialog; uses your HA ("Settings → Voice Assistants") configured conversation assistant (e.g. MiMo / GPT / Ollama), no extra API key needed
+- **New**: **Configurable Translation Engine** — New "README Translation AI" dropdown in Basic Settings, auto-lists all `conversation.*` entities
+- **New**: **Translation Cache** — Results cached server-side for 6 hours
+- **Optimization**: **Hide Translation Buttons When No AI Configured** — If no translation AI is set, the language bar is replaced with a hint
+- **Stability**: **Based on Stable 6.4.4 Core** — Removed the broken timeout parameter, returning to a stable translation path
 
 ### v6.4.3 (2026-07-16) — Service Completion & Portability
 

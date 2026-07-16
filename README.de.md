@@ -11,7 +11,7 @@
 [![English](https://img.shields.io/badge/lang-en-red.svg)](README.en.md)
 [![Deutsch](https://img.shields.io/badge/lang-de-green.svg)](#)
 
-> **Aktuelle Version**: v6.4.6 | **Minimale HA-Version**: 2024.1.0
+> **Aktuelle Version**: v6.5 | **Minimale HA-Version**: 2024.1.0
 
 > **⚠️ Voraussetzung**: [HACS](https://hacs.xyz) muss installiert und konfiguriert sein.
 
@@ -117,6 +117,13 @@ Konfigurieren Sie das Panel-Verhalten, prüfen Sie Versionsinformationen, starte
 ---
 
 ## Änderungsprotokoll
+### v6.5 (2026-07-16) — README-KI-Übersetzung (Stabil) & UX-Optimierung
+- **Neu**: **README-KI-Übersetzung** — Sprachumschalter (Original / Chinesisch / Englisch / Deutsch, optional Japanisch / Koreanisch) im Repo-Dialog; nutzt den in HA («Einstellungen → Sprachassistenten») konfigurierten Konversations-Assistenten (z. B. MiMo / GPT / Ollama), keine zusätzlichen API-Schlüssel nötig
+- **Neu**: **Übersetzungs-Engine konfigurierbar** — Neues Dropdown «README-Übersetzungs-KI» in den Grundeinstellungen, listet automatisch alle `conversation.*`-Entitäten
+- **Neu**: **Übersetzungs-Cache** — Ergebnisse werden serverseitig 6 Stunden zwischengespeichert
+- **Optimierung**: **Übersetzungs-Buttons ausgeblendet ohne konfigurierte KI** — Ist keine Übersetzungs-KI eingestellt, wird die Sprachleiste durch einen Hinweis ersetzt
+- **Stabilität**: **Auf stabilem 6.4.4-Kern** — Entfernt den fehlerhaften Timeout-Parameter, Rückkehr zur stabilen Übersetzung
+
 ### v6.4.3 (2026-07-16) — Dienstvervollständigung & Portabilität
 - **Verbesserung**: **auto_update-Dienstdefinitionen vervollständigt** — Hinzugefügt `auto_update_start` / `auto_update_stop` / `auto_update_trigger` / `auto_update_reload_settings`; Namen und Beschreibungen erscheinen nun in den Entwicklerwerkzeugen
 - **Verbesserung**: **Screenshot-URL-Erzeugung optimiert** — Der Screenshot-URL-Fallback leitet die Basisadresse nun dynamisch aus der externen/internalen HA-URL-Konfiguration ab, was die Portabilität über Umgebungen hinweg verbessert

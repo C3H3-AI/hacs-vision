@@ -7,7 +7,6 @@ API keys — the agent is chosen in the HACS Vision settings page.
 """
 from __future__ import annotations
 
-import asyncio
 import logging
 import time
 
@@ -29,21 +28,15 @@ _README_TRANS_CACHE: dict[tuple[str, str], dict] = {}
 _README_TRANS_CACHE_TTL = 21600  # 6h
 _README_TRANS_CACHE_MAX = 100
 
-# Supported target languages (key → human label for the prompt).
-# Mirrors TRANSLATION_LANGUAGES in frontend_src/src/i18n.js (keep in sync).
+# Supported target languages (key → human label for the prompt)
 SUPPORTED_TRANSLATION_LANGS = {
     "zh": "Chinese (中文)",
     "en": "English",
     "de": "German (Deutsch)",
-    "ja": "Japanese (日本語)",
-    "ko": "Korean (한국어)",
 }
 
 # The built-in command router is not an LLM translator — exclude from the picker.
 _DEFAULT_CONVERSATION_ENTITY = "conversation.home_assistant"
-
-# Hard cap (seconds) so a slow LLM can't hang the request forever.
-_AGENT_TIMEOUT = 150
 
 
 def _trans_cache_put(key: tuple[str, str], value: dict) -> None:
@@ -114,46 +107,29 @@ class ReadmeTranslateMixin:
         Returns ``(translated_html, error_code)``.
         """
         lang_name = SUPPORTED_TRANSLATION_LANGS.get(target_lang, "English")
-        # Tight prompt: emit ONLY translated HTML, no preamble/summary — trims
-        # wasted output tokens and latency on long documents.
         prompt = (
-            f"Translate the following GitHub README from its original language into "
-            f"{lang_name}. Output ONLY the translated HTML document. Keep every tag, "
-            f"attribute, code block, table, link and image URL unchanged; translate "
-            f"only visible prose. No preamble, no summary, no commentary.\n\n"
+            f"Translate the following GitHub README documentation from its original "
+            f"language into {lang_name}. Preserve ALL Markdown and HTML structure, "
+            f"code blocks, inline code, tables, links, and image references exactly. "
+            f"Only translate human-readable prose. Do NOT add summaries, headings, "
+            f"or commentary of your own. Return the complete translated document as "
+            f"HTML.\n\n"
             f"{source_html}"
         )
-        _LOGGER.info(
-            "README translate: agent=%s lang=%s input=%d chars",
-            agent_id, target_lang, len(source_html),
-        )
-        t0 = time.monotonic()
         try:
             result = await self.hass.services.async_call(
                 "conversation", "process",
                 {"text": prompt, "agent_id": agent_id, "language": target_lang},
                 blocking=True,
                 return_response=True,
-                timeout=_AGENT_TIMEOUT,
             )
-        except (TimeoutError, asyncio.TimeoutError):
-            _LOGGER.error(
-                "README translate timed out after %ss for agent %s",
-                _AGENT_TIMEOUT, agent_id,
-            )
-            return None, "agent_timeout"
         except Exception as e:
             _LOGGER.error("conversation.process failed for agent %s: %s", agent_id, e)
             return None, "agent_call_failed"
 
-        dt = time.monotonic() - t0
         translated = self._extract_agent_text(result)
         if not translated:
-            _LOGGER.warning(
-                "README translate: agent %s returned empty (%.1fs)", agent_id, dt
-            )
             return None, "agent_empty_response"
-        _LOGGER.info("README translate: agent %s done in %.1fs", agent_id, dt)
         return translated, None
 
     @staticmethod
@@ -191,21 +167,14 @@ class ReadmeTranslateMixin:
     # ── Public translate entry ──
 
     async def _translate_readme(
-        self, full_name: str, target_lang: str, agent_id: str | None = None,
-        source_html: str | None = None,
+        self, full_name: str, target_lang: str, agent_id: str | None = None
     ) -> tuple[str | None, str | None]:
         """Translate a repository README into ``target_lang``.
 
-        ``target_lang == "original"`` short-circuits to the source HTML.
-        ``source_html`` (already-rendered README HTML, e.g. passed by the
-        frontend) is preferred over re-fetching from GitHub — this avoids a
-        redundant fetch and any token / rate-limit / 404 issues on third-party
-        repos whose README is already displayed in the popup.
+        ``target_lang == "original"`` short-circuits to the cached/source HTML.
         Returns ``(html, error_code)``.
         """
         if target_lang == "original":
-            if source_html:
-                return source_html, None
             return await self._fetch_readme_html(full_name)
 
         if target_lang not in SUPPORTED_TRANSLATION_LANGS:
@@ -216,20 +185,9 @@ class ReadmeTranslateMixin:
         if cached and (time.monotonic() - cached["timestamp"] < _README_TRANS_CACHE_TTL):
             return cached["html"], None
 
-        # Prefer the already-loaded source HTML. Fall back to fetching only if
-        # the caller didn't provide it (e.g. a direct API hit).
-        if source_html:
-            source_to_translate = source_html
-        else:
-            t_fetch = time.monotonic()
-            src, err = await self._fetch_readme_html(full_name)
-            if err:
-                return None, err
-            _LOGGER.info(
-                "README translate: fetched source in %.1fs (%d chars)",
-                time.monotonic() - t_fetch, len(src or ""),
-            )
-            source_to_translate = src
+        source_html, err = await self._fetch_readme_html(full_name)
+        if err:
+            return None, err
 
         # Resolve agent: explicit arg wins, else read from saved settings
         if not agent_id:
@@ -238,7 +196,7 @@ class ReadmeTranslateMixin:
         if not agent_id or agent_id == _DEFAULT_CONVERSATION_ENTITY:
             return None, "no_translation_agent"
 
-        translated_html, err = await self._call_conversation_agent(agent=agent_id, target_lang=target_lang, source_html=source_to_translate)
+        translated_html, err = await self._call_conversation_agent(agent_id, target_lang, source_html)
         if err:
             return None, err
 
@@ -249,25 +207,23 @@ class ReadmeTranslateMixin:
         """HTTP POST handler for ``readme/translate``."""
         full_name = (body or {}).get("full_name")
         target_lang = (body or {}).get("target_lang")
-        source_html = (body or {}).get("source_html")
         if not full_name or not target_lang:
             return _bad_request("missing_params")
 
-        html, err = await self._translate_readme(full_name, target_lang, source_html=source_html)
+        html, err = await self._translate_readme(full_name, target_lang)
         if err:
             status = {
                 "rate_limited": 429,
                 "upstream_error": 502,
                 "network_error": 502,
                 "agent_call_failed": 502,
-                "agent_timeout": 504,
                 "no_translation_agent": 400,
                 "unsupported_lang": 400,
                 "not_found": 404,
                 "operation_failed": 500,
             }.get(err, 500)
             msg = "translation_failed" if err in (
-                "agent_call_failed", "agent_empty_response", "agent_timeout"
+                "agent_call_failed", "agent_empty_response"
             ) else err
             return _error(msg, status)
 
