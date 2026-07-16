@@ -1,7 +1,7 @@
 import { LitElement, html, css } from 'lit';
 import { api } from './api.js';
 import { themeMixin } from './theme.js';
-import { t, setLang, setLangFromHass } from './i18n.js';
+import { t, setLang, setLangFromHass, DEFAULT_TRANSLATION_LANGS } from './i18n.js';
 import { getCategoryColor } from './shared/constants.js';
 import { getCommonStyles } from './shared/styles.js';
 import { showToast, registerPanel } from './shared/toast.js';
@@ -594,6 +594,11 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
       color: #fff;
     }
     .readme-lang-btn:disabled { opacity: 0.5; cursor: default; }
+    .readme-translating {
+      display: flex; align-items: center; gap: 10px;
+      padding: 20px 0; font-size: 13px;
+      color: var(--secondary-text-color);
+    }
     .readme-content {
       font-size: 13px; line-height: 1.6;
       color: var(--primary-text-color); padding-right: 8px;
@@ -924,7 +929,7 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
     document.title = `${titles[view] || view} · HACS Vision`;
   }
 
-  _openDetail(repo) {
+  async _openDetail(repo) {
     this._detailRepo = repo;
     this._showDetail = true;
     this._readmeHtml = null;
@@ -936,6 +941,14 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
     this._releasesLoading = false;
     this._changelogData = null;
     this._changelogLoading = true;
+    // Refresh settings so the README language bar reflects the latest
+    // translation_langs choice made in the settings page.
+    try {
+      const s = await api.getSettings();
+      this._settings = s || {};
+    } catch {
+      /* keep previous settings */
+    }
     this._loadReadme(repo);
     this._loadChangelog(repo);
     // Focus trap: install after render
@@ -989,6 +1002,7 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
       no_translation_agent: t('readmeTranslateNoAgent'),
       unsupported_lang: t('readmeTranslateUnsupported'),
       rate_limited: t('readmeTranslateRateLimited'),
+      agent_timeout: t('readmeTranslateTimeout'),
       not_found: t('readmeLoadFailed'),
     };
     return map[err] || t('readmeTranslateFailed');
@@ -1143,12 +1157,29 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
   async _initLanguage() {
     try {
       const settings = await api.getSettings();
+      this._settings = settings || {};
       if (settings?.language) {
         setLang(settings.language);
       }
     } catch {
       // Fall back to HA auto-detect (already set by setLangFromHass)
     }
+  }
+
+  /** Languages shown in the README language bar (Original + user-configured). */
+  get _readmeLangOptions() {
+    const saved = this._settings && this._settings.translation_langs;
+    const langs = (Array.isArray(saved) && saved.length) ? saved : DEFAULT_TRANSLATION_LANGS;
+    return ['original', ...langs];
+  }
+
+  _langLabel(code) {
+    const map = {
+      original: 'readmeLangOriginal',
+      zh: 'readmeLangZh', en: 'readmeLangEn', de: 'readmeLangDe',
+      ja: 'readmeLangJa', ko: 'readmeLangKo',
+    };
+    return t(map[code] || 'readmeLangOriginal');
   }
 
   async _checkUpdates() {
@@ -2215,15 +2246,20 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
               <div class="detail-readme">
                 <div class="detail-readme-title">${t('readmeTitle')}</div>
                 <div class="readme-lang-bar">
-                  ${['original', 'zh', 'en', 'de'].map(lang => html`
+                  ${this._readmeLangOptions.map(lang => html`
                     <button
                       class="readme-lang-btn ${this._readmeLang === lang ? 'active' : ''}"
                       ?disabled=${this._translationLoading}
                       @click=${() => this._onReadmeLangChange(lang)}>
-                      ${t('readmeLang' + lang.charAt(0).toUpperCase() + lang.slice(1))}
+                      ${this._langLabel(lang)}
                     </button>
                   `)}
-                  ${this._translationLoading ? html`<div class="spinner-sm"></div>` : ''}
+                  ${this._translationLoading ? html`
+                    <div class="readme-translating">
+                      <div class="spinner-sm"></div>
+                      <span>${t('readmeTranslating')}</span>
+                    </div>
+                  ` : ''}
                 </div>
                 ${this._readmeLoading ? html`
                   <div class="readme-loading">

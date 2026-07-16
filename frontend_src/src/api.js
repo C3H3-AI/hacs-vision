@@ -290,12 +290,15 @@ class HACSEnhancedAPI {
 
   /* README translation via HA conversation agent (returns html string or {error}) */
   async getReadmeTranslation(fullName, targetLang) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 160000); // 160s hard cap (backend caps at 150s)
     try {
       const resp = await fetch(`${API_BASE}/readme/translate`, {
         method: 'POST',
         headers: this._getHeaders(),
         credentials: 'include',
         body: JSON.stringify({ full_name: fullName, target_lang: targetLang }),
+        signal: controller.signal,
       });
       if (resp.ok) {
         const data = await resp.json();
@@ -308,7 +311,9 @@ class HACSEnhancedAPI {
       return { error: 'translation_failed' };
     } catch (e) {
       console.error('README translation failed:', e);
-      return { error: 'network_error' };
+      return { error: e && e.name === 'AbortError' ? 'agent_timeout' : 'network_error' };
+    } finally {
+      clearTimeout(timer);
     }
   }
 }

@@ -1,6 +1,6 @@
 import { LitElement, html, css } from 'lit';
 import { api } from '../api.js';
-import { t, setLang, getLang, getAvailableLanguages } from '../i18n.js';
+import { t, setLang, getLang, getAvailableLanguages, TRANSLATION_LANGUAGES, DEFAULT_TRANSLATION_LANGS } from '../i18n.js';
 import { getCommonStyles } from '../shared/styles.js';
 import { ConfirmDialog } from '../shared/confirm-dialog.js';
 import { showToast } from '../shared/toast.js';
@@ -480,6 +480,16 @@ class ConfigView extends LitElement {
     showToast(t('settingsSaved'), 'success');
   }
 
+  _onTranslationLangsChange() {
+    const selected = [];
+    for (const opt of TRANSLATION_LANGUAGES) {
+      const el = this.shadowRoot.querySelector(`input[data-lang="${opt.code}"]`);
+      if (el && el.checked) selected.push(opt.code);
+    }
+    // Persist even if empty (empty = fall back to default in the popup)
+    this._set('translation_langs', selected);
+  }
+
   async _reloadCore() {
     try {
       showToast(t('reloadingHA'), 'info');
@@ -557,6 +567,10 @@ class ConfigView extends LitElement {
     .setting-control select:focus, .setting-control input:focus {
       border-color: var(--primary-color, #03a9f4); outline: none;
     }
+    .readme-lang-options { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: center; }
+    .lang-check { display: inline-flex; align-items: center; gap: 5px; cursor: pointer; font-size: 13px; }
+    .lang-check input { min-width: auto; margin: 0; cursor: pointer; }
+
     /* Toggle switch */
     .toggle {
       position: relative; display: inline-block; width: 44px; height: 24px; flex-shrink: 0;
@@ -991,6 +1005,22 @@ class ConfigView extends LitElement {
                     <option value=${agent.id}>${agent.name}</option>
                   `)}
                 </select>
+              </div>
+            </div>
+            <div class="setting-row">
+              <div class="setting-info">
+                <div class="label">${t('readmeTranslateLangs')}</div>
+                <div class="desc">${t('readmeTranslateLangsDesc')}</div>
+              </div>
+              <div class="setting-control readme-lang-options">
+                ${TRANSLATION_LANGUAGES.map(opt => html`
+                  <label class="lang-check">
+                    <input type="checkbox" data-lang=${opt.code}
+                      .checked=${(this._settings.translation_langs || DEFAULT_TRANSLATION_LANGS).includes(opt.code)}
+                      @change=${() => this._onTranslationLangsChange()}>
+                    <span>${t(opt.key)}</span>
+                  </label>
+                `)}
               </div>
             </div>
           </div>

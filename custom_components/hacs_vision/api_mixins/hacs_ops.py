@@ -966,7 +966,7 @@ class HACSOpsMixin:
         "hide_hacs_panel", "default_view", "refresh_interval",
         "auto_update_enabled", "auto_update_repos", "auto_update_interval",
         "auto_update_notify", "auto_update_restart_time", "language",
-        "translation_agent",
+        "translation_agent", "translation_langs",
     }
 
     async def _update_settings(self, body: dict) -> web.Response:

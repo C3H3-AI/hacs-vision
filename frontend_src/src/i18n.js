@@ -75,6 +75,20 @@ export const LANGUAGES = {
   de: { label: 'German', nativeLabel: 'Deutsch' },
 };
 
+// Languages offered for README translation. `code` is sent to the backend;
+// `key` is the i18n key for its display label. Keep in sync with
+// SUPPORTED_TRANSLATION_LANGS in api_mixins/readme_translate.py.
+export const TRANSLATION_LANGUAGES = [
+  { code: 'zh', key: 'readmeLangZh' },
+  { code: 'en', key: 'readmeLangEn' },
+  { code: 'de', key: 'readmeLangDe' },
+  { code: 'ja', key: 'readmeLangJa' },
+  { code: 'ko', key: 'readmeLangKo' },
+];
+
+// Default set shown in the popup bar when the user hasn't configured any.
+export const DEFAULT_TRANSLATION_LANGS = ['zh', 'en', 'de'];
+
 /* ── Translation Data ──────────────────────────────────── */
 
 const T = {
@@ -349,6 +363,14 @@ const T = {
   readmeTranslateUnsupported: { zh: '不支持的目标语言', en: 'Unsupported target language', de: 'Nicht unterstützte Zielsprache' },
   readmeTranslateRateLimited: { zh: '翻译请求过于频繁，请稍后再试', en: 'Too many translation requests — try again later', de: 'Zu viele Übersetzungsanfragen — später erneut' },
   readmeTranslateFailed: { zh: '翻译失败，请确认所选 AI 可用', en: 'Translation failed — verify the selected AI is available', de: 'Übersetzung fehlgeschlagen — Agent verfügbar?' },
+  readmeTranslateTimeout: { zh: '翻译超时（大模型处理较慢），可换更快的模型或稍后重试', en: 'Translation timed out (model too slow) — try a faster model or later', de: 'Zeitüberschreitung (Modell zu langsam) — schnelleres Modell wählen' },
+  readmeTranslating: { zh: '翻译中…大模型处理长文档可能需要 10–60 秒', en: 'Translating… long docs may take 10–60s', de: 'Übersetze… lange Dokumente brauchen 10–60s' },
+
+  // README translation language picker (settings)
+  readmeTranslateLangs: { zh: 'README 翻译语言', en: 'README Translation Languages', de: 'README-Übersetzungssprachen' },
+  readmeTranslateLangsDesc: { zh: '勾选后在仓库详情弹窗的「说明文档」语言条中显示对应按钮（原文始终显示）', en: 'Checked languages appear as buttons in the README language bar of the repo popup (Original is always shown)', de: 'Aktivierte Sprachen erscheinen als Buttons in der README-Sprachleiste (Original immer sichtbar)' },
+  readmeLangJa: { zh: '日文', en: 'Japanese', de: 'Japanisch' },
+  readmeLangKo: { zh: '韩文', en: 'Korean', de: 'Koreanisch' },
 
   // Detail Modal
   dblZoomHint: { zh: '双击放大', en: 'Double-click to expand', de: 'Doppelklicken zum Vergrößern' },
