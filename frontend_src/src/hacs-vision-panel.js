@@ -986,7 +986,7 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
 
     this._readmeLang = lang;
     this._translationLoading = true;
-    const result = await api.getReadmeTranslation(repo.full_name, lang);
+    const result = await api.getReadmeTranslation(repo.full_name, lang, this._readmeHtml);
     this._translationLoading = false;
     if (typeof result === 'string') {
       this._readmeHtml = DOMPurify.sanitize(result);

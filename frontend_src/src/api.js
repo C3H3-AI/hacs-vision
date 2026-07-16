@@ -289,7 +289,7 @@ class HACSEnhancedAPI {
   }
 
   /* README translation via HA conversation agent (returns html string or {error}) */
-  async getReadmeTranslation(fullName, targetLang) {
+  async getReadmeTranslation(fullName, targetLang, sourceHtml) {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 160000); // 160s hard cap (backend caps at 150s)
     try {
@@ -297,7 +297,14 @@ class HACSEnhancedAPI {
         method: 'POST',
         headers: this._getHeaders(),
         credentials: 'include',
-        body: JSON.stringify({ full_name: fullName, target_lang: targetLang }),
+        body: JSON.stringify({
+          full_name: fullName,
+          target_lang: targetLang,
+          // Pass the already-rendered original HTML so the backend translates
+          // what's on screen instead of re-fetching from GitHub (avoids
+          // token / rate-limit / 404 issues on third-party repos).
+          source_html: sourceHtml || null,
+        }),
         signal: controller.signal,
       });
       if (resp.ok) {

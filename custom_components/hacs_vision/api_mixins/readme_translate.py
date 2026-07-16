@@ -191,14 +191,21 @@ class ReadmeTranslateMixin:
     # ── Public translate entry ──
 
     async def _translate_readme(
-        self, full_name: str, target_lang: str, agent_id: str | None = None
+        self, full_name: str, target_lang: str, agent_id: str | None = None,
+        source_html: str | None = None,
     ) -> tuple[str | None, str | None]:
         """Translate a repository README into ``target_lang``.
 
-        ``target_lang == "original"`` short-circuits to the cached/source HTML.
+        ``target_lang == "original"`` short-circuits to the source HTML.
+        ``source_html`` (already-rendered README HTML, e.g. passed by the
+        frontend) is preferred over re-fetching from GitHub — this avoids a
+        redundant fetch and any token / rate-limit / 404 issues on third-party
+        repos whose README is already displayed in the popup.
         Returns ``(html, error_code)``.
         """
         if target_lang == "original":
+            if source_html:
+                return source_html, None
             return await self._fetch_readme_html(full_name)
 
         if target_lang not in SUPPORTED_TRANSLATION_LANGS:
@@ -209,14 +216,20 @@ class ReadmeTranslateMixin:
         if cached and (time.monotonic() - cached["timestamp"] < _README_TRANS_CACHE_TTL):
             return cached["html"], None
 
-        t_fetch = time.monotonic()
-        source_html, err = await self._fetch_readme_html(full_name)
-        if err:
-            return None, err
-        _LOGGER.info(
-            "README translate: fetched source in %.1fs (%d chars)",
-            time.monotonic() - t_fetch, len(source_html or ""),
-        )
+        # Prefer the already-loaded source HTML. Fall back to fetching only if
+        # the caller didn't provide it (e.g. a direct API hit).
+        if source_html:
+            source_to_translate = source_html
+        else:
+            t_fetch = time.monotonic()
+            src, err = await self._fetch_readme_html(full_name)
+            if err:
+                return None, err
+            _LOGGER.info(
+                "README translate: fetched source in %.1fs (%d chars)",
+                time.monotonic() - t_fetch, len(src or ""),
+            )
+            source_to_translate = src
 
         # Resolve agent: explicit arg wins, else read from saved settings
         if not agent_id:
@@ -225,7 +238,7 @@ class ReadmeTranslateMixin:
         if not agent_id or agent_id == _DEFAULT_CONVERSATION_ENTITY:
             return None, "no_translation_agent"
 
-        translated_html, err = await self._call_conversation_agent(agent_id, target_lang, source_html)
+        translated_html, err = await self._call_conversation_agent(agent=agent_id, target_lang=target_lang, source_html=source_to_translate)
         if err:
             return None, err
 
@@ -236,10 +249,11 @@ class ReadmeTranslateMixin:
         """HTTP POST handler for ``readme/translate``."""
         full_name = (body or {}).get("full_name")
         target_lang = (body or {}).get("target_lang")
+        source_html = (body or {}).get("source_html")
         if not full_name or not target_lang:
             return _bad_request("missing_params")
 
-        html, err = await self._translate_readme(full_name, target_lang)
+        html, err = await self._translate_readme(full_name, target_lang, source_html=source_html)
         if err:
             status = {
                 "rate_limited": 429,
