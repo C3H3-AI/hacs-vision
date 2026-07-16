@@ -117,314 +117,261 @@ Konfigurieren Sie das Panel-Verhalten, prüfen Sie Versionsinformationen, starte
 ---
 
 ## Änderungsprotokoll
-
-### v6.4.0 (2026-07-06) — 搜索+添加仓库合一 / Search & Add Merged / Suche & Hinzufügen vereint
-- **New**: 🔍 **搜索+添加仓库合一** — 商店和仓库管理视图的搜索框直接支持添加仓库：输入 owner/repo 或 GitHub URL 显示内联添加栏，输入组织名自动加载仓库列表供批量勾选。移除独立的「+ 添加仓库」按钮和表单
-  — *Search & add merged: input owner/repo or GitHub URL → inline add bar; input org name → auto-load org repos for batch select. Removed standalone "+ Add Repo" button*
-- **New**: 🎯 **搜索能力增强** — 所有视图搜索统一支持 GitHub URL 解析、作者名搜索、组织名搜索
-  — *All views now support GitHub URL parsing, author search, and org name search*
-- **New**: 🔗 **详情弹窗仓库名可点击** — 详情弹窗中的仓库名变为可点击链接，直接跳转 GitHub 仓库页
-  — *Repo full_name in detail dialog is now a clickable link to GitHub*
-- **Fix**: ✅ **自定义仓库注册失败** — `add_custom_repository` 使用 `check=False` 避免 GitHub API 限流导致仓库注册失败
-  — *Fix custom repo registration: use check=False to bypass GitHub API rate limits*
-
-### v6.3.0 (2026-07-05) — Three-Section Updates UI
-- **New**: 🗂️ **三段式折叠更新页** — 可更新（默认展开）、已更新（默认折叠，近 30 天记录）、已略过（默认折叠），分类清晰
-  — *Three collapsible sections: Updatable (expanded), Updated (collapsed, 30-day history), Skipped (collapsed)*
-- **New**: 📜 **更新历史追踪** — 每次更新自动记录（仓库名、版本变更、时间），30 天自动清理，支持 API 查询
-  — *Auto-record update history with repo name, version changes, and timestamp; 30-day auto-cleanup*
-- **New**: ⏳ **实时更新进度** — 更新卡片显示进度条 + 百分比（5%→75%→100%），轮询实时刷新
-  — *Real-time update progress bar with percentage, poll-based refresh*
-- **Chore**: 版本号升级至 v6.3.0 / Version bump to v6.3.0
-
-### v6.2.1 (2026-07-04) — 优化修复 / Optimization & Fixes
-- **New**: 🕐 **预约重启** — 设置面板时间选择器，自动更新安装完成后在指定时间重启 HA，不留空不重启
-  — *Scheduled restart: set a time (HH:MM) for HA to restart after updates are installed*
-- **New**: 💬 **白名单弹窗分页** — 设置面板白名单改为按钮 + 模态弹窗，分页搜索、chips、全选/取消、保存/取消
-  — *Whitelist in modal dialog with pagination, search, chips, select/deselect all, save/cancel*
-- **New**: 🔄 **HACS 数据刷新** — 自动更新前先刷新 HACS 仓库数据，确保获取最新版本，不再漏更新
-  — *Refresh HACS repository data before auto-update check to ensure latest versions*
-- **Fix**: 🛡️ **设置合并保存** — 后端 `_update_settings` 改为 `{**existing, **body}` 合并，避免部分更新覆盖其他设置
-  — *Merge settings instead of replace to prevent partial updates from discarding other settings*
-- **Fix**: ⏳ **前端加载保护** — 添加 `_installedLoaded` 标志，防止无限加载状态
-  — *Add loading guard flag to prevent infinite loading state*
-
-### v6.2.0 (2026-07-04) — 自动更新 / Auto Update
-- **New**: 🤖 **自动更新引擎** — 后台定时检测并自动安装白名单中的仓库更新。非重叠运行，Coalescing 防竞争。加载设置后 60 秒首次执行，随后按配置间隔周期性运行。双通道事件通知（`async_dispatcher_send` + `hass.bus.async_fire`），设置页面实时显示运行/已调度/已停止状态
-  — *Background scheduler with non-overlapping execution, coalescing, 60s initial delay, configurable interval. Dual-channel event dispatch for real-time status display*
-- **New**: 📋 **白名单管理** — 设置面板弹窗分页设置自动更新白名单，支持搜索、分页（15条/页）、chips 已选展示、全选/取消全选、保存/取消
-  — *Whitelist in a modal dialog with pagination (15/page), search, chip display, select/deselect all, save/cancel*
-- **New**: 🔘 **仓库级自动更新开关** — 商店浏览页面和更新页面每个仓库卡片上添加滑块开关，乐观更新 + API 失败自动回滚
-  — *Per-repo auto-update toggle on browse and updates pages, with optimistic UI update and rollback on failure*
-- **New**: ⏰ **可调检测频率** — 支持 1h / 3h / 6h / 12h / 24h 五种间隔
-  — *Configurable check intervals: 1h/3h/6h/12h/24h*
-- **New**: 🔔 **更新通知** — 自动更新完成后发送 HA 持久通知（可开关），固定通知 ID 防堆积
-  — *HA persistent notification on completed auto-update, fixed notification ID to prevent stacking*
-- **New**: 🛠️ **4 个后端服务** — `trigger_auto_update`（手动触发）、`reload_auto_update_settings`（重载设置）、`start_auto_update`/`stop_auto_update`（启停调度）
-  — *4 backend services for manual trigger, reload, start/stop*
-- **Chore**: 版本号升级至 v6.2.0 / Version bump to v6.2.0
-
-### v6.0.0b1 (2026-07-01) — 架构拆分 Beta / Architecture Split Beta
-- **New**: 🏗️ **api.py 拆分** — 3,717 行 api.py 拆分为 `api.py` + `api_config_flow.py` + `api_repos.py`，通过 Mixin 组合继承
-  — *api.py split into 3 files via Python mixin inheritance — 3,717→1,978 lines*
-- **Fix**: 🌐 **语言切换全界面生效** — 解决切换语言后筛选栏/列头不刷新的问题，选项数组改为语言变化时重建
-  — *Language switch now applies to ALL UI elements — filter chips, column headers, and sort labels*
-- **Fix**: 🐛 **3 个翻译键补全 + 1 个拼写修正** — `loadingUpdates`/`processing`/`inputRepoPlaceholder` 新增，`verifing`→`verifying`
-  — *Fixed 3 missing translation keys + 1 typo*
-- **Fix**: 🐛 **6 处硬编码中文替换** — repo-card/browse/management/integrations-list 中硬编码中文改为 `t()` 调用
-  — *Replaced 6 hardcoded Chinese strings with t() calls*
-- **Fix**: 🔄 **导航时语言切换即时刷新** — 子视图监听 `hacs-lang-changed` 事件，确保切换 Tab 后文字仍为所选语言
-  — *Child views re-render immediately on language change, even across tab switches*
-- **Docs**: 📖 **README 三语化** — 全部章节新增德语版本
-  — *README now trilingual (zh/en/de)*
-- **Chore**: 版本号升级至 v6.0.0b1 / Version bump to v6.0.0b1
-
-### v6.0.0b0 (2026-06-30) — 多语言 Beta / Multilingual Beta
-- **New**: 🌍 **多语言支持架构** — 重构 i18n 引擎，语言检测从二元硬编码升级为可扩展映射表 (`LANG_MAP`)
-  — *Multi-language engine — language detection upgraded from hardcoded binary to extensible LANG_MAP*
-- **New**: 🇩🇪 **德语翻译** — 由社区贡献者支持，200+ 前端键完整翻译 + 后端 `de.json`
-  — *German (de) translations — 200+ frontend keys + backend de.json*
-- **New**: 🔠 **设置页语言选择器** — 可在设置页手动选择语言，覆盖 HA 系统语言检测
-  — *Language selector in settings — manual override for HA system language*
-- **New**: 🧩 **第三方语言扩展** — 新语言只需 2 步：加 `LANG_MAP` 映射 + 写翻译键。零代码改检测逻辑
-  — *Third-party language extension — 2 steps: LANG_MAP entry + translation keys. No detection logic changes*
-- **Chore**: 版本号升级至 v6.0.0b0 / Version bump to v6.0.0b0
-
-### v5.2.0 (2026-06-30) — 跳过版本 + 全面优化 / Skip Version + Full Optimization
-- **New**: 🐛 **直接提交 GitHub Issue** — 在卡片和详情弹窗中一键提交 Issue，自动收集日志、系统信息、上传截图，支持 GitHub 截图粘贴
-  — *One-click GitHub Issue submission from cards and detail modals, auto-collects logs, system info, screenshots*
-- **New**: 🔕 **版本级跳过更新** — 支持跳过指定版本，下个新版本正常提醒。与 HA 原生 `update.skip`/`update.clear_skipped` 同步，Vision 面板 + HA 设置 → Updates 完全一致
-  — *Skip specific versions, next version will re-notify. Synced with native HA `update.skip`/`update.clear_skipped`*
-- **New**: 👁️ **已跳过更新面板** — 更新页筛选栏显示 `🔇 显示/隐藏已跳过更新 (N)`，点击展开/收起已跳过的版本卡片，支持"取消跳过"
-  — *Skipped versions panel in Updates view with show/hide toggle, unskip support*
-- **New**: ⚡ **Updates 数据源切到 HA 实体** — 从 HA 状态机直接读取 `update.*` 实体，替代 HACS 内部 API。更实时、更准确。HACS 降级备用
-  — *Reads update data directly from HA state machine (`update.*` entities) instead of HACS internal API. Faster, more accurate*
-- **New**: 🏷️ **批量跳过** — 勾选多个仓库后，操作栏增加"批量跳过"按钮
-  — *Batch skip button for selected repositories*
-- **Optimize**: 📦 **商店/仓库管理同步跳过** — 所有列表接口交叉检查 HA 实体跳过状态，已跳过的仓库不再显示更新按钮
-  — *All list endpoints cross-check HA entity skip state; skipped repos no longer show update button*
-- **Optimize**: 🔄 **HA 重启可靠性** — 修复 Supervisor 作业卡死导致重启失败的问题。改用 `docker restart homeassistant` 绕开卡住的 Supervisor 作业
-  — *Fixed HA restart reliability — uses `docker restart homeassistant` to bypass stuck Supervisor jobs*
-- **Optimize**: 📋 **Issue 弹窗清理** — 删除废弃的 `_showIssueDialog` Lit 模板代码，统一使用 `_handleIssueReport`。日志预览改为可编辑 `textarea`
-  — *Cleaned up dead issue dialog code, unified to `_handleIssueReport`, editable log preview*
-- **Fix**: 🐛 **跳过版本 500 错误** — `release_url` 可能为 `None` 导致 `None.startswith()` 异常
-  — *Fixed 500 error when `release_url` is `None` causing `None.startswith()` crash*
-- **Fix**: 🐛 **跳过版本后更新数不变** — 排除 `pending_restart` 仓库
-  — *Fixed update count not updating — excludes `pending_restart` repos*
-- **Fix**: 🐛 **跳过卡片渲染中断** — `<img>` + `@error` 破坏 Lit 渲染管道，改用纯文字首字母头像
-  — *Fixed skipped card render crash — removed `<img>` + `@error` that broke Lit rendering*
-- **Chore**: 版本号升级至 v5.2.0 / Version bump to v5.2.0
-
-### v5.1.0 (2026-06-21) — 优化版
-- **New**: 📊 **集成卡片显示设备/实体数** — 每个集成卡片、列表行展示设备和实体数量
-- **New**: ⭐ **GitHub 登录自动星标** — Token/OAuth/HACS 导入后自动星标本仓库
-- **New**: 🏷️ **侧边栏+标题图标统一** — 全部使用 `hacs:hacs` 图标，去掉蓝底背景
-- **Fix**: 🧹 **清理 130+ 冗余 fallback** — 移除所有 `|| '中文'` 无效回退，信任 i18n 层
-- **Fix**: 🌐 **补充 5 个缺失 i18n 键** — githubTokenRequired, pendingRestart, selectAction, zoom, restarting
-- **Fix**: 🎨 **emoji 统一为 SVG 图标** — 设置页 GitHub/OAuth 区域 emoji 替换
-- **Fix**: 🎨 **硬编码颜色改为 CSS 变量** — `#f44336` → `var(--error-color)` 等
-- **Fix**: 🔔 **默认视图变更提示** — 选择后弹出 Toast 提示保存成功
-- **Fix**: 🖼️ **集成图标 avatar 重构** — 使用生命周期 + RAF + complete 兜底，弹窗与卡片图标统一
-- **Fix**: 🎨 **28 处 inline style → CSS 工具类** — config-view GitHub 区域
-- **Chore**: 版本号升级至 v5.1.0
-
-### v5.0.1 (2026-06-21) — 补丁版
-- **New**: 🔑 **OAuth 无痕登录** — 通过 GitHub OAuth 设备流直接授权，无需手动输入 Token，与 HACS 共用 Client ID
-- **New**: 🚀 **OAuth 绕过 SSRF** — 使用独立 aiohttp session，不被 HA SSRF 中间件拦截，不再断连
-- **New**: 👥 **组织/用户仓库开放使用** — 无需登录即可输入组织名列出仓库，GitHub 公开 API 直接访问
-- **New**: ⚡ **设置即时保存** — 修改刷新间隔、默认视图后自动保存并提示，去掉保存按钮
-- **New**: 🛑 **待重启卡片快捷按钮** — 管理视图中 `pending_restart` 状态的仓库卡片下方直接显示重启按钮
-- **Fix**: 🗑️ 清理废弃的 `save-bar` CSS 样式
-- **Chore**: 版本号升级至 v5.0.1
-
-### v5.0.0 (2026-06-20) — 正式版
-- **Arch**: 架构重构 — 从 Lovelace iframe 迁移至 panel_custom embed_iframe=False
-- **New**: 配置体系重构（M1-M6）— 商店按钮智能逻辑、集成管理弹窗、后端动态字段刷新
-- **New**: 手机端全界面适配 — 四个视图统一手机端布局，折叠区收纳操作按钮
-- **New**: 侧边栏按钮贴左 — 手机端 48px 标准触摸目标，贴合屏幕边缘
-- **New**: 卡片/列表单按钮切换 — 两个按钮合并，点击切换节省空间
-- **New**: 智能搜索框 — 默认图标，聚焦撑满全行
-- **Fix**: 收藏计数同步 — 卡片收藏后抬头数字立即更新
-- **Fix**: 版本通道隔离 — 预发布版与正式版独立更新通道
-- **Fix**: 统一图标按钮样式 — 36x36px 统一边框圆角
-- **Fix**: 分页 Bug — GitHub org repos 无限翻页修复
-- **Fix**: 按键竞争 — e.preventDefault 时序修复
-- **Fix**: scoped CE registry 兼容 — HA 2025.7+ 适配
-- **Fix**: 更新日志显示 — changelog API tag 参数修复
-- **Fix**: 预览版降级保护
-- **Fix**: 弹窗系统重构 — 支持最大化/双击全屏/URL点击
-- **Fix**: 重复折叠键 — 移除多余 ≡ 按钮
-- **Perf**: HA API 会话复用、N+1 查询修复、后端缓存上限
-- **Chore**: 版本号升级至 v5.0.0
-
-### v4.1.0 (2026-06-17) — 正式版
-- **New**: 🖼️ **集成配置页内嵌** — 集成管理视图点击卡片，弹窗内 iframe 加载 HA 原生配置页，CSS 裁剪侧边栏
-- **New**: 🖱️ **双击全屏** — iframe 弹窗内双击 → 框架内全屏显示配置内容，再双击还原
-- **New**: 🏷️ **中文标题** — 弹窗标题使用翻译后的中文集成名
-- **New**: 📋 **版本选择器显示更新内容** — 点击版本列表中的版本号，下方更新内容区加载该版本的 release notes
-- **Fix**: 🐛 **版本选择器只显示最新版本** — 现在点击任意版本可加载对应更新内容
-- **Fix**: 🔒 **HA 主题同步** — Light DOM 测试后回退，CSS 变量方案继续使用
-- **Chore**: 版本号升级至 v4.1.0
-- **Refactor**: 🧹 移除测试按钮和 WS 配置流表单原型代码
-- **Perf**: 📦 原详情树视图条件渲染，零性能开销
-
-### v4.0.2 (2026-06-17) — 补丁版
-- **Refactor**: 🔄 **Star 同步从前端移到后端** — 新增 `/github/sync-favorites` API，一站式完成 Token 验证 + 拉取 GitHub Star + 对比收藏 + 追加缺失，仅同步 HACS 已知仓库，确保收藏计数与筛选一致
-- **Fix**: 🐛 **收藏星标状态类型不匹配** — String vs Number 导致五角星图标全灰
-- **Fix**: 🐛 **星星状态脏缓存** — `_starredMap` 旧值不刷新
-- **Fix**: 🐛 **render 异常黑屏** — 错误边界兜底
-- **Fix**: 🐛 **HA 重启后 "正在重启" 横幅不消失** — `_loadStats` 成功时重置 + 5s 轮询重试
-- **Fix**: 🔒 **GitHub Star 同步从未生效** — `hasGitHubToken()` 不存在被静默吞掉
-
-### v4.0.1 (2026-06-17) — 补丁版
-- **Fix**: 收藏筛选客户端分页导致显示不全（显示 26 个，筛选只有 4 个）
-- **Chore**: 版本号升级至 v4.0.1
-
-### v4.0.0 (2026-06-17) — 正式版
-- **New**: 📦 **组织/用户仓库批量添加** — 输入 GitHub 组织或用户 URL，列出仓库供勾选批量添加
-- **New**: 🔑 **GitHub HACS Token 导入** — 设置页支持导入已有 HACS Token，自动登录恢复
-- **New**: 👤 **GitHub 头像显示** — 已登录用户显示头像
-- **New**: ⭐ **仓库点赞（Star）系统** — 本地收藏与 GitHub Star 独立管理，互不干扰
-- **New**: 🚀 **更新页秒开** — 缓存加速 + 手动刷新 + 分卡片延迟加载
-- **New**: ⚡ **批量 Star 加载** — 并行请求，减少 API 调用
-- **New**: 🖼️ **三列网格布局** — 充分利用宽屏空间
-- **New**: 🌐 **i18n 全覆盖** — 30+ 国际化文案键值
-- **New**: 📱 **响应式适配** — 手机/平板/桌面自适应
-- **UI**: 🎨 **颜色系统优化** — 暗色模式兼容、过滤标签 UI 统一
-- **UI**: 🖼️ **CSS 遮罩 Token 输入框** — 替代 type=password，更安全美观
-- **Chore**: 版本号升级至 v4.0.0
-- **Fix**: 🐛 收藏筛选客户端分页导致显示不全（显示 26 个，筛选只有 4 个）
-
-### v3.0.0 (2026-06-13) — 正式版
-- **New**: 🖼️ **集成实体/设备概览** — 集成详情弹窗顶部显示「N 个设备 · M 个实体」汇总统计
-- **New**: 🔗 **仓库依赖检查** — 仓库管理视图新增「检查依赖」按钮，可视化显示缺失的依赖包
-- **New**: 🔍 **搜索历史记录** — 商店搜索框自动记录最近 10 条搜索记录，支持点击回填和逐条删除
-- **New**: 🏷️ **记住上次 Tab** — 刷新页面自动恢复上次打开的 Tab（商店/集成管理/更新/仓库管理/设置）
-- **New**: 📦 **仓库管理筛选持久化** — 筛选/排序状态刷新后保留
-- **New**: 🎨 **弹窗全面升级** — 所有弹窗支持拖拽移动、Escape 关闭、slideUp 动画、统一关闭按钮
-- **New**: 🚀 **插件/主题静默重载** — 安装后自动重新加载配置，无需弹窗确认
-- **New**: 💬 **集成安装智能提示** — 安装完成后弹窗提示 [重启] [稍后]，重启后才能配置
-- **UI**: 🎯 **四视图布局完全统一** — 商店/仓库管理/更新/集成管理的搜索框、按钮、间距、字号全部对齐
-- **UI**: 🪟 **配置页三列布局** — 电脑端设置/维护/数据管理三列，手机单列
-- **UI**: 🔘 **品牌图标三级加载** — CDN → GitHub raw(brand目录) → 本地 → 组织头像 → 首字母
-- **UI**: 🏷️ **筛选标签蓝色高亮** — 筛选区标签使用 primary-color，分隔线间距加大
-- **UI**: 🖼️ **卡片列表视图** — 集成管理新增卡片/列表切换模式
-- **UI**: 🖼️ **设备视图设备折叠** — 每个设备头部可折叠/展开下方实体列表
-- **UI**: 🔢 **字号全面提升** — 去掉所有 8-9px 字号，最小统一为 10px
-- **UI**: 🌐 **中英文翻译全面补全** — 新增 25+ 翻译键，修复所有缺失翻译
-- **Fix**: 🐛 构造函数 `this._loadSearchHistory()` 未定义导致商店空白
-- **Fix**: 🐛 `makeDraggable` 被 Rollup tree-shake 导致弹窗拖拽失效
-- **Fix**: 🐛 子项弹窗 CSS 选择器写错导致手机端布局错误
-- **Fix**: 🐛 集成管理 host padding 导致标签栏到搜索框间距不一致
-- **Chore**: 版本号升级至 v3.0.0
-
+### v6.4.3 (2026-07-16) — Dienstvervollständigung & Portabilität
+- **Verbesserung**: **auto_update-Dienstdefinitionen vervollständigt** — Hinzugefügt `auto_update_start` / `auto_update_stop` / `auto_update_trigger` / `auto_update_reload_settings`; Namen und Beschreibungen erscheinen nun in den Entwicklerwerkzeugen
+- **Verbesserung**: **Screenshot-URL-Erzeugung optimiert** — Der Screenshot-URL-Fallback leitet die Basisadresse nun dynamisch aus der externen/internalen HA-URL-Konfiguration ab, was die Portabilität über Umgebungen hinweg verbessert
+- **Verbesserung**: **Geringere HACS-interne Kopplung** — Einige interne Aufrufe von `self._hacs.hass` auf `self.hass` geändert, weniger Abhängigkeit von privaten APIs
+- **Bereinigung**: **Nicht genutztes Gitee-Modul entfernt** — Gelöscht das nie referenzierte `api_mixins/gitee.py`, um den Code zu verschlanken
+- **Bereinigung**: **Redundante Übersetzung entfernt** — Entfernt den `options`-Abschnitt aus `zh-Hans.json`, der keinem OptionsFlow entsprach
+### v6.4.2 (2026-07-10) — Markenicon-Aktualisierung
+- **UI**: **Markenicon aktualisiert** — Übernommen das offizielle HACS-Store-Icon (Markise + Shop + Tür + HACS-Wortbild), mit einem kleinen „VISION"-Label unten zur Unterscheidung des Projekts
+- **Chore**: Versionen in `manifest.json` / `const.py` / trilingual README auf 6.4.2 synchronisiert
+### v6.4.1 (2026-07-06) — Kompatibilitätsfixes & Sicherheitshärtung
+- **Fix**: **Erkennung benutzerdefinierter Repositories behoben** — Umstellung auf `is_default()` zur Erkennung benutzerdefinierter Repositories, kompatibel mit HACS 2.0, das das Feld `custom_repositories` entfernt hat
+- **Fix**: **Integrationsverwaltungsansicht wird nicht angezeigt** — Erzwungene Aktualisierung des Config-Entry-Caches (`force_refresh=True`), sodass neu hinzugefügte Integrationen sofort erscheinen
+- **Fix**: **Synchronisieren ausgewählter Repos gab 500** — Nun kompatibel mit sowohl String- als auch Objektdatenformaten, einheitliche Behandlung Frontend/Backend
+- **Fix**: **Repos nach Sync nicht gefunden** — Vereinfachung von `_ensure_custom_repos_registered`, basierend auf HACS' eigener Registrierungsmechanik
+- **Chore**: **API-Sicherheitshärtung** — Whitelist-Filterung für Config und Einstellungen, Parametervalidierung, Schutz vor Pfad-Traversal bei Sprachparametern
+- **Chore**: **OAuth gibt kein Token mehr zurück** — Eliminiert das Risiko eines Token-Leaks
+### v6.4.0 (2026-07-06) — Vereinheitlichte Suche & Hinzufügen
+- **New**: **Vereinheitlichte Suche & Hinzufügen** — Das Suchfeld in der Store- und Repository-Verwaltungsansicht unterstützt nun das direkte Hinzufügen von Repositories: Eingabe von `owner/repo` oder einer GitHub-URL zeigt eine Inline-Hinzufügen-Leiste; Eingabe eines Org-Namens lädt dessen Repos zur Batch-Auswahl. Die eigenständige „+ Repo hinzufügen"-Schaltfläche und das Formular wurden entfernt
+- **New**: **Erweiterte Suche** — Alle Ansichten unterstützen nun einheitlich GitHub-URL-Parsing, Autorensuche und Org-Suche
+- **New**: **Klickbarer Repo-Name im Detaildialog** — Der Repo-Name im Detaildialog ist nun ein klickbarer Link, der zur GitHub-Repo-Seite springt
+- **Fix**: **Registrierung benutzerdefinierter Repos fehlgeschlagen** — `add_custom_repository` verwendet nun `check=False`, um Registrierungsfehler durch GitHub-API-Ratenbegrenzungen zu vermeiden
+### v6.3.0 (2026-07-05) — Drei-Abschnitts-Updates-Panel
+- **New**: **Drei-Abschnitts-Aufklappbares Updates-Panel** — Aktualisierbar (standardmäßig aufgeklappt), Aktualisiert (eingeklappt, 30-Tage-Verlauf), Übersprungen (eingeklappt), klar kategorisiert
+- **New**: **Update-Verlaufsverfolgung** — Jedes Update wird automatisch erfasst (Repo-Name, Versionsänderung, Zeit), nach 30 Tagen automatisch bereinigt, per API abfragbar
+- **New**: **Echtzeit-Update-Fortschritt** — Update-Karten zeigen Fortschrittsbalken + Prozentsatz (5%→75%→100%), per Polling aktualisiert
+- **Chore**: Versionssprung auf v6.3.0
+### v6.2.1 (2026-07-04) — Optimierung & Fixes
+- **New**: **Geplanter Neustart** — Eine Zeitsauswahl im Einstellungspanel startet HA zu einer angegebenen Zeit neu, nachdem die Auto-Update-Installation abgeschlossen ist; leer = kein Neustart
+- **New**: **Whitelist-Dialog-Paginierung** — Whitelist in Einstellungen geändert zu Schaltfläche + Modal-Dialog mit paginierter Suche, Chips, Alle auswählen/abwählen, Speichern/Abbrechen
+- **New**: **HACS-Datenaktualisierung** — Aktualisiert HACS-Repository-Daten vor dem Auto-Update, um neueste Versionen sicherzustellen, keine verpassten Updates mehr
+- **Fix**: **Zusammengeführte Einstellungspeicherung** — Backend `_update_settings` auf `{**existing, **body}`-Merge geändert, um zu vermeiden, dass Teilaktualisierungen andere Einstellungen überschreiben
+- **Fix**: **Frontend-Lade-Schutz** — Hinzugefügt `_installedLoaded`-Flag, um unendlichen Ladezustand zu verhindern
+### v6.2.0 (2026-07-04) — Auto-Update
+- **New**: **Auto-Update-Engine** — Hintergrund-geplante Erkennung und automatische Installation von Updates weißgelisteter Repos. Nicht überlappende Läufe, Coalescing zur Vermeidung von Wettläufen. Erster Lauf 60s nach Einstellungsladung, dann periodisch im konfigurierten Intervall. Dual-Channel-Event-Dispatch (`async_dispatcher_send` + `async_fire`) für Echtzeit-Status in Einstellungen
+- **New**: **Whitelist-Verwaltung** — Modal-Dialog mit Paginierung (15/Seite), Suche, Chip-Anzeige, Alle auswählen/abwählen, Speichern/Abbrechen
+- **New**: **Pro-Repo-Auto-Update-Schalter** — Schiebeschalter auf jeder Repo-Karte in Browser- und Update-Ansichten, optimistisches Update + Rollback bei API-Fehler
+- **New**: **Konfigurierbare Prüffrequenz** — Intervalle 1h / 3h / 6h / 12h / 24h
+- **New**: **Update-Benachrichtigungen** — HA-persistente Benachrichtigung bei abgeschlossenem Auto-Update (umschaltbar), feste Benachrichtigungs-ID zur Vermeidung von Stapelung
+- **New**: **4 Backend-Dienste** — `trigger_auto_update` (manuell), `reload_auto_update_settings` (neu laden), `start_auto_update`/`stop_auto_update` (Scheduler start/stop)
+- **Chore**: Versionssprung auf v6.2.0
+### v6.0.0b1 (2026-07-01) — Architektur-Split-Beta
+- **New**: **api.py-Split** — Die 3.717-zeilige api.py wurde in `api.py` + `api_config_flow.py` + `api_repos.py` via Mixin-Komposition aufgeteilt
+- **Fix**: **Sprachumschaltung greift überall** — Behoben, dass Filter-Chips/Spaltenköpfe nach Sprachumschaltung nicht aktualisiert wurden; Options-Arrays werden nun bei Sprachwechsel neu aufgebaut
+- **Fix**: **3 Übersetzungsschlüssel hinzugefügt + 1 Tippfehler behoben** — `loadingUpdates`/`processing`/`inputRepoPlaceholder` hinzugefügt, `verifing`→`verifying`
+- **Fix**: **6 hartcodierte Chinesisch ersetzt** — Hartcodiertes Chinesisch in repo-card/browse/management/integrations-list durch `t()`-Aufrufe ersetzt
+- **Fix**: **Sofortige Aktualisierung bei Sprachumschaltung während Navigation** — Kindansichten hören auf das `hacs-lang-changed`-Event, sodass Text nach Tab-Wechsel in der gewählten Sprache bleibt
+- **Docs**: **Dreisprachiges README** — Deutsche Version zu allen Abschnitten hinzugefügt
+- **Chore**: Versionssprung auf v6.0.0b1
+### v6.0.0b0 (2026-06-30) — Mehrsprachigkeits-Beta
+- **New**: **Mehrsprachigkeits-Engine** — i18n-Engine refactored; Spracherkennung von hartcodiert binär auf erweiterbare `LANG_MAP` aktualisiert
+- **New**: **Deutsche Übersetzung** — Community-beigesteuert, 200+ Frontend-Schlüssel vollständig übersetzt + Backend-`de.json`
+- **New**: **Sprachauswahl im Einstellungspanel** — Sprache manuell in Einstellungen wählbar, überschreibt HA-System-Spracherkennung
+- **New**: **Spracherweiterung durch Dritte** — Neue Sprache in 2 Schritten: `LANG_MAP`-Eintrag + Übersetzungsschlüssel hinzufügen. Keine Änderung der Erkennungslogik
+- **Chore**: Versionssprung auf v6.0.0b0
+### v5.2.0 (2026-06-30) — Version überspringen + volle Optimierung
+- **New**: **Ein-Klick-GitHub-Issue** — Issues aus Karten und Detail-Dialogen einreichen, automatische Erfassung von Logs, Systeminfos, Screenshots; GitHub-Screenshot-Einfügen unterstützt
+- **New**: **Versions-Level-Überspringen** — Bestimmte Versionen überspringen; die nächste neue Version benachrichtigt erneut. Synchronisiert mit nativem HA `update.skip`/`update.clear_skipped`, Vision-Panel + HA-Einstellungen → Updates vollständig konsistent
+- **New**: **Panel für übersprungene Updates** — Update-Filterleiste zeigt `🔇 Übersprungene Updates anzeigen/verbergen (N)`, Aufklappen/Zuklappen übersprungener Versionskarten, unterstützt „nicht überspringen"
+- **New**: **Updates-Datenquelle auf HA-Entities umgestellt** — Liest `update.*`-Entities direkt aus der HA-Zustandsmaschine statt der HACS-internen API. Schneller, genauer; HACS als Fallback
+- **New**: **Batch-Überspringen** — „Batch-Überspringen"-Schaltfläche in der Aktionsleiste nach Auswahl mehrerer Repos
+- **Optimize**: **Store/Repo-Verwaltung Sync-Überspringen** — Alle List-Endpunkte prüfen den HA-Entity-Überspringungsstatus; übersprungene Repos zeigen keine Update-Schaltfläche mehr
+- **Optimize**: **HA-Neustart-Zuverlässigkeit** — Behoben, dass hängengebliebene Supervisor-Jobs Neustartfehler verursachten; verwendet `docker restart homeassistant`, um hängende Jobs zu umgehen
+- **Optimize**: **Issue-Dialog-Bereinigung** — Entfernte tote `_showIssueDialog`-Lit-Template-Codes, vereinheitlicht auf `_handleIssueReport`, editierbare Log-Vorschau
+- **Fix**: **Überspringen-Version 500-Fehler** — `release_url` konnte `None` sein und `None.startswith()`-Ausnahme verursachen
+- **Fix**: **Update-Anzahl nach Überspringen unverändert** — Schließt `pending_restart`-Repos aus
+- **Fix**: **Render-Absturz übersprungener Karte** — `<img>` + `@error` brach Lit-Rendering; geändert zu Plain-Text-Initial-Avatar
+- **Chore**: Versionssprung auf v5.2.0
+### v5.1.0 (2026-06-21) — Optimierung
+- **New**: **Integrationskarten zeigen Geräte/Entity-Anzahlen** — Jede Integrationskarte und Listzeile zeigt Geräte- und Entity-Anzahlen
+- **New**: **GitHub-Login Auto-Star** — Automatischer Star dieses Repos nach Token/OAuth/HACS-Import
+- **New**: **Sidebar + Titel-Icon vereinheitlicht** — Alle verwenden `hacs:hacs`-Icon, blauer Hintergrund entfernt
+- **Fix**: **130+ redundante Fallbacks entfernt** — Alle `|| '中文'`-ungültigen Fallbacks entfernt, i18n-Schicht vertraut
+- **Fix**: **5 fehlende i18n-Schlüssel hinzugefügt** — githubTokenRequired, pendingRestart, selectAction, zoom, restarting
+- **Fix**: **Emoji zu SVG-Icons vereinheitlicht** — GitHub/OAuth-Bereich-Emoji in Einstellungen ersetzt
+- **Fix**: **Hartcodierte Farben zu CSS-Variablen geändert** — `#f44336` → `var(--error-color)` usw.
+- **Fix**: **Hinweis bei Standardansichtsänderung** — Toast-Hinweis bei Erfolg nach Auswahl
+- **Fix**: **Integrations-Icon-Avatar refactored** — Lifecycle + RAF + complete-Fallback, einheitliche Icons für Dialog und Karten
+- **Fix**: **28 Inline-Styles → CSS-Utility-Klassen** — config-view GitHub-Bereich
+- **Chore**: Versionssprung auf v5.1.0
+### v5.0.1 (2026-06-21) — Patch
+- **New**: **OAuth-Inkognito-Login** — Direkte Autorisierung via GitHub-OAuth-Device-Flow, keine manuelle Token-Eingabe
+- **New**: **OAuth umgeht SSRF** — Verwendet unabhängige aiohttp-Session, nicht von HA-SSRF-Middleware abgefangen
+- **New**: **Org/User-Repos offener Zugriff** — Org-Namen eingeben, um Repos ohne Login aufzulisten, direkter GitHub-Public-API-Zugriff
+- **New**: **Sofortige Einstellungspeicherung** — Auto-Speichern und Hinweis nach Änderung des Aktualisierungsintervalls / der Standardansicht, Speichern-Schaltfläche entfernt
+- **New**: **Schnell-Schaltfläche für ausstehende Neustart-Karten** — Neustart-Schaltfläche direkt unter Repo-Karten im `pending_restart`-Zustand in der Verwaltungsansicht
+- **Fix**: **Tote `save-bar`-CSS bereinigt**
+- **Chore**: Versionssprung auf v5.0.1
+### v5.0.0 (2026-06-20) — Offizielle Veröffentlichung
+- **Arch**: Architektur refactored — Migration von Lovelace-iframe zu panel_custom embed_iframe=False
+- **New**: Config-System refactored (M1-M6) — Store-Button-Smart-Logik, Integrationsverwaltungsdialog, Backend-Dynamische-Feld-Aktualisierung
+- **New**: Mobile Vollbildschirm-Anpassung — vier Ansichten einheitliches Mobile-Layout, Aktionsschaltflächen in aufklappbaren Bereichen
+- **New**: Sidebar-Schaltfläche linksbündig — 48px Standard-Touch-Ziel auf Mobile, bündig mit Bildschirmrand
+- **New**: Karte/Liste-Einzel-Schaltflächen-Umschalter — zwei Schaltflächen zusammengeführt, Klick zum Umschalten spart Platz
+- **New**: Intelligentes Suchfeld — Standard-Icon, klappt bei Fokus auf volle Zeile auf
+- **Fix**: Favoritenanzahl-Sync — Kopf-Zahl aktualisiert sofort nach Favorisieren
+- **Fix**: Versionskanal-Isolation — Pre-Release und Stable unabhängige Update-Kanäle
+- **Fix**: Einheitlicher Icon-Schaltflächenstil — 36x36px einheitlicher Rahmenradius
+- **Fix**: Paginierungs-Bug — GitHub-Org-Repos unendliche Paginierung behoben
+- **Fix**: Tastenwettbewerb — e.preventDefault-Timing behoben
+- **Fix**: scoped CE registry Kompatibilität — HA 2025.7+ Anpassung
+- **Fix**: Changelog-Anzeige — changelog API tag-Parameter behoben
+- **Fix**: Vorschauversions-Downgrade-Schutz
+- **Fix**: Dialog-System refactored — unterstützt Maximieren/Doppelklick-Vollbild/URL-Klick
+- **Perf**: HA-API-Sitzungswiederverwendung, N+1-Abfrage behoben, Backend-Cache-Obergrenze
+- **Chore**: Versionssprung auf v5.0.0
+### v4.1.0 (2026-06-17) — Offizielle Veröffentlichung
+- **New**: **Integrations-Config-Seite eingebettet** — Klick auf Integrationskarte in Verwaltungsansicht, iframe lädt HA-native Config-Seite im Dialog, CSS beschneidet Sidebar
+- **New**: **Doppelklick-Vollbild** — Doppelklick im iframe-Dialog → Vollbild-Config-Inhalt im Frame, Doppelklick erneut zum Wiederherstellen
+- **New**: **Chinesischer Titel** — Dialogtitel verwendet übersetzten chinesischen Integrationsnamen
+- **New**: **Versionsauswahl zeigt Update-Inhalt** — Klick auf eine Version in der Versionsliste lädt der Bereich unterhalb die Release Notes dieser Version
+- **Fix**: **Versionsauswahl zeigte nur neueste** — Nun beliebige Version klickbar zum Laden entsprechenden Update-Inhalts
+- **Fix**: **HA-Theme-Sync** — Light-DOM-Test-Fallback, CSS-Variablen-Schema weiterhin
+- **Chore**: Versionssprung auf v4.1.0
+- **Refactor**: Entfernte Test-Schaltflächen und WS-Config-Flow-Form-Prototyp-Codes
+- **Perf**: Ursprüngliche Detail-Baumansicht bedingtes Rendering, null Performance-Overhead
+### v4.0.2 (2026-06-17) — Patch
+- **Refactor**: **Star-Sync vom Frontend ans Backend verschoben** — Hinzugefügt `/github/sync-favorites`-API, Komplettlösung Token-Validierung + GitHub-Star-Abruf + Favoriten-Vergleich + fehlendes Anhängen, synchronisiert nur HACS-bekannte Repos, sichert Favoritenanzahl- und Filterkonsistenz
+- **Fix**: **Favoriten-Stern-Status-Typkonflikt** — String vs Number ließ alle Stern-Icons grau erscheinen
+- **Fix**: **Stern-Status-dirty-Cache** — `_starredMap`-alter Wert nicht aktualisiert
+- **Fix**: **Render-Ausnahme Schwarzbild** — Error-Boundary-Fallback
+- **Fix**: **„Neustart"-Banner nach HA-Neustart nicht verschwunden** — Reset bei `_loadStats`-Erfolg + 5s-Poll-Retry
+- **Fix**: **GitHub-Star-Sync funktionierte nie** — `hasGitHubToken()` existierte nicht, still verschlungen
+### v4.0.1 (2026-06-17) — Patch
+- **Fix**: Favoritenfilter-Client-seitige Paginierung verursachte unvollständige Anzeige (zeigte 26, Filter nur 4)
+- **Chore**: Versionssprung auf v4.0.1
+### v4.0.0 (2026-06-17) — Offizielle Veröffentlichung
+- **New**: **Org/User-Repo-Batch-Hinzufügen** — GitHub-Org- oder User-URL eingeben, Repos zur Batch-Mehrfachauswahl auflisten
+- **New**: **GitHub-HACS-Token-Import** — Einstellungen unterstützen Import vorhandener HACS-Token, Auto-Login-Wiederherstellung
+- **New**: **GitHub-Avatar-Anzeige** — Eingeloggter Benutzer zeigt Avatar
+- **New**: **Repo-Star-System** — Lokale Favoriten und GitHub-Stars unabhängig verwaltet
+- **New**: **Updates-Seite Sofort-Öffnen** — Cache-Beschleunigung + manuelle Aktualisierung + pro-Karte verzögertes Laden
+- **New**: **Batch-Star-Laden** — Parallele Anfragen, weniger API-Aufrufe
+- **New**: **Drei-Spalten-Raster-Layout** — Nutzt breiten Bildschirmplatz voll aus
+- **New**: **i18n-Vollabdeckung** — 30+ Internationalisierungstextschlüssel
+- **New**: **Responsive Anpassung** — Mobile/Tablet/Desktop adaptiv
+- **UI**: **Farbsystem optimiert** — Dark-Mode-kompatibel, Filter-Tag-UI vereinheitlicht
+- **UI**: **CSS-Mask-Token-Eingabe** — Ersetzt type=password, sicherer und hübscher
+- **Chore**: Versionssprung auf v4.0.0
+- **Fix**: Favoritenfilter-Client-seitige Paginierung verursachte unvollständige Anzeige (zeigte 26, Filter nur 4)
+### v3.0.0 (2026-06-13) — Offizielle Veröffentlichung
+- **New**: **Integrations-Entity/Geräte-Übersicht** — Integrations-Detail-Dialog oben zeigt „N Geräte · M Entities"-Zusammenfassung
+- **New**: **Repo-Abhängigkeitsprüfung** — Repository-Verwaltungsansicht fügt „Abhängigkeiten prüfen"-Schaltfläche hinzu, visualisiert fehlende Abhängigkeitspakete
+- **New**: **Suchverlauf** — Store-Suchfeld zeichnet automatisch die letzten 10 Suchen auf, unterstützt Klick-zum-Ausfüllen und Einzel-löschen
+- **New**: **Letzten Tab merken** — Seitenaktualisierung stellt automatisch zuletzt geöffneten Tab wieder her (Store/Integrationsverwaltung/Updates/Repo-Verwaltung/Einstellungen)
+- **New**: **Repo-Verwaltungsfilter-Persistenz** — Filter/Sortier-Status nach Aktualisierung beibehalten
+- **New**: **Dialog vollständig aufgerüstet** — Alle Dialoge unterstützen Drag-Verschieben, Escape-Schließen, slideUp-Animation, einheitliche Schließen-Schaltfläche
+- **New**: **Plugin/Theme-Stilles Neuladen** — Auto-Neuladen der Config nach Installation, kein Bestätigungsdialog
+- **New**: **Integrations-Installations-Smart-Hinweis** — Nach Installation Dialog-Hinweis [Neustart] [Später], muss neu starten zum Konfigurieren
+- **UI**: **Vier-Ansichten-Layout vollständig vereinheitlicht**
+- **UI**: **Config-Seite Drei-Spalten-Layout** — PC: Einstellungen/Wartung/Datenverwaltung drei Spalten; Mobile Einzelspalte
+- **UI**: **Markenicon Drei-Ebenen-Laden** — CDN → GitHub raw (brand dir) → lokal → Org-Avatar → Initial
+- **UI**: **Filter-Tag Blau-Hervorhebung** — Filterbereich-Tags verwenden primary-color, erhöhter Trennerabstand
+- **UI**: **Karte/Listen-Ansicht** — Integrationsverwaltung fügt Karte/Liste-Umschalter hinzu, Listenmodus zeigt Domain-Feld
+- **UI**: **Geräteansicht Geräte-Einklappen** — Jeder Geräte-Header klappbar/aufklappbar Entity-Liste
+- **UI**: **Schriftgröße gesamt angehoben** — Alle 8-9px-Schriften entfernt, Minimum einheitlich 10px
+- **UI**: **Chinesisch/Englisch-Übersetzung vollständig abgeschlossen** — 25+ Übersetzungsschlüssel hinzugefügt, alle fehlenden Übersetzungen behoben
+- **Fix**: Konstruktor `this._loadSearchHistory()` undefiniert verursachte leeren Store
+- **Fix**: `makeDraggable` von Rollup tree-shaken verursachte Dialog-Drag-Versagen
+- **Fix**: Kind-Dialog-CSS-Selektor falsch verursachte Mobile-Layout-Fehler
+- **Fix**: Integrationsverwaltung host padding verursachte inkonsistenten Label-zu-Suche-Abstand
+- **Chore**: Versionssprung auf v3.0.0
 ### v2.3.3 (2026-06-13)
-- **New**: 🔄 **重新下载** — 已安装仓库一键重新下载（卸载+重装），修复损坏安装。支持 `POST /redownload` API
-- **New**: ⛔ **忽略仓库** — 将仓库加入忽略列表，不再出现在搜索结果和更新提醒。支持 `POST /ignore` API
-- **New**: 🗣️ **提示信息全面优化** — 所有确认对话框增加操作后果描述（卸载、删除、移除、忽略等），让用户清楚知道每个操作的影响范围
-- **New**: 🎨 **UI 全面重构** — 商店/仓库管理/集成管理/更新四视图布局统一
-- **New**: 🔗 **筛选+排序合并** — 所有视图的筛选和排序合并为一行，去掉冗余标签文字
-- **New**: 🏷️ **筛选标注** — 每组筛选 chips 前加蓝色高亮标签（状态/标签/类型/排序/仓库）
-- **New**: 📦 **仓库管理状态+类型筛选** — 新增按安装状态和分类筛选仓库
-- **New**: 🗑️ **仓库管理批量操作** — 全选 checkbox + 批量移除，与商店一致
-- **New**: 🔢 **统计信息** — 仓库管理显示"共 N 个仓库"
-- **New**: 🔄 **刷新按钮** — 仓库管理新增刷新按钮
-- **New**: ▲/▼ **排序方向指示** — 所有排序芯片添加方向箭头
-- **New**: 🖼️ **空状态图标** — 仓库管理四个空状态全部加 SVG 图标
-- **New**: 🔁 **重新加载** — 配置页新增重新加载按钮（调用 `homeassistant.reload_core_config`），插件/主题装完无需重启
-- **New**: 💾 **备份/恢复** — 配置页新增导出/导入 HACS 配置备份
-- **New**: 🟠 **待加载标记** — 安装插件/主题后选"稍后" → 卡片显示🟠待加载标签，调用重新加载后自动清除
-- **New**: 💬 **安装/更新后智能提示** — 集成→建议重启，插件/主题→建议重新加载，1.5 秒后弹窗
-- **New**: 🎨 **品牌图标三级加载** — CDN → GitHub raw(brand目录) → 本地 → 组织头像 → 首字母
-- **New**: 🃏 **集成管理列表视图** — 新增卡片/列表切换，列表模式显示域名字段
-- **New**: 🏷️ **中英文翻译全面补全** — 新增 20+ 翻译键，修复 `catPython`/`flowStartFailed`/`statusDisabled`/`delete` 等缺失翻译
-- **UI**: 🎯 **全部按钮高度统一为 36px** — 刷新/切换/添加仓库/添加集成按钮高度完全一致
-- **UI**: 🔍 **搜索框统一** — 商店/管理/更新/集成管理搜索框全部使用共享样式（40px 高度，flex 自适应宽度）
-- **UI**: 📐 **间距统一** — 修复集成管理 `:host padding` 导致的标签栏到搜索框间距不一致
-- **UI**: 🖼️ **背景统一** — 商店内容区使用 card-background-color 包裹，消除"断层"感
-- **UI**: 🎨 **avatar 背景色去除** — 图标不再被分类色背景覆盖，仅 initials 显示背景色
-- **UI**: 🔲 **配置页三列布局** — 电脑端设置/维护/数据管理三列，手机单列
-- **Fix**: 📖 README 和⛔忽略按钮从商店卡片移除，仅在仓库管理显示
-- **Fix**: 🗑️ 更新页面去掉批量选择（无实际意义）
-- **Fix**: 🧩 集成管理搜索框前的蓝色数字 badge 已移除
-- **Fix**: 🐛 `_handleIgnore` 误用"确定要卸载"作为忽略确认文字 → 改为正确的 `confirmIgnore` 翻译
-- **Fix**: 🐛 更新确认文案混乱 — 全部更新和更新已选使用不同的确认文案模板
-- **Fix**: 🐛 集成删除确认缺少集成名称 → 新增 `{domain}` 模板参数
-- **Fix**: `multi_select` 字段渲染为勾选框而非多选下拉框（如 xiaomi_home 配置）
-- **Fix**: `is_custom` 字段前后端不一致导致自定义仓库筛选不可用
-- **Fix**: tag 筛选移至后端 API，分页正常
-- **Fix**: `entity_ref_finder` 三层兜底：`state.attributes` → `hass.data` → `.storage` 文件，兼容 HA 2025.7+
-- **Fix**: 重命名标签与右侧标签重叠（融入 `right-tags` 容器）
-- **Fix**: 仓库卡片移除按钮从右上角移至底部操作栏
-- **Fix**: 管理模式下隐藏重复的"自定义"标签（全是自定义）
-- **Fix**: 骨架屏统一为 6 个卡片
-- **Fix**: number 字段 `valueMin/valueMax` 兜底支持
-- **Fix**: boolean 兼容 `true`/`1`/`"1"`
-- **Fix**: 所有 `_LOGGER.error` 补全 `exc_info=True`
-- **Chore**: 术语对齐 HACS 官方翻译，`remove` 从"卸载"改为"移除"
-- **Chore**: 新增 `delete` 系列 key，集成管理操作用"删除"
-- **Chore**: 集成管理去掉重复的"集成管理"页面标题
-- **Chore**: 同步版本号 v2.3.3
-
+- **New**: **Erneut herunterladen** — Ein-Klick-erneut-Herunterladen für installierte Repos (Deinstallieren + Neuinstallieren), behebt defekte Installationen. Unterstützt `POST`-API
+- **New**: **Repo ignorieren** — Repos zur Ignore-Liste hinzufügen, erscheinen nicht mehr in Suchergebnissen und Update-Erinnerungen. Unterstützt `POST`-API
+- **New**: **Hinweisinformationen vollständig optimiert** — Alle Bestätigungsdialoge fügen Operationsfolge-Beschreibungen hinzu (Deinstallieren, Löschen, Entfernen, Ignorieren usw.), damit Benutzer jeden Operations-Einfluss klar kennen
+- **New**: **UI vollständig refactored** — Store/Repo-Verwaltung/Integrationsverwaltung/Updates vier-Ansichten-Layout vereinheitlicht
+- **New**: **Filter+Sort zusammengeführt** — Filter und Sort aller Ansichten in eine Zeile zusammengeführt, redundante Label-Texte entfernt
+- **New**: **Filter-Annotation** — Blau-Hervorhebungs-Label vor jeder Filter-Chip-Gruppe (Status/Tag/Typ/Sort/Repo)
+- **New**: **Repo-Verwaltung Status+Typ-Filter** — Hinzugefügt Filter nach Installationsstatus und Kategorie
+- **New**: **Repo-Verwaltung Batch-Operationen** — Alle-auswählen-Checkbox + Batch-Entfernen, konsistent mit Store
+- **New**: **Statistiken** — Repo-Verwaltung zeigt „N Repos insgesamt"
+- **New**: **Aktualisierungsschaltfläche** — Repo-Verwaltung fügt Aktualisierungsschaltfläche hinzu
+- **New**: ▲/▼ **Sort-Richtungsanzeiger** — Alle Sort-Chips fügen Richtungspfeile hinzu
+- **New**: **Leerzustands-Icons** — Alle vier Repo-Verwaltungs-Leerzustände erhalten SVG-Icons
+- **New**: **Neuladen** — Config-Seite fügt Neuladen-Schaltfläche hinzu (ruft `homeassistant.reload_core_config`), Plugins/Themes brauchen nach Installation keinen Neustart
+- **New**: **Backup/Wiederherstellen** — Config-Seite fügt Export/Import HACS-Config-Backup hinzu
+- **New**: 🟠 **Ausstehendes-Laden-Marker** — Nach Installation Plugin/Theme „Später" wählen → Karte zeigt 🟠 ausstehendes-Laden-Tag, automatisch nach Neuladen gelöscht
+- **New**: **Install/Update-Smart-Hinweis** — Integration→Neustart vorschlagen, Plugin/Theme→Neuladen vorschlagen, Popup nach 1,5s
+- **New**: **Markenicon Drei-Ebenen-Laden** — CDN → GitHub raw (brand dir) → lokal → Org-Avatar → Initial
+- **New**: **Integrationsverwaltung Listenansicht** — Karte/Liste-Umschalter hinzugefügt, Listenmodus zeigt Domain-Feld
+- **New**: **Chinesisch/Englisch-Übersetzung vollständig abgeschlossen** — 20+ Übersetzungsschlüssel hinzugefügt, fehlende Übersetzungen wie `catPython`/`flowStartFailed`/`statusDisabled`/`delete` behoben
+- **UI**: **Alle Schaltflächenhöhen auf 36px vereinheitlicht**
+- **UI**: **Suchfeld vereinheitlicht** — Store/Verwaltung/Updates/Integrationsverwaltung Suchfelder verwenden alle gemeinsamen Stil (40px Höhe, flex auto-breite)
+- **UI**: **Abstand vereinheitlicht** — Behoben Integrationsverwaltung `:host padding` verursachte inkonsistenten Label-zu-Suche-Abstand
+- **UI**: **Hintergrund vereinheitlicht** — Store-Inhaltsbereich in card-background-color gewrappt, eliminiert „Bruchlinie"-Gefühl
+- **UI**: **Avatar-Hintergrund entfernt** — Icons nicht mehr von Kategorie-Farbe-Hintergrund abgedeckt, nur Initials zeigen Hintergrund
+- **UI**: **Config-Seite Drei-Spalten-Layout** — PC drei Spalten, Mobile Einzelspalte
+- **Fix**: **README- und Ignorieren-Schaltfläche aus Store-Karten entfernt**, nur in Repo-Verwaltung angezeigt
+- **Fix**: **Batch-Auswahl aus Updates-Seite entfernt** (keine praktische Bedeutung)
+- **Fix**: **Doppeltes „Custom"-Badge in Verwaltungsmodus entfernt** (alle sind custom)
+- **Fix**: `_handleIgnore` missbrauchte „Bestätigen Sie Deinstallation" als Ignore-Bestätigungstext → geändert zu korrektem `confirmIgnore`-Übersetzung
+- **Fix**: **Update-Bestimmungstext-Chaos** — Alle-Update und Update-ausgewählte verwenden unterschiedliche Bestätigungsvorlagen
+- **Fix**: **Integrations-Lösch-Bestimmung fehlte Integrationsname** → hinzugefügt `{domain}`-Template-Parameter
+- **Fix**: `multi_select`-Feld als Checkbox statt Multi-Select-Dropdown gerendert (z.B. xiaomi_home Config)
+- **Fix**: `is_custom`-Feld Frontend/Backend-Inkonsistenz verursachte Custom-Repo-Filter nicht verfügbar
+- **Fix**: Tag-Filter in Backend-API verschoben, Paginierung normal
+- **Fix**: `entity_ref_finder` Drei-Ebenen-Fallback: `state.attributes` → `hass.data` → `.storage`-Datei, kompatibel mit HA 2025.7+
+- **Fix**: Umbenanntes Label überlappt mit rechtsseitigen Tags (in `right-tags`-Container zusammengeführt)
+- **Fix**: Repo-Karte-Entfernen-Schaltfläche von oben-rechts nach unten-Aktionsleiste verschoben
+- **Fix**: Doppelten „Integrationsverwaltung"-Seitentitel im Verwaltungsmodus ausgeblendet
+- **Fix**: Skeleton-Screen auf 6 Karten vereinheitlicht
+- **Fix**: number-Feld `valueMin/valueMax`-Fallback-Unterstützung
+- **Fix**: boolean kompatibel mit `true`/`1`/`"1"`
+- **Fix**: Alle `_LOGGER.error` um `exc_info=True` ergänzt
+- **Chore**: Terminologie an HACS-offizielle Übersetzung angeglichen, `remove` von „Deinstallieren" zu „Entfernen" geändert
+- **Chore**: `delete`-Serien-Schlüssel hinzugefügt, Integrationsverwaltungsoperationen verwenden „Löschen"
+- **Chore**: Integrationsverwaltung doppelten „Integrationsverwaltung"-Seitentitel entfernt
+- **Chore**: Versionnummer v2.3.3 synchronisiert
 ### v2.3.2 (2026-06-12)
-- **Fix**: 自定义仓库筛选无效 — 后端返回字段 `"custom"` 与前端读取 `is_custom` 不一致，现已对齐（双字段兼容）
-- **Chore**: 同步版本号 v2.3.2
-
+- **Fix**: Custom-Repo-Filter ungültig — Backend zurückgegebenes Feld `"custom"` inkonsistent mit Frontend-Lesen `is_custom`, nun ausgerichtet (Dual-Feld-kompatibel)
+- **Chore**: Versionnummer v2.3.2 synchronisiert
 ### v2.3.1 (2026-06-12)
-- **Fix**: 补回 v2.3.0 release 缺失的 `entity_ref_finder.py`，修复集成加载 `ModuleNotFoundError`
-- **Chore**: 同步版本号 v2.3.1，更新 README
-
+- **Fix**: Fehlendes `entity_ref_finder.py` aus v2.3.0-Release wiederhergestellt, behoben Integrationsladung `ModuleNotFoundError`
+- **Chore**: Versionnummer v2.3.1 synchronisiert, README aktualisiert
 ### v2.3.0 (2026-06-12)
-- **New**: 🧩 集成管理视图 — 卡片网格展示所有已安装集成，中文搜索、状态筛选、集成类型分组
-- **New**: 🔍 设备与实体下钻 — 集成卡片点击展开 → 按区域分组的设备列表 → 实体实时状态
-- **New**: 🎮 实体一键控制 — 开关、灯、锁、窗帘、风扇等常见域直接在面板中控制
-- **New**: 🏷️ 中文名翻译 — HA 官方 + 自定义集成自动显示中文名称（从 brands / manifest 读取）
-- **New**: 🎨 品牌图标 — 三级加载：CDN → 本地自定义图标（`custom_components/{domain}/brand/`） → 首字母 fallback
-- **New**: 🔗 EntityRefFinder — `EntityRefFinder` 类，扫描 HA 中所有对指定 entity_id 的引用（自动化/脚本/场景/面板），支持 preview 替换模式和一键替换
-- **Enhance**: HACSBrandIconView 支持 `/icon`、`/logo` 子路径解析，修复域名带 `_` 时的路径提取
-- **Enhance**: `get_all_repos_from_hacs()` 返回字段增加 `default_branch`
-- **Fix**: `api.py` 品牌图标静态资源路径优化，使用 `actual_domain` 而非原始 `safe_domain`
-- **Chore**: 更新 `const.py` version → 2.3.0，同步 `manifest.json`
-
+- **New**: **Integrationsverwaltungsansicht** — Kartengitter zeigt alle installierten Integrationen, chinesische Suche, Statusfilter, Integrationstyp-Gruppierung
+- **New**: **Geräte- & Entity-Drilldown** — Klick auf Integrationskarte → nach Bereich gruppierte Geräteliste → Entity-Echtzeitstatus
+- **New**: **Ein-Klick-Entity-Steuerung** — Schalter, Lichter, Schlösser, Covers, Fans und andere gängige Domänen direkt im Panel gesteuert
+- **New**: **Chinesischer Namen-Übersetzung** — Offizielle & custom Integrationen zeigen automatisch chinesische Namen (aus brands oder manifest)
+- **New**: **Markenicons** — Drei-Ebenen-Laden: CDN → lokales custom Icon (`custom_components/{domain}/brand/`) → Initial-Fallback
+- **New**: **EntityRefFinder** — `EntityRefFinder`-Klasse scannt alle Referenzen zu einer angegebenen entity_id in HA (Automatisierungen/Scripts/Szenen/Panels), unterstützt Preview-Ersetzungsmodus und Ein-Klick-Ersetzen
+- **Enhance**: HACSBrandIconView unterstützt `/icon`, `/logo` Subpath-Parsing, behoben Pfad-Extraktion wenn Domain `_` hat
+- **Enhance**: `get_all_repos_from_hacs()` Rückgabefeld fügt `default_branch` hinzu
+- **Fix**: `api.py` Markenicon-Static-Resource-Pfad optimiert, verwendet `actual_domain` statt rohem `safe_domain`
+- **Chore**: `const.py` Version → 2.3.0 aktualisiert, `manifest.json` synchronisiert
 ### v2.1.2 (2026-06-11)
-- **New**: 集成配置弹窗自动加载中文本地化翻译 — 通过后端 API 读取 `custom_components/{domain}/translations/zh-Hans.json`，支持 config flow 和 options flow 的所有翻译点（字段标签、描述、占位符、菜单选项、步骤标题）
-- **Fix**: `_handleDetail` 无限递归导致 `Maximum call stack size exceeded` 崩溃
-- **Fix**: Browse 视图事件转发优化，消除冗余事件监听
-- **Chore**: 清理前端调试日志
-
+- **New**: Integrations-Config-Dialog lädt automatisch chinesische Lokalisierung — liest `custom_components/{domain}/translations/zh-Hans.json` via Backend-API, unterstützt alle Übersetzungspunkte in Config-Flow und Options-Flow (Feld-Labels, Beschreibungen, Platzhalter, Menüoptionen, Schritt-Titel)
+- **Fix**: `_handleDetail` unendliche Rekursion verursachte `Maximum call stack size exceeded`-Absturz
+- **Fix**: Browse-Ansicht Event-Weiterleitung optimiert, redundante Event-Listener eliminiert
+- **Chore**: Frontend-Debug-Logs bereinigt
 ### v2.1.1 (2026-06-10)
-- **Fix**: Config Flow 弹窗中文本地化通道修复 — 后端 `get_config_entries_map()` 返回数组而非对象
-- **Fix**: `_loadConfigEntries()` 正确解包 `resp.entries`
-- **Fix**: `updated()` 生命周期中 `this.domain` 被错误清空
-
+- **Fix**: Config-Flow-Dialog chinesische Lokalisierungskanal behoben — Backend `get_config_entries_map()` gab Array statt Objekt zurück
+- **Fix**: `_loadConfigEntries()` entpackt korrekt `resp.entries`
+- **Fix**: `updated()`-Lebenszyklus `this.domain` falsch geleert
 ### v2.1.0 (2026-06-10)
-- **New**: 设置页动态显示版本号（从 API 获取）
-- **New**: Config Flow 表单增强 — 支持密码掩码、多行文本框、字段说明文字
-- **New**: 浏览器缓存自动清除机制
-- **UI**: 更新详情支持展开/收起 changelog 预览、移动端触控优化
-
+- **New**: Einstellungsseite zeigt dynamisch Versionsnummer (aus API)
+- **New**: Config-Flow-Form erweitert — unterstützt Passwortmaske, mehrzeiliges Textfeld, Feld-Beschreibungstext
+- **New**: Browser-Cache-Auto-Lösch-Mechanismus
+- **UI**: Update-Details unterstützen Aufklappen/Zuklappen Changelog-Vorschau, Mobile-Touch-Optimierung
 ### v2.0.2 (2026-06-09)
-- Fix: 自身更新检测与 HACS 内存注册
-
+- Fix: Eigen-Update-Erkennung und HACS-In-Memory-Registrierung
 ### v2.0.1 (2026-06-09)
-- Fix: config flow dialog 的 `.hass` 属性传递
-- Fix: HA 2026.6.0 升级后 `.pyc` 缓存导致 API 404
-
+- Fix: Config-Flow-Dialog `.hass`-Eigenschaftsübergabe
+- Fix: HA 2026.6.0-Upgrade verursachte `.pyc`-Cache führte zu API 404
 ### v2.0.0 (2026-06-09)
-- 完整 UI 重设计，现代化卡片布局 / Complete UI redesign
-- 内置配置流对话框 / Built-in config flow dialog
-- 语言自动跟随 HA 系统设置 / Language auto-detection
-
+- Komplettes UI-Redesign, modernes Kartenlayout
+- Eingebauter Config-Flow-Dialog
+- Sprache folgt automatisch HA-Systemeinstellungen
 ### v1.1.2 (2026-06-07)
-- HTTP 代理模式配置流 / HTTP proxy mode for config flow API
-
+- HTTP-Proxy-Modus Config-Flow
 ### v1.1.1
-- 收藏系统 / Favorites system
-- 安装追踪 / Install tracking
-
+- Favoriten-System
+- Installations-Tracking
 ### v1.1.0
-- 初始公开版本 / Initial public release
-
+- Ursprüngliche öffentliche Version
 ---
 
 ## Projektstruktur

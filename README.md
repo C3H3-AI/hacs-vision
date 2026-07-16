@@ -120,6 +120,17 @@
 
 ## 更新日志
 
+### v6.4.3 (2026-07-16) — 服务补全 & 可移植性优化
+- **改进**: **auto_update 服务定义补全** — 补全 `auto_update_start` / `auto_update_stop` / `auto_update_trigger` / `auto_update_reload_settings` 四个服务，开发者工具中现可看到名称与描述
+- **改进**: **截图地址生成优化** — 截图 URL 兜底逻辑改为按 HA 配置的 external/internal URL 动态派生基地址，提升跨环境可移植性
+- **改进**: **降低 HACS 内部耦合** — 部分内部调用由 `self._hacs.hass` 改为 `self.hass`，减少私有 API 依赖
+- **清理**: **移除未使用的 Gitee 模块** — 删除从未被引用的 `api_mixins/gitee.py`，精简代码体积
+- **清理**: **清理冗余翻译** — 移除 `zh-Hans.json` 中无对应 OptionsFlow 的 `options` 段
+
+### v6.4.2 (2026-07-10) — 品牌图标更新
+- **UI**: **品牌图标更新** — 采用 HACS 官方商店图标（遮阳棚 + 店面 + 门 + HACS 字样），底部增加小号「VISION」标签以区分项目
+- **杂务**: 同步 `manifest.json` / `const.py` / 三语 README 版本号至 6.4.2
+
 ### v6.4.1 (2026-07-06) — 兼容修复 & 安全增强
 - **Fix**: 🗂️ **自定义仓库识别修复** — 改用 `is_default()` 判断自定义仓库，兼容 HACS 2.0 移除 `custom_repositories` 字段
 - **Fix**: 🔍 **集成管理视图不显示** — 配置条目缓存强制刷新（`force_refresh=True`），新添加的集成立即可见
