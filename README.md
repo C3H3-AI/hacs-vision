@@ -11,7 +11,7 @@
 [![English](https://img.shields.io/badge/lang-en-red.svg)](README.en.md)
 [![Deutsch](https://img.shields.io/badge/lang-de-green.svg)](README.de.md)
 
-> **当前版本**: v6.4.2 | **最低 HA 版本**: 2024.1.0
+> **当前版本**: v6.4.3 | **最低 HA 版本**: 2024.1.0
 
 > **⚠️ 前置条件**: 必须先安装并配置好 [HACS](https://hacs.xyz)
 

@@ -1,5 +1,18 @@
 # Changelog
 
+## v6.4.3 (2026-07-16) — 服务补全 & 可移植性优化
+
+### ✨ 改进
+
+- **auto_update 服务定义补全** — 补全 `auto_update_start` / `auto_update_stop` / `auto_update_trigger` / `auto_update_reload_settings` 四个服务，开发者工具中现可看到名称与描述
+- **截图地址生成优化** — 截图 URL 兜底逻辑改为按 HA 配置的 external/internal URL 动态派生基地址，提升跨环境可移植性
+- **降低 HACS 内部耦合** — 部分内部调用由 `self._hacs.hass` 改为 `self.hass`，减少私有 API 依赖
+
+### 🧹 清理
+
+- **移除未使用的 Gitee 模块** — 删除从未被引用的 `api_mixins/gitee.py`，精简代码体积
+- **清理冗余翻译** — 移除 `zh-Hans.json` 中无对应 OptionsFlow 的 `options` 段
+
 ## v6.4.1 (2026-07-06) — 兼容修复 & 安全增强
 
 ### 🔧 修复

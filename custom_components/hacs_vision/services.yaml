@@ -65,3 +65,19 @@ replace_entity_refs:
       default: true
       selector:
         boolean:
+
+auto_update_start:
+  name: 启动自动更新
+  description: 启动 HACS Vision 定时自动更新调度。
+
+auto_update_stop:
+  name: 停止自动更新
+  description: 停止 HACS Vision 定时自动更新调度。
+
+auto_update_trigger:
+  name: 触发自动更新
+  description: 立即触发一次自动更新检查与安装。
+
+auto_update_reload_settings:
+  name: 重载自动更新设置
+  description: 重新加载自动更新配置并重新调度。

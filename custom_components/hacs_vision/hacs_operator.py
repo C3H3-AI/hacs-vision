@@ -7,6 +7,7 @@ import threading
 from typing import Any
 
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .const import DOMAIN_HACS, VERSION
 from .hacs_data import HACSData
@@ -457,7 +458,7 @@ class HACSOperator:
         # Build domain→entry_id map once (avoids N+1 config entry traversal)
         _domain_entry_map = {}
         try:
-            for _entry in self._hacs.hass.config_entries.async_entries():
+            for _entry in self.hass.config_entries.async_entries():
                 if _entry.domain and _entry.domain not in _domain_entry_map:
                     _domain_entry_map[_entry.domain] = _entry.entry_id
         except Exception:
@@ -798,8 +799,65 @@ class HACSOperator:
                         category=category,
                     )
                 except Exception as e:
-                    _LOGGER.warning("HACS register failed after add: %s", e, exc_info=True)
-                    return {"success": False, "error": f"HACS register failed: {e}"}
+                    err_str = str(e).lower()
+                    # E1: Retry with check=False + repository_id when the latest stable
+                    # release doesn't have the HACS directory structure (e.g. repo has
+                    # a pre-release with custom_components/ but the stable release is
+                    # still the old Docker-based version). This allows the repo to be
+                    # registered; the user can then install the pre-release version.
+                    if "not compliant" in err_str or "structure" in err_str:
+                        _LOGGER.warning(
+                            "HACS validation failed for %s (likely latest stable release "
+                            "lacks custom_components/). Retrying with check=False...",
+                            full_name
+                        )
+                        # Fetch the GitHub repo ID so HACS's register() won't skip it
+                        # (register() returns early when repo.data.id == "0").
+                        repo_id = await self._fetch_github_repo_id(full_name)
+                        if repo_id:
+                            try:
+                                await self._hacs.async_register_repository(
+                                    repository_full_name=full_name,
+                                    category=category,
+                                    check=False,
+                                    repository_id=repo_id,
+                                )
+                                _LOGGER.info(
+                                    "Repository %s registered with check=False (id=%s)",
+                                    full_name, repo_id
+                                )
+                            except Exception as e2:
+                                _LOGGER.warning(
+                                    "HACS register still failed after retry: %s", e2,
+                                    exc_info=True
+                                )
+                                return {
+                                    "success": False,
+                                    "error": f"HACS register failed: {e2}"
+                                }
+                        else:
+                            _LOGGER.warning(
+                                "Could not fetch GitHub repo ID for %s, "
+                                "falling back to direct registration attempt",
+                                full_name
+                            )
+                            try:
+                                await self._hacs.async_register_repository(
+                                    repository_full_name=full_name,
+                                    category=category,
+                                    check=False,
+                                )
+                            except Exception as e2:
+                                _LOGGER.warning(
+                                    "HACS register still failed: %s", e2, exc_info=True
+                                )
+                                return {
+                                    "success": False,
+                                    "error": f"HACS register failed: {e2}"
+                                }
+                    else:
+                        _LOGGER.warning("HACS register failed after add: %s", e, exc_info=True)
+                        return {"success": False, "error": f"HACS register failed: {e}"}
 
             # Persist the newly registered repo to .storage/hacs.repositories immediately.
             try:
@@ -809,12 +867,35 @@ class HACSOperator:
 
         return {"success": True, "repository": full_name}
 
+    async def _fetch_github_repo_id(self, full_name: str) -> str | None:
+        """Fetch the GitHub repository numeric ID via the API.
+
+        This is needed when HACS's async_register_repository(check=False) is used
+        — without the ID, HACS's register() silently skips the repo.
+        """
+        session = async_get_clientsession(self.hass)
+        url = f"https://api.github.com/repos/{full_name}"
+        try:
+            async with session.get(url, timeout=10) as resp:
+                if resp.status == 200:
+                    data = await resp.json()
+                    repo_id = str(data.get("id", "0"))
+                    return repo_id if repo_id != "0" else None
+                _LOGGER.warning(
+                    "GitHub API returned %s for %s", resp.status, full_name
+                )
+        except asyncio.TimeoutError:
+            _LOGGER.warning("GitHub API timed out fetching %s", full_name)
+        except Exception as ex:
+            _LOGGER.warning("GitHub API error for %s: %s", full_name, ex)
+        return None
+
     async def _find_config_entry_id(self, domain: str | None) -> str | None:
         """Find HA config entry ID for a given integration domain."""
         if not domain:
             return None
         try:
-            for entry in self._hacs.hass.config_entries.async_entries():
+            for entry in self.hass.config_entries.async_entries():
                 if entry.domain == domain:
                     return entry.entry_id
         except Exception:

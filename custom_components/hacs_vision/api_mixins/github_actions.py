@@ -536,7 +536,12 @@ class GitHubActionsMixin:
                 except Exception:
                     pass
             if not ha_url:
-                ha_url = "https://api.homediy.top:8443"
+                # No external/internal URL configured in HA — derive a best-effort
+                # base URL from the local HA host/port instead of a hard-coded domain.
+                host = getattr(self.hass.config, "host", None) or "localhost"
+                http = getattr(self.hass, "http", None)
+                port = getattr(http, "server_port", 8123) if http else 8123
+                ha_url = f"http://{host}:{port}"
             _LOGGER.info("Screenshot URL base: %s", ha_url)
             return f"{ha_url.rstrip('/')}/local/hacs_vision_screenshots/{filename}"
         except Exception as e:
