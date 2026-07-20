@@ -964,6 +964,7 @@ class HACSOpsMixin:
     # Allowed settings keys to prevent injection
     _ALLOWED_SETTINGS_KEYS = {
         "hide_hacs_panel", "default_view", "refresh_interval",
+        "notify_updates", "notify_restart",
         "auto_update_enabled", "auto_update_repos", "auto_update_interval",
         "auto_update_notify", "auto_update_restart_time", "language",
         "translation_agent", "translation_langs",
