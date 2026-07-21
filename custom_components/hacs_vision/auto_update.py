@@ -290,8 +290,9 @@ class AutoUpdateManager:
 
             # Schedule restart at user-defined time if updates were installed
             if has_updates and restart_time:
-                self._pending_restart = True
                 self._schedule_restart_at_time(restart_time)
+                self._pending_restart = True  # Must be set AFTER _schedule_restart_at_time
+                                            # because _cancel_restart_timer() resets it
             elif has_updates and not restart_time:
                 self._pending_restart = False
 
