@@ -964,7 +964,7 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
     try {
       const rawHtml = await api.getReadme(repo.full_name);
       // P0: Sanitize README HTML with DOMPurify to prevent XSS
-      this._readmeHtml = rawHtml ? DOMPurify.sanitize(rawHtml) : null;
+      this._readmeHtml = rawHtml ? DOMPurify.sanitize(rawHtml, { FORCE_BODY: true }) : null;
     } catch(e) {
       this._readmeHtml = null;
     }
@@ -981,7 +981,7 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
       this._translationLoading = true;
       const raw = await api.getReadme(repo.full_name);
       this._translationLoading = false;
-      this._readmeHtml = raw ? DOMPurify.sanitize(raw) : null;
+      this._readmeHtml = raw ? DOMPurify.sanitize(raw, { FORCE_BODY: true }) : null;
       return;
     }
 
@@ -990,7 +990,7 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
     const cached = transCacheGet(repo.full_name, lang);
     if (cached) {
       this._readmeLang = lang;
-      this._readmeHtml = DOMPurify.sanitize(cached);
+      this._readmeHtml = DOMPurify.sanitize(cached, { FORCE_BODY: true });
       return;
     }
 
@@ -1000,7 +1000,7 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
     this._translationLoading = false;
     if (typeof result === 'string') {
       transCachePut(repo.full_name, lang, result);
-      this._readmeHtml = DOMPurify.sanitize(result);
+      this._readmeHtml = DOMPurify.sanitize(result, { FORCE_BODY: true });
     } else {
       const err = result && result.error;
       showToast(this._translationErrorMsg(err), 'error');
