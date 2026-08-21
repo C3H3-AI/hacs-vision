@@ -626,6 +626,8 @@ export const RU_TRANSLATIONS = {
 // Short labels and ambiguous UI terms are reviewed manually because their
 // correct Russian form depends on where they are used in the interface.
 Object.assign(RU_TRANSLATIONS, {
+  changelogTitle: 'Что нового',
+  changelogTitleVersion: '{tag} — Что нового',
   previewNoCard: 'Этот плагин не зарегистрировал пользовательскую карточку. JS загружен, но регистрация через window.customCards не выполнена.',
   previewRenderFailed: 'Не удалось отобразить карточку:',
   previewJsLoadFailed: 'Не удалось загрузить JS плагина с GitHub. Возможно, файл отсутствует по ожидаемому пути.',
