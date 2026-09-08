@@ -16,6 +16,7 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
     stats: { type: Object },
     hass: { type: Object },
     narrow: { type: Boolean },
+    _haNarrow: { type: Boolean, state: true },
     _apiReady: { type: Boolean, state: true },
     _error: { type: String, state: true },
     _detailRepo: { type: Object, state: true },
@@ -99,6 +100,13 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
     registerPanel(this);
     this._resizeHandler = () => { this.narrow = window.innerWidth < 768; };
     window.addEventListener('resize', this._resizeHandler);
+    // Track HA's own narrow threshold (870px, see home-assistant-main.ts media
+    // query) so the menu button visibility matches native HA panels. The panel's
+    // own narrow (<768px) is stricter, so 768–870px needs this separate signal.
+    this._haNarrow = window.matchMedia('(max-width: 870px)').matches;
+    this._haNarrowMq = window.matchMedia('(max-width: 870px)');
+    this._haNarrowListener = (e) => { this._haNarrow = e.matches; };
+    this._haNarrowMq.addEventListener('change', this._haNarrowListener);
     // F2: Network status listeners
     this._onlineHandler = () => { this._networkStatus = 'online'; };
     this._offlineHandler = () => { this._networkStatus = 'offline'; };
@@ -185,13 +193,13 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
     }
     .header-icon ha-icon { --icon-size: 24px; color: var(--primary-color); }
     .sidebar-toggle {
-      display: none; align-items: center; justify-content: center;
+      display: flex; align-items: center; justify-content: center;
       width: 36px; height: 36px; border: none; background: transparent;
       color: var(--primary-text-color); cursor: pointer; border-radius: 8px;
       flex-shrink: 0; touch-action: manipulation;
     }
     .sidebar-toggle:hover { background: rgba(var(--rgb-primary-color, 3,169,244), 0.1); }
-    @media (max-width: 768px) { .sidebar-toggle { display: flex; } }
+    .sidebar-toggle svg { width: 22px; height: 22px; }
     .title-group h1 { font-size: 19px; font-weight: 700; color: var(--primary-text-color, #212121); margin: 0; }
     .title-group p { font-size: 12px; color: var(--secondary-text-color, #727272); margin: 4px 0 0; }
     .header-right { display: flex; gap: 24px; flex-wrap: wrap; }
@@ -753,10 +761,50 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
       if (repo) this._handleIssueReport(repo);
     });
     // F1: Keyboard shortcuts
+    // Escape closes the top-most open modal (panel-level dialogs), one per
+    // press, ordered by z-index: issue overlay (99999) > entry selector /
+    // confirm dialog (10001) > config flow (9999) > card preview > detail.
     this._keydownHandler = (e) => {
-      if (e.key === 'Escape' && this._showDetail) {
-        e.preventDefault();
-        this._closeDetail();
+      if (e.key === 'Escape') {
+        // 1) Issue submission overlay (imperatively created, z-index 99999)
+        if (this._issueOverlay) {
+          e.preventDefault();
+          this._issueOverlay.remove();
+          this._issueOverlay = null;
+          return;
+        }
+        // 2) ConfirmDialog instances (z-index 10001)
+        const confirmDialog = this.renderRoot?.querySelector('confirm-dialog');
+        if (confirmDialog?._visible) {
+          e.preventDefault();
+          confirmDialog._onCancel();
+          return;
+        }
+        // 3) Config flow dialog (z-index 9999)
+        if (this._showConfigFlow) {
+          e.preventDefault();
+          this._onFlowClose();
+          return;
+        }
+        // 4) Card preview dialog
+        if (this._showPreview) {
+          e.preventDefault();
+          this._showPreview = false;
+          this._previewRepo = null;
+          return;
+        }
+        // 5) Entry selector overlay (z-index 10001)
+        if (this._showEntrySelector) {
+          e.preventDefault();
+          this._showEntrySelector = false;
+          return;
+        }
+        // 6) Repo detail modal (z-index 9999)
+        if (this._showDetail) {
+          e.preventDefault();
+          this._closeDetail();
+          return;
+        }
         return;
       }
       if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
@@ -793,6 +841,11 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
     if (this._langChangeHandler) {
       window.removeEventListener('hacs-lang-changed', this._langChangeHandler);
       this._langChangeHandler = null;
+    }
+    if (this._haNarrowMq && this._haNarrowListener) {
+      this._haNarrowMq.removeEventListener('change', this._haNarrowListener);
+      this._haNarrowMq = null;
+      this._haNarrowListener = null;
     }
   }
 
@@ -1277,6 +1330,18 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
     this._detailExpanded = !this._detailExpanded;
   }
 
+  /**
+   * Show the sidebar menu button under the same conditions as native HA
+   * panels: narrow viewport (HA threshold 870px) or when the user/kiosk-mode
+   * set the docked sidebar to always_hidden. When the sidebar is docked
+   * normally on desktop the button stays hidden (v5.0 removed it as redundant).
+   * kiosk-mode intentionally locks the UI, matching native HA behavior.
+   */
+  get _showMenuButton() {
+    if (this.hass?.kioskMode) return false;
+    return !!(this._haNarrow || this.hass?.dockedSidebar === 'always_hidden');
+  }
+
   _toggleSidebar() {
     // Approach 1: Dispatch hass-toggle-menu from component (standard method)
     try {
@@ -1748,6 +1813,8 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
     // 点击外部不关闭（防止编辑内容误触丢失）
     const shadowRoot = this.shadowRoot || this.renderRoot;
     if (shadowRoot) shadowRoot.appendChild(overlay);
+    // Track for the Escape chain; cleared when the overlay is removed below
+    this._issueOverlay = overlay;
 
     // ── 自动暂存（localStorage 草稿） ──
     const _DRAFT_KEY = 'hv-issue-draft-' + fullName.replace('/', '-');
@@ -1845,7 +1912,7 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
     });
 
     // Cancel
-    overlay.querySelector('#hv-issue-cancel').addEventListener('click', () => overlay.remove());
+    overlay.querySelector('#hv-issue-cancel').addEventListener('click', () => { overlay.remove(); this._issueOverlay = null; });
 
     // Submit
     overlay.querySelector('#hv-issue-submit').addEventListener('click', async () => {
@@ -1866,6 +1933,7 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
         const result = await api.createIssue(fullName, title, finalBody, repo.domain, screenshotB64s);
         if (result.ok) {
           overlay.remove();
+          this._issueOverlay = null;
           try { localStorage.removeItem(_DRAFT_KEY); } catch(e) {}
           if (this._showDetail) this._closeDetail();
           if (result.issue_url) window.open(result.issue_url, '_blank');
@@ -2010,7 +2078,7 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
 
         <!-- Sticky Header + Tabs -->
         <div class="sticky-header">
-          ${this.narrow ? html`<button class="sidebar-toggle" @click=${this._toggleSidebar} aria-label="${t('toggleSidebar')}">
+          ${this._showMenuButton ? html`<button class="sidebar-toggle" @click=${this._toggleSidebar} aria-label="${t('toggleSidebar')}">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="24" height="24"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
           </button>` : ''}
 

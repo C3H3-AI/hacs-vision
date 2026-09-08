@@ -41,7 +41,6 @@ class IntegrationsList extends LitElement {
     _activeActionResult: { type: String, state: true },        // Result message for active action
     _configureEntry: { type: Object, state: true },         // Entry for operation dialog
     _configureGroup: { type: Object, state: true },         // Group for operation dialog
-    _testIframeUrl: { type: String, state: true },          // HA config page iframe URL (保留兼容)
     _expanded: { type: Boolean, state: true },                // Modal maximize toggle
     _deviceCounts: { type: Object, state: true },             // domain → {devices, entities}
     // Re-render trigger on language change
@@ -124,6 +123,24 @@ class IntegrationsList extends LitElement {
   connectedCallback() {
     super.connectedCallback();
     this._load();
+    // Window-level Escape so the dialogs close reliably even when focus is
+    // outside the overlay (the per-overlay @keydown handlers only fire when
+    // focus is inside). Ordered top-most first; one dialog per press.
+    this._escHandler = (e) => {
+      if (e.key !== 'Escape') return;
+      if (this._showOperationDialog) { this._closeOperationDialog(); return; }
+      if (this._showDetail) { this._closeDetail(); return; }
+      if (this._showAddDialog) { this._closeAddDialog(); return; }
+    };
+    window.addEventListener('keydown', this._escHandler);
+  }
+
+  disconnectedCallback() {
+    super.disconnectedCallback();
+    if (this._escHandler) {
+      window.removeEventListener('keydown', this._escHandler);
+      this._escHandler = null;
+    }
   }
 
   /* ─── Avatar image loading: attach listeners before setting src ─── */
@@ -1134,31 +1151,6 @@ class IntegrationsList extends LitElement {
             </div>
             ` : ''}
             ${entries.length === 0 ? html`<div class="tree-empty">${t('noData') }</div>` : entries.map(e => this._renderEntryRow(e))}
-          </div>
-        </div>
-      </div>
-    `;
-  }
-
-  /* ─── B方案测试：iframe嵌入HA集成配置页 ─── */
-  _renderTestIframe() {
-    if (!this._testIframeUrl) return '';
-    return html`
-      <div class="detail-overlay" role="dialog" aria-modal="true"
-        @click=${e => { if (e.target === e.currentTarget) this._testIframeUrl = null; }}
-        @keydown=${e => { if (e.key === 'Escape') this._testIframeUrl = null; }}>
-        <div class="modal iframe-modal ${this._expanded ? 'expanded' : ''}" @pointerdown=${this._modalPointerDown} @dblclick=${this._toggleExpand}>
-          <div class="modal-header">
-            <div class="modal-title">${this._translateDomain(this._testIframeDomain) || this._testIframeDomain }</div>
-            <div class="modal-header-right">
-              <button class="tree-action-btn" @click=${this._toggleExpand} title="${t('zoom') }">${this._expanded ? '⤡' : '⤢'}</button>
-              <button class="modal-close" aria-label="${t('close') }" @click=${() => { this._testIframeUrl = null; }}>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-              </button>
-            </div>
-          </div>
-          <div class="iframe-body">
-            <iframe src="${this._testIframeUrl}" class="config-iframe" sandbox="allow-scripts allow-same-origin allow-forms"></iframe>
           </div>
         </div>
       </div>

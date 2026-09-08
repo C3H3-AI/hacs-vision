@@ -1,5 +1,29 @@
 # Changelog
 
+## v6.6.2 (2026-09-09) — 侧边栏逃逸通道修复 / Sidebar Escape Hatch (#29)
+
+### 🔧 修复 / Fixed
+
+- **侧边栏隐藏后无法离开面板 ([#29](https://github.com/C3H3-AI/hacs-vision/issues/29))** — 面板头部菜单按钮（汉堡）的显示条件与原生 HA 面板对齐：窄屏（HA 阈值 870px）或侧边栏被设为「始终隐藏」（`dockedSidebar: always_hidden`）时显示，点击派发 `hass-toggle-menu` 唤出侧边栏；侧边栏正常停靠的桌面端不显示（不回退 v5.0「移除冗余 ≡ 按钮」的决定），kiosk-mode 保持隐藏（与原生行为一致）
+- **修复了 768–870px 窗口宽度的盲区** — 此区间 HA 已把侧边栏变为抽屉，但面板此前不显示菜单按钮（面板旧阈值 768px 与 HA 的 870px 不一致）
+- **No escape from panel when sidebar hidden ([#29](https://github.com/C3H3-AI/hacs-vision/issues/29))** — The panel header menu button now shows under the same conditions as native HA panels: narrow viewport (HA threshold 870px) or when the sidebar dock mode is `always_hidden`; clicking dispatches `hass-toggle-menu` to reopen the sidebar. Stays hidden on desktop with a docked sidebar (respecting v5.0's removal of the redundant ≡ button), and stays hidden in kiosk-mode (native behavior)
+- **Fixed the 768–870px blind spot** — HA already turns the sidebar into a drawer in this range, but the panel's menu button did not show (old panel threshold 768px vs HA's 870px)
+
+### ⌨️ 改进 / Improved
+
+- **Escape 统一逃逸链** — Escape 现在能可靠关闭所有弹窗（Issue 提交 → 确认框 → 配置流 → 卡片预览 → 条目选择 → 仓库详情，按层级每次关一层）；集成管理视图的三个弹窗新增 window 级 Escape 监听，焦点不在弹窗内也能关闭
+- **Unified Escape chain** — Escape now reliably closes every modal (issue dialog → confirm → config flow → card preview → entry selector → repo detail, top-most first); the integrations view dialogs gained window-level Escape handling that works even when focus is outside the overlay
+
+### 🧹 清理 / Cleanup
+
+- **移除 v5.0 废弃的 iframe 测试弹窗死代码**（`_renderTestIframe`，自 v5.0 起无任何调用点）
+- **Removed dead iframe test dialog code** (`_renderTestIframe`, unreferenced since v5.0)
+
+## v6.6.1 (2026-09-02) — 俄语翻译修复 / Russian Changelog Translations
+
+- 修复俄语更新日志缺失的翻译条目（仅文档，manifest 版本号未随之更新，于 v6.6.2 补齐）
+- Fixed missing Russian changelog translations (docs-only; manifest version was left at 6.6.0 and corrected in v6.6.2)
+
 ## v6.6.0 (2026-08-20) — 俄语本地化 / Russian Localization
 
 ### 🌐 国际化 / Internationalization
