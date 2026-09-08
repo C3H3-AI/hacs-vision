@@ -12,7 +12,7 @@
 [![Deutsch](https://img.shields.io/badge/lang-de-green.svg)](README.de.md)
 [![Русский](https://img.shields.io/badge/lang-ru-blue.svg)](#)
 
-> **Текущая версия**: v6.6.2 | **Минимальная версия Home Assistant**: 2024.1.0
+> **Текущая версия**: v6.7.0-beta1 | **Минимальная версия Home Assistant**: 2024.1.0
 
 > **⚠️ Требование**: [HACS](https://hacs.xyz) должен быть установлен и настроен.
 

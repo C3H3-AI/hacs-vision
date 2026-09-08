@@ -12,5 +12,5 @@
   "issue_tracker": "https://github.com/C3H3-AI/hacs-vision/issues",
   "name": "HACS Vision",
   "requirements": [],
-  "version": "6.6.2"
+  "version": "6.7.0-beta1"
 }
