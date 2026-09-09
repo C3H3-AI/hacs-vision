@@ -230,6 +230,16 @@ class HACSEnhancedAPI {
     return this.post('repos/install_version', { id: repoId, version });
   }
 
+  /* Arbitrary ref: list branches + recent commits */
+  getRepoRefs(repoId) {
+    return this.get(`repos/refs?id=${encodeURIComponent(repoId)}`);
+  }
+
+  /* Arbitrary ref: install a branch name or commit SHA */
+  installRef(repoId, ref) {
+    return this.post('repos/install_ref', { id: repoId, version: ref });
+  }
+
   /* F6: Get changelog with localStorage cache — tag optional, omit for latest stable */
   async getChangelog(fullName, tag) {
     const cacheKey = `hacs_changelog_${fullName}_${tag || 'latest'}`;

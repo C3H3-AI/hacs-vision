@@ -445,6 +445,27 @@ const T = {
   noReleases: { zh: '暂无发布版本', en: 'No releases available', de: 'Keine Veröffentlichungen verfügbar' },
   publishedAt: { zh: '发布于', en: 'Published', de: 'Veröffentlicht am' },
 
+  // Arbitrary ref (branch / commit) installer
+  refTab: { zh: 'Commit / 分支', en: 'Commit / Branch', de: 'Commit / Branch' },
+  refBranch: { zh: '分支', en: 'Branch', de: 'Branch' },
+  refCommit: { zh: '提交', en: 'Commit', de: 'Commit' },
+  refPlaceholder: {
+    zh: '输入分支名或 commit SHA（如 dev 或 a1b2c3d）',
+    en: 'Enter branch name or commit SHA (e.g. dev or a1b2c3d)',
+    de: 'Branch-Name oder Commit-SHA eingeben (z. B. dev oder a1b2c3d)',
+  },
+  refInstallBtn: { zh: '安装', en: 'Install', de: 'Installieren' },
+  noRefs: {
+    zh: '未获取到分支或提交，可手动输入 ref 安装',
+    en: 'No branches/commits fetched — you can still enter a ref manually',
+    de: 'Keine Branches/Commits geladen — Ref kann manuell eingegeben werden',
+  },
+  refWarning: {
+    zh: '安装任意分支/commit 属于开发用途，可能不稳定，且不会收到更新提醒。',
+    en: 'Installing an arbitrary branch/commit is for development use: it may be unstable and will not receive update notifications.',
+    de: 'Die Installation eines beliebigen Branch/Commit dient Entwicklungszwecken: Sie kann instabil sein und erhält keine Update-Hinweise.',
+  },
+
   noConfigRequired: { zh: '此集成无需配置', en: 'This integration requires no configuration', de: 'Diese Integration benötigt keine Konfiguration' },
 
   // Tools

@@ -39,6 +39,11 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
     _presetFilter: { type: String, state: true },
     _presetTag: { type: String, state: true },
     _releaseTab: { type: Number, state: true },
+    // Arbitrary ref (branch / commit) install
+    _refs: { type: Array, state: true },
+    _refsLoading: { type: Boolean, state: true },
+    _refInput: { type: String, state: true },
+    _installingRef: { type: Boolean, state: true },
     // Config Flow
     _configFlowDomain: { type: String, state: true },
     _configFlowEntryId: { type: String, state: true },
@@ -82,6 +87,10 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
     this._releases = [];
     this._releasesLoading = false;
     this._installingVersion = false;
+    this._refs = [];
+    this._refsLoading = false;
+    this._refInput = '';
+    this._installingRef = false;
     this._changelogData = null;
     this._changelogLoading = false;
     this._presetFilter = '';
@@ -505,6 +514,34 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
     .release-install-btn:disabled { opacity: 0.5; cursor: not-allowed; }
     .releases-loading { text-align: center; padding: 16px; color: var(--secondary-text-color); font-size: 13px; }
     .releases-empty { text-align: center; padding: 16px; color: var(--secondary-text-color); font-size: 13px; font-style: italic; }
+
+    /* Arbitrary ref (branch / commit) installer */
+    .ref-panel { padding: 8px 0; }
+    .ref-warning {
+      font-size: 11px; line-height: 1.5; color: var(--warning-color, #ff9800);
+      background: rgba(255, 152, 0, 0.08); border-radius: 6px;
+      padding: 8px 10px; margin-bottom: 10px;
+    }
+    .ref-input-row { display: flex; gap: 6px; margin-bottom: 10px; }
+    .ref-input {
+      flex: 1; min-width: 0; padding: 6px 10px; font-size: 12px;
+      border: 1px solid var(--divider-color, #e0e0e0); border-radius: 8px;
+      background: var(--card-background-color, #fff); color: var(--primary-text-color);
+    }
+    .ref-input:focus { outline: none; border-color: var(--primary-color); }
+    .ref-install-btn {
+      padding: 6px 14px; border-radius: 8px; font-size: 11px; font-weight: 600;
+      border: none; background: var(--primary-color); color: #fff; cursor: pointer;
+      white-space: nowrap; transition: opacity 0.2s;
+    }
+    .ref-install-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .ref-list { max-height: 220px; overflow-y: auto; }
+    .ref-badge {
+      display: inline-block; margin-right: 6px; padding: 1px 5px;
+      border-radius: 4px; font-size: 9px; font-weight: 700; vertical-align: middle;
+    }
+    .ref-badge.branch { background: rgba(33, 150, 243, 0.15); color: #2196f3; }
+    .ref-badge.commit { background: rgba(158, 158, 158, 0.18); color: var(--secondary-text-color); }
 
     .release-tabs {
       display: flex; border-bottom: 1px solid var(--divider-color, #e0e0e0);
@@ -993,6 +1030,10 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
     this._showVersionSelector = false;
     this._releases = [];
     this._releasesLoading = false;
+    this._refs = [];
+    this._refsLoading = false;
+    this._refInput = '';
+    this._installingRef = false;
     this._changelogData = null;
     this._changelogLoading = true;
     // Refresh settings so the README language bar reflects the latest
@@ -1116,6 +1157,10 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
     this._showVersionSelector = false;
     this._releases = [];
     this._releasesLoading = false;
+    this._refs = [];
+    this._refsLoading = false;
+    this._refInput = '';
+    this._installingRef = false;
     this._removeFocusTrap();
   }
 
@@ -1390,6 +1435,91 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
       }
       this._releasesLoading = false;
     }
+  }
+
+  /** Load branches + recent commits for the arbitrary ref tab (lazy, once per repo). */
+  async _loadRefs() {
+    if (this._refsLoading) return;
+    this._refsLoading = true;
+    try {
+      const repoId = this._detailRepo?.id || this._detailRepo?.full_name;
+      if (repoId) {
+        const result = await api.getRepoRefs(repoId);
+        this._refs = Array.isArray(result?.refs) ? result.refs : [];
+      }
+    } catch(e) {
+      console.error('Failed to load refs:', e);
+      this._refs = [];
+    }
+    this._refsLoading = false;
+  }
+
+  /** Arbitrary branch / commit install panel (third tab of the version selector). */
+  _renderRefPanel() {
+    return html`
+      <div class="ref-panel">
+        <div class="ref-warning">${t('refWarning')}</div>
+        <div class="ref-input-row">
+          <input class="ref-input"
+                 type="text"
+                 placeholder="${t('refPlaceholder')}"
+                 .value=${this._refInput || ''}
+                 @input=${(e) => this._refInput = e.target.value}
+                 @keydown=${(e) => { if (e.key === 'Enter') this._installRef(); }} />
+          <button class="ref-install-btn"
+                  @click=${() => this._installRef()}
+                  ?disabled=${this._installingRef || !(this._refInput || '').trim()}>
+            ${t('refInstallBtn')}
+          </button>
+        </div>
+        ${this._refsLoading ? html`
+          <div class="releases-loading">
+            <div class="spinner-sm"></div>
+            ${t('loading')}
+          </div>
+        ` : this._refs.length === 0 ? html`
+          <div class="releases-empty">${t('noRefs')}</div>
+        ` : html`
+          <div class="ref-list">
+            ${this._refs.map(ref => html`
+              <div class="release-item">
+                <div class="release-info">
+                  <div class="release-tag">
+                    <span class="ref-badge ${ref.type === 'branch' ? 'branch' : 'commit'}">${
+                      ref.type === 'branch' ? t('refBranch') : t('refCommit')
+                    }</span>
+                    ${ref.type === 'branch' ? (ref.name || '?') : (ref.sha || ref.name || '?')}
+                  </div>
+                  ${ref.message ? html`<div class="release-date">${ref.message}</div>` : ''}
+                  ${ref.date ? html`<div class="release-date">${new Date(ref.date).toLocaleDateString()}</div>` : ''}
+                </div>
+                <button class="release-install-btn"
+                        @click=${() => this._installRef(ref.name)}
+                        ?disabled=${this._installingRef}>
+                  ${t('installVersion')}
+                </button>
+              </div>
+            `)}
+          </div>
+        `}
+      </div>
+    `;
+  }
+
+  /** Install an arbitrary branch name or commit SHA. */
+  async _installRef(ref) {
+    const repoId = this._detailRepo?.id || this._detailRepo?.full_name;
+    const value = ((ref ?? this._refInput) || '').trim();
+    if (!repoId || !value) return;
+    this._installingRef = true;
+    try {
+      await api.installRef(repoId, value);
+      showToast(`${t('installComplete')}: ${value}`, 'success');
+      this._refInput = '';
+    } catch(e) {
+      showToast(`${t('installFailed')}: ${e.message}`, 'error');
+    }
+    this._installingRef = false;
   }
 
   async _selectVersion(release) {
@@ -2260,7 +2390,9 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
                     <div class="release-tabs">
                       <div class="release-tab ${this._releaseTab === 0 ? 'active' : ''}" @click=${() => this._releaseTab = 0}>${t('stableReleases') }</div>
                       <div class="release-tab ${this._releaseTab === 1 ? 'active' : ''}" @click=${() => this._releaseTab = 1}>${t('prereleaseTab') }</div>
+                      <div class="release-tab ${this._releaseTab === 2 ? 'active' : ''}" @click=${() => { this._releaseTab = 2; this._loadRefs(); }}>${t('refTab') }</div>
                     </div>
+                    ${this._releaseTab === 2 ? this._renderRefPanel() : html`
                     ${this._releasesLoading ? html`
                       <div class="releases-loading">
                         <div class="spinner-sm"></div>
@@ -2291,6 +2423,7 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
                         </div>
                       `);
                     })()}
+                    `}
                   </div>
                 ` : ''}
               </div>

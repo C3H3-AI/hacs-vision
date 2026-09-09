@@ -1,5 +1,34 @@
 # Changelog
 
+## v6.7.0-beta2 (2026-09-09) — 任意 commit / 分支安装 / Arbitrary Commit & Branch Install
+
+> ⚠️ **预发布版本（Beta）** — 基于 v6.7.0-beta1，新增「任意 commit / 分支安装」功能。请通过 HACS 的「显示 Beta 版本」或 GitHub Releases 安装测试。
+> **Pre-release (Beta)** — Built on v6.7.0-beta1, adds arbitrary commit/branch install. Install via HACS "Show beta versions" or GitHub Releases for testing.
+
+### ✨ 新功能 / Added
+
+- **版本选择器新增「Commit / 分支」页签** — 在原有的「正式版」「预发布版」之后增加第三个页签，支持安装任意 git ref
+  - 自动列出仓库分支（GitHub `/branches`）与最近 15 条提交（`/commits`），每条带「分支 / 提交」徽章，点击即装
+  - 支持手动输入分支名或 commit SHA 安装（如 `dev`、`a1b2c3d`），回车或点「安装」
+  - 面板内橙色提示：任意 ref 安装属于开发用途，可能不稳定且不会收到更新提醒
+- **Version selector gains a "Commit / Branch" tab** — a third tab after Stable / Pre-releases for installing any git ref
+  - Lists repository branches (GitHub `/branches`) and the 15 most recent commits (`/commits`), each installable with one click
+  - Manual entry of a branch name or commit SHA (e.g. `dev`, `a1b2c3d`)
+  - In-panel warning that arbitrary-ref installs are for development, may be unstable, and receive no update notifications
+
+### 🔧 后端 / Backend
+
+- **支持任意 ref 安装** — `install_repository_version()` 自动判定目标是已知 release tag 还是任意 ref；非 release 时临时固定 `repo.ref` 让 HACS 下载该分支/commit，并在 `finally` 中**必定还原**，避免污染后续安装
+- **Arbitrary ref support** — `install_repository_version()` detects whether the target is a known release tag; for non-release refs it temporarily pins `repo.ref` so HACS downloads that branch/commit, and always restores it in a `finally` block
+- 新增 `_is_release_version()` 判定（兼容 v 前缀、对象式 releases）与 `get_repo_refs()` 分支/提交拉取
+- 新增 API：`GET repos/refs`（列出分支与提交）、`POST repos/install_ref`（安装指定 ref）
+- New API endpoints: `GET repos/refs`, `POST repos/install_ref`
+
+### 🧪 测试 / Tests
+
+- 新增 9 条单测覆盖 release tag 判定与 ref 安装的固定/还原行为
+- 9 new unit tests covering release-tag detection and ref pinning/restoration
+
 ## v6.7.0-beta1 (2026-09-09) — 侧边栏逃逸通道修复（Beta）/ Sidebar Escape Hatch (Beta) (#29)
 
 > ⚠️ **预发布版本（Beta）** — 请通过 HACS 的「显示 Beta 版本」或 GitHub Releases 安装测试。功能与 v6.6.2 相同，仅版本命名不同。

@@ -819,6 +819,18 @@ class HACSOpsMixin:
             await self.data.set_install_time(full_name, datetime.now(timezone.utc).isoformat())
         return web.json_response(result)
 
+    async def _get_repo_refs(self, query) -> web.Response:
+        """List branches and recent commits for the arbitrary-ref installer."""
+        repo_id = query.get("id", "")
+        if not repo_id:
+            return _bad_request("id required")
+        refs = await self.operator.get_repo_refs(repo_id)
+        return web.json_response({"refs": refs})
+
+    async def _install_repo_ref(self, body: dict) -> web.Response:
+        """Install a branch or commit SHA (install_version handles both)."""
+        return await self._install_repo_version(body)
+
     async def _import_backup(self, body: dict) -> web.Response:
         result = await self.backup.import_data(body)
         return web.json_response(result)

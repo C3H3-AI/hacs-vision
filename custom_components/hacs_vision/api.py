@@ -133,6 +133,8 @@ class HACSEnhancedAPI(GitHubAuthMixin, GitHubActionsMixin, HACSOpsMixin, ReadmeT
             return await self._get_changelog(path[10:], query)
         if path == "repos/releases":
             return await self._get_repo_releases(query)
+        if path == "repos/refs":
+            return await self._get_repo_refs(query)
         if path.startswith("repos/status/"):
             return await self._get_repo_rt_status(path[12:])
         if path in ("favorites", "favorites/"):
@@ -224,6 +226,8 @@ class HACSEnhancedAPI(GitHubAuthMixin, GitHubActionsMixin, HACSOpsMixin, ReadmeT
             return await self._unignore_version(body)
         if path == "repos/install_version":
             return await self._install_repo_version(body)
+        if path == "repos/install_ref":
+            return await self._install_repo_ref(body)
         if path in ("favorites", "favorites/"):
             return await self._set_favorites(body)
         if path == "management/remove_archived":

@@ -671,7 +671,13 @@ class HACSOperator:
         return None
 
     async def install_repository_version(self, repo_id_or_name: str, version: str | None = None) -> dict:
-        """Install a specific version of a repository."""
+        """Install a specific version of a repository.
+
+        Supports both release tags and arbitrary git refs (branches / commit SHAs).
+        When `version` is not a release tag, HACS is forced to download that ref
+        by temporarily pinning `repo.ref` (HACS resolves the download target from
+        `ref` when it cannot match a release). The pin is always restored.
+        """
         if not self.available:
             return {"success": False, "error": "HACS not available"}
         lock = self._get_lock(repo_id_or_name)
@@ -685,7 +691,21 @@ class HACSOperator:
                 from_version = repo.data.installed_version or ""
                 repo_key = repo.data.full_name or repo_id_or_name
                 self.set_install_progress(repo_key, 5, "starting", "Preparing download...")
-                await repo.async_install(version=version or repo.display_available_version)
+
+                restore = {}
+                if version and not self._is_release_version(repo, version):
+                    # Arbitrary ref (branch name or commit SHA): pin it so HACS
+                    # downloads this exact ref instead of the latest release.
+                    restore = {"ref": getattr(repo, "ref", None),
+                               "installed_version": repo.data.installed_version,
+                               "installed_commit": repo.data.installed_commit}
+                    repo.ref = version
+                try:
+                    await repo.async_install(version=version or repo.display_available_version)
+                finally:
+                    if restore and restore.get("ref") is not None:
+                        repo.ref = restore["ref"]
+
                 self.set_install_progress(repo_key, 75, "installing", "Installing...")
                 self.invalidate_index()
                 self._cleanup_lock(repo_id_or_name)
@@ -697,6 +717,79 @@ class HACSOperator:
             except Exception as e:
                 _LOGGER.error("Install version failed: %s", e, exc_info=True)
                 return {"success": False, "error": str(e)}
+
+    def _is_release_version(self, repo, version: str) -> bool:
+        """Check whether `version` is a known release tag for this repo.
+
+        Accepts a tag with or without the leading 'v'. Anything else (branch
+        name, short or full commit SHA) is treated as an arbitrary git ref.
+        """
+        if not version:
+            return True  # let HACS pick the default
+        candidate = version.lstrip("vV")
+        try:
+            for release in (getattr(repo, "releases", None) or []):
+                tag = release.get("tag_name") if isinstance(release, dict) else getattr(release, "tag_name", None)
+                if tag and tag.lstrip("vV") == candidate:
+                    return True
+        except (AttributeError, TypeError):
+            pass
+        return False
+
+    async def get_repo_refs(self, repo_id_or_name: str) -> list[dict]:
+        """List branches and recent commits available for install.
+
+        Branches come from GitHub API (/branches), commits from (/commits).
+        Returns [{"type": "branch"|"commit", "name", "sha", "date", "message"}].
+        """
+        repo = self._find_repo(repo_id_or_name) if self.available else None
+        full_name = getattr(getattr(repo, "data", None), "full_name", "") or repo_id_or_name
+        if "/" not in full_name:
+            return []
+        session = async_get_clientsession(self.hass)
+        headers = {"Accept": "application/vnd.github.v3+json"}
+        token = self._get_github_token()
+        if token:
+            headers["Authorization"] = f"token {token}"
+
+        refs: list[dict] = []
+        # Branches
+        try:
+            url = f"https://api.github.com/repos/{full_name}/branches?per_page=30"
+            async with session.get(url, headers=headers, timeout=15) as resp:
+                if resp.status == 200:
+                    for b in await resp.json():
+                        refs.append({
+                            "type": "branch",
+                            "name": b.get("name", ""),
+                            "sha": (b.get("commit") or {}).get("sha", "")[:7],
+                            "date": ((b.get("commit") or {}).get("commit") or {}).get("committer", {}).get("date", ""),
+                            "message": "",
+                        })
+                else:
+                    _LOGGER.debug("GitHub branches returned %s for %s", resp.status, full_name)
+        except Exception as e:
+            _LOGGER.debug("Fetch branches failed for %s: %s", full_name, e)
+        # Recent commits on default branch
+        default_branch = getattr(getattr(repo, "data", None), "default_branch", None) or "main"
+        try:
+            url = f"https://api.github.com/repos/{full_name}/commits?per_page=15&sha={default_branch}"
+            async with session.get(url, headers=headers, timeout=15) as resp:
+                if resp.status == 200:
+                    for c in await resp.json():
+                        commit = c.get("commit") or {}
+                        refs.append({
+                            "type": "commit",
+                            "name": c.get("sha", ""),
+                            "sha": (c.get("sha") or "")[:7],
+                            "date": (commit.get("committer") or {}).get("date", ""),
+                            "message": (commit.get("message") or "").split("\n")[0][:80],
+                        })
+                else:
+                    _LOGGER.debug("GitHub commits returned %s for %s", resp.status, full_name)
+        except Exception as e:
+            _LOGGER.debug("Fetch commits failed for %s: %s", full_name, e)
+        return refs
 
     def get_repo_rt_status(self, repo_id_or_name: str) -> dict | None:
         """Get real-time status from HACS in-memory data (not from .storage file)."""
