@@ -1,5 +1,28 @@
 # Changelog
 
+## v6.7.0-beta5 (2026-09-11) — 第二轮审计：数据完整性 / Audit Round 2: Data Integrity
+
+> ⚠️ **预发布版本（Beta）** — 基于 v6.7.0-beta4。请通过 HACS 的「显示 Beta 版本」或 GitHub Releases 安装测试。
+> **Pre-release (Beta)** — Built on v6.7.0-beta4. Install via HACS "Show beta versions" or GitHub Releases for testing.
+
+### 🛠 修复 / Fixed
+
+- **存储读写竞态** — 新增按 key 的 asyncio 锁与事务式读写：并发的收藏/设置"读-改-写"不再互相覆盖；更新历史文件改为原子写入并加锁
+- **事件循环阻塞** — 依赖检查的包导入（cv2/pandas 等重型库）、HA 错误日志读取、截图写入移入线程池，不再卡住整个 Home Assistant
+- **内存泄漏** — 安装锁与进度字典有界化（此前无限增长）；HACS 未就绪时的空索引不再被永久缓存
+- **配置流代理容错** — 上游返回 HTML 错误页不再抛异常，透传真实状态码与错误信息
+- **健壮性** — GitHub 分页遍历加上限；后台任务持引用防 GC；`auto_update_interval` 数值校验（坏值曾导致自动更新调度崩溃）；备份时间戳统一 UTC；静态文件路径检查加固
+- **前端** — 统计加载失败保留旧值（此前瞬时错误让头部统计清零）；卡片预览消息源校验；分页越界自动回正；"有更新"判定统一；多节点集成删除提示明确；监听器断开清理；移除 5 处死代码
+
+### English summary
+
+- Per-key storage locks — concurrent favorites/settings read-modify-write no longer loses updates; atomic history writes
+- Event loop: dependency imports, log reads and screenshot writes moved off the loop
+- Bounded install-lock/progress dictionaries; empty HACS index not cached
+- Config-flow proxy tolerates non-JSON upstream errors; pagination caps; task references held; interval validation; UTC timestamps
+- Frontend: keep last-good stats on failure, preview message-source check, page clamp, unified update detection, multi-entry delete hint, listener cleanup, dead code removed
+
+
 ## v6.7.0-beta4 (2026-09-11) — 全面审计与体验修复 / Full Audit & UX Fixes
 
 > ⚠️ **预发布版本（Beta）** — 基于 v6.7.0-beta3，本轮为全面代码审计修复。请通过 HACS 的「显示 Beta 版本」或 GitHub Releases 安装测试。

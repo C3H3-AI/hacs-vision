@@ -12,7 +12,7 @@
 [![Deutsch](https://img.shields.io/badge/lang-de-green.svg)](README.de.md)
 [![Русский](https://img.shields.io/badge/lang-ru-blue.svg)](README.ru.md)
 
-> **Current version**: v6.7.0-beta4 | **Minimum HA**: 2024.1.0
+> **Current version**: v6.7.0-beta5 | **Minimum HA**: 2024.1.0
 
 > **⚠️ Prerequisite**: [HACS](https://hacs.xyz) must be installed and configured.
 
