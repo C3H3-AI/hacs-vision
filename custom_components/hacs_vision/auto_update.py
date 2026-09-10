@@ -207,6 +207,8 @@ class AutoUpdateManager:
         self._coalescing = False
         self._running = True
         self._dispatch_state()
+        notify = True
+        restart_time = None
 
         try:
             settings = await self.data.get_settings()

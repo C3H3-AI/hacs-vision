@@ -46,6 +46,32 @@ class RepoCard extends LitElement {
       this._updating = false;
       this._removing = false;
     }
+    // Safety fallback: the parent only resets these when the repo object is
+    // replaced — if the user cancels the confirm dialog (or the action fails
+    // without a reload) the card would stay disabled forever.
+    if ((this._updating || this._removing)) {
+      if (!this._actionFlagTimer) {
+        this._actionFlagTimer = setTimeout(() => {
+          this._actionFlagTimer = null;
+          if (this._updating || this._removing) {
+            this._updating = false;
+            this._removing = false;
+            this.requestUpdate();
+          }
+        }, 60000);
+      }
+    } else if (this._actionFlagTimer) {
+      clearTimeout(this._actionFlagTimer);
+      this._actionFlagTimer = null;
+    }
+  }
+
+  disconnectedCallback() {
+    super.disconnectedCallback();
+    if (this._actionFlagTimer) {
+      clearTimeout(this._actionFlagTimer);
+      this._actionFlagTimer = null;
+    }
   }
 
   static styles = css`
@@ -444,6 +470,7 @@ class RepoCard extends LitElement {
   }
 
   _showCardToast(msg, type) {
+    import('../shared/toast.js').then(({ showToast }) => showToast(msg, type)).catch(() => {});
   }
 
   async _handleStar(e) {
@@ -476,7 +503,19 @@ class RepoCard extends LitElement {
         if (idx >= 0) favs.splice(idx, 1);
       }
       await api.setFavorites(favs);
-    } catch(e) { /* ignore */ }
+    } catch(e) {
+      // Revert the optimistic toggle so icon/count don't drift from the backend
+      this._starred = !this._starred;
+      if (this.repo) {
+        this.repo.stars = this._starred
+          ? (this.repo.stars || this.repo.stargazers_count || 0) + 1
+          : Math.max(0, (this.repo.stars || this.repo.stargazers_count || 0) - 1);
+      }
+      this.requestUpdate();
+      this._showCardToast(`${t('updateFailed')}: ${e.message}`, 'error');
+      this._starring = false;
+      return;
+    }
 
     // 3. Dispatch sync event
     this.dispatchEvent(new CustomEvent('star-changed', {

@@ -648,9 +648,19 @@ class IntegrationsList extends LitElement {
     const ids = Object.keys(this._selectedEntryIds).filter(k => this._selectedEntryIds[k]);
     if (ids.length === 0) return;
     const entries = (this._detailEntries || []).filter(e => ids.includes(e.entry_id));
+    if (action === 'remove') {
+      const { ConfirmDialog } = await import('../shared/confirm-dialog.js');
+      const ok = await ConfirmDialog.show(this, {
+        title: t('remove'),
+        message: t('confirmRemove', { repo: `× ${entries.length}` }),
+        confirmText: t('remove'),
+        danger: true,
+      });
+      if (!ok) return;
+    }
     for (const entry of entries) {
       try {
-        if (action === 'remove') await this._removeEntry(entry, { stopPropagation: () => {} });
+        if (action === 'remove') await this._removeEntry(entry, { stopPropagation: () => {} }, true);
         else if (action === 'reload') await this._reloadEntry(entry, { stopPropagation: () => {} });
         else if (action === 'enable') {
           if (entry.disabled_by) await this._toggleDisabled(entry, { stopPropagation: () => {} });
@@ -697,9 +707,19 @@ class IntegrationsList extends LitElement {
     const groups = this._filteredDomainGroups || [];
     const entries = groups.filter(g => domains.includes(g.domain)).flatMap(g => g.entries || []);
     if (entries.length === 0) return;
+    if (action === 'remove') {
+      const { ConfirmDialog } = await import('../shared/confirm-dialog.js');
+      const ok = await ConfirmDialog.show(this, {
+        title: t('remove'),
+        message: t('confirmRemove', { repo: `× ${entries.length}` }),
+        confirmText: t('remove'),
+        danger: true,
+      });
+      if (!ok) return;
+    }
     for (const entry of entries) {
       try {
-        if (action === 'remove') await this._removeEntry(entry, { stopPropagation: () => {} });
+        if (action === 'remove') await this._removeEntry(entry, { stopPropagation: () => {} }, true);
         else if (action === 'reload') await this._reloadEntry(entry, { stopPropagation: () => {} });
         else if (action === 'enable') {
           if (entry.disabled_by) await this._toggleDisabled(entry, { stopPropagation: () => {} });

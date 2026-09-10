@@ -644,17 +644,18 @@ class HACSOperator:
             if token:
                 headers["Authorization"] = f"token {token}"
             url = f"https://api.github.com/repos/{full_name}/releases?per_page=20"
-            async with aiohttp.ClientSession() as session:
-                async with session.get(url, headers=headers, timeout=aiohttp.ClientTimeout(total=15)) as resp:
-                    if resp.status == 200:
-                        data = await resp.json()
-                        return [{
-                            "tag_name": r.get("tag_name", ""),
-                            "name": r.get("name", ""),
-                            "prerelease": r.get("prerelease", False),
-                            "published_at": r.get("published_at", ""),
-                        } for r in data]
-                    _LOGGER.debug("GitHub API returned %d for %s", resp.status, full_name)
+            # HA's shared session — a per-call ClientSession leaks connectors.
+            session = async_get_clientsession(self.hass)
+            async with session.get(url, headers=headers, timeout=aiohttp.ClientTimeout(total=15)) as resp:
+                if resp.status == 200:
+                    data = await resp.json()
+                    return [{
+                        "tag_name": r.get("tag_name", ""),
+                        "name": r.get("name", ""),
+                        "prerelease": r.get("prerelease", False),
+                        "published_at": r.get("published_at", ""),
+                    } for r in data]
+                _LOGGER.debug("GitHub API returned %d for %s", resp.status, full_name)
         except Exception as e:
             _LOGGER.debug("_fetch_github_releases error: %s", e)
         return []

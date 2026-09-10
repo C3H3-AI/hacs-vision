@@ -170,7 +170,7 @@ class GitHubAuthMixin:
                 async with session.post(register_url, data=payload, headers=headers,
                                          timeout=aiohttp.ClientTimeout(total=15)) as resp:
                     data = await resp.json()
-                    _LOGGER.debug("GitHub device code response: %s (status=%d)", data, resp.status)
+                    _LOGGER.debug("GitHub device code registered (status=%d, keys=%s)", resp.status, sorted(data.keys()))
                     if "error" in data:
                         return _bad_request(data.get("error_description", data["error"]))
                     # Store device_code for poll

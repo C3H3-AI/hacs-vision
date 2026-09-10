@@ -100,8 +100,19 @@ class HACSEnhancedAPI(GitHubAuthMixin, GitHubActionsMixin, HACSOpsMixin, ReadmeT
 
     # ── GET ──────────────────────────────────────────────
 
+    def _forbid_non_admin(self, request) -> web.Response | None:
+        """Require an admin user — panel registration is admin-only, but any
+        authenticated non-admin could otherwise call install/remove/restart
+        endpoints directly."""
+        user = request.get("hass_user")
+        if user is None or not user.is_admin:
+            return _error("admin_required", 403)
+        return None
+
     async def get(self, request, path: str = "") -> web.Response:
         """Handle GET requests."""
+        if (resp := self._forbid_non_admin(request)) is not None:
+            return resp
         if path.startswith("static/"):
             return _error("use_static_view", 404)
 
@@ -136,7 +147,7 @@ class HACSEnhancedAPI(GitHubAuthMixin, GitHubActionsMixin, HACSOpsMixin, ReadmeT
         if path == "repos/refs":
             return await self._get_repo_refs(query)
         if path.startswith("repos/status/"):
-            return await self._get_repo_rt_status(path[12:])
+            return await self._get_repo_rt_status(path[len("repos/status/"):])
         if path in ("favorites", "favorites/"):
             return await self._get_favorites()
         if path in ("ignored-versions", "ignored-versions/"):
@@ -195,6 +206,8 @@ class HACSEnhancedAPI(GitHubAuthMixin, GitHubActionsMixin, HACSOpsMixin, ReadmeT
 
     async def post(self, request, path: str = "") -> web.Response:
         """Handle POST requests."""
+        if (resp := self._forbid_non_admin(request)) is not None:
+            return resp
         try:
             body = await request.json()
         except (json.JSONDecodeError, ValueError):
@@ -301,6 +314,8 @@ class HACSEnhancedAPI(GitHubAuthMixin, GitHubActionsMixin, HACSOpsMixin, ReadmeT
 
     async def delete(self, request, path: str = "") -> web.Response:
         """Handle DELETE requests."""
+        if (resp := self._forbid_non_admin(request)) is not None:
+            return resp
         if path == "config/custom":
             try:
                 body = await request.json()
@@ -343,15 +358,15 @@ class HACSBrandIconView(HomeAssistantView):
     async def get(self, request, domain):
         import os
         import re
-        # Sanitize domain to prevent path traversal
-        if not re.match(r'^[a-zA-Z0-9_-]+$', domain):
-            return web.Response(status=404)
-        safe_domain = domain
-
-        # Parse path: could be "cn_im_hub" or "cn_im_hub/icon" or "cn_im_hub/logo"
-        parts = safe_domain.split("/")
+        # Parse path first: could be "cn_im_hub" or "cn_im_hub/icon" or "cn_im_hub/logo"
+        parts = domain.split("/")
         actual_domain = parts[0]
         asset_type = parts[1] if len(parts) > 1 else "icon"
+        # Sanitize each segment separately — validating the whole path as one
+        # token rejects the documented /icon and /logo subpaths.
+        if not re.match(r'^[a-zA-Z0-9_-]+$', actual_domain) \
+                or not re.match(r'^(icon|logo)$', asset_type):
+            return web.Response(status=404)
 
         base = self.hass.config.path("custom_components", actual_domain, "brand")
         for ext in ("png", "svg"):

@@ -546,7 +546,7 @@ class HACSOpsMixin:
         headers = await self._get_github_headers()
         headers["Accept"] = "application/vnd.github.v3.html"
         try:
-            async with session.get(url, headers=headers) as resp:
+            async with session.get(url, headers=headers, timeout=aiohttp.ClientTimeout(total=30)) as resp:
                 remaining = resp.headers.get("X-RateLimit-Remaining")
                 if remaining is not None and int(remaining) <= 0:
                     reset_time = resp.headers.get("X-RateLimit-Reset", "0")
@@ -579,7 +579,7 @@ class HACSOpsMixin:
             url = f"https://api.github.com/repos/{full_name}/releases/latest"
         headers = await self._get_github_headers()
         try:
-            async with session.get(url, headers=headers) as resp:
+            async with session.get(url, headers=headers, timeout=aiohttp.ClientTimeout(total=30)) as resp:
                 remaining = resp.headers.get("X-RateLimit-Remaining")
                 if remaining is not None and int(remaining) <= 0:
                     return _rate_limited()
@@ -1335,7 +1335,7 @@ class HACSOpsMixin:
             session = await self._get_session()
             url = f"{self._ha_base_url}/api/config/config_entries/flow_handlers"
             headers = {"Authorization": f"Bearer {token}"}
-            async with session.get(url, headers=headers) as resp:
+            async with session.get(url, headers=headers, timeout=aiohttp.ClientTimeout(total=30)) as resp:
                 data = await resp.json()
                 return web.Response(text=json.dumps(data), content_type="application/json", status=resp.status)
         except Exception as e:
@@ -1359,7 +1359,7 @@ class HACSOpsMixin:
                     payload[key] = body[key]
             if "show_advanced_options" not in payload:
                 payload["show_advanced_options"] = False
-            async with session.post(url, headers=headers, json=payload) as resp:
+            async with session.post(url, headers=headers, json=payload, timeout=aiohttp.ClientTimeout(total=30)) as resp:
                 data = await resp.json()
                 return web.Response(text=json.dumps(data), content_type="application/json", status=resp.status)
         except Exception as e:
@@ -1374,7 +1374,7 @@ class HACSOpsMixin:
             session = await self._get_session()
             url = f"{self._ha_base_url}/api/config/config_entries/flow/{flow_id}"
             headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
-            async with session.post(url, headers=headers, json=body) as resp:
+            async with session.post(url, headers=headers, json=body, timeout=aiohttp.ClientTimeout(total=30)) as resp:
                 data = await resp.json()
                 return web.Response(text=json.dumps(data), content_type="application/json", status=resp.status)
         except Exception as e:
@@ -1389,7 +1389,7 @@ class HACSOpsMixin:
             session = await self._get_session()
             url = f"{self._ha_base_url}/api/config/config_entries/flow/{flow_id}"
             headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
-            async with session.delete(url, headers=headers) as resp:
+            async with session.delete(url, headers=headers, timeout=aiohttp.ClientTimeout(total=30)) as resp:
                 data = await resp.json()
                 return web.Response(text=json.dumps(data), content_type="application/json", status=resp.status)
         except Exception as e:
@@ -1404,7 +1404,7 @@ class HACSOpsMixin:
             session = await self._get_session()
             url = f"{self._ha_base_url}/api/config/config_entries/subentries/flow/{flow_id}"
             headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
-            async with session.delete(url, headers=headers) as resp:
+            async with session.delete(url, headers=headers, timeout=aiohttp.ClientTimeout(total=30)) as resp:
                 data = await resp.json()
                 return web.Response(text=json.dumps(data), content_type="application/json", status=resp.status)
         except Exception as e:
@@ -1423,7 +1423,7 @@ class HACSOpsMixin:
             url = f"{self._ha_base_url}/api/config/config_entries/options/flow"
             headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
             payload = {"handler": handler}
-            async with session.post(url, headers=headers, json=payload) as resp:
+            async with session.post(url, headers=headers, json=payload, timeout=aiohttp.ClientTimeout(total=30)) as resp:
                 data = await resp.json()
                 return web.Response(text=json.dumps(data), content_type="application/json", status=resp.status)
         except Exception as e:
@@ -1438,7 +1438,7 @@ class HACSOpsMixin:
             session = await self._get_session()
             url = f"{self._ha_base_url}/api/config/config_entries/options/flow/{flow_id}"
             headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
-            async with session.post(url, headers=headers, json=body) as resp:
+            async with session.post(url, headers=headers, json=body, timeout=aiohttp.ClientTimeout(total=30)) as resp:
                 data = await resp.json()
                 return web.Response(text=json.dumps(data), content_type="application/json", status=resp.status)
         except Exception as e:
@@ -1461,7 +1461,7 @@ class HACSOpsMixin:
                 payload["source"] = body["source"]
             if "subentry_id" in body:
                 payload["subentry_id"] = body["subentry_id"]
-            async with session.post(url, headers=headers, json=payload) as resp:
+            async with session.post(url, headers=headers, json=payload, timeout=aiohttp.ClientTimeout(total=30)) as resp:
                 data = await resp.json()
                 return web.Response(text=json.dumps(data), content_type="application/json", status=resp.status)
         except Exception as e:
@@ -1491,7 +1491,7 @@ class HACSOpsMixin:
             session = await self._get_session()
             url = f"{self._ha_base_url}/api/config/config_entries/subentries/flow/{flow_id}"
             headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
-            async with session.post(url, headers=headers, json=body) as resp:
+            async with session.post(url, headers=headers, json=body, timeout=aiohttp.ClientTimeout(total=30)) as resp:
                 data = await resp.json()
                 return web.Response(text=json.dumps(data), content_type="application/json", status=resp.status)
         except Exception as e:

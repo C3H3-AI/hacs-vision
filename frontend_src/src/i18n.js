@@ -166,8 +166,6 @@ const T = {
   loading: { zh: '加载中...', en: 'Loading...', de: 'Lade...' },
   sort: { zh: '排序', en: 'Sort', de: 'Sortieren' },
   filterMore: { zh: '筛选与排序', en: 'Filter & Sort', de: 'Filter & Sortieren' },
-  prevPage: { zh: '← 上一页', en: '← Previous', de: '← Zurück' },
-  nextPage: { zh: '下一页 →', en: 'Next →', de: 'Weiter →' },
   page: { zh: '第', en: 'Page', de: 'Seite' },
   of: { zh: '/ ', en: ' / ', de: ' / ' },
 
@@ -737,6 +735,7 @@ const T = {
   confirmSkipVersion: { zh: '确定要跳过 {n} 个仓库的当前版本？下个新版本会正常提醒。', en: 'Skip current version for {n} repos? Next new version will notify normally.', de: 'Aktuelle Version für {n} Repositorys überspringen? Nächste neue Version benachrichtigt normal.' },
   skipVersionDone: { zh: '已跳过 {ok}/{total} 个版本', en: 'Skipped {ok}/{total} versions', de: '{ok}/{total} Versionen übersprungen' },
   confirmUnskipVersion: { zh: '确定取消跳过 {name} 的版本 {ver}？', en: 'Unskip version {ver} of {name}?', de: 'Überspringen von Version {ver} von {name} rückgängig?' },
+  skipVersionFailed: { zh: '跳过版本失败', en: 'Skip version failed', de: 'Version überspringen fehlgeschlagen', ru: 'Не удалось пропустить версию' },
   unskipVersionFailed: { zh: '取消跳过失败', en: 'Unskip failed', de: 'Rückgängig fehlgeschlagen' },
   showSkipped: { zh: '显示已跳过更新', en: 'Show skipped updates', de: 'Übersprungene anzeigen' },
   hideSkipped: { zh: '隐藏已跳过更新', en: 'Hide skipped updates', de: 'Übersprungene ausblenden' },
@@ -867,7 +866,8 @@ export function t(key, params) {
   text = text || entry.en || key;
   if (params) {
     for (const [k, v] of Object.entries(params)) {
-      text = text.split(`{${k}}`).join(v);
+      // Missing param: keep the placeholder visible rather than printing "undefined"
+      text = text.split(`{${k}}`).join(v === undefined || v === null ? `{${k}}` : String(v));
     }
   }
   return text;

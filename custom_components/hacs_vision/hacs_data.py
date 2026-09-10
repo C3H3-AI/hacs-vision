@@ -164,11 +164,17 @@ class HACSData:
         return data.get("data", {})
 
     async def update_config(self, config_data: dict) -> bool:
-        """Update HACS configuration."""
+        """Merge keys into HACS configuration.
+
+        A full replace would wipe every key the caller doesn't send
+        (release_limit, country, sidepanel, ...) — always merge instead.
+        """
         data = await self.read_storage("config")
         if not data:
             return False
-        data["data"] = config_data
+        merged = dict(data.get("data") or {})
+        merged.update(config_data)
+        data["data"] = merged
         return await self.write_storage("config", data)
 
     # ===== Install Times (our own data) =====

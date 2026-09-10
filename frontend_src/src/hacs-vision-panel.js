@@ -24,6 +24,7 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
     _favoriteCount: { type: Number, state: true },
     _readmeHtml: { type: String, state: true },
     _readmeLoading: { type: Boolean, state: true },
+    _modalBusy: { type: Boolean, state: true },
     _translationLoading: { type: Boolean, state: true },
     _readmeLang: { type: String, state: true },
     _viewTransition: { type: Boolean, state: true },
@@ -1075,14 +1076,18 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
       this._readmeLoading = false;
       return;
     }
+    const fullName = repo.full_name;
     try {
-      const rawHtml = await api.getReadme(repo.full_name);
+      const rawHtml = await api.getReadme(fullName);
+      // Guard: the user may have opened a different repo while we awaited —
+      // never render a stale README (or translation of one) in the new modal.
+      if (this._detailRepo?.full_name !== fullName || !this._showDetail) return;
       // P0: Sanitize README HTML with DOMPurify to prevent XSS
       this._readmeHtml = rawHtml ? DOMPurify.sanitize(rawHtml, { FORCE_BODY: true }) : null;
     } catch(e) {
-      this._readmeHtml = null;
+      if (this._detailRepo?.full_name === fullName && this._showDetail) this._readmeHtml = null;
     }
-    this._readmeLoading = false;
+    if (this._detailRepo?.full_name === fullName) this._readmeLoading = false;
   }
 
   async _onReadmeLangChange(lang) {
@@ -1090,12 +1095,18 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
     const repo = this._detailRepo;
     if (!repo?.full_name) return;
 
+    const fullName = repo.full_name;
+    const isStale = () => this._detailRepo?.full_name !== fullName || !this._showDetail;
     if (lang === 'original') {
       this._readmeLang = 'original';
       this._translationLoading = true;
-      const raw = await api.getReadme(repo.full_name);
-      this._translationLoading = false;
-      this._readmeHtml = raw ? DOMPurify.sanitize(raw, { FORCE_BODY: true }) : null;
+      try {
+        const raw = await api.getReadme(fullName);
+        if (isStale()) return;
+        this._readmeHtml = raw ? DOMPurify.sanitize(raw, { FORCE_BODY: true }) : null;
+      } finally {
+        if (!isStale()) this._translationLoading = false;
+      }
       return;
     }
 
@@ -1110,7 +1121,8 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
 
     this._readmeLang = lang;
     this._translationLoading = true;
-    const result = await api.getReadmeTranslation(repo.full_name, lang, this._readmeHtml);
+    const result = await api.getReadmeTranslation(fullName, lang, this._readmeHtml);
+    if (isStale()) return;
     this._translationLoading = false;
     if (typeof result === 'string') {
       transCachePut(repo.full_name, lang, result);
@@ -1364,14 +1376,9 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
   }
 
   _scheduleFlowTimeout() {
-    this._clearFlowTimeout();
-    this._flowTimeout = setTimeout(() => {
-      if (this._showConfigFlow) {
-        this._showConfigFlow = false;
-        this._configFlowDomain = '';
-        this._configFlowEntryId = null;
-      }
-    }, 300000);
+    // Intentionally no auto-close: force-closing the dialog after 5 minutes
+    // lost user input mid-form and leaked the server-side flow. Long fetches
+    // have their own timeouts, and closing now cancels the flow via the dialog.
   }
 
   _clearFlowTimeout() {
@@ -1651,7 +1658,7 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
     // Not installed → install button
     if (!isInstalled) {
       return html`
-        <button class="modal-btn primary" @click=${() => this._modalAction('install')}>
+        <button class="modal-btn primary" ?disabled=${this._modalBusy} @click=${() => this._modalAction('install')}>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
           ${t('install')}
         </button>`;
@@ -1663,7 +1670,7 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
     // Update available?
     if (isUpdateAvailable) {
       buttons.push(html`
-        <button class="modal-btn primary" @click=${() => this._modalAction('update')}>
+        <button class="modal-btn primary" ?disabled=${this._modalBusy} @click=${() => this._modalAction('update')}>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
           ${t('update')}
         </button>`);
@@ -1671,7 +1678,7 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
 
     // Redownload
     buttons.push(html`
-      <button class="modal-btn" style="color:#ff9800;border-color:#ff9800;" @click=${() => this._modalAction('redownload')}>
+      <button class="modal-btn" ?disabled=${this._modalBusy} style="color:#ff9800;border-color:#ff9800;" @click=${() => this._modalAction('redownload')}>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
         ${t('redownload')}
       </button>`);
@@ -1739,7 +1746,7 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
     // Only show remove button for non-system entries
     if (!domain || entry?.source !== 'system') {
       buttons.push(html`
-        <button class="modal-btn danger" @click=${() => this._modalAction('uninstall')}>
+        <button class="modal-btn danger" ?disabled=${this._modalBusy} @click=${() => this._modalAction('uninstall')}>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
           ${t('remove')}
         </button>`);
@@ -1781,6 +1788,13 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
   async _modalAction(action) {
     const repo = this._detailRepo;
     if (!repo) return;
+    // Disable the action buttons for awaited operations — double clicks fired
+    // duplicate install/update requests because nothing indicated "in flight".
+    const awaited = ['install', 'update', 'redownload', 'uninstall', 'ignore', 'unignore'].includes(action);
+    if (awaited) {
+      if (this._modalBusy) return;
+      this._modalBusy = true;
+    }
     try {
       if (action === 'install') {
         await api.install(repo.id || repo.full_name, repo.category);
@@ -1940,7 +1954,13 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
       this.dispatchEvent(new CustomEvent('refresh-stats', { bubbles: true, composed: true }));
       this._closeDetail();
     } catch(e) {
-      showToast(`${t('updateFailed')}: ${e.message}`, 'error');
+      const errorKeys = {
+        install: 'installFailed', update: 'updateFailed', redownload: 'redownloadFailed',
+        uninstall: 'removeFailed', ignore: 'ignoreFailed', unignore: 'unignoreFailed',
+      };
+      showToast(`${t(errorKeys[action] || 'updateFailed')}: ${e.message}`, 'error');
+    } finally {
+      if (awaited) this._modalBusy = false;
     }
   }
 

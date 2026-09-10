@@ -30,6 +30,7 @@ class BrowseView extends LitElement {
     sortDir: { type: String },
     page: { type: Number },
     loading: { type: Boolean },
+    refreshing: { type: Boolean },
     categoryCounts: { type: Object },
     statusCounts: { type: Object },
     tagCounts: { type: Object },
@@ -792,6 +793,9 @@ class BrowseView extends LitElement {
 
   async _load() {
     this.loading = true;
+    // Sequence guard: fast filters can race slow in-flight responses —
+    // discard anything that resolves after a newer request started.
+    const seq = (this._loadSeq = (this._loadSeq || 0) + 1);
     try {
       // Detect GitHub URL pattern: extract owner/repo for server-side search
       const isUrlSearch = !!(this.search && (
@@ -813,6 +817,7 @@ class BrowseView extends LitElement {
         sortDir: this.sortDir, page: this.page, limit: this.limit,
         status: this.statusFilter, tag: activeTag,
       });
+      if (seq !== this._loadSeq) return; // a newer request superseded this one
       this.repos = result.repositories || [];
       this.total = result.total || 0;
       this.categoryCounts = result.category_counts || {};
@@ -828,9 +833,13 @@ class BrowseView extends LitElement {
       this._batchLoadStarStatus();
     } catch(e) {
       console.error('Browse load error', e);
-      this.repos = []; this.total = 0;
+      if (seq === this._loadSeq) {
+        // Keep the previously loaded list visible — blanking it makes a
+        // transient failure look like "no integrations exist".
+        showToast(t('loadFailedSimple'), 'error');
+      }
     }
-    this.loading = false;
+    if (seq === this._loadSeq) this.loading = false;
   }
 
   _onSearch(e) {

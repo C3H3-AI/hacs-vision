@@ -596,6 +596,7 @@ class UpdatesView extends LitElement {
     } catch(e) {
       console.error('Failed to load updates', e);
       this.updates = [];
+      showToast(t('loadFailedSimple'), 'error');
     }
     this.loading = false;
     await this._loadSkippedVersions();
@@ -622,6 +623,7 @@ class UpdatesView extends LitElement {
       this.dispatchEvent(new CustomEvent('refresh-stats', { bubbles: true, composed: true }));
     } catch(e) {
       console.error('Refresh failed', e);
+      showToast(t('loadFailedSimple'), 'error');
     }
     this.refreshing = false;
     this._updateProgress = null;
@@ -651,6 +653,7 @@ class UpdatesView extends LitElement {
     } catch(e) {
       console.error('Failed to load updates', e);
       this.updates = [];
+      showToast(t('loadFailedSimple'), 'error');
     }
     this.loading = false;
   }
@@ -869,6 +872,7 @@ class UpdatesView extends LitElement {
       const targetVer = repo.latest_version;
       let attempts = 0;
       const poll = async () => {
+        if (!this.isConnected) return; // view torn down — stop polling silently
         if (attempts++ > 30) {
           const next = { ...this._installingIds };
           delete next[repoId];
@@ -927,7 +931,7 @@ class UpdatesView extends LitElement {
       this._loadSkippedVersions();
       this.dispatchEvent(new CustomEvent('refresh-stats', { bubbles: true, composed: true }));
     } catch(e) {
-      showToast(`${t('unskipVersionFailed')}: ${e.message}`, 'error');
+      showToast(`${t('skipVersionFailed')}: ${e.message}`, 'error');
     }
   }
 
@@ -1069,6 +1073,7 @@ class UpdatesView extends LitElement {
   async _toggleFav(repo) {
     const repoId = repo.full_name || repo.id;
     const isFav = !!this._favs[repoId];
+    const prevFavs = this._favs;
     const newFavs = { ...this._favs };
     if (isFav) { delete newFavs[repoId]; } else { newFavs[repoId] = true; }
     this._favs = newFavs;
@@ -1076,7 +1081,8 @@ class UpdatesView extends LitElement {
       const ids = Object.keys(newFavs);
       await api.setFavorites(ids);
     } catch(e) {
-      this._favs = this._favs; // revert
+      this._favs = prevFavs; // revert optimistic update
+      showToast(`${t('updateFailed')}: ${e.message}`, 'error');
     }
   }
 

@@ -1,7 +1,7 @@
 import { LitElement, html, css } from 'lit';
 import DOMPurify from 'dompurify';
 import { api } from '../api.js';
-import { t } from '../i18n.js';
+import { getLang, t } from '../i18n.js';
 import { getCommonStyles } from '../shared/styles.js';
 
 /**
@@ -66,6 +66,7 @@ class ConfigFlowDialog extends LitElement {
     this._loadingTimeout = null;
     this._translations = null;
     this._lang = 'zh-Hans';
+    this._intentionalClose = false;
     this._dialogDrag = { offsetX: 0, offsetY: 0, startX: 0, startY: 0, dragging: false };
     this._cleanedUp = false;
   }
@@ -195,6 +196,15 @@ class ConfigFlowDialog extends LitElement {
         if (this._intentionalClose) {
           this._intentionalClose = false;
         } else {
+          // Parent-driven close (Escape at panel level, timeout, re-render):
+          // cancel the in-progress HA flow server-side, or the next open of
+          // this integration hits "already in progress".
+          if (this._flowId && !this._finished) {
+            const flowId = this._flowId;
+            this._flowId = null;
+            if (this._isSubentry) api.cancelSubentryFlow(flowId).catch(() => {});
+            else api.cancelConfigFlow(flowId).catch(() => {});
+          }
           console.warn('HACS Vision: dialog closed unexpectedly', {
             flowId: this._flowId,
             loading: this._loading,
@@ -215,6 +225,9 @@ class ConfigFlowDialog extends LitElement {
 
   /** Prepare subentry/options state based on current entryId, then start the flow */
   _startFlowWithEntryCheck() {
+    // Fetch step translations in the user's language (HA expects 'zh-Hans', not 'zh')
+    this._lang = getLang() === 'zh' ? 'zh-Hans' : getLang();
+    this._translations = null;
     if (this.entryId) {
       this._isOptions = false;
       this._isSubentry = false;

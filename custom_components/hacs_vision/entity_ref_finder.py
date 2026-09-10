@@ -178,8 +178,10 @@ class EntityRefFinder:
             try:
                 config = await self._get_auto_config(r.source_id)
                 if self._replace_in_value(config, old_id, new_id):
-                    await self._save_auto_config(r.source_id, config)
-                    updated["automations"].append(r.source_id)
+                    if await self._save_auto_config(r.source_id, config):
+                        updated["automations"].append(r.source_id)
+                    else:
+                        _LOGGER.error("Saving automation %s failed after entity replacement", r.source_id)
             except Exception as e:
                 _LOGGER.error("Failed to update automation %s: %s", r.source_id, e, exc_info=True)
 
@@ -530,14 +532,16 @@ class EntityRefFinder:
         return None
 
     async def _save_auto_config(self, entity_id: str, config: dict) -> bool:
-        """Save automation config via HA API."""
+        """Save automation config via HA API, restoring the on/off state after."""
         auto_id = entity_id.split(".", 1)[1] if "." in entity_id else entity_id
+        was_on = self.hass.states.is_state(entity_id, "on")
         try:
             await self.hass.services.async_call(
                 "automation", "turn_off", {"entity_id": entity_id}, blocking=False
             )
         except Exception:
             pass
+        saved = False
         # Method 1: internal API (HA <2025.9)
         try:
             from homeassistant.components.automation.config import (
@@ -546,11 +550,11 @@ class EntityRefFinder:
             await async_set_automation_config(
                 self.hass, auto_id, config, source="storage"
             )
-            return True
+            saved = True
         except Exception:
-            pass
+            saved = False
         # Method 2: REST API fallback (HA 2025.9+) — use the token passed from API handler
-        if self._hass_token:
+        if not saved and self._hass_token:
             try:
                 from homeassistant.helpers.aiohttp_client import async_get_clientsession
                 base_url = self.hass.http.get_url()
@@ -560,10 +564,20 @@ class EntityRefFinder:
                     f"{base_url}/api/config/automation/config/{auto_id}",
                     json=config, headers=headers
                 ) as resp:
-                    return resp.status == 200
+                    saved = resp.status == 200
             except Exception as e:
                 _LOGGER.error("Save auto config failed: %s", e, exc_info=True)
-                return False
+                saved = False
+        # turn_off above disabled the automation — restore its prior state so a
+        # successful (or failed) edit never leaves it permanently off.
+        if was_on:
+            try:
+                await self.hass.services.async_call(
+                    "automation", "turn_on", {"entity_id": entity_id}, blocking=False
+                )
+            except Exception:
+                pass
+        return saved
 
     async def _get_script_config(self, entity_id: str) -> dict | None:
         """Get script config via HA API."""

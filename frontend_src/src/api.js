@@ -1,4 +1,5 @@
 const API_BASE = '/api/hacs_vision';
+const LONG = 300000; // install/update can far outlast the 30s default
 
 class HACSEnhancedAPI {
   constructor() {
@@ -19,11 +20,13 @@ class HACSEnhancedAPI {
 
   _getHeaders() {
     const headers = { 'Content-Type': 'application/json' };
-    // Token from hass ref (set via setHass)
-    if (this._token) {
-      headers['Authorization'] = `Bearer ${this._token}`;
-    } else if (this._hassRef?.auth?.data?.access_token) {
-      this._token = this._hassRef.auth.data.access_token;
+    // Always read the token at call time — HA access tokens expire (~30 min),
+    // so a token cached at setHass() time goes stale mid-session.
+    const token = this._hassRef?.auth?.data?.access_token;
+    if (token) {
+      this._token = token;
+      headers['Authorization'] = `Bearer ${token}`;
+    } else if (this._token) {
       headers['Authorization'] = `Bearer ${this._token}`;
     }
     return headers;
@@ -36,37 +39,50 @@ class HACSEnhancedAPI {
       credentials: 'include',
     };
     if (body) opts.body = JSON.stringify(body);
-    opts.signal = AbortSignal.timeout(30000);
+    // Default 30s for reads; install/update/refresh and flow steps need more —
+    // a client-side abort there shows a fake failure while the backend keeps working.
+    opts.signal = AbortSignal.timeout(options.timeout ?? 30000);
+    let resp;
     try {
-      const resp = await fetch(`${API_BASE}/${path}`, opts);
-      if (!resp.ok) {
-        const err = new Error(`API error: ${resp.status}`);
-        err.status = resp.status;
-        // HA endpoints (e.g. config flow proxy) put field-level errors in the
-        // response body — keep it so callers can surface them instead of a bare status.
-        try { err.body = await resp.json(); } catch(e) { err.body = null; }
-        // F2: Network status callback (skip if suppressed for non-critical calls)
-        if (!options.suppressNetworkError && this._onNetworkStatus) {
-          if (resp.status === 429) this._onNetworkStatus('rate_limited');
-          else if (resp.status >= 500) this._onNetworkStatus('server_error');
-        }
-        throw err;
-      }
-      // F2: Clear error on success
-      if (this._onNetworkStatus) this._onNetworkStatus('online');
-      return resp.json();
+      resp = await fetch(`${API_BASE}/${path}`, opts);
     } catch(e) {
-      // F2: Detect offline
       if (!navigator.onLine && this._onNetworkStatus) {
         this._onNetworkStatus('offline');
       }
       throw e;
     }
+    // 401 with a hass ref: the cached token likely expired — refresh it and retry once.
+    if (resp.status === 401 && this._hassRef?.auth?.data?.access_token) {
+      this._token = this._hassRef.auth.data.access_token;
+      try {
+        resp = await fetch(`${API_BASE}/${path}`, {
+          ...opts,
+          headers: this._getHeaders(),
+          signal: AbortSignal.timeout(options.timeout ?? 30000),
+        });
+      } catch(e) { /* fall through with the original 401 response */ }
+    }
+    if (!resp.ok) {
+      const err = new Error(`API error: ${resp.status}`);
+      err.status = resp.status;
+      // HA endpoints (e.g. config flow proxy) put field-level errors in the
+      // response body — keep it so callers can surface them instead of a bare status.
+      try { err.body = await resp.json(); } catch(e) { err.body = null; }
+      // F2: Network status callback (skip if suppressed for non-critical calls)
+      if (!options.suppressNetworkError && this._onNetworkStatus) {
+        if (resp.status === 429) this._onNetworkStatus('rate_limited');
+        else if (resp.status >= 500) this._onNetworkStatus('server_error');
+      }
+      throw err;
+    }
+    // F2: Clear error on success
+    if (this._onNetworkStatus) this._onNetworkStatus('online');
+    return resp.json();
   }
 
   get(path, options = {}) { return this.request('GET', path, null, options); }
-  post(path, body) { return this.request('POST', path, body); }
-  delete(path, body) { return this.request('DELETE', path, body); }
+  post(path, body, options = {}) { return this.request('POST', path, body, options); }
+  delete(path, body, options = {}) { return this.request('DELETE', path, body, options); }
 
   /* Repositories */
   listRepositories(params = {}) {
@@ -85,9 +101,9 @@ class HACSEnhancedAPI {
   getInstalled() { return this.get('installed'); }
   getStats() { return this.get('installed/stats'); }
   getUpdates() { return this.get('updates'); }
-  install(repository, category) { return this.post('install', { repository, category }); }
-  update(repositoryIds) { return this.post('update', { repository_ids: repositoryIds }); }
-  remove(repository) { return this.post('remove', { repository }); }
+  install(repository, category) { return this.post('install', { repository, category }, { timeout: LONG }); }
+  update(repositoryIds) { return this.post('update', { repository_ids: repositoryIds }, { timeout: LONG }); }
+  remove(repository) { return this.post('remove', { repository }, { timeout: LONG }); }
   getConfig() { return this.get('config'); }
   updateConfig(config) { return this.post('config', config); }
   getCustomRepos() { return this.get('config/custom'); }
@@ -99,8 +115,8 @@ class HACSEnhancedAPI {
   exportBackup() { return this.get('backup/export'); }
   importBackup(data) { return this.post('backup/import', data); }
   checkDependencies() { return this.get('dependencies'); }
-  refresh() { return this.post('refresh'); }
-  redownload(repository, category) { return this.post('redownload', { repository, category }); }
+  refresh() { return this.post('refresh', null, { timeout: LONG }); }
+  redownload(repository, category) { return this.post('redownload', { repository, category }, { timeout: LONG }); }
   ignoreRepo(repository) { return this.post('ignore', { repository }); }
   unignoreRepo(repository) { return this.post('unignore', { repository }); }
   ignoreVersion(repository, version) { return this.post('ignore-version', { repository, version }); }
@@ -173,11 +189,11 @@ class HACSEnhancedAPI {
   getVersion() { return this.get('version'); }
 
   /* Batch Operations */
-  batchInstall(repos) { return this.post('batch/install', { repositories: repos }); }
-  batchRemove(repos) { return this.post('batch/remove', { repositories: repos }); }
+  batchInstall(repos) { return this.post('batch/install', { repositories: repos }, { timeout: LONG }); }
+  batchRemove(repos) { return this.post('batch/remove', { repositories: repos }, { timeout: LONG }); }
 
   /* Check Updates + Notification */
-  checkUpdatesWithNotify() { return this.post('check_updates'); }
+  checkUpdatesWithNotify() { return this.post('check_updates', null, { timeout: LONG }); }
 
   /* Config Flow (proxied through backend) */
   getFlowHandlers() { return this.get('config_flow/handlers'); }
@@ -230,7 +246,7 @@ class HACSEnhancedAPI {
 
   /* Version selector: install a specific version */
   installVersion(repoId, version) {
-    return this.post('repos/install_version', { id: repoId, version });
+    return this.post('repos/install_version', { id: repoId, version }, { timeout: LONG });
   }
 
   /* Arbitrary ref: list branches + recent commits */
@@ -240,7 +256,7 @@ class HACSEnhancedAPI {
 
   /* Arbitrary ref: install a branch name or commit SHA */
   installRef(repoId, ref) {
-    return this.post('repos/install_ref', { id: repoId, version: ref });
+    return this.post('repos/install_ref', { id: repoId, version: ref }, { timeout: LONG });
   }
 
   /* F6: Get changelog with localStorage cache — tag optional, omit for latest stable */
