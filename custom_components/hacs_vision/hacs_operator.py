@@ -464,6 +464,22 @@ class HACSOperator:
         except Exception:
             pass
 
+        # Snapshot HACS's in-memory default-repository set and its per-category
+        # coverage. HACS populates this set category-by-category from the catalog
+        # data client — an unloaded category must not be treated as "all custom".
+        default_ids = set()
+        default_category_counts = {}
+        try:
+            default_ids = set(getattr(self._hacs.repositories, "_default_repositories", ()) or ())
+            for _r in self._hacs.repositories.list_all:
+                _rid = str(getattr(_r.data, "id", "") or "")
+                if _rid and _rid in default_ids:
+                    default_category_counts[_r.data.category] = default_category_counts.get(_r.data.category, 0) + 1
+        except Exception:
+            default_ids = set()
+        if not default_ids:
+            _LOGGER.debug("HACS default repository set is empty; custom flag relies on name lists only")
+
         result = []
         errors = []
         try:
@@ -524,19 +540,20 @@ class HACSOperator:
                         except Exception:
                             pass
 
-                    # is_custom detection: use HACS's is_default() directly
-                    # HACS 2.0 doesn't populate custom_repositories in hacs.hacs
+                    # is_custom detection: name lists are authoritative;
+                    # is_default() is only a positive exclusion signal.
                     is_custom = False
                     full_name_lower = repo.data.full_name.lower()
                     if full_name_lower in custom_repo_names:
                         is_custom = True
-                    else:
-                        # Use is_default() if available (HACS fetches default list from GitHub)
-                        try:
-                            if hasattr(self._hacs.repositories, '_default_repositories'):
-                                is_custom = not self._hacs.repositories.is_default(str(repo.data.id))
-                        except Exception:
-                            pass
+                    elif repo.data.id and default_ids and str(repo.data.id) not in default_ids:
+                        # Not in the default catalog → HACS-registered custom repo.
+                        # Only trusted when the cached default catalog actually
+                        # covers this repo's category — HACS populates the
+                        # in-memory default set per category and an unloaded
+                        # category would otherwise flag EVERY repo as custom.
+                        if default_category_counts.get(repo.data.category, 0) > 0:
+                            is_custom = True
 
                     # authors: filter out "@user" placeholder HACS sets for custom repos,
                     # fallback to GitHub owner extracted from full_name
