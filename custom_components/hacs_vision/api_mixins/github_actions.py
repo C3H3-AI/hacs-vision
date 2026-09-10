@@ -9,7 +9,7 @@ import time
 import aiohttp
 from aiohttp import web
 
-from ..const import VERSION
+from ..const import VERSION, VALID_HACS_CATEGORIES
 from ..response import _error, _ok, _not_found, _bad_request, _unauthorized, _server_error
 
 _LOGGER = logging.getLogger(__name__)
@@ -129,6 +129,17 @@ class GitHubActionsMixin:
         except Exception as e:
             _LOGGER.error("_github_list_starred error: %s", e, exc_info=True)
             return _server_error(repos=repos)
+        # Annotate which starred repos are already registered in HACS — the UI
+        # hides those from the add-as-custom selection (they're already there).
+        try:
+            hacs_repos = await self.operator.get_all_repos_from_hacs()
+            if not hacs_repos:
+                hacs_repos = await self.data.get_all_repositories()
+            known = {r.get("full_name", "").lower() for r in hacs_repos if r.get("full_name")}
+            for r in repos:
+                r["in_hacs"] = r.get("full_name", "").lower() in known
+        except Exception:
+            pass
         return web.json_response({"repos": repos, "total": len(repos)})
 
     async def _github_list_org_repos(self, query) -> web.Response:
@@ -235,31 +246,51 @@ class GitHubActionsMixin:
         if any(w in desc for w in ["home assistant", "home-assistant", "hacs"]) or "home-assistant" in topics:
             return "integration"
 
-        return "integration"
+        # No HACS signal at all — the repo is not installable via HACS.
+        # (The old fallback returned "integration" for everything, which made
+        # every random starred repo look like an addable integration.)
+        return None
 
     # ── Sync starred to custom repos / favorites ───────
 
     async def _github_sync_starred(self, body: dict) -> web.Response:
-        """Add selected starred repos as custom repositories."""
+        """Add selected starred repos as custom repositories.
+
+        Only installable repos pass: the repo must not already be registered
+        in HACS, and its category must be a real HACS category (heuristic
+        detections like "addon" are not installable via HACS).
+        """
         selected = body.get("repos", [])
         if not selected:
             return _bad_request("no_repos")
+        hacs_repos = await self.operator.get_all_repos_from_hacs()
+        if not hacs_repos:
+            hacs_repos = await self.data.get_all_repositories()
+        known = {r.get("full_name", "").lower() for r in hacs_repos if r.get("full_name")}
         results = []
         for item in selected:
             if isinstance(item, str):
                 full_name = item
-                category = "integration"
+                category = None
             else:
                 full_name = item.get("full_name", "")
-                category = item.get("category", "integration")
+                category = item.get("category")
             if not full_name or "/" not in full_name:
                 results.append({"full_name": full_name, "success": False, "error": "invalid_name"})
+                continue
+            if full_name.lower() in known:
+                results.append({"full_name": full_name, "success": False,
+                                "error": "already_in_hacs", "skipped": True})
+                continue
+            if category not in VALID_HACS_CATEGORIES:
+                results.append({"full_name": full_name, "success": False,
+                                "error": "not_installable", "skipped": True})
                 continue
             try:
                 result = await self.operator.add_custom_repository(full_name, category)
                 results.append({"full_name": full_name, "success": result.get("success", False),
                                 "error": result.get("error", "")})
-            except Exception as e:
+            except Exception:
                 results.append({"full_name": full_name, "success": False, "error": "operation_failed"})
         return web.json_response({"results": results})
 

@@ -47,6 +47,10 @@ class ConfigView extends LitElement {
     langVersion: { type: Number },
   };
 
+  // Categories HACS can actually install — the detector can also return
+  // "addon", which HACS cannot install, so the candidate filter checks this.
+  static _INSTALLABLE_CATEGORIES = ['integration', 'plugin', 'theme', 'python_script', 'appdaemon', 'netdaemon', 'template'];
+
   static _LOGIN_CACHE_KEY = 'hacs_vision_github_login';
 
   /** Save login info to localStorage so page reloads don't immediately show logged-out UI */
@@ -131,8 +135,9 @@ class ConfigView extends LitElement {
   }
 
   get _filteredStarredCount() {
-    if (!this._starredFilter) return this._starredRepos.length;
-    return this._starredRepos.filter(r => r.full_name.toLowerCase().includes(this._starredFilter.toLowerCase())).length;
+    const candidates = this._starredRepos.filter(r => r.category && ConfigView._INSTALLABLE_CATEGORIES.includes(r.category) && !r.in_hacs);
+    if (!this._starredFilter) return candidates.length;
+    return candidates.filter(r => r.full_name.toLowerCase().includes(this._starredFilter.toLowerCase())).length;
   }
 
   get _orgFilteredCount() {
@@ -822,6 +827,21 @@ class ConfigView extends LitElement {
               ${t('loadingStarred')}
             </div>
           ` : this._starredRepos.length > 0 ? html`
+            ${(() => {
+              // Filter out non-installable entries: no HACS category detected
+              // (can't be added), or already registered in HACS (no need).
+              const candidates = this._starredRepos.filter(r => r.category && ConfigView._INSTALLABLE_CATEGORIES.includes(r.category) && !r.in_hacs);
+              const hidden = this._starredRepos.length - candidates.length;
+              if (candidates.length === 0) {
+                return html`<div class="loading-box" style="font-size:12px;color:var(--secondary-text-color);">
+                  ${t('noInstallableStarred', { n: this._starredRepos.length })}</div>`;
+              }
+              if (hidden > 0) {
+                return html`<div style="font-size:11px;color:var(--secondary-text-color);margin-bottom:6px;">
+                  ${t('hiddenNonInstallable', { n: hidden })}</div>`;
+              }
+              return '';
+            })()}
             <div class="flex-row" style="margin-bottom:8px;">
               <label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer;">
                 <input type="checkbox" .checked=${this._filteredStarredCount > 0 && Object.keys(this._selectedStarred).length === this._filteredStarredCount}
@@ -842,7 +862,7 @@ class ConfigView extends LitElement {
             </div>
             ${this._starredSyncResult ? html`<div class="result-msg" style="color:${this._starredSyncFailed ? '#f44336' : 'var(--primary-text-color)'};">${this._starredSyncResult}</div>` : ''}
             <div class="scroll-list">
-              ${this._starredRepos.filter(r => !this._starredFilter || r.full_name.toLowerCase().includes(this._starredFilter.toLowerCase())).map(r => html`
+              ${this._starredRepos.filter(r => r.category && ConfigView._INSTALLABLE_CATEGORIES.includes(r.category) && !r.in_hacs).filter(r => !this._starredFilter || r.full_name.toLowerCase().includes(this._starredFilter.toLowerCase())).map(r => html`
                 <div class="list-item" @click=${() => this._toggleSelectStarred(r.full_name)}>
                   <input type="checkbox" .checked=${!!this._selectedStarred[r.full_name]}
                     @click=${(e) => { e.stopPropagation(); this._toggleSelectStarred(r.full_name); }}
@@ -1411,12 +1431,30 @@ class ConfigView extends LitElement {
       const resp = await api.getFavorites();
       const favs = Array.isArray(resp) ? resp : (resp?.favorites || []);
       const valid = favs.filter(f => typeof f === 'string' && f.includes('/'));
-      const results = await Promise.allSettled(valid.map(repoId => api.starRepo(repoId)));
+      // Verify first: favorites that are already starred on GitHub are skipped —
+      // re-starring everything wasted API calls on every sync run.
+      const starStates = await Promise.allSettled(
+        valid.map(repoId => api.checkStarred(repoId).then(r => !!r?.starred).catch(() => null))
+      );
+      const toStar = [];
+      let alreadyStarred = 0;
+      valid.forEach((repoId, i) => {
+        const st = starStates[i];
+        if (st.status === 'fulfilled' && st.value === true) {
+          alreadyStarred++;
+        } else {
+          toStar.push(repoId);  // unstarred, or status unknown (verification failed) → star it
+        }
+      });
+      const results = toStar.length
+        ? await Promise.allSettled(toStar.map(repoId => api.starRepo(repoId)))
+        : [];
       const ok = results.filter(r => r.status === 'fulfilled').length;
       const fail = results.filter(r => r.status === 'rejected').length;
+      const skippedPart = alreadyStarred > 0 ? ` · ${t('syncAlreadyStarred', { n: alreadyStarred })}` : '';
       this._syncFavToStarResult = fail > 0
-        ? t('syncResultPartial', { ok, fail })
-        : t('syncResultSuccess', { n: ok });
+        ? t('syncResultPartial', { ok, fail }) + skippedPart
+        : t('syncResultSuccess', { n: ok }) + skippedPart;
       if (fail > 0) {
         showToast(t('noPermissionMsg', { n: fail }), 'warning');
       }
@@ -1488,7 +1526,9 @@ class ConfigView extends LitElement {
   }
 
   _toggleSelectAllStarred(checked) {
-    const filtered = this._starredRepos.filter(r => !this._starredFilter || r.full_name.toLowerCase().includes(this._starredFilter.toLowerCase()));
+    const filtered = this._starredRepos
+      .filter(r => r.category && ConfigView._INSTALLABLE_CATEGORIES.includes(r.category) && !r.in_hacs)
+      .filter(r => !this._starredFilter || r.full_name.toLowerCase().includes(this._starredFilter.toLowerCase()));
     if (checked) {
       const sel = {};
       filtered.forEach(r => sel[r.full_name] = true);
@@ -1505,10 +1545,10 @@ class ConfigView extends LitElement {
     this._starredSyncResult = '';
     try {
       const reposToSync = this._starredRepos
-        .filter(r => this._selectedStarred[r.full_name])
+        .filter(r => this._selectedStarred[r.full_name] && r.category && ConfigView._INSTALLABLE_CATEGORIES.includes(r.category) && !r.in_hacs)
         .map(r => ({
           full_name: r.full_name,
-          category: r.category || 'integration',
+          category: r.category,
         }));
       if (reposToSync.length === 0) {
         this._starredSyncResult = t('noSelectedRepos');
@@ -1518,9 +1558,11 @@ class ConfigView extends LitElement {
       const result = await api.syncStarred(reposToSync);
       const results = result?.results || [];
       const ok = results.filter(r => r.success).length;
-      const fail = results.filter(r => !r.success).length;
+      const skipped = results.filter(r => r.skipped).length;
+      const fail = results.filter(r => !r.success && !r.skipped).length;
       const failPart = fail ? t('failPartSuffix', { fail }) : '';
-      this._starredSyncResult = t('syncDoneResult', { ok, failPart });
+      const skipPart = skipped ? t('syncSkipped', { n: skipped }) : '';
+      this._starredSyncResult = t('syncDoneResult', { ok, failPart }) + skipPart;
       showToast(t('addStarredToCustomList', { n: ok }), fail ? 'warning' : 'success');
     } catch(e) {
       this._starredSyncResult = t('errorPrefix', { action: t('syncing'), err: e.message });
