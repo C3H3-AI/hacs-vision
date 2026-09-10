@@ -42,6 +42,9 @@ class HACSEnhancedAPI {
       if (!resp.ok) {
         const err = new Error(`API error: ${resp.status}`);
         err.status = resp.status;
+        // HA endpoints (e.g. config flow proxy) put field-level errors in the
+        // response body — keep it so callers can surface them instead of a bare status.
+        try { err.body = await resp.json(); } catch(e) { err.body = null; }
         // F2: Network status callback (skip if suppressed for non-critical calls)
         if (!options.suppressNetworkError && this._onNetworkStatus) {
           if (resp.status === 429) this._onNetworkStatus('rate_limited');

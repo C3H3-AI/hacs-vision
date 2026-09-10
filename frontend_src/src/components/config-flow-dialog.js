@@ -184,24 +184,30 @@ class ConfigFlowDialog extends LitElement {
   updated(changed) {
     try {
       if (changed.has('open') && this.open) {
+        this._intentionalClose = false;
         this._startFlowWithEntryCheck();
       } else if (this.open && (changed.has('entryId') || changed.has('domain'))) {
         this._startFlowWithEntryCheck();
       }
       if (changed.has('open') && !this.open && changed.get('open') === true) {
-        // Dialog was closed — log state
-        console.warn('HACS Vision: dialog closed unexpectedly', {
-        flowId: this._flowId,
-        loading: this._loading,
-        finished: this._finished,
-        step: this._step?.step_id,
-        isOptions: this._isOptions,
-        isReconfigure: this.isReconfigure,
-        isSubentry: this._isSubentry,
-        result: this._result?.type,
-        errorMsg: this._result?.message?.slice(0, 80),
-      });
-    }
+        // _close() (success auto-close / cancel button) resets state before this
+        // runs — the warn is only meaningful when open flipped externally.
+        if (this._intentionalClose) {
+          this._intentionalClose = false;
+        } else {
+          console.warn('HACS Vision: dialog closed unexpectedly', {
+            flowId: this._flowId,
+            loading: this._loading,
+            finished: this._finished,
+            step: this._step?.step_id,
+            isOptions: this._isOptions,
+            isReconfigure: this.isReconfigure,
+            isSubentry: this._isSubentry,
+            result: this._result?.type,
+            errorMsg: this._result?.message?.slice(0, 80),
+          });
+        }
+      }
     } catch(e) {
       console.error('HACS Vision: updated() error:', e);
     }
@@ -638,8 +644,26 @@ class ConfigFlowDialog extends LitElement {
 
       await this._handleFlowResponse(result);
     } catch (e) {
-      console.error('HACS Vision: flow step error:', e);
-      this._errors = { base: e.message || t('flowSubmitFailed') };
+      console.error('HACS Vision: flow step error:', e, 'response body:', e?.body);
+      // HA returns 400 with {"errors": {field: message}} on validation failure —
+      // map those onto the form fields instead of showing a bare "API error".
+      const flowErrors = e?.body?.errors;
+      if (flowErrors && typeof flowErrors === 'object' && !Array.isArray(flowErrors)
+          && Object.keys(flowErrors).length > 0) {
+        this._errors = flowErrors;
+      } else {
+        // No field errors — surface whatever detail the response body carries
+        // so the user sees WHY the step was rejected (not just "API error: 400").
+        const body = e?.body;
+        let detail = '';
+        if (body && typeof body === 'object' && !Array.isArray(body)) {
+          for (const key of ['message', 'detail', 'error', 'reason', 'description']) {
+            if (typeof body[key] === 'string' && body[key]) { detail = body[key]; break; }
+          }
+          if (!detail) detail = JSON.stringify(body).slice(0, 300);
+        }
+        this._errors = { base: detail ? `${e.message} — ${detail}` : (e.message || t('flowSubmitFailed')) };
+      }
       this._loading = false;
       this.requestUpdate();
     }
@@ -657,14 +681,20 @@ class ConfigFlowDialog extends LitElement {
         if (!name) continue;
         const el = form[name];
         if (!el) continue;
-        if (el.type === 'checkbox') {
-          // If multiple checkboxes share the same name (multi_select),
-          // form[name] returns a RadioNodeList/HTMLCollection
-          if (typeof el.length === 'number' && el.length > 1 && el[0]?.type === 'checkbox') {
+        // A single checkbox is an HTMLInputElement; same-name checkbox groups come
+        // back as a RadioNodeList, which has NO .type — detect groups via [0].
+        const isGroup = typeof el.length === 'number' && el.length > 1
+          && el[0]?.type === 'checkbox';
+        if (el.type === 'checkbox' || isGroup) {
+          if (isGroup) {
             data[name] = [];
             for (let i = 0; i < el.length; i++) {
               if (el[i].checked) data[name].push(el[i].value);
             }
+          } else if (this._isMultiSelectField(field)) {
+            // Single option in a multi_select group: form[name] is one element,
+            // but HA still expects a list — a bare boolean would fail validation.
+            data[name] = el.checked ? [el.value] : [];
           } else {
             data[name] = el.checked;
           }
@@ -679,6 +709,11 @@ class ConfigFlowDialog extends LitElement {
     return data;
   }
 
+  _isMultiSelectField(field) {
+    return field?.type === 'multi_select'
+      || field?.selector?.select?.multiple === true;
+  }
+
   _handleSubmit(e) {
     e.preventDefault();
     if (this._loading) return;
@@ -688,6 +723,7 @@ class ConfigFlowDialog extends LitElement {
   _handlePrimaryClick(e) {
     // Direct click handler for the submit button, bypassing form submit event
     // Fallback in case @submit event doesn't fire (e.g. shadow DOM issues)
+    e.preventDefault();
     if (this._loading) return;
     const form = e.currentTarget?.closest?.('form');
     if (form) {
@@ -737,6 +773,7 @@ class ConfigFlowDialog extends LitElement {
   _close() {
     try {
       this._clearLoadingTimeout();
+      this._intentionalClose = true;
       this.open = false;
       this._flowId = null;
       this._step = null;
@@ -1373,7 +1410,13 @@ class ConfigFlowDialog extends LitElement {
       }
       const isMulti = type === 'multi_select' || selector.select?.multiple === true;
       // Debug: log select field schema for troubleshooting (only once per field name)
-      if (!rawOptions.length) {
+      // Dict-shaped options ({value: label}) have no .length — check emptiness per shape.
+      const rawIsEmpty = Array.isArray(rawOptions)
+        ? rawOptions.length === 0
+        : (rawOptions && typeof rawOptions === 'object')
+          ? Object.keys(rawOptions).length === 0
+          : !rawOptions;
+      if (rawIsEmpty) {
         console.warn(`HACS Vision: select field "${name}" has empty options`, schema);
       }
       // multi_select options can be an object: {"add": "新增", "del": "不可用", ...}
