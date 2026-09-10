@@ -1,5 +1,31 @@
 # Changelog
 
+## v6.7.0-beta4 (2026-09-11) — 全面审计与体验修复 / Full Audit & UX Fixes
+
+> ⚠️ **预发布版本（Beta）** — 基于 v6.7.0-beta3，本轮为全面代码审计修复。请通过 HACS 的「显示 Beta 版本」或 GitHub Releases 安装测试。
+> **Pre-release (Beta)** — Built on v6.7.0-beta3, a full code-audit fix round. Install via HACS "Show beta versions" or GitHub Releases for testing.
+
+### 🛠 修复 / Fixed
+
+- **自定义仓库误标** — HACS 未加载某分类默认目录时，全部默认仓库被误判为"自定义仓库"（显示 775 个）；现在仅当分类覆盖可信时才启用推断
+- **配置流 multi_select 提交字符串** — 同名复选框组提交为字符串导致 HA 400 校验失败，现正确收集为数组；错误响应体不再丢弃，字段级错误直接显示在表单中
+- **设置页全面修复** — 移除未经同意的自动点赞行为；三个"假设置"（无任何消费逻辑）已删除；"默认视图"设置真正生效；OAuth 轮询可取消、有超时；设置保存串行化防丢失
+- **星标/收藏同步过滤** — Star→收藏 与 星标→自定义仓库 同步现在只保留 HACS 可安装的仓库；分类检测不再把未知仓库兜底为 integration；已在 HACS 中的仓库不再重复添加
+- **收藏筛选** — 标签筛选改为单选互斥（此前组合标签会静默丢失筛选条件，列出全部仓库）
+- **商店/更新页反馈** — 安装/更新按钮执行期禁用防重复点击；加载失败保留旧列表并提示；收藏/星标失败回滚；README 不再串台；移除 5 分钟强制关闭对话框
+- **API 安全与正确性** — 全部数据端点要求管理员权限；配置更新改为合并（此前整包替换会抹掉其他配置）；`repos/status` 路由修复；品牌图标 `/icon` `/logo` 子路由修复；实体引用替换后恢复自动化原状态；出站请求统一超时
+
+### English summary
+
+- **Custom-repo mislabeling fixed** — default repos are no longer flagged "custom" when HACS hasn't loaded a category's default set
+- **Config-flow multi_select** — checkbox groups now submit arrays (HA 400 "Not a list" fixed); field-level errors surface in the form
+- **Settings page** — hidden auto-star removed; dead settings removed; default-view setting implemented; OAuth poll cancellable; serialized saves
+- **Star/favorite sync** — only HACS-installable repos pass; junk detection fallback removed; already-registered repos skipped
+- **Favorites filter** — tag chips are single-select (combined tags silently dropped the filter)
+- **Store/updates feedback** — busy states on actions, stale-response races fixed, load failures surfaced
+- **API** — admin required; config updates merge instead of replace; route fixes; automation state restored after entity replacement; outbound timeouts
+
+
 ## v6.7.0-beta3 (2026-09-10) — 版本标注与分组 / Version Badges & Grouping
 
 > ⚠️ **预发布版本（Beta）** — 基于 v6.7.0-beta2，改进「Commit / 分支」页签的体验。请通过 HACS 的「显示 Beta 版本」或 GitHub Releases 安装测试。
