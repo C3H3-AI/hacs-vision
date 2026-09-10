@@ -44,6 +44,7 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
     _refsLoading: { type: Boolean, state: true },
     _refInput: { type: String, state: true },
     _installingRef: { type: Boolean, state: true },
+    _installing: { type: Boolean, state: true }, // shared lock: any install in progress
     // Config Flow
     _configFlowDomain: { type: String, state: true },
     _configFlowEntryId: { type: String, state: true },
@@ -91,6 +92,7 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
     this._refsLoading = false;
     this._refInput = '';
     this._installingRef = false;
+    this._installing = false;
     this._changelogData = null;
     this._changelogLoading = false;
     this._presetFilter = '';
@@ -535,13 +537,30 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
       white-space: nowrap; transition: opacity 0.2s;
     }
     .ref-install-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-    .ref-list { max-height: 220px; overflow-y: auto; }
+    
     .ref-badge {
       display: inline-block; margin-right: 6px; padding: 1px 5px;
       border-radius: 4px; font-size: 9px; font-weight: 700; vertical-align: middle;
     }
     .ref-badge.branch { background: rgba(33, 150, 243, 0.15); color: #2196f3; }
     .ref-badge.commit { background: rgba(158, 158, 158, 0.18); color: var(--secondary-text-color); }
+    .ref-default-badge {
+      display: inline-block; margin-left: 4px; padding: 0 4px;
+      border-radius: 3px; font-size: 9px; font-weight: 600;
+      background: rgba(76, 175, 80, 0.15); color: #4caf50; vertical-align: middle;
+    }
+    .ref-version-badge {
+      display: inline-block; margin-left: 4px; padding: 0 5px;
+      border-radius: 4px; font-size: 9px; font-weight: 700;
+      background: rgba(33, 150, 243, 0.15); color: #2196f3; vertical-align: middle;
+    }
+    .ref-group-header {
+      font-size: 11px; font-weight: 700; color: var(--secondary-text-color);
+      padding: 6px 0 4px; text-transform: uppercase; letter-spacing: 0.5px;
+    }
+    .ref-list { max-height: 280px; overflow-y: auto; }
+
+
 
     .release-tabs {
       display: flex; border-bottom: 1px solid var(--divider-color, #e0e0e0);
@@ -1034,6 +1053,7 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
     this._refsLoading = false;
     this._refInput = '';
     this._installingRef = false;
+    this._installing = false;
     this._changelogData = null;
     this._changelogLoading = true;
     // Refresh settings so the README language bar reflects the latest
@@ -1161,6 +1181,7 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
     this._refsLoading = false;
     this._refInput = '';
     this._installingRef = false;
+    this._installing = false;
     this._removeFocusTrap();
   }
 
@@ -1452,15 +1473,24 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
       this._refs = [];
     }
     this._refsLoading = false;
+    // Auto-focus the ref input after loading
+    await this.updateComplete;
+    const el = this.renderRoot?.getElementById('ref-input-field');
+    if (el) setTimeout(() => el.focus(), 100);
   }
 
   /** Arbitrary branch / commit install panel (third tab of the version selector). */
   _renderRefPanel() {
+    const branches = this._refs.filter(r => r.type === 'branch');
+    const commits = this._refs.filter(r => r.type === 'commit');
+    const installing = this._installing;
+
     return html`
       <div class="ref-panel">
         <div class="ref-warning">${t('refWarning')}</div>
         <div class="ref-input-row">
           <input class="ref-input"
+                 id="ref-input-field"
                  type="text"
                  placeholder="${t('refPlaceholder')}"
                  .value=${this._refInput || ''}
@@ -1468,7 +1498,8 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
                  @keydown=${(e) => { if (e.key === 'Enter') this._installRef(); }} />
           <button class="ref-install-btn"
                   @click=${() => this._installRef()}
-                  ?disabled=${this._installingRef || !(this._refInput || '').trim()}>
+                  ?disabled=${installing || !(this._refInput || '').trim()}>
+            ${installing ? '' : ''}
             ${t('refInstallBtn')}
           </button>
         </div>
@@ -1481,27 +1512,49 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
           <div class="releases-empty">${t('noRefs')}</div>
         ` : html`
           <div class="ref-list">
-            ${this._refs.map(ref => html`
-              <div class="release-item">
-                <div class="release-info">
-                  <div class="release-tag">
-                    <span class="ref-badge ${ref.type === 'branch' ? 'branch' : 'commit'}">${
-                      ref.type === 'branch' ? t('refBranch') : t('refCommit')
-                    }</span>
-                    ${ref.type === 'branch' ? (ref.name || '?') : (ref.sha || ref.name || '?')}
-                  </div>
-                  ${ref.message ? html`<div class="release-date">${ref.message}</div>` : ''}
-                  ${ref.date ? html`<div class="release-date">${new Date(ref.date).toLocaleDateString()}</div>` : ''}
-                </div>
-                <button class="release-install-btn"
-                        @click=${() => this._installRef(ref.name)}
-                        ?disabled=${this._installingRef}>
-                  ${t('installVersion')}
-                </button>
-              </div>
-            `)}
+            ${branches.length > 0 ? html`
+              <div class="ref-group-header">${t('refBranch')}</div>
+              ${branches.map(ref => this._renderRefItem(ref, installing))}
+            ` : ''}
+            ${commits.length > 0 ? html`
+              <div class="ref-group-header" style="margin-top:8px;">${t('refCommit')}</div>
+              ${commits.map(ref => this._renderRefItem(ref, installing))}
+            ` : ''}
           </div>
         `}
+      </div>
+    `;
+  }
+
+  /** Single ref list item with optional version badge and default marker. */
+  _renderRefItem(ref, installing) {
+    const isBranch = ref.type === 'branch';
+    const label = isBranch ? ref.name : (ref.sha || ref.name || '?');
+    const defaultBranch = ref.default;
+    // If ref has a version, show it as a tag badge (e.g. "v2.0.0")
+    const versionBadge = ref.version ? html`
+      <span class="ref-version-badge">${ref.version}</span>
+    ` : '';
+
+    return html`
+      <div class="release-item">
+        <div class="release-info">
+          <div class="release-tag">
+            <span class="ref-badge ${isBranch ? 'branch' : 'commit'}">${
+              isBranch ? t('refBranch') : t('refCommit')
+            }</span>
+            ${label}
+            ${defaultBranch ? html`<span class="ref-default-badge">${t('refDefault') || 'default'}</span>` : ''}
+            ${versionBadge}
+          </div>
+          ${ref.message ? html`<div class="release-date">${ref.message}</div>` : ''}
+          ${ref.date ? html`<div class="release-date">${new Date(ref.date).toLocaleDateString()}</div>` : ''}
+        </div>
+        <button class="release-install-btn"
+                @click=${() => this._installRef(ref.name)}
+                ?disabled=${installing}>
+          ${t('installVersion')}
+        </button>
       </div>
     `;
   }
@@ -1511,15 +1564,17 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
     const repoId = this._detailRepo?.id || this._detailRepo?.full_name;
     const value = ((ref ?? this._refInput) || '').trim();
     if (!repoId || !value) return;
-    this._installingRef = true;
+    this._installing = true;
     try {
       await api.installRef(repoId, value);
       showToast(`${t('installComplete')}: ${value}`, 'success');
       this._refInput = '';
+      // Refresh refs so version badges / ✓ markers update
+      await this._loadRefs();
     } catch(e) {
       showToast(`${t('installFailed')}: ${e.message}`, 'error');
     }
-    this._installingRef = false;
+    this._installing = false;
   }
 
   async _selectVersion(release) {
@@ -1542,7 +1597,7 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
   async _installVersion(version) {
     const repoId = this._detailRepo?.id || this._detailRepo?.full_name;
     if (!repoId || !version) return;
-    this._installingVersion = true;
+    this._installing = true;
     try {
       await api.installVersion(repoId, version);
       showToast(`${t('installComplete')}: ${version}`, 'success');
@@ -1551,7 +1606,7 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
     } catch(e) {
       showToast(`${t('installFailed')}: ${e.message}`, 'error');
     }
-    this._installingVersion = false;
+    this._installing = false;
   }
 
   _getCategoryLabel(category) {
@@ -2417,7 +2472,7 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
                           </div>
                           <button class="release-install-btn"
                                   @click=${(e) => { e.stopPropagation(); this._installVersion(release.tag_name || release.tag); }}
-                                  ?disabled=${this._installingVersion}>
+                                  ?disabled=${this._installing}>
                             ${t('installVersion')}
                           </button>
                         </div>

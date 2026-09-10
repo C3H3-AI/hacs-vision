@@ -465,6 +465,7 @@ const T = {
     en: 'Installing an arbitrary branch/commit is for development use: it may be unstable and will not receive update notifications.',
     de: 'Die Installation eines beliebigen Branch/Commit dient Entwicklungszwecken: Sie kann instabil sein und erhält keine Update-Hinweise.',
   },
+  refDefault: { zh: '默认', en: 'Default', de: 'Standard' },
 
   noConfigRequired: { zh: '此集成无需配置', en: 'This integration requires no configuration', de: 'Diese Integration benötigt keine Konfiguration' },
 

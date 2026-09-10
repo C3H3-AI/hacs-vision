@@ -1,5 +1,29 @@
 # Changelog
 
+## v6.7.0-beta3 (2026-09-10) — 版本标注与分组 / Version Badges & Grouping
+
+> ⚠️ **预发布版本（Beta）** — 基于 v6.7.0-beta2，改进「Commit / 分支」页签的体验。请通过 HACS 的「显示 Beta 版本」或 GitHub Releases 安装测试。
+> **Pre-release (Beta)** — Built on v6.7.0-beta2, improves the "Commit / Branch" tab experience. Install via HACS "Show beta versions" or GitHub Releases for testing.
+
+### ✨ 改进 / Improved
+
+- **分支/commit 列表按类型分组** — 先展示分支区（大写标题），再展示提交区，不再混排
+- **版本号自动关联** — 后端调用 `/releases` API，通过 `target_commitish` 交叉匹配分支/commit 对应的发布版本号；匹配到的项显示蓝色版本徽章（如 `v2.0.0`），无版本号的不标
+- **默认分支标记** — 默认分支（`main` / `master`）右侧显示绿色"默认"徽章
+- **自动聚焦输入框** — 切到「Commit / 分支」页签后，输入框自动获得焦点，可直接开始输入
+- **安装后刷新** — 安装任意 ref 后自动重新加载列表，更新版本标记
+- **统一安装锁** — `_installing` 共享锁，安装中所有安装按钮（稳定版/预发布版/ref）同时禁用，避免并发
+- **列表高度** — 从 220px 提高到 280px，可展示更多项
+- **俄语本地化** — 补全 `refTab`、`refBranch`、`refCommit` 等 8 条 ru 翻译
+- **Branch/Commit list grouped** — branches and commits displayed in separate sections with headers
+- **Version auto-association** — backend fetches `/releases` and cross-references `target_commitish` to attach version badges; items with matching versions get a blue badge, others are unlabeled
+- **Default branch marker** — the default branch shows a green "Default" badge
+- **Auto-focus input** — the ref input field auto-focuses when switching to the "Commit / Branch" tab
+- **Post-install refresh** — ref list auto-refreshes after install to update version markers
+- **Unified install lock** — shared `_installing` lock disables all install buttons during any installation
+- **Increased list height** — 220px → 280px for more visible items
+- **Russian i18n** — added 8 translation keys for the ref tab
+
 ## v6.7.0-beta2 (2026-09-09) — 任意 commit / 分支安装 / Arbitrary Commit & Branch Install
 
 > ⚠️ **预发布版本（Beta）** — 基于 v6.7.0-beta1，新增「任意 commit / 分支安装」功能。请通过 HACS 的「显示 Beta 版本」或 GitHub Releases 安装测试。

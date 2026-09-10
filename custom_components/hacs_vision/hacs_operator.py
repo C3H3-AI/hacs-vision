@@ -739,8 +739,13 @@ class HACSOperator:
     async def get_repo_refs(self, repo_id_or_name: str) -> list[dict]:
         """List branches and recent commits available for install.
 
-        Branches come from GitHub API (/branches), commits from (/commits).
-        Returns [{"type": "branch"|"commit", "name", "sha", "date", "message"}].
+        Cross-references GitHub releases to annotate each ref with its
+        associated version tag (if the commit SHA of a branch / commit
+        matches a release tag's target_commitish). Also marks the
+        default branch.
+
+        Returns [{"type": "branch"|"commit", "name", "sha", "date",
+                   "message", "version" (optional), "default" (bool)}].
         """
         repo = self._find_repo(repo_id_or_name) if self.available else None
         full_name = getattr(getattr(repo, "data", None), "full_name", "") or repo_id_or_name
@@ -752,43 +757,75 @@ class HACSOperator:
         if token:
             headers["Authorization"] = f"token {token}"
 
+        # Build SHA → tag_name lookup (short SHA → full tag, e.g. "abc1234" → "v2.0.0")
+        sha_to_version: dict[str, str] = {}
+        try:
+            url = f"https://api.github.com/repos/{full_name}/releases?per_page=30"
+            async with session.get(url, headers=headers, timeout=15) as resp:
+                if resp.status == 200:
+                    for release in await resp.json():
+                        tag = (release.get("tag_name") or "").strip()
+                        cs = (release.get("target_commitish") or "").strip()
+                        if tag and cs:
+                            sha_to_version[cs[:7]] = tag
+        except Exception as e:
+            _LOGGER.debug("Fetch releases for version map failed: %s", e)
+
+        default_branch = getattr(getattr(repo, "data", None), "default_branch", None) or "main"
+
         refs: list[dict] = []
+
         # Branches
         try:
             url = f"https://api.github.com/repos/{full_name}/branches?per_page=30"
             async with session.get(url, headers=headers, timeout=15) as resp:
                 if resp.status == 200:
                     for b in await resp.json():
-                        refs.append({
+                        name = b.get("name", "")
+                        commit_obj = b.get("commit") or {}
+                        sha = (commit_obj.get("sha") or "")[:7]
+                        branch_info = {
                             "type": "branch",
-                            "name": b.get("name", ""),
-                            "sha": (b.get("commit") or {}).get("sha", "")[:7],
-                            "date": ((b.get("commit") or {}).get("commit") or {}).get("committer", {}).get("date", ""),
+                            "name": name,
+                            "sha": sha,
+                            "date": "",
                             "message": "",
-                        })
+                            "default": name == default_branch,
+                        }
+                        ver = sha_to_version.get(sha)
+                        if ver:
+                            branch_info["version"] = ver
+                        refs.append(branch_info)
                 else:
                     _LOGGER.debug("GitHub branches returned %s for %s", resp.status, full_name)
         except Exception as e:
             _LOGGER.debug("Fetch branches failed for %s: %s", full_name, e)
+
         # Recent commits on default branch
-        default_branch = getattr(getattr(repo, "data", None), "default_branch", None) or "main"
         try:
             url = f"https://api.github.com/repos/{full_name}/commits?per_page=15&sha={default_branch}"
             async with session.get(url, headers=headers, timeout=15) as resp:
                 if resp.status == 200:
                     for c in await resp.json():
                         commit = c.get("commit") or {}
-                        refs.append({
+                        sha = (c.get("sha") or "")[:7]
+                        commit_info = {
                             "type": "commit",
                             "name": c.get("sha", ""),
-                            "sha": (c.get("sha") or "")[:7],
+                            "sha": sha,
                             "date": (commit.get("committer") or {}).get("date", ""),
                             "message": (commit.get("message") or "").split("\n")[0][:80],
-                        })
+                            "default": False,
+                        }
+                        ver = sha_to_version.get(sha)
+                        if ver:
+                            commit_info["version"] = ver
+                        refs.append(commit_info)
                 else:
                     _LOGGER.debug("GitHub commits returned %s for %s", resp.status, full_name)
         except Exception as e:
             _LOGGER.debug("Fetch commits failed for %s: %s", full_name, e)
+
         return refs
 
     def get_repo_rt_status(self, repo_id_or_name: str) -> dict | None:
