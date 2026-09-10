@@ -114,6 +114,10 @@ class AutoUpdateManager:
 
     def _schedule_interval(self, interval_seconds: int) -> None:
         self._cancel_interval()
+        try:
+            interval_seconds = int(interval_seconds)
+        except (TypeError, ValueError):
+            interval_seconds = 21600  # malformed setting — fall back to 6h
         interval = timedelta(seconds=max(interval_seconds, 600))
 
         async def _first_then_interval(_now=None):
@@ -319,7 +323,9 @@ class AutoUpdateManager:
                 self._pending_trigger = False
                 if not self._running:
                     self._coalescing = True
-                    self.hass.async_create_task(self._run_update_cycle(source="manual"))
+                    self._scheduled_task = self.hass.async_create_task(
+                        self._run_update_cycle(source="manual")
+                    )
 
     def _dispatch_state(self) -> None:
         payload = {

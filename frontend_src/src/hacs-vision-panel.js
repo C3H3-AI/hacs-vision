@@ -127,15 +127,6 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
     // Listen for language changes to force re-render all child views
     this._langChangeHandler = () => { this._langVersion = (this._langVersion || 0) + 1; };
     window.addEventListener('hacs-lang-changed', this._langChangeHandler);
-    // _updateFavoriteCount() deferred to willUpdate when hass becomes available
-  }
-
-  async _updateFavoriteCount() {
-    try {
-      const result = await api.getFavorites();
-      const favs = Array.isArray(result) ? result : (result.favorites || []);
-      this._favoriteCount = favs.length;
-    } catch { this._favoriteCount = 0; }
   }
 
   willUpdate(changedProps) {
@@ -796,27 +787,34 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
 
   async connectedCallback() {
     super.connectedCallback();
-    this.addEventListener('refresh-stats', () => this._loadStats());
-    this.addEventListener('detail', (e) => this._openDetail(e.detail.repo));
-    this.addEventListener('preview', (e) => {
+    // Named handlers — removed in disconnectedCallback (fresh arrow functions
+    // per connect would stack duplicate handlers on re-attach).
+    this._onRefreshStats = () => this._loadStats();
+    this._onDetail = (e) => this._openDetail(e.detail.repo);
+    this._onPreview = (e) => {
       this._previewRepo = e.detail?.repo;
       this._showPreview = true;
-    });
-    this.addEventListener('favorite', () => this._loadStats());
-    // Config flow events from child views
-    this.addEventListener('open-flow', (e) => {
+    };
+    this._onFavorite = () => this._loadStats();
+    this._onOpenFlow = (e) => {
       const domain = e.detail?.domain;
       if (domain) this._openConfigFlow(domain);
-    });
-    this.addEventListener('open-options-flow', (e) => {
+    };
+    this._onOpenOptionsFlow = (e) => {
       const { entryId, domain } = e.detail || {};
       if (entryId) this._openOptionsFlow(entryId, domain);
-    });
-    // Open Issue dialog from child components (repo-card, etc.)
-    this.addEventListener('report-issue', (e) => {
+    };
+    this._onReportIssue = (e) => {
       const repo = e.detail?.repo;
       if (repo) this._handleIssueReport(repo);
-    });
+    };
+    this.addEventListener('refresh-stats', this._onRefreshStats);
+    this.addEventListener('detail', this._onDetail);
+    this.addEventListener('preview', this._onPreview);
+    this.addEventListener('favorite', this._onFavorite);
+    this.addEventListener('open-flow', this._onOpenFlow);
+    this.addEventListener('open-options-flow', this._onOpenOptionsFlow);
+    this.addEventListener('report-issue', this._onReportIssue);
     // F1: Keyboard shortcuts
     // Escape closes the top-most open modal (panel-level dialogs), one per
     // press, ordered by z-index: issue overlay (99999) > entry selector /
@@ -882,6 +880,19 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
 
   disconnectedCallback() {
     super.disconnectedCallback();
+    for (const [name, handler] of [
+        ['refresh-stats', this._onRefreshStats],
+        ['detail', this._onDetail],
+        ['preview', this._onPreview],
+        ['favorite', this._onFavorite],
+        ['open-flow', this._onOpenFlow],
+        ['open-options-flow', this._onOpenOptionsFlow],
+        ['report-issue', this._onReportIssue],
+    ]) {
+      if (handler) this.removeEventListener(name, handler);
+    }
+    // Release the module-singleton closure to the panel
+    try { api._onNetworkStatus = null; } catch {}
     if (this._statsRetryTimer) {
       clearTimeout(this._statsRetryTimer);
       this._statsRetryTimer = null;
@@ -935,7 +946,8 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
       } catch(e) { /* non-critical */ }
     } catch(e) {
       console.error('Stats error:', e);
-      this.stats = {};
+      // Keep previously-good stats — blanking them made a transient failure
+      // look like "all integrations vanished". Show the error banner instead.
       this._error = `API: ${e.message}`;
       // Only retry when user explicitly triggered restart
       if (this._restarting && !this._statsRetryTimer) {
@@ -2380,7 +2392,10 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
     const r = this._detailRepo;
     const categoryColor = r ? getCategoryColor(r.category || 'integration') : '';
     const isInstalled = r?.installed || false;
-    const isUpdateAvailable = isInstalled && r?.installed_version && r?.latest_version && r.installed_version !== r.latest_version;
+    // Same field fallback as the action buttons (available_version ?? latest_version)
+    const isUpdateAvailable = isInstalled && r?.installed_version
+      && (r.available_version || r.latest_version)
+      && r.installed_version !== (r.available_version || r.latest_version);
 
     return html`
       <!-- Detail Modal -->

@@ -93,7 +93,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigType) -> bool:
         _LOGGER.warning("Config entries cache init error: %s", exc)
 
     # Auto-import token from HACS on first run
-    hass.async_create_task(_auto_import_token(hass, shared_data))
+    # Hold the task reference — fire-and-forget tasks can be GC'd mid-flight
+    _bg_tasks: set = hass.data.setdefault(f"{DOMAIN}_bg_tasks", set())
+    _t = hass.async_create_task(_auto_import_token(hass, shared_data))
+    _bg_tasks.add(_t)
+    _t.add_done_callback(_bg_tasks.discard)
 
     return True
 

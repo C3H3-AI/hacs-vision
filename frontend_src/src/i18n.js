@@ -669,6 +669,7 @@ const T = {
   filterPlaceholder: { zh: '筛选...', en: 'Filter...', de: 'Filter...' },
   syncSelectedCount: { zh: '同步选中 ({n})', en: 'Sync Selected ({n})', de: 'Auswahl synchronisieren ({n})' },
   starredCount: { zh: '{n} 个星标仓库', en: '{n} starred repos', de: '{n} Stern-Repositorys' },
+  multiEntryHint: { zh: '该集成有 {n} 个条目，将只删除第一个', en: 'This integration has {n} entries — only the first will be removed', de: 'Diese Integration hat {n} Einträge — nur der erste wird entfernt', ru: 'У этой интеграции {n} записей — будет удалена только первая' },
   noInstallableStarred: { zh: '{n} 个星标仓库中没有可安装的（无 HACS 分类或已存在）', en: 'None of the {n} starred repos are installable (no HACS category, or already present)', de: 'Keine der {n} Stern-Repositorys ist installierbar' , ru: 'Ни один из {n} репозиториев не устанавливается'},
   hiddenNonInstallable: { zh: '已隐藏 {n} 个不可安装或已存在的仓库', en: '{n} non-installable or already-present repos hidden', de: '{n} nicht installierbare oder vorhandene ausgeblendet', ru: 'Скрыто {n}: неустанавливаемые или существующие'},
   syncSkipped: { zh: '· 跳过 {n} 个', en: '· {n} skipped', de: '· {n} übersprungen', ru: '· пропущено {n}'},
@@ -909,7 +910,6 @@ export function setLang(lang) {
   }
   // Notify all components to re-render with new language
   window.dispatchEvent(new CustomEvent('hacs-lang-changed', { detail: { lang: getLang() } }));
-  _refreshAllComponents();
 }
 
 /**
@@ -920,26 +920,6 @@ export function getLang() {
   return _USER_LANG || _LANG || 'en';
 }
 
-/**
- * Force-render all HACS Vision components in the DOM after language change.
- * Called by setLang() to ensure every view re-renders with the new language.
- */
-function _refreshAllComponents() {
-  const tags = ['browse-view', 'updates-view', 'management-view',
-    'config-view', 'integrations-list', 'config-flow-dialog', 'repo-card'];
-  for (const tag of tags) {
-    try {
-      for (const el of document.querySelectorAll(tag)) {
-        if (typeof el.requestUpdate === 'function') el.requestUpdate();
-      }
-    } catch (e) { /* ignore cross-root or detached elements */ }
-  }
-  // Also refresh the main panel
-  try {
-    const panel = document.querySelector('hacs-vision-panel');
-    if (panel && typeof panel.requestUpdate === 'function') panel.requestUpdate();
-  } catch (e) { /* ignore */ }
-}
 
 /**
  * Check if user has set a manual language override.

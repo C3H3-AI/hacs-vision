@@ -67,7 +67,11 @@ class DependencyChecker:
                 # Extract package name from requirement string
                 # Handles: aiohttp>=3.0, foo==1.0, bar<2.0, baz>1.0, qux[extra]>=1.0
                 pkg_name = req.split(">=")[0].split("==")[0].split("<=")[0].split("<")[0].split(">")[0].split("[")[0].split("!=")[0].split("~=")[0].strip()
-                if pkg_name and not _check_import(pkg_name):
+                if pkg_name and not await self.hass.async_add_executor_job(
+                    _check_import, pkg_name
+                ):
+                    # importlib.import_module can pull in heavy packages
+                    # (cv2, pandas, …) — must not run on the event loop.
                     missing.append(req)
 
             results.append({

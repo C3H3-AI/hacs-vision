@@ -1,5 +1,6 @@
 """Read/write HACS .storage files."""
 from __future__ import annotations
+import asyncio
 import json
 import logging
 import time
@@ -16,6 +17,28 @@ class HACSData:
         self.hass = hass
         self._config_cache = None  # cached config entries map
         self._cache_ready = False
+        self._key_locks: dict[str, asyncio.Lock] = {}
+
+    def _key_lock(self, key: str) -> asyncio.Lock:
+        """Per-storage-key lock — serializes read-modify-write cycles."""
+        if key not in self._key_locks:
+            self._key_locks[key] = asyncio.Lock()
+        return self._key_locks[key]
+
+    async def update_storage(self, key: str, updater) -> bool:
+        """Locked read-modify-write on a storage file.
+
+        `updater(data)` receives the parsed dict (or None) and returns the
+        new dict. Concurrent update_storage() calls on the same key are
+        serialized; without this, two interleaved read-modify-write cycles
+        lose one update.
+        """
+        async with self._key_lock(key):
+            data = await self.read_storage(key)
+            new_data = updater(data)
+            if new_data is None:
+                return True
+            return await self.write_storage(key, new_data)
 
     @staticmethod
     def _read_json_sync(path: str) -> dict | None:
@@ -168,14 +191,16 @@ class HACSData:
 
         A full replace would wipe every key the caller doesn't send
         (release_limit, country, sidepanel, ...) — always merge instead.
+        Serialized via the storage lock against concurrent RMW.
         """
-        data = await self.read_storage("config")
-        if not data:
-            return False
-        merged = dict(data.get("data") or {})
-        merged.update(config_data)
-        data["data"] = merged
-        return await self.write_storage("config", data)
+        def _merge(data):
+            if not data:
+                return None
+            merged = dict(data.get("data") or {})
+            merged.update(config_data)
+            data["data"] = merged
+            return data
+        return await self.update_storage("config", _merge)
 
     # ===== Install Times (our own data) =====
 
@@ -201,6 +226,14 @@ class HACSData:
         return True
 
     # ===== Favorites (our own data) =====
+
+    async def update_favorites(self, mutator) -> list[str]:
+        """Locked favorites read-modify-write. mutator(favs)->new favs."""
+        def _apply(data):
+            favs = ((data or {}).get("data") or [])
+            return {"data": list(mutator(favs))}
+        await self.update_storage("favorites", _apply)
+        return await self.get_favorites()
 
     async def get_favorites(self) -> list[str]:
         """Get favorite repository IDs. Returns list of repo IDs."""

@@ -126,6 +126,8 @@ class GitHubActionsMixin:
                         if len(data) < per_page:
                             break
                         page += 1
+                        if page > 50:
+                            break
         except Exception as e:
             _LOGGER.error("_github_list_starred error: %s", e, exc_info=True)
             return _server_error(repos=repos)
@@ -203,6 +205,8 @@ class GitHubActionsMixin:
                     if len(data) < per_page:
                         break
                     page += 1
+                    if page > 50:
+                        break
         except Exception as e:
             _LOGGER.error("_github_list_org_repos error: %s", e, exc_info=True)
             return _server_error()
@@ -323,6 +327,8 @@ class GitHubActionsMixin:
                         if len(data) < per_page:
                             break
                         page += 1
+                        if page > 50:
+                            break
         except Exception as e:
             _LOGGER.error("_github_sync_favorites fetch error: %s", e, exc_info=True)
             return _error("operation_failed", 502, added=[], synced=0, total=0)
@@ -338,8 +344,8 @@ class GitHubActionsMixin:
         # Favorites pointing at repos HACS can't install are junk (e.g. blind
         # star imports) — a sync is the natural moment to drop them.
         removed = sorted(current_set - installable_current)
-        new_favs = sorted(installable_current | starred_names)
         if added or removed:
+            new_favs = sorted(installable_current | starred_names)
             await self.data.set_favorites(new_favs)
         return web.json_response({
             "synced_total": len(starred_all),
@@ -460,11 +466,13 @@ class GitHubActionsMixin:
             for log_path in ("/share/second-core/home-assistant.log", "/config/home-assistant.log"):
                 try:
                     if _os.path.exists(log_path):
-                        with open(log_path, "r", encoding="utf-8", errors="replace") as f:
-                            all_lines = f.readlines()
-                            text = "".join(all_lines[-200:])
-                            if text and len(text.strip()) > 10:
-                                break
+                        def _read_log_file(lp):
+                            with open(lp, "r", encoding="utf-8", errors="replace") as f:
+                                return f.readlines()
+                        all_lines = await self.hass.async_add_executor_job(_read_log_file, log_path)
+                        text = "".join(all_lines[-200:])
+                        if text and len(text.strip()) > 10:
+                            break
                 except Exception:
                     continue
 
@@ -552,8 +560,10 @@ class GitHubActionsMixin:
                 raw = raw.split(",", 1)[1]
             decoded = __import__("base64").b64decode(raw)
             filepath = _os.path.join(www_dir, filename)
-            with open(filepath, "wb") as f:
-                f.write(decoded)
+            def _write_screenshot(fp, data):
+                with open(fp, "wb") as f:
+                    f.write(data)
+            await self.hass.async_add_executor_job(_write_screenshot, filepath, decoded)
             ha_url = None
             try:
                 if hasattr(self.hass.config, "external_url") and self.hass.config.external_url:
@@ -655,7 +665,11 @@ class GitHubActionsMixin:
             _LOGGER.info("Created issue #%s for %s: %s", number, repo, html_url)
             if screenshot_files:
                 _LOGGER.info("Screenshots will be cleaned up in 5 minutes")
-                asyncio.ensure_future(self._delayed_cleanup(screenshot_files, 300))
+                # Keep a reference — fire-and-forget tasks can be GC'd mid-flight
+                self._pending_cleanups = getattr(self, "_pending_cleanups", set())
+                _t = asyncio.ensure_future(self._delayed_cleanup(screenshot_files, 300))
+                self._pending_cleanups.add(_t)
+                _t.add_done_callback(self._pending_cleanups.discard)
             return web.json_response({"ok": True, "issue_url": html_url, "issue_number": number})
         elif status == 401:
             if screenshot_files:

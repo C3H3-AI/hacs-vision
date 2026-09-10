@@ -1,7 +1,9 @@
 """Update history data manager for HACS Vision."""
 from __future__ import annotations
+import asyncio
 import json
 import logging
+import os
 from datetime import datetime, timedelta, timezone
 
 from .const import STORAGE_PATHS
@@ -16,6 +18,7 @@ class HACSHubHistory:
 
     def __init__(self, hass) -> None:
         self.hass = hass
+        self._lock = asyncio.Lock()
 
     def _get_path(self) -> str:
         return self.hass.config.path(STORAGE_PATHS["history"])
@@ -39,7 +42,8 @@ class HACSHubHistory:
             "to_version": to_version,
             "updated_at": now,
         }
-        await self.hass.async_add_executor_job(self._append_and_cleanup, path, entry)
+        async with self._lock:
+            await self.hass.async_add_executor_job(self._append_and_cleanup, path, entry)
 
     def _read_json(self, path: str) -> dict | None:
         try:
@@ -58,8 +62,15 @@ class HACSHubHistory:
         self._write_json(path, {"history": history})
 
     def _write_json(self, path: str, data: dict) -> None:
+        # Atomic replace — a plain overwrite here could truncate the file on crash
+        temp_path = f"{path}.tmp"
         try:
-            with open(path, "w") as f:
+            with open(temp_path, "w", encoding="utf-8") as f:
                 json.dump(data, f, indent=2)
+            os.replace(temp_path, path)
         except Exception as e:
             _LOGGER.error("Failed to write history file: %s", e)
+            try:
+                os.remove(temp_path)
+            except OSError:
+                pass

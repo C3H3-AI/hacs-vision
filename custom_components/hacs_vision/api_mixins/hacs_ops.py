@@ -542,6 +542,9 @@ class HACSOpsMixin:
             return web.Response(text=cached["html"], content_type="text/html")
 
         session = await self._get_session()
+        import re as _re
+        if not _re.match(r"^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$", full_name or ""):
+            return _bad_request("invalid_repo")
         url = f"https://api.github.com/repos/{full_name}/readme"
         headers = await self._get_github_headers()
         headers["Accept"] = "application/vnd.github.v3.html"
@@ -1009,9 +1012,17 @@ class HACSOpsMixin:
         # Merge with existing settings instead of replacing — partial updates
         # from browse.js/updates.js (e.g. {auto_update_repos: [...]}) must not
         # discard unrelated settings like hide_hacs_panel
-        existing = await self.data.get_settings()
-        merged = {**existing, **filtered}
-        ok = await self.data.set_settings(merged)
+        # Validate numeric settings — a bad value reaching the auto-update
+        # scheduler used to crash the cycle (max() on a string).
+        if "auto_update_interval" in filtered:
+            try:
+                filtered["auto_update_interval"] = int(filtered["auto_update_interval"])
+            except (TypeError, ValueError):
+                filtered["auto_update_interval"] = 21600
+        ok = await self.data.update_storage(
+            "settings",
+            lambda data: {**(data or {}), "data": {**((data or {}).get("data") or {}), **filtered}},
+        )
         return web.json_response({"success": ok})
 
     async def _get_devices(self, entry_id: str) -> web.Response:
@@ -1337,7 +1348,11 @@ class HACSOpsMixin:
             url = f"{self._ha_base_url}/api/config/config_entries/flow_handlers"
             headers = {"Authorization": f"Bearer {token}"}
             async with session.get(url, headers=headers, timeout=aiohttp.ClientTimeout(total=30)) as resp:
-                data = await resp.json()
+                raw = await resp.text()
+                try:
+                    data = json.loads(raw) if raw else {}
+                except (json.JSONDecodeError, ValueError):
+                    data = {"error": raw[:200] or "upstream_error"}
                 return web.Response(text=json.dumps(data), content_type="application/json", status=resp.status)
         except Exception as e:
             _LOGGER.error("Config flow handlers error: %s", e, exc_info=True)
@@ -1361,7 +1376,11 @@ class HACSOpsMixin:
             if "show_advanced_options" not in payload:
                 payload["show_advanced_options"] = False
             async with session.post(url, headers=headers, json=payload, timeout=aiohttp.ClientTimeout(total=30)) as resp:
-                data = await resp.json()
+                raw = await resp.text()
+                try:
+                    data = json.loads(raw) if raw else {}
+                except (json.JSONDecodeError, ValueError):
+                    data = {"error": raw[:200] or "upstream_error"}
                 return web.Response(text=json.dumps(data), content_type="application/json", status=resp.status)
         except Exception as e:
             _LOGGER.error("Config flow start error for %s: %s", handler, e, exc_info=True)
@@ -1376,7 +1395,11 @@ class HACSOpsMixin:
             url = f"{self._ha_base_url}/api/config/config_entries/flow/{flow_id}"
             headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
             async with session.post(url, headers=headers, json=body, timeout=aiohttp.ClientTimeout(total=30)) as resp:
-                data = await resp.json()
+                raw = await resp.text()
+                try:
+                    data = json.loads(raw) if raw else {}
+                except (json.JSONDecodeError, ValueError):
+                    data = {"error": raw[:200] or "upstream_error"}
                 return web.Response(text=json.dumps(data), content_type="application/json", status=resp.status)
         except Exception as e:
             _LOGGER.error("Config flow step error %s: %s", flow_id, e, exc_info=True)
@@ -1391,7 +1414,11 @@ class HACSOpsMixin:
             url = f"{self._ha_base_url}/api/config/config_entries/flow/{flow_id}"
             headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
             async with session.delete(url, headers=headers, timeout=aiohttp.ClientTimeout(total=30)) as resp:
-                data = await resp.json()
+                raw = await resp.text()
+                try:
+                    data = json.loads(raw) if raw else {}
+                except (json.JSONDecodeError, ValueError):
+                    data = {"error": raw[:200] or "upstream_error"}
                 return web.Response(text=json.dumps(data), content_type="application/json", status=resp.status)
         except Exception as e:
             _LOGGER.error("Config flow cancel error %s: %s", flow_id, e, exc_info=True)
@@ -1406,7 +1433,11 @@ class HACSOpsMixin:
             url = f"{self._ha_base_url}/api/config/config_entries/subentries/flow/{flow_id}"
             headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
             async with session.delete(url, headers=headers, timeout=aiohttp.ClientTimeout(total=30)) as resp:
-                data = await resp.json()
+                raw = await resp.text()
+                try:
+                    data = json.loads(raw) if raw else {}
+                except (json.JSONDecodeError, ValueError):
+                    data = {"error": raw[:200] or "upstream_error"}
                 return web.Response(text=json.dumps(data), content_type="application/json", status=resp.status)
         except Exception as e:
             _LOGGER.error("Subentry flow cancel error %s: %s", flow_id, e, exc_info=True)
@@ -1425,7 +1456,11 @@ class HACSOpsMixin:
             headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
             payload = {"handler": handler}
             async with session.post(url, headers=headers, json=payload, timeout=aiohttp.ClientTimeout(total=30)) as resp:
-                data = await resp.json()
+                raw = await resp.text()
+                try:
+                    data = json.loads(raw) if raw else {}
+                except (json.JSONDecodeError, ValueError):
+                    data = {"error": raw[:200] or "upstream_error"}
                 return web.Response(text=json.dumps(data), content_type="application/json", status=resp.status)
         except Exception as e:
             _LOGGER.error("Options flow start error %s: %s", handler, e, exc_info=True)
@@ -1440,7 +1475,11 @@ class HACSOpsMixin:
             url = f"{self._ha_base_url}/api/config/config_entries/options/flow/{flow_id}"
             headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
             async with session.post(url, headers=headers, json=body, timeout=aiohttp.ClientTimeout(total=30)) as resp:
-                data = await resp.json()
+                raw = await resp.text()
+                try:
+                    data = json.loads(raw) if raw else {}
+                except (json.JSONDecodeError, ValueError):
+                    data = {"error": raw[:200] or "upstream_error"}
                 return web.Response(text=json.dumps(data), content_type="application/json", status=resp.status)
         except Exception as e:
             _LOGGER.error("Options flow step error %s: %s", flow_id, e, exc_info=True)
@@ -1463,7 +1502,11 @@ class HACSOpsMixin:
             if "subentry_id" in body:
                 payload["subentry_id"] = body["subentry_id"]
             async with session.post(url, headers=headers, json=payload, timeout=aiohttp.ClientTimeout(total=30)) as resp:
-                data = await resp.json()
+                raw = await resp.text()
+                try:
+                    data = json.loads(raw) if raw else {}
+                except (json.JSONDecodeError, ValueError):
+                    data = {"error": raw[:200] or "upstream_error"}
                 return web.Response(text=json.dumps(data), content_type="application/json", status=resp.status)
         except Exception as e:
             _LOGGER.error("Subentry flow start error %s: %s", handler, e, exc_info=True)
@@ -1493,7 +1536,11 @@ class HACSOpsMixin:
             url = f"{self._ha_base_url}/api/config/config_entries/subentries/flow/{flow_id}"
             headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
             async with session.post(url, headers=headers, json=body, timeout=aiohttp.ClientTimeout(total=30)) as resp:
-                data = await resp.json()
+                raw = await resp.text()
+                try:
+                    data = json.loads(raw) if raw else {}
+                except (json.JSONDecodeError, ValueError):
+                    data = {"error": raw[:200] or "upstream_error"}
                 return web.Response(text=json.dumps(data), content_type="application/json", status=resp.status)
         except Exception as e:
             _LOGGER.error("Subentry flow step error %s: %s", flow_id, e, exc_info=True)

@@ -679,24 +679,6 @@ class UpdatesView extends LitElement {
   }
 
   /* F6: Load changelogs for all updates — parallel */
-  async _loadChangelogs() {
-    const repos = this.updates.filter(r => r.full_name);
-    if (repos.length === 0) return;
-    const results = await Promise.allSettled(
-      repos.map(r =>
-        api.getChangelog(r.full_name, r.latest_version).then(data => ({ fullName: r.full_name, data }))
-      )
-    );
-    const logs = {};
-    for (const r of results) {
-      if (r.status === 'fulfilled' && r.value.data?.body) {
-        logs[r.value.fullName] = r.value.data;
-      }
-    }
-    if (Object.keys(logs).length > 0) {
-      this._changelogs = { ...this._changelogs, ...logs };
-    }
-  }
 
   /* "Update Selected" — updates only checked repos with progress */
   async _updateSelected() {

@@ -1,6 +1,6 @@
 """Backup and restore installed repository lists."""
 from __future__ import annotations
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 
 from .hacs_data import HACSData
@@ -41,7 +41,7 @@ class BackupManager:
 
         config = await self.data.get_config()
         return {
-            "exported_at": datetime.now().isoformat(),
+            "exported_at": datetime.now(timezone.utc).isoformat(),
             "version": "1.0",
             "installed": installed_records,
             "custom_repositories": config.get("custom_repositories", []),

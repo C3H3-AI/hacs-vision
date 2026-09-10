@@ -94,6 +94,11 @@ class HACSOperator:
                     self._repo_index_by_name[repo.data.full_name] = repo
             except (AttributeError, KeyError, TypeError) as e:
                 _LOGGER.error("Index build error: %s", e, exc_info=True)
+            # An empty HACS registry means HACS wasn't ready — leave the index
+            # uncached so the next access retries instead of caching emptiness.
+            if not self._repo_index_by_id:
+                self._repo_index_by_id = None
+                self._repo_index_by_name = None
 
     def invalidate_index(self):
         """Clear cached index, will be rebuilt on next access."""
@@ -118,6 +123,11 @@ class HACSOperator:
     def _get_lock(self, repo_id: str) -> asyncio.Lock:
         """Get or create an asyncio.Lock for a specific repo."""
         if repo_id not in self._install_locks:
+            # _cleanup_lock is invoked while the lock is still held (inside
+            # `async with`), so entries would never be removed — sweep instead.
+            if len(self._install_locks) > 128:
+                for rid in [k for k, v in self._install_locks.items() if not v.locked()]:
+                    del self._install_locks[rid]
             self._install_locks[repo_id] = asyncio.Lock()
         return self._install_locks[repo_id]
 
@@ -128,6 +138,9 @@ class HACSOperator:
             del self._install_locks[repo_id]
 
     def set_install_progress(self, repo_key: str, percentage: int, stage: str, message: str = "") -> None:
+        if len(self._install_progress) > 256:
+            for k in list(self._install_progress)[: len(self._install_progress) - 256]:
+                del self._install_progress[k]
         self._install_progress[repo_key] = {
             "percentage": min(100, max(0, percentage)),
             "stage": stage,

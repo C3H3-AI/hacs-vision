@@ -321,6 +321,10 @@ document.head.appendChild(script);
   }
 
   _onMessage(e) {
+    // Only accept messages from our own preview iframe (origin is "null" for
+    // the sandboxed data: URI, so source-checking is the practical guard).
+    const iframe = this.shadowRoot?.querySelector('iframe');
+    if (!iframe || e.source !== iframe.contentWindow) return;
     if (e.data?.type === 'hacs-preview-ready') {
       this._cardName = e.data.cardName;
     } else if (e.data?.type === 'hacs-preview-error') {

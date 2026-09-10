@@ -42,8 +42,9 @@ class HACSEnhancedStaticView(HomeAssistantView):
     async def get(self, request, filename: str = "panel.js") -> web.Response:
         """Serve a static file."""
         filepath = os.path.join(FRONTEND_DIR, filename)
-        # Prevent path traversal
-        if ".." in filepath or not os.path.realpath(filepath).startswith(os.path.realpath(FRONTEND_DIR)):
+        # Prevent path traversal — commonpath has no sibling-prefix pitfall
+        # that startswith() has (e.g. a "frontendX" directory).
+        if os.path.commonpath([os.path.realpath(filepath), os.path.realpath(FRONTEND_DIR)]) != os.path.realpath(FRONTEND_DIR):
             return _bad_request("invalid_path")
         try:
             content = await self.hass.async_add_executor_job(self._read_file, filepath)

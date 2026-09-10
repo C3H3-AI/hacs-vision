@@ -816,6 +816,17 @@ class BrowseView extends LitElement {
       if (seq !== this._loadSeq) return; // a newer request superseded this one
       this.repos = result.repositories || [];
       this.total = result.total || 0;
+      // Clamp the page: data changes or a stale saved page could land past
+      // the last page, showing an empty list with no way forward.
+      {
+        const totalPages = Math.max(1, Math.ceil(this.total / this.limit));
+        if (this.page > totalPages) {
+          this.page = totalPages;
+          this._persistState();
+          this._load();
+          return;
+        }
+      }
       this.categoryCounts = result.category_counts || {};
       this.statusCounts = result.status_counts || {};
       this.tagCounts = result.tag_counts || {};
@@ -1196,21 +1207,6 @@ class BrowseView extends LitElement {
     }
   }
 
-  async _restartHA() {
-    const { ConfirmDialog } = await import('../shared/confirm-dialog.js');
-    const ok = await ConfirmDialog.show(this, {
-      message: this.t?.('restartConfirm'),
-      confirmText: this.t?.('restartHA'),
-      danger: true,
-    });
-    if (!ok) return;
-    try {
-      await api.restartHA();
-      showToast(this.t?.('haRestarting'), 'info');
-    } catch(e) {
-      showToast(`${this.t?.('restartFailed')}: ${e.message}`, 'error');
-    }
-  }
 
   _renderRepoList(repos) {
     if (this.viewMode === 'list') {

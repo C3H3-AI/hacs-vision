@@ -254,13 +254,17 @@ class IntegrationsList extends LitElement {
     this._handlersLoading = false;
   }
 
-  async _removeEntry(entry, e, skipConfirm) {
+  async _removeEntry(entry, e, skipConfirm, domainEntryCount) {
     e.stopPropagation();
     if (!skipConfirm) {
       const { ConfirmDialog } = await import('../shared/confirm-dialog.js');
+      // A card can represent several entries of the same domain — say so,
+      // otherwise deleting "the first one" silently surprises the user.
+      const note = domainEntryCount > 1
+        ? ` ${t('multiEntryHint', { n: domainEntryCount })}` : '';
       const ok = await ConfirmDialog.show(this, {
         title: entry.domain,
-        message: t('confirmDelete', { domain: entry.domain }),
+        message: t('confirmDelete', { domain: entry.domain }) + note,
         confirmText: t('delete'),
         danger: true,
       });
@@ -1113,7 +1117,7 @@ class IntegrationsList extends LitElement {
             ${anyProcessing ? html`<span class="spinning-mini">⟳</span>` : html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>`}
             <span class="btn-label">${t('reloadEntry') }</span>
           </button>
-          <button class="footer-btn remove" @click=${e => this._removeEntry(entry0 || entries[0], e)}
+          <button class="footer-btn remove" title="${entries.length > 1 ? t('multiEntryHint', { n: entries.length }) : t('removeEntry')}" @click=${e => this._removeEntry(entry0 || entries[0], e, false, entries.length)}
             title="${t('removeEntry')}" ?disabled=${anyProcessing}>
             ${anyProcessing ? html`<span class="spinning-mini">⋯</span>` : html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>`}
             <span class="btn-label">${t('delete')}</span>
