@@ -523,11 +523,7 @@ class BrowseView extends LitElement {
     if (changedProps.has('presetTag') && this.presetTag) {
       const tag = this.presetTag;
       this.presetTag = '';
-      if (this._tagFilters.includes(tag)) {
-        this._tagFilters = this._tagFilters.filter(t => t !== tag);
-      } else {
-        this._tagFilters = [...this._tagFilters, tag];
-      }
+      this._tagFilters = this._tagFilters.includes(tag) ? [] : [tag];
       this.page = 1;
       this._load();
     }
@@ -867,10 +863,13 @@ class BrowseView extends LitElement {
   _onStatusFilter(value) { this.statusFilter = value; this.page = 1; this._persistState(); this._load(); }
   _onTypeFilter(value) { this.category = value; this.page = 1; this._persistState(); this._load(); }
   _onTagFilter(value) {
+    // Single-select: the backend supports exactly one tag, and combining two
+    // made _load() drop the tag entirely — "favorites + anything" then listed
+    // the whole catalog client-side.
     if (this._tagFilters.includes(value)) {
-      this._tagFilters = this._tagFilters.filter(t => t !== value);
+      this._tagFilters = [];
     } else {
-      this._tagFilters = [...this._tagFilters, value];
+      this._tagFilters = [value];
     }
     this.page = 1;
     this._load();
