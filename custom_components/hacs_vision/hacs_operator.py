@@ -670,13 +670,59 @@ class HACSOperator:
             pass
         return None
 
+    # A git ref must be a safe path segment: no separators, no traversal,
+    # no whitespace, and reasonable length. Multi-segment names allowed
+    # only for feature branches (feature/foo), never tags/ or heads/ prefixes.
+    _REF_RE = re.compile(r"^[A-Za-z0-9._](?:[A-Za-z0-9._-]*/)*[A-Za-z0-9._-]{0,200}$")
+    _REF_BAD = re.compile(r"(\.\.|//|^/|\\|[\s\r\n]|^(tags|heads)/)")
+
+    @staticmethod
+    def _normalize_ref(version: str | None) -> str | None:
+        """Validate a user-supplied ref and reject anything unsafe.
+
+        Accepts branch names (foo/bar, v1.x) and short/full commit SHAs.
+        Returns the stripped ref, or None when invalid.
+        """
+        if not version or not isinstance(version, str):
+            return None
+        ref = version.strip()
+        if not ref or len(ref) > 200:
+            return None
+        # Hex string of 7-40 chars → commit SHA, pass through
+        if re.fullmatch(r"[a-fA-F0-9]{7,40}", ref):
+            return ref.lower() if len(ref) == 40 else ref
+        if not HACSOperator._REF_RE.match(ref) or HACSOperator._REF_BAD.search(ref):
+            return None
+        return ref
+
+    async def _fetch_repo_meta(self, full_name: str) -> dict:
+        """Fetch live repo metadata (default_branch etc.) from GitHub."""
+        session = async_get_clientsession(self.hass)
+        headers = {"Accept": "application/vnd.github.v3+json"}
+        token = self._get_github_token()
+        if token:
+            headers["Authorization"] = f"token {token}"
+        try:
+            url = f"https://api.github.com/repos/{full_name}"
+            async with session.get(url, headers=headers, timeout=15) as resp:
+                if resp.status == 200:
+                    return await resp.json() or {}
+        except Exception as e:
+            _LOGGER.debug("Fetch repo meta failed for %s: %s", full_name, e)
+        return {}
+
     async def install_repository_version(self, repo_id_or_name: str, version: str | None = None) -> dict:
         """Install a specific version of a repository.
 
-        Supports both release tags and arbitrary git refs (branches / commit SHAs).
-        When `version` is not a release tag, HACS is forced to download that ref
-        by temporarily pinning `repo.ref` (HACS resolves the download target from
-        `ref` when it cannot match a release). The pin is always restored.
+        Two distinct paths:
+        - Release tag → repo.async_install(version=tag) (HACS native).
+        - Arbitrary ref (branch / commit SHA) → repo.async_download_repository(ref=ref),
+          HACS' official ref installer which manages selected_tag/force_branch
+          itself and restores them in its own finally block.
+        `repo.data.default_branch` from HACS storage is unreliable (often None),
+        so the live value is fetched and patched in before install — HACS
+        compares `version_to_install == data.default_branch` internally to
+        decide between the heads/ and tags/ archive URLs.
         """
         if not self.available:
             return {"success": False, "error": "HACS not available"}
@@ -692,19 +738,59 @@ class HACSOperator:
                 repo_key = repo.data.full_name or repo_id_or_name
                 self.set_install_progress(repo_key, 5, "starting", "Preparing download...")
 
-                restore = {}
-                if version and not self._is_release_version(repo, version):
-                    # Arbitrary ref (branch name or commit SHA): pin it so HACS
-                    # downloads this exact ref instead of the latest release.
-                    restore = {"ref": getattr(repo, "ref", None),
-                               "installed_version": repo.data.installed_version,
-                               "installed_commit": repo.data.installed_commit}
-                    repo.ref = version
+                if version:
+                    version = self._normalize_ref(version)
+                    if not version:
+                        return {"success": False, "error": "invalid_ref"}
+
+                is_release = version and self._is_release_version(repo, version)
+
+                # Patch in the live default branch — HACS decides between
+                # heads/ and tags/ archive URLs by comparing the requested
+                # version against data.default_branch.
+                saved_releases_objects = None
+                saved_file_name = None
+                if version and not is_release:
+                    meta = await self._fetch_repo_meta(repo_key)
+                    live_default = meta.get("default_branch")
+                    if live_default:
+                        repo.data.default_branch = live_default
+                    # Force a tree refresh for the new ref: HACS' etag
+                    # short-circuit would otherwise keep the PREVIOUS ref's
+                    # tree, leaving content.path.remote=None → "No content
+                    # to download".
+                    repo.data.etag_repository = None
+                    repo.tree = []
+                    # Temporarily hide release assets so HACS' plugin
+                    # update_filenames() computes content.path.remote from
+                    # the requested REF's tree instead of pinning it to
+                    # "release" (the latest release asset path) — for a
+                    # branch install that mismatch yields "No content to
+                    # download".
+                    saved_releases_objects = repo.releases.objects
+                    saved_file_name = repo.data.file_name
+                    repo.releases.objects = []
+                    repo.data.file_name = None
+                    await repo.update_repository(force=True)
+
                 try:
-                    await repo.async_install(version=version or repo.display_available_version)
+                    if version and not is_release:
+                        # Official arbitrary-ref installer: handles
+                        # selected_tag / force_branch / ref internally.
+                        await repo.async_download_repository(ref=version)
+                    else:
+                        await repo.async_install(version=version or repo.display_available_version)
                 finally:
-                    if restore and restore.get("ref") is not None:
-                        repo.ref = restore["ref"]
+                    # Belt-and-braces restore (async_download_repository also
+                    # restores these itself in its own finally block).
+                    if version and getattr(repo.data, "selected_tag", None) == version:
+                        repo.data.selected_tag = None
+                    if version and getattr(repo, "force_branch", False):
+                        repo.force_branch = False
+                    if saved_releases_objects is not None:
+                        repo.releases.objects = saved_releases_objects
+                    if saved_file_name is not None:
+                        repo.data.file_name = saved_file_name
 
                 self.set_install_progress(repo_key, 75, "installing", "Installing...")
                 self.invalidate_index()
@@ -739,10 +825,11 @@ class HACSOperator:
     async def get_repo_refs(self, repo_id_or_name: str) -> list[dict]:
         """List branches and recent commits available for install.
 
-        Cross-references GitHub releases to annotate each ref with its
-        associated version tag (if the commit SHA of a branch / commit
-        matches a release tag's target_commitish). Also marks the
-        default branch.
+        The default branch is fetched LIVE from the GitHub API — HACS'
+        stored `repo.data.default_branch` is unreliable (often None).
+        Version badges: a release's `target_commitish` is a BRANCH name,
+        not a SHA, so badges are attached to branches by name match
+        (branch == target_commitish of a release).
 
         Returns [{"type": "branch"|"commit", "name", "sha", "date",
                    "message", "version" (optional), "default" (bool)}].
@@ -757,8 +844,14 @@ class HACSOperator:
         if token:
             headers["Authorization"] = f"token {token}"
 
-        # Build SHA → tag_name lookup (short SHA → full tag, e.g. "abc1234" → "v2.0.0")
-        sha_to_version: dict[str, str] = {}
+        # Live repo metadata — storage default_branch is unreliable.
+        meta = await self._fetch_repo_meta(full_name)
+        default_branch = meta.get("default_branch") \
+            or getattr(getattr(repo, "data", None), "default_branch", None) \
+            or "main"
+
+        # Release tag → target branch map (target_commitish is a branch name).
+        tag_by_branch: dict[str, str] = {}
         try:
             url = f"https://api.github.com/repos/{full_name}/releases?per_page=30"
             async with session.get(url, headers=headers, timeout=15) as resp:
@@ -766,12 +859,10 @@ class HACSOperator:
                     for release in await resp.json():
                         tag = (release.get("tag_name") or "").strip()
                         cs = (release.get("target_commitish") or "").strip()
-                        if tag and cs:
-                            sha_to_version[cs[:7]] = tag
+                        if tag and cs and cs not in tag_by_branch:
+                            tag_by_branch[cs] = tag
         except Exception as e:
             _LOGGER.debug("Fetch releases for version map failed: %s", e)
-
-        default_branch = getattr(getattr(repo, "data", None), "default_branch", None) or "main"
 
         refs: list[dict] = []
 
@@ -792,7 +883,7 @@ class HACSOperator:
                             "message": "",
                             "default": name == default_branch,
                         }
-                        ver = sha_to_version.get(sha)
+                        ver = tag_by_branch.get(name)
                         if ver:
                             branch_info["version"] = ver
                         refs.append(branch_info)
@@ -801,7 +892,7 @@ class HACSOperator:
         except Exception as e:
             _LOGGER.debug("Fetch branches failed for %s: %s", full_name, e)
 
-        # Recent commits on default branch
+        # Recent commits on the LIVE default branch
         try:
             url = f"https://api.github.com/repos/{full_name}/commits?per_page=15&sha={default_branch}"
             async with session.get(url, headers=headers, timeout=15) as resp:
@@ -817,9 +908,6 @@ class HACSOperator:
                             "message": (commit.get("message") or "").split("\n")[0][:80],
                             "default": False,
                         }
-                        ver = sha_to_version.get(sha)
-                        if ver:
-                            commit_info["version"] = ver
                         refs.append(commit_info)
                 else:
                     _LOGGER.debug("GitHub commits returned %s for %s", resp.status, full_name)
