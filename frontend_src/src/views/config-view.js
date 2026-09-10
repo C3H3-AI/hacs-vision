@@ -41,6 +41,7 @@ class ConfigView extends LitElement {
     _orgFilter: { type: String, state: true },
     _selectedOrgRepos: { type: Object, state: true },
     _orgSyncResult: { type: String, state: true },
+    _checkUpdatesRunning: { type: Boolean, state: true },
     _orgSyncing: { type: Boolean, state: true },
     // Re-render trigger on language change
     langVersion: { type: Number },
@@ -125,6 +126,8 @@ class ConfigView extends LitElement {
     this._orgSyncResult = '';
     this._orgSyncFailed = false;
     this._orgSyncing = false;
+    this._checkUpdatesRunning = false;
+    this._oauthAttempts = 0;
   }
 
   get _filteredStarredCount() {
@@ -213,7 +216,6 @@ class ConfigView extends LitElement {
           this._githubUser = user.login;
           this._githubAvatar = user.avatar_url || '';
         }
-        this._autoStar();
       } else if (cached) {
         // Server says not logged in, but we have cache — keep showing logged-in state
         // The user might need to re-auth, but we don't flash the login UI
@@ -255,14 +257,19 @@ class ConfigView extends LitElement {
   }
 
   async _save() {
-    this._saving = true;
-    try {
-      await api.updateSettings(this._settings);
-      showToast(t('settingsSaved'), 'success');
-    } catch(e) {
-      showToast(`${t('settingsSaveFailed')}: ${e.message}`, 'error');
-    }
-    this._saving = false;
+    // Serialize saves: toggles fire rapid full-object writes, and parallel
+    // read-modify-write on the backend storage would lose updates.
+    this._saveQueue = (this._saveQueue || Promise.resolve()).then(async () => {
+      this._saving = true;
+      try {
+        await api.updateSettings(this._settings);
+        showToast(t('settingsSaved'), 'success');
+      } catch(e) {
+        showToast(`${t('settingsSaveFailed')}: ${e.message}`, 'error');
+      }
+      this._saving = false;
+    });
+    await this._saveQueue;
   }
 
   async _onAutoUpdateEnabled(val) {
@@ -273,10 +280,6 @@ class ConfigView extends LitElement {
 
   _onAutoUpdateNotify(val) {
     this._set('auto_update_notify', val);
-  }
-
-  _onAutoUpdateRestart(val) {
-    this._set('auto_update_restart', val);
   }
 
   _onAutoUpdateRestartTime(val) {
@@ -414,7 +417,9 @@ class ConfigView extends LitElement {
   }
 
   _dialogAuSelectAll() {
-    const names = new Set(this._installedRepos.map(r => r.full_name));
+    // Match the visible (filtered) list — the old version swept in repos the
+    // user couldn't see because the search filter was active.
+    const names = new Set(this._dialogCandidates.map(r => r.full_name));
     const current = new Set(this._auDialogWhitelist);
     names.forEach(n => current.add(n));
     this._auDialogWhitelist = [...current];
@@ -422,7 +427,7 @@ class ConfigView extends LitElement {
   }
 
   _dialogAuDeselectAll() {
-    const names = new Set(this._installedRepos.map(r => r.full_name));
+    const names = new Set(this._dialogCandidates.map(r => r.full_name));
     this._auDialogWhitelist = (this._auDialogWhitelist || []).filter(n => !names.has(n));
     this.requestUpdate();
   }
@@ -932,17 +937,6 @@ class ConfigView extends LitElement {
             </div>
             <div class="setting-row">
               <div class="setting-info">
-                <div class="label">${t('settingsRefreshInterval')}</div>
-                <div class="desc">${t('settingsDesc')}</div>
-              </div>
-              <div class="setting-control">
-                <input type="number" min="60" max="86400" style="width:90px;"
-                  .value=${this._settings.refresh_interval ?? 3600}
-                  @change=${e => this._set('refresh_interval', parseInt(e.target.value) || 3600)} />
-              </div>
-            </div>
-            <div class="setting-row">
-              <div class="setting-info">
                 <div class="label">${t('settingsDefaultView')}</div>
               </div>
               <div class="setting-control">
@@ -951,31 +945,8 @@ class ConfigView extends LitElement {
                   <option value="browse">${t('tabBrowse')}</option>
                   <option value="updates">${t('tabUpdates')}</option>
                   <option value="management">${t('tabManagement')}</option>
+                  <option value="integrations">${t('tabIntegrations')}</option>
                 </select>
-              </div>
-            </div>
-            <div class="setting-row">
-              <div class="setting-info">
-                <div class="label">${t('settingsNotifyUpdates')}</div>
-              </div>
-              <div class="setting-control">
-                <label class="toggle">
-                  <input type="checkbox" .checked=${this._settings.notify_updates ?? true}
-                    @change=${e => this._toggleImmediate('notify_updates', e.target.checked)}>
-                  <span class="slider"></span>
-                </label>
-              </div>
-            </div>
-            <div class="setting-row">
-              <div class="setting-info">
-                <div class="label">${t('settingsNotifyRestart')}</div>
-              </div>
-              <div class="setting-control">
-                <label class="toggle">
-                  <input type="checkbox" .checked=${this._settings.notify_restart ?? true}
-                    @change=${e => this._toggleImmediate('notify_restart', e.target.checked)}>
-                  <span class="slider"></span>
-                </label>
               </div>
             </div>
             <div class="setting-row">
@@ -1242,7 +1213,7 @@ class ConfigView extends LitElement {
               ${t('settingsMaintenance')}
             </div>
             <div class="action-grid">
-              <button class="btn" @click=${this._checkUpdates}>
+              <button class="btn" @click=${this._checkUpdates} ?disabled=${this._checkUpdatesRunning}>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
                 ${t('checkUpdatesNotify')}
               </button>
@@ -1338,7 +1309,6 @@ class ConfigView extends LitElement {
         this._githubVerifyOk = true;
         ConfigView._saveLoginCache(result.user, result.avatar_url || '');
         showToast(t('githubLoginSuccess', { user: result.user }), 'success');
-        this._autoStar();
       } else {
         this._githubVerifyMsg = result?.error || t('verifying');
         this._githubVerifyOk = false;
@@ -1348,14 +1318,6 @@ class ConfigView extends LitElement {
       this._githubVerifyOk = false;
     }
     this._githubVerifying = false;
-  }
-
-  async _autoStar() {
-    try {
-      await api.autoStarRepo();
-    } catch(e) {
-      // Silent — non-critical
-    }
   }
 
   async _githubLogout() {
@@ -1398,7 +1360,16 @@ class ConfigView extends LitElement {
   }
 
   async _pollOAuth() {
-    if (!this._githubOAuthDeviceCode) return;
+    // Stop when the user cancelled or the device code expired (~15 min).
+    if (!this._githubOAuthDeviceCode || !this._githubOAuthing) return;
+    this._oauthAttempts = (this._oauthAttempts || 0) + 1;
+    if (this._oauthAttempts > 200) {
+      this._githubOAuthing = false;
+      this._githubOAuthCode = '';
+      this._githubOAuthDeviceCode = '';
+      this._githubVerifyMsg = t('oauthError') + ': timeout';
+      return;
+    }
     try {
       const result = await api.post('github/oauth/poll', {
         device_code: this._githubOAuthDeviceCode
@@ -1413,7 +1384,6 @@ class ConfigView extends LitElement {
         this._githubVerifyOk = true;
         ConfigView._saveLoginCache(result.user, result.avatar_url || '');
         showToast(t('githubLoginSuccess', { user: result.user }), 'success');
-        this._autoStar();
       } else if (result?.status === 'pending') {
         setTimeout(() => this._pollOAuth(), 3000);
       } else {
@@ -1422,7 +1392,7 @@ class ConfigView extends LitElement {
         this._githubOAuthCode = '';
       }
     } catch(e) {
-      setTimeout(() => this._pollOAuth(), 5000);
+      if (this._githubOAuthing) setTimeout(() => this._pollOAuth(), 5000);
     }
   }
 
@@ -1430,6 +1400,8 @@ class ConfigView extends LitElement {
     this._githubOAuthing = false;
     this._githubOAuthCode = '';
     this._githubOAuthDeviceCode = '';
+    this._oauthAttempts = 0;
+    this._githubVerifyMsg = '';
   }
 
   async _syncFavToStar() {
@@ -1587,7 +1559,6 @@ class ConfigView extends LitElement {
         this._githubVerifyOk = true;
         ConfigView._saveLoginCache(result.user, result.avatar_url || '');
         showToast(t('githubLoginSuccess', { user: result.user }), 'success');
-        this._autoStar();
       } else {
         showToast(result?.error || t('tokenImportFailed'), 'warning');
       }
@@ -1677,6 +1648,8 @@ class ConfigView extends LitElement {
       showToast(t('errorPrefix', { action: t('syncing'), err: e.message }), 'error');
     }
     this._orgSyncing = false;
+    this._checkUpdatesRunning = false;
+    this._oauthAttempts = 0;
   }
 
   async _export() {
@@ -1726,9 +1699,9 @@ class ConfigView extends LitElement {
   }
 
   async _checkUpdates() {
+    this._checkUpdatesRunning = true;
     try {
       const result = await api.checkUpdatesWithNotify();
-      
       if (result.success) {
         if (result.updates_found > 0) {
           showToast(t('updatesChecked', { n: result.updates_found }), 'success');
@@ -1736,10 +1709,13 @@ class ConfigView extends LitElement {
           showToast(t('noUpdatesFound'), 'info');
         }
         if (result.notified) showToast(t('notifySent'), 'success');
+      } else {
+        showToast(`${t('checkFailed')}: ${result.error || 'unknown'}`, 'error');
       }
     } catch(e) {
       showToast(t('errorPrefix', { action: t('checkUpdates'), err: e.message }), 'error');
     }
+    this._checkUpdatesRunning = false;
   }
 
   async _checkAndRestart() {

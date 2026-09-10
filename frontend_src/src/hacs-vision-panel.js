@@ -1303,6 +1303,14 @@ export class HacsVisionPanel extends themeMixin(LitElement) {
       if (settings?.language) {
         setLang(settings.language);
       }
+      // Apply the "default view" setting — only when the user has no saved tab
+      // (restoring the last-used tab takes precedence over the default).
+      const validViews = ['browse', 'integrations', 'updates', 'management'];
+      let savedTab = null;
+      try { savedTab = localStorage.getItem('hacs_vision_tab'); } catch {}
+      if (!savedTab && validViews.includes(settings?.default_view)) {
+        this.currentView = settings.default_view;
+      }
     } catch {
       // Fall back to HA auto-detect (already set by setLangFromHass)
     }

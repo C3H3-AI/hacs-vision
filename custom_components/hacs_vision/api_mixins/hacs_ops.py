@@ -966,9 +966,10 @@ class HACSOpsMixin:
         return web.json_response(settings)
 
     # Allowed settings keys to prevent injection
+    # Settings without a consumer were removed (refresh_interval,
+    # notify_updates, notify_restart were stored but never read anywhere).
     _ALLOWED_SETTINGS_KEYS = {
-        "hide_hacs_panel", "default_view", "refresh_interval",
-        "notify_updates", "notify_restart",
+        "hide_hacs_panel", "default_view",
         "auto_update_enabled", "auto_update_repos", "auto_update_interval",
         "auto_update_notify", "auto_update_restart_time", "language",
         "translation_agent", "translation_langs",
