@@ -1459,21 +1459,17 @@ class ConfigView extends LitElement {
     this._syncStarToFavResult = '';
     this._syncStarToFaving = true;
     try {
-      const starredResp = await api.listStarred();
-      const starred = starredResp?.repos || [];
-      const fullNames = starred.map(r => r.full_name || r.fullName || r.name || '').filter(Boolean);
-      const favsResp = await api.getFavorites();
-      const existing = Array.isArray(favsResp) ? [...favsResp] : [...(favsResp?.favorites || [])];
-      let added = 0;
-      for (const name of fullNames) {
-        if (!existing.includes(name)) {
-          existing.push(name);
-          added++;
-        }
-      }
+      // Backend intersect: only repos present in the HACS catalog become
+      // favorites, and favorites pointing at non-installable repos are dropped.
+      const result = await api.syncStarsToFavorites();
+      const added = result?.added?.length || 0;
+      const removed = result?.removed?.length || 0;
       if (added > 0) {
-        await api.setFavorites(existing);
-        this._syncStarToFavResult = t('syncFavToStarAdded', { n: added });
+        this._syncStarToFavResult = removed > 0
+          ? `${t('syncFavToStarAdded', { n: added })} (${t('syncCleaned', { n: removed })})`
+          : t('syncFavToStarAdded', { n: added });
+      } else if (removed > 0) {
+        this._syncStarToFavResult = `${t('syncFavToStarNone')} (${t('syncCleaned', { n: removed })})`;
       } else {
         this._syncStarToFavResult = t('syncFavToStarNone');
       }

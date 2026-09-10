@@ -675,6 +675,7 @@ const T = {
   syncResultPartial: { zh: '已完成: {ok} 成功, {fail} 失败', en: 'Done: {ok} succeeded, {fail} failed', de: 'Abgeschlossen: {ok} erfolgreich, {fail} fehlgeschlagen' },
   syncFavToStarAdded: { zh: '✓ 新增 {n} 个收藏', en: '✓ {n} favorites added', de: '✓ {n} Favoriten hinzugefügt' },
   syncFavToStarNone: { zh: '无新增', en: 'Nothing new', de: 'Nichts Neues' },
+  syncCleaned: { zh: '清理 {n} 个不可安装', en: 'cleaned {n} non-installable', de: '{n} nicht installierbare entfernt', ru: 'удалено {n} неустанавливаемых' },
   syncingShort: { zh: '同步中...', en: 'Syncing...', de: 'Synchronisiere...' },
   refreshPage: { zh: '请刷新页面重试', en: 'Please refresh and try again', de: 'Bitte aktualisieren und erneut versuchen' },
   tokenPlaceholder: { zh: 'ghp_xxxxxxxxxxxx', en: 'ghp_xxxxxxxxxxxx', de: 'ghp_xxxxxxxxxxxx' },

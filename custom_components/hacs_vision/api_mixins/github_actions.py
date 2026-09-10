@@ -302,11 +302,12 @@ class GitHubActionsMixin:
         starred_names = {n for n in starred_all if n in known_names}
         current = await self.data.get_favorites()
         current_set = {str(f) for f in current}
-        non_hacs_favs = {f for f in current_set if f not in known_names}
-        hacs_favs_new = {f for f in current_set if f in known_names and f in starred_names}
-        added = sorted(starred_names - {f for f in current_set})
-        removed = sorted({f for f in current_set if f in known_names} - starred_names)
-        new_favs = sorted(non_hacs_favs | hacs_favs_new | starred_names)
+        installable_current = {f for f in current_set if f in known_names}
+        added = sorted(starred_names - current_set)
+        # Favorites pointing at repos HACS can't install are junk (e.g. blind
+        # star imports) — a sync is the natural moment to drop them.
+        removed = sorted(current_set - installable_current)
+        new_favs = sorted(installable_current | starred_names)
         if added or removed:
             await self.data.set_favorites(new_favs)
         return web.json_response({
