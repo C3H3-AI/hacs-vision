@@ -1,5 +1,31 @@
 # Changelog
 
+## v6.7.0 (2026-09-11) — 稳定版 / Stable Release
+
+从 beta1 到 beta5 的全部改动 + 2 个 hotfix（sync-favorites UnboundLocalError、custom brand 404→204）。
+
+**Recommended.** Minimum Home Assistant version: 2024.1.0.
+
+### 🚀 亮点 / Highlights
+
+- 任意 commit / 分支安装
+- Version badges on refs、repo 分组、auto-focus
+- 全面审计：安全、数据丢失、竞态、反馈
+- Storage locking、event-loop 卫生、泄漏修复
+- Star→Favorites sync 过滤不可安装 repo
+- GitHub API 分页上限（50 页）
+
+### 🐛 Beta5 之后补的修复 / Post-beta5 hotfixes
+
+- **sync-favorites UnboundLocalError** — audit round 2 把 `new_favs` 缩进进了 `if added or removed:` 块，但 return 还在外层引用。当收藏夹已同步（无变化）时触发 500
+- **HACSBrandIconView 404 → 204** — HA 原生集成没有 `custom_components/<domain>/brand/` 目录，每次请求都 404。改为返回 204，前端静默 fallback 到官方 brands CDN
+
+### English summary
+
+From beta1 through beta5 + 2 hotfixes (sync-favorites UnboundLocalError, custom brand 404→204). Feature highlights: arbitrary commit/branch install, version badges & grouping, full audit pass (security, data loss, races, feedback), storage locking, event-loop hygiene, bounded install locks, GitHub pagination caps, Star→Favorites sync filters non-installable repos.
+
+---
+
 ## v6.7.0-beta5 (2026-09-11) — 第二轮审计：数据完整性 / Audit Round 2: Data Integrity
 
 > ⚠️ **预发布版本（Beta）** — 基于 v6.7.0-beta4。请通过 HACS 的「显示 Beta 版本」或 GitHub Releases 安装测试。
