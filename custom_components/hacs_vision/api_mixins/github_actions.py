@@ -344,8 +344,8 @@ class GitHubActionsMixin:
         # Favorites pointing at repos HACS can't install are junk (e.g. blind
         # star imports) — a sync is the natural moment to drop them.
         removed = sorted(current_set - installable_current)
+        new_favs = sorted(installable_current | starred_names)
         if added or removed:
-            new_favs = sorted(installable_current | starred_names)
             await self.data.set_favorites(new_favs)
         return web.json_response({
             "synced_total": len(starred_all),
