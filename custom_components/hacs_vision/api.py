@@ -378,4 +378,4 @@ class HACSBrandIconView(HomeAssistantView):
                     _read_file_binary, path
                 )
                 return web.Response(body=body, content_type=content_type)
-        return web.Response(status=404)
+        return web.Response(status=204)
