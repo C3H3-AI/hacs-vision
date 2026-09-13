@@ -2177,4 +2177,4 @@ class IntegrationsList extends LitElement {
   `];
 }
 
-customElements.define('integrations-list', IntegrationsList);
+if (!customElements.get('integrations-list')) customElements.define('integrations-list', IntegrationsList);
