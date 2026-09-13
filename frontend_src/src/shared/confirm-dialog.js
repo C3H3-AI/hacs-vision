@@ -259,6 +259,6 @@ class ConfirmDialog extends LitElement {
   }
 }
 
-customElements.define('confirm-dialog', ConfirmDialog);
+if (!customElements.get('confirm-dialog')) customElements.define('confirm-dialog', ConfirmDialog);
 
 export { ConfirmDialog };
