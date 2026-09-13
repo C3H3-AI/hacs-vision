@@ -1803,4 +1803,4 @@ class ConfigView extends LitElement {
 
 }
 
-customElements.define('config-view', ConfigView);
+if (!customElements.get('config-view')) customElements.define('config-view', ConfigView);
