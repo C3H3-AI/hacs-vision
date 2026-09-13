@@ -1,5 +1,6 @@
 """HACS Vision API 平台。"""
 from __future__ import annotations
+import asyncio
 import json
 import logging
 import os
@@ -7,6 +8,7 @@ import re
 
 from aiohttp import web
 from homeassistant.components.http import HomeAssistantView
+from homeassistant.helpers.network import NoURLAvailableError, get_url
 
 from .const import API_BASE, VERSION
 from .hacs_data import HACSData
@@ -79,17 +81,15 @@ class HACSEnhancedAPI(GitHubAuthMixin, GitHubActionsMixin, HACSOpsMixin, ReadmeT
         self._auto_import_done = False
         self._oauth_device = None
         self._oauth_device_code = None
+        self._pending_cleanups: set[asyncio.Task] = set()
 
     @property
     def _ha_base_url(self) -> str:
         """动态获取 HA 基础地址（优先内网，回退外网）。"""
         try:
-            return self.hass.http.get_url()
-        except Exception:
-            try:
-                return self.hass.config.external_url or "http://localhost:8123"
-            except Exception:
-                return "http://localhost:8123"
+            return get_url(self.hass)
+        except NoURLAvailableError:
+            return self.hass.config.external_url or "http://localhost:8123"
 
     def _forbid_non_admin(self, request) -> web.Response | None:
         """要求管理员用户——面板注册仅管理员可用，但任何已鉴权的非管理员都能直接调用安装/移除/重启等端点。"""
