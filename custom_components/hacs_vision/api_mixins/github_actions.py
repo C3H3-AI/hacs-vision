@@ -4,18 +4,20 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import os
+import re
 import time
+import uuid
 
 import aiohttp
 from aiohttp import web
 
+from homeassistant.components.system_log import DATA_SYSTEM_LOG
+from homeassistant.const import __version__ as ha_version
+from homeassistant.helpers.network import NoURLAvailableError, get_url
+
 from ..const import VERSION, VALID_HACS_CATEGORIES
 from ..response import _error, _ok, _not_found, _bad_request, _unauthorized, _server_error
-import os as _os
-import re as _re
-from homeassistant.const import __version__ as ha_version
-import asyncio as _asyncio
-import uuid as _uuid
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -351,7 +353,7 @@ class GitHubActionsMixin:
         text = ""
         if not text:
             try:
-                token = _os.environ.get("SUPERVISOR_TOKEN")
+                token = os.environ.get("SUPERVISOR_TOKEN")
                 if token:
                     connector = aiohttp.TCPConnector(force_close=True)
                     async with aiohttp.ClientSession(connector=connector) as sess:
@@ -369,7 +371,7 @@ class GitHubActionsMixin:
                                         ln = ln.strip()
                                         if not ln:
                                             continue
-                                        ln = _re.sub(r'\x1b\[[0-9;]*[a-zA-Z]', '', ln)
+                                        ln = re.sub(r'\x1b\[[0-9;]*[a-zA-Z]', '', ln)
                                         if ln and len(ln) > 10:
                                             clean.append(ln)
                                     if clean:
@@ -380,38 +382,36 @@ class GitHubActionsMixin:
 
         if not text:
             try:
-                log_data = self.hass.data.get("system_log")
-                if log_data and hasattr(log_data, "get_log_entries"):
-                    entries = log_data.get_log_entries()
-                elif log_data and isinstance(log_data, dict):
-                    entries = log_data.get("log_entries", [])
-                else:
-                    entries = []
-                if entries:
-                    formatted = []
-                    for entry in entries[-100:]:
-                        ts = entry.get("timestamp", "") or entry.get("first_occurred", "")
-                        name = entry.get("name", "")
-                        message = entry.get("message", "")
-                        if isinstance(message, list):
-                            message = "\n".join(message)
-                        if domain and domain not in name and domain not in message:
-                            continue
-                        if ts:
-                            formatted.append(f"[{ts}] {name}: {message}")
-                        else:
-                            formatted.append(f"{name}: {message}")
-                    text = "\n".join(formatted[-max_lines:])
+                # system_log 的容器是 LogErrorHandler，条目经 records.to_list() 取出
+                log_handler = self.hass.data.get(DATA_SYSTEM_LOG)
+                records = (
+                    log_handler.records.to_list()
+                    if isinstance(log_handler, logging.Handler)
+                    else []
+                )
+                formatted = []
+                for entry in records[-100:]:
+                    name = entry.get("name", "")
+                    message = entry.get("message", "")
+                    if isinstance(message, list):
+                        message = "\n".join(message)
+                    if domain and domain not in name and domain not in message:
+                        continue
+                    level = entry.get("level", "")
+                    ts = entry.get("timestamp") or 0
+                    stamp = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(ts))
+                    formatted.append(f"[{stamp}] {level} {name}: {message}")
+                text = "\n".join(formatted[-max_lines:])
             except Exception:
                 pass
 
         if not text:
             try:
                 session = await self._get_session()
-                ha_url = self.hass.http.get_url()
+                ha_url = get_url(self.hass)
                 token = None
                 for var in ("HASSIO_TOKEN", "SUPERVISOR_TOKEN", "HA_TOKEN"):
-                    v = _os.environ.get(var)
+                    v = os.environ.get(var)
                     if v:
                         token = v
                         break
@@ -443,7 +443,7 @@ class GitHubActionsMixin:
         if not text:
             for log_path in ("/share/second-core/home-assistant.log", "/config/home-assistant.log"):
                 try:
-                    if _os.path.exists(log_path):
+                    if os.path.exists(log_path):
                         def _read_log_file(lp):
                             with open(lp, "r", encoding="utf-8", errors="replace") as f:
                                 return f.readlines()
@@ -521,34 +521,24 @@ class GitHubActionsMixin:
         """将 base64 截图保存到 HA 的 www 目录并返回可访问 URL。"""
         try:
             www_dir = self.hass.config.path("www", "hacs_vision_screenshots")
-            _os.makedirs(www_dir, exist_ok=True)
+            os.makedirs(www_dir, exist_ok=True)
             raw = base64_data
             if "," in raw:
                 raw = raw.split(",", 1)[1]
             decoded = __import__("base64").b64decode(raw)
-            filepath = _os.path.join(www_dir, filename)
+            filepath = os.path.join(www_dir, filename)
             def _write_screenshot(fp, data):
                 with open(fp, "wb") as f:
                     f.write(data)
             await self.hass.async_add_executor_job(_write_screenshot, filepath, decoded)
-            ha_url = None
             try:
-                if hasattr(self.hass.config, "external_url") and self.hass.config.external_url:
-                    ha_url = self.hass.config.external_url
-                elif hasattr(self.hass.config, "internal_url") and self.hass.config.internal_url:
-                    ha_url = self.hass.config.internal_url
-                else:
-                    ha_url = self.hass.http.get_url(prefer_external=True)
-            except Exception:
-                try:
-                    ha_url = self.hass.http.get_url()
-                except Exception:
-                    pass
-            if not ha_url:
-                host = getattr(self.hass.config, "host", None) or "localhost"
-                http = getattr(self.hass, "http", None)
-                port = getattr(http, "server_port", 8123) if http else 8123
-                ha_url = f"http://{host}:{port}"
+                ha_url = (
+                    self.hass.config.external_url
+                    or self.hass.config.internal_url
+                    or get_url(self.hass, prefer_external=True)
+                )
+            except NoURLAvailableError:
+                ha_url = "http://localhost:8123"
             _LOGGER.info("Screenshot URL base: %s", ha_url)
             return f"{ha_url.rstrip('/')}/local/hacs_vision_screenshots/{filename}"
         except Exception as e:
@@ -562,15 +552,15 @@ class GitHubActionsMixin:
         www_dir = self.hass.config.path("www", "hacs_vision_screenshots")
         for fname in filenames:
             try:
-                fp = _os.path.join(www_dir, fname)
-                if _os.path.exists(fp):
-                    _os.remove(fp)
+                fp = os.path.join(www_dir, fname)
+                if os.path.exists(fp):
+                    os.remove(fp)
             except Exception as e:
                 _LOGGER.warning("Cleanup screenshot %s error: %s", fname, e)
 
     async def _delayed_cleanup(self, filenames: list[str], delay: int = 300) -> None:
         """延迟清理截图，以便 GitHub 缓存。"""
-        await _asyncio.sleep(delay)
+        await asyncio.sleep(delay)
         self._cleanup_screenshots(filenames)
 
     async def _github_create_issue(self, body: dict) -> web.Response:
@@ -606,7 +596,7 @@ class GitHubActionsMixin:
                 if len(ss_b64) > 3 * 1024 * 1024:
                     _LOGGER.warning("Screenshot %d too large, skipped", i)
                     continue
-                fname = f"issue_{_uuid.uuid4().hex[:12]}_{i+1}.png"
+                fname = f"issue_{uuid.uuid4().hex[:12]}_{i+1}.png"
                 url = await self._save_screenshot(ss_b64, fname)
                 if url:
                     issue_body += f"\n\n![截图{i+1}]({url})"
@@ -627,11 +617,13 @@ class GitHubActionsMixin:
             _LOGGER.info("Created issue #%s for %s: %s", number, repo, html_url)
             if screenshot_files:
                 _LOGGER.info("Screenshots will be cleaned up in 5 minutes")
-                # 保留引用——fire-and-forget 任务可能在执行中被 GC 回收
-                self._pending_cleanups = getattr(self, "_pending_cleanups", set())
-                _t = asyncio.ensure_future(self._delayed_cleanup(screenshot_files, 300))
-                self._pending_cleanups.add(_t)
-                _t.add_done_callback(self._pending_cleanups.discard)
+                # 保留引用——后台任务可能在执行中被 GC 回收
+                task = self.hass.async_create_background_task(
+                    self._delayed_cleanup(screenshot_files, 300),
+                    "hacs_vision screenshot cleanup",
+                )
+                self._pending_cleanups.add(task)
+                task.add_done_callback(self._pending_cleanups.discard)
             return web.json_response({"ok": True, "issue_url": html_url, "issue_number": number})
         elif status == 401:
             if screenshot_files:
