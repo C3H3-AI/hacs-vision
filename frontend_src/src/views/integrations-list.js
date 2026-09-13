@@ -1118,7 +1118,7 @@ class IntegrationsList extends LitElement {
             <span class="btn-label">${t('reloadEntry') }</span>
           </button>
           <button class="footer-btn remove" title="${entries.length > 1 ? t('multiEntryHint', { n: entries.length }) : t('removeEntry')}" @click=${e => this._removeEntry(entry0 || entries[0], e, false, entries.length)}
-            title="${t('removeEntry')}" ?disabled=${anyProcessing}>
+            ?disabled=${anyProcessing}>
             ${anyProcessing ? html`<span class="spinning-mini">⋯</span>` : html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>`}
             <span class="btn-label">${t('delete')}</span>
           </button>
