@@ -1,4 +1,4 @@
-"""Check Python dependencies for installed repositories."""
+"""HACS Vision 依赖检查平台。"""
 from __future__ import annotations
 import importlib
 import json
@@ -23,16 +23,15 @@ _PACKAGE_IMPORT_MAP = {
     "paho-mqtt": "paho.mqtt.client",
 }
 
-
 def _check_import(pkg_name: str) -> bool:
-    """Check if a package is importable, handling name mismatches."""
+    """检查包是否可导入，处理名称不一致的情况。"""
     import_name = _PACKAGE_IMPORT_MAP.get(pkg_name, pkg_name.replace("-", "_"))
     try:
         importlib.import_module(import_name)
         return True
     except ImportError:
         pass
-    # Try top-level module for dotted import names (e.g. google.protobuf)
+    # 尝试顶层模块（如 google.protobuf 这类带点的导入名）
     if "." in import_name:
         try:
             importlib.import_module(import_name.split(".")[0])
@@ -47,7 +46,7 @@ class DependencyChecker:
         self.hass = hass
 
     async def check_all(self) -> dict:
-        """Check dependencies for all installed repositories."""
+        """检查所有已安装仓库的依赖。"""
         installed = await self.data.get_installed_repositories()
         results = []
         for repo in installed:
@@ -61,17 +60,14 @@ class DependencyChecker:
             if not requirements:
                 continue
 
-            # Actually check if each requirement is importable
+            # 实际检查每个依赖是否可导入
             missing = []
             for req in requirements:
-                # Extract package name from requirement string
-                # Handles: aiohttp>=3.0, foo==1.0, bar<2.0, baz>1.0, qux[extra]>=1.0
+
                 pkg_name = req.split(">=")[0].split("==")[0].split("<=")[0].split("<")[0].split(">")[0].split("[")[0].split("!=")[0].split("~=")[0].strip()
                 if pkg_name and not await self.hass.async_add_executor_job(
                     _check_import, pkg_name
                 ):
-                    # importlib.import_module can pull in heavy packages
-                    # (cv2, pandas, …) — must not run on the event loop.
                     missing.append(req)
 
             results.append({
