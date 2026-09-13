@@ -1,36 +1,61 @@
-"""HACS Vision - HACS 增强面板."""
+"""HACS Vision 集成主模块。"""
 from __future__ import annotations
+
+import json
 import logging
 import os
-from homeassistant.core import HomeAssistant, ServiceCall
-from homeassistant.helpers.typing import ConfigType
-from homeassistant.components.http import HomeAssistantView
-from homeassistant.helpers import config_validation as cv
-import voluptuous as vol
 
-from .const import DOMAIN, PANEL_TITLE, PANEL_ICON, VERSION
+import voluptuous as vol
+from aiohttp import ClientTimeout
+
+from homeassistant.components import panel_custom
+from homeassistant.components.frontend import add_extra_js_url, async_remove_panel
+from homeassistant.components.websocket_api import (
+    ActiveConnection,
+    async_register_command,
+    async_response,
+    websocket_command,
+)
+from homeassistant.core import HomeAssistant
+from homeassistant.helpers import aiohttp_client
+from homeassistant.helpers.typing import ConfigType
+
+from .api import HACSEnhancedAPI, HACSEnhancedStaticView, HACSBrandIconView
+from .auto_update import AutoUpdateManager
+from .backup import BackupManager
+from .const import DOMAIN, PANEL_TITLE, PANEL_ICON, URL_PATH, VERSION
+from .dependency_checker import DependencyChecker
+from .hacs_data import HACSData
+from .hacs_operator import HACSOperator
+from .runtime import VisionConfigEntry, VisionRuntime
+from .services import register_services
 
 FRONTEND_DIR = os.path.join(os.path.dirname(__file__), "frontend")
+BUILD_JSON_PATH = os.path.join(FRONTEND_DIR, "build.json")
 
 _LOGGER = logging.getLogger(__name__)
 
-CONFIG_SCHEMA = vol.Schema({DOMAIN: vol.Schema({})}, extra=vol.ALLOW_EXTRA)
+def _read_file(path: str) -> str:
+    """同步读取文件——须经 executor 调用。"""
+    with open(path, encoding="utf-8") as fh:
+        return fh.read()
 
-URL_PATH = "hacs-vision"
-STORE_KEY = "hacs_vision"
+async def _read_build_hash(hass: HomeAssistant) -> str:
+    """读取前端构建哈希（frontend/build.json），用于面板 URL 的缓存破坏。"""
+    try:
+        content = await hass.async_add_executor_job(_read_file, BUILD_JSON_PATH)
+        return json.loads(content).get("hash") or VERSION
+    except (OSError, ValueError):
+        return VERSION
+
+CONFIG_SCHEMA = vol.Schema({DOMAIN: vol.Schema({})}, extra=vol.ALLOW_EXTRA)
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     return True
 
-async def async_setup_entry(hass: HomeAssistant, entry: ConfigType) -> bool:
-    """Set up HACS Vision from a config entry."""
-    from .api import HACSEnhancedAPI, HACSEnhancedStaticView, HACSBrandIconView
-    from .hacs_data import HACSData
-    from .hacs_operator import HACSOperator
-    from .backup import BackupManager
-    from .dependency_checker import DependencyChecker
-
-    # N3: Share a single HACSData instance across all components
+async def async_setup_entry(hass: HomeAssistant, entry: VisionConfigEntry) -> bool:
+    """从配置项安装 HACS Vision。"""
+    # N3：跨所有组件共享单个 HACSData 实例
     shared_data = HACSData(hass)
     operator = HACSOperator(hass, shared_data=shared_data)
     backup = BackupManager(hass, shared_data=shared_data, operator=operator)
@@ -40,47 +65,49 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigType) -> bool:
     api_view = HACSEnhancedAPI(hass, data=shared_data, operator=operator, backup=backup, checker=checker)
     hass.http.register_view(api_view)
     hass.http.register_view(HACSBrandIconView(hass))
-    await _register_panel(hass)
+    cache_key = await _read_build_hash(hass)
+    await _register_panel(hass, cache_key)
 
-    # Auto-hide original HACS sidebar if setting is enabled
+    # 若设置开启则自动隐藏原 HACS 侧边栏
     try:
         hacs_settings = await shared_data.get_settings()
         if hacs_settings.get("hide_hacs_panel"):
-            from homeassistant.components.frontend import async_remove_panel
-            async_remove_panel(hass, "hacs")
+            async_remove_panel(hass, "hacs", warn_if_unknown=False)
             _LOGGER.info("Auto-hid HACS sidebar from settings")
     except Exception as exc:
         _LOGGER.debug("HACS panel auto-hide skipped: %s", exc)
 
-    # Register sidebar badge JS as global Lovelace resource
+    # 将侧边栏角标 JS 注册为全局 Lovelace 资源
     try:
-        _register_sidebar_badge(hass)
+        _register_sidebar_badge(hass, cache_key)
     except Exception as exc:
         _LOGGER.warning("Sidebar badge registration failed: %s", exc)
 
-    # Register WebSocket handler for sidebar badge
-    await _register_ws_handler(hass)
+    # 构建运行时容器并注册 WebSocket 处理器
+    runtime = VisionRuntime(
+        hass,
+        shared_data=shared_data,
+        operator=operator,
+        backup=backup,
+        checker=checker,
+        api_view=api_view,
+    )
+    await _register_ws_handler(hass, runtime)
 
-    hass.data.setdefault(DOMAIN, {})
-    hass.data[DOMAIN]["entry"] = entry
-    hass.data[DOMAIN]["api"] = api_view
-    hass.data[DOMAIN]["listeners"] = []
-
-    # Create and start AutoUpdateManager
-    from .auto_update import AutoUpdateManager
+    # 创建并启动 AutoUpdateManager
     auto_update = AutoUpdateManager(hass, operator=operator, data=shared_data)
-    hass.data[DOMAIN]["auto_update"] = auto_update
+    runtime.auto_update = auto_update
     await auto_update.start()
 
-    # Register services
-    _register_services(hass, operator)
+    # 注册服务
+    register_services(hass, runtime)
 
-    # Pre-warm config entries cache + live rebuild on changes
+    # 预热配置项缓存，变更时实时重建
     try:
         await shared_data.get_config_entries_map()
 
         async def _rebuild_cache(event):
-            """Rebuild config entries cache immediately on any change."""
+            """任何变更时立即重建配置项缓存。"""
             try:
                 await shared_data.get_config_entries_map(force_refresh=True)
             except Exception as exc:
@@ -88,37 +115,36 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigType) -> bool:
 
         unsub1 = hass.bus.async_listen("config_entry_updated", _rebuild_cache)
         unsub2 = hass.bus.async_listen("config_entry_removed", _rebuild_cache)
-        hass.data[DOMAIN]["listeners"] = [unsub1, unsub2]
+        runtime.listeners = [unsub1, unsub2]
     except Exception as exc:
         _LOGGER.warning("Config entries cache init error: %s", exc)
 
-    # Auto-import token from HACS on first run
-    # Hold the task reference — fire-and-forget tasks can be GC'd mid-flight
-    _bg_tasks: set = hass.data.setdefault(f"{DOMAIN}_bg_tasks", set())
-    _t = hass.async_create_task(_auto_import_token(hass, shared_data))
-    _bg_tasks.add(_t)
-    _t.add_done_callback(_bg_tasks.discard)
+    # 首次运行从 HACS 自动导入令牌
+    _bg_task = hass.async_create_task(_auto_import_token(hass, shared_data))
+    runtime.bg_tasks.add(_bg_task)
+    _bg_task.add_done_callback(runtime.bg_tasks.discard)
 
+    entry.runtime_data = runtime
     return True
 
-
 async def _auto_import_token(hass: HomeAssistant, shared_data) -> None:
-    """On first startup, if Vision has no token, try to import from HACS."""
+    """首次启动时，若 Vision 无令牌则尝试从 HACS 导入。"""
     try:
         current = await shared_data.read_storage("github_token")
         if current and isinstance(current, dict) and current.get("token"):
-            return  # Already have a token, skip
-        # Try to get HACS token
+            return  # 已有令牌，跳过
+        # 尝试获取 HACS 令牌
         for entry in hass.config_entries.async_entries("hacs"):
             token = entry.data.get("token")
             if token:
-                # Verify and save
-                import aiohttp
-                from homeassistant.helpers import aiohttp_client
+                # 校验并保存
                 session = aiohttp_client.async_get_clientsession(hass)
                 headers = {"Authorization": f"Bearer {token}", "Accept": "application/vnd.github.v3+json"}
-                async with session.get("https://api.github.com/user", headers=headers,
-                                       timeout=aiohttp.ClientTimeout(total=10)) as resp:
+                async with session.get(
+                    "https://api.github.com/user",
+                    headers=headers,
+                    timeout=ClientTimeout(total=10),
+                ) as resp:
                     if resp.status == 200:
                         user = await resp.json()
                         login = user.get("login", "?")
@@ -128,74 +154,53 @@ async def _auto_import_token(hass: HomeAssistant, shared_data) -> None:
     except Exception as e:
         _LOGGER.debug("Auto-import token skipped: %s", e)
 
-async def _register_panel(hass: HomeAssistant) -> None:
-    """Register HACS Vision as a frontend panel.
+async def _register_panel(hass: HomeAssistant, cache_key: str) -> None:
+    """将 HACS Vision 注册为前端面板。"""
 
-    Uses panel_custom embed_iframe=False for native frontend rendering.
-    Sidebar toggling uses hass-toggle-menu event dispatched from
-    the component's shadow DOM (bubbles + composed).
-    """
-    from homeassistant.components.frontend import async_remove_panel
-
-    # 1. Remove any old registration
     for path in (URL_PATH,):
         try:
-            async_remove_panel(hass, path)
+            async_remove_panel(hass, path, warn_if_unknown=False)
         except Exception:
             pass
 
-    # 2. Register via panel_custom (same as hassbox store etc.)
-    from homeassistant.components import panel_custom
-    
     await panel_custom.async_register_panel(
         hass=hass,
         frontend_url_path=URL_PATH,
         webcomponent_name="hacs-vision-panel",
         sidebar_title=PANEL_TITLE,
         sidebar_icon=PANEL_ICON,
-        module_url=f"/api/hacs_vision/static/panel.js",
+        module_url=f"/api/hacs_vision/static/panel.js?v={cache_key}",
         embed_iframe=False,
         require_admin=True,
         config={},
     )
     _LOGGER.debug("Registered panel: %s (panel_custom embed_iframe=False)", URL_PATH)
 
+def _register_sidebar_badge(hass: HomeAssistant, cache_key: str) -> None:
+    """注册 sidebar-badge.js——注入到每个 HA 页面。 """
 
-def _register_sidebar_badge(hass: HomeAssistant) -> None:
-    """Register sidebar-badge.js — injects into every HA page.
-
-    Uses frontend.add_extra_js_url() to add the badge script to
-    every HA frontend page, including panels and settings.
-    The JS file is served via the existing HACSEnhancedStaticView
-    at /api/hacs_vision/static/ (no separate register_static_path needed).
-    """
-    static_url = f"/api/hacs_vision/static/sidebar-badge.js?v={VERSION}"
+    static_url = f"/api/hacs_vision/static/sidebar-badge.js?v={cache_key}"
 
     try:
-        from homeassistant.components.frontend import add_extra_js_url
         add_extra_js_url(hass, static_url)
         _LOGGER.info("Sidebar badge registered via frontend.add_extra_js_url")
     except Exception as exc:
         _LOGGER.debug("Sidebar badge skipped (non-critical): %s", exc)
 
-
-async def _register_ws_handler(hass: HomeAssistant) -> None:
-    """Register WebSocket command for sidebar badge to get update count."""
-    from homeassistant.components.websocket_api import (
-        async_register_command,
-        websocket_command,
-        async_response,
-        ActiveConnection,
-    )
+async def _register_ws_handler(hass: HomeAssistant, runtime: VisionRuntime) -> None:
+    """注册侧边栏角标获取更新数的 WebSocket 命令。"""
 
     @websocket_command({"type": "hacs_vision/updates"})
     @async_response
     async def ws_get_updates(
         hass: HomeAssistant, connection: ActiveConnection, msg: dict
     ) -> None:
-        """Return updates list via WebSocket (already authenticated)."""
-        api = hass.data.get(DOMAIN, {}).get("api")
+        """通过 WebSocket 返回更新列表（已鉴权）。"""
+        api = runtime.api
         if not api:
+            connection.send_result(msg["id"], {"updates": []})
+            return
+        if not api.operator.available:
             connection.send_result(msg["id"], {"updates": []})
             return
         try:
@@ -226,250 +231,7 @@ async def _register_ws_handler(hass: HomeAssistant) -> None:
     async_register_command(hass, ws_get_updates)
     _LOGGER.debug("Registered WS handler: hacs_vision/updates")
 
-
-async def _async_register_lovelace_resource(hass: HomeAssistant, url: str) -> None:
-    """Add sidebar-badge.js as a Lovelace module resource."""
-    try:
-        # Method 1: Use lovelace service to set resource
-        await hass.services.async_call(
-            "lovelace", "set_resource",
-            {"res_type": "module", "url": url, "create": True},
-            blocking=True,
-        )
-        _LOGGER.info("Registered sidebar badge via lovelace service")
-        return
-    except Exception:
-        pass
-
-    try:
-        # Method 2: Direct storage write
-        from homeassistant.helpers.storage import Store
-        import uuid
-
-        store = Store(hass, "lovelace_resources")
-        data = await store.async_load() or {}
-        items = data.setdefault("data", {}).setdefault("items", [])
-
-        for item in items:
-            if item.get("url") == url:
-                _LOGGER.debug("Sidebar badge already registered")
-                return
-
-        items.append({
-            "id": uuid.uuid4().hex[:16],
-            "url": url,
-            "type": "module",
-        })
-        await store.async_save(data)
-        _LOGGER.info("Registered sidebar badge resource via storage")
-    except Exception as exc:
-        _LOGGER.debug("Lovelace resource registration failed (non-critical): %s", exc)
-
-
-def _register_services(hass: HomeAssistant, operator) -> None:
-    """Register HA services for HACS Vision."""
-    from .entity_ref_finder import EntityRefFinder
-
-    async def handle_refresh(call: ServiceCall) -> None:
-        """Handle refresh service call."""
-        if not operator.available:
-            _LOGGER.warning("Refresh service called but HACS is not available")
-            return
-        try:
-            result = await operator.refresh_repositories()
-            updated = result.get("updated", 0)
-            errors = result.get("errors", [])
-            rate_limited = result.get("rate_limited", False)
-            if errors:
-                _LOGGER.warning("Refresh service: updated %d repos, %d errors, rate_limited=%s",
-                                updated, len(errors), rate_limited)
-            else:
-                _LOGGER.info("Refresh service: updated %d repos successfully", updated)
-        except Exception as e:
-            _LOGGER.error("Refresh service failed: %s", e, exc_info=True)
-
-    async def handle_install_repository(call: ServiceCall) -> None:
-        """Handle install_repository service call."""
-        repo = call.data.get("repository", "")
-        category = call.data.get("category", "integration")
-        if not repo:
-            _LOGGER.error("install_repository: 'repository' is required")
-            return
-        if operator.available:
-            try:
-                result = await operator.install_repository(repo, category)
-                if not result.get("success"):
-                    _LOGGER.error("Install service failed: %s", result.get("error", "unknown"))
-            except Exception as e:
-                _LOGGER.error("Install service error: %s", e, exc_info=True)
-
-    async def handle_find_entity_refs(call: ServiceCall) -> None:
-        """Handle find_entity_refs service call."""
-        entity_id = call.data.get("entity_id", "")
-        if not entity_id:
-            _LOGGER.error("find_entity_refs: 'entity_id' is required")
-            return
-        try:
-            finder = EntityRefFinder(hass)
-            refs = await finder.find(entity_id)
-            # Send result as persistent notification
-            by_type = {}
-            for r in refs:
-                by_type.setdefault(r["source_type"], []).append(r["source_id"])
-            lines = [f"Entity reference results for {entity_id}:", f"Found {len(refs)} references across {len({(r['source_type'], r['source_id']) for r in refs})} sources\n"]
-            for stype, sids in by_type.items():
-                unique_ids = list(set(sids))
-                lines.append(f"  **{stype}** ({len(unique_ids)}): {', '.join(unique_ids[:5])}")
-                if len(unique_ids) > 5:
-                    lines[-1] += f" ...and {len(unique_ids) - 5} more"
-            await hass.services.async_call(
-                "persistent_notification", "create",
-                {"title": f"HACS Vision - Entity Reference Finder", "message": "\n".join(lines)},
-                blocking=False,
-            )
-        except Exception as e:
-            _LOGGER.error("find_entity_refs error: %s", e, exc_info=True)
-
-    async def handle_replace_entity_refs(call: ServiceCall) -> None:
-        """Handle replace_entity_refs service call."""
-        old_id = call.data.get("old_id", "")
-        new_id = call.data.get("new_id", "")
-        preview = call.data.get("preview", True)
-        if not old_id or not new_id:
-            _LOGGER.error("replace_entity_refs: 'old_id' and 'new_id' are required")
-            return
-        try:
-            finder = EntityRefFinder(hass)
-            result = await finder.replace(old_id, new_id, preview=preview)
-            if not preview and result.get("total_updated", 0) > 0:
-                reload_result = await finder.reload_affected()
-                result["reload"] = reload_result
-            # Send result as persistent notification
-            if preview:
-                msg = (
-                    f"**Preview**: Replace {old_id} → {new_id}\n"
-                    f"Found {result['total_refs']} references, {result['affected_count']} sources affected\n\n"
-                    f"Send `preview: false` to execute replacement"
-                )
-            else:
-                updated = result.get("updated", {})
-                total = result.get("total_updated", 0)
-                reload = result.get("reload", {})
-                msg = (
-                    f"**Replacement executed**: {old_id} → {new_id}\n"
-                    f"Updated {total} references\n"
-                    f"Automations: {len(updated.get('automations', []))}\n"
-                    f"Scripts: {len(updated.get('scripts', []))}\n"
-                    f"Scenes: {len(updated.get('scenes', []))}\n"
-                    f"Dashboards: {len(updated.get('dashboards', []))}\n"
-                    f"Reload: automations{' OK' if reload.get('automations') else ' FAIL'} "
-                    f"scripts{' OK' if reload.get('scripts') else ' FAIL'} "
-                    f"scenes{' OK' if reload.get('scenes') else ' FAIL'}"
-                )
-            await hass.services.async_call(
-                "persistent_notification", "create",
-                {"title": f"HACS Vision - Entity Reference Replace", "message": msg},
-                blocking=False,
-            )
-        except Exception as e:
-            _LOGGER.error("replace_entity_refs error: %s", e, exc_info=True)
-
-    hass.services.async_register(DOMAIN, "refresh", handle_refresh)
-    hass.services.async_register(
-        DOMAIN, "install_repository", handle_install_repository,
-        schema=vol.Schema({
-            vol.Required("repository"): cv.string,
-            vol.Optional("category", default="integration"): cv.string,
-        }),
-    )
-    hass.services.async_register(
-        DOMAIN, "find_entity_refs", handle_find_entity_refs,
-        schema=vol.Schema({
-            vol.Required("entity_id"): cv.string,
-        }),
-    )
-    hass.services.async_register(
-        DOMAIN, "replace_entity_refs", handle_replace_entity_refs,
-        schema=vol.Schema({
-            vol.Required("old_id"): cv.string,
-            vol.Required("new_id"): cv.string,
-            vol.Optional("preview", default=True): cv.boolean,
-        }),
-    )
-
-    # ── Auto-update services ──
-
-    async def handle_auto_update_start(call: ServiceCall) -> None:
-        """Start periodic auto-update scheduling."""
-        mgr = hass.data.get(DOMAIN, {}).get("auto_update")
-        if mgr:
-            await mgr.start()
-
-    async def handle_auto_update_stop(call: ServiceCall) -> None:
-        """Stop periodic auto-update scheduling."""
-        mgr = hass.data.get(DOMAIN, {}).get("auto_update")
-        if mgr:
-            mgr.stop()
-
-    async def handle_auto_update_trigger(call: ServiceCall) -> None:
-        """Trigger a one-shot auto-update cycle."""
-        mgr = hass.data.get(DOMAIN, {}).get("auto_update")
-        if mgr:
-            await mgr.trigger()
-
-    async def handle_auto_update_reload_settings(call: ServiceCall) -> None:
-        """Reload auto-update settings and reschedule."""
-        mgr = hass.data.get(DOMAIN, {}).get("auto_update")
-        if mgr:
-            await mgr.reload_settings()
-
-    hass.services.async_register(DOMAIN, "auto_update_start", handle_auto_update_start)
-    hass.services.async_register(DOMAIN, "auto_update_stop", handle_auto_update_stop)
-    hass.services.async_register(DOMAIN, "auto_update_trigger", handle_auto_update_trigger)
-    hass.services.async_register(DOMAIN, "auto_update_reload_settings", handle_auto_update_reload_settings)
-
-
-async def async_unload_entry(hass: HomeAssistant, entry: ConfigType) -> bool:
-    """Unload HACS Vision."""
-    from homeassistant.components import frontend
-
-    # 1. Remove sidebar panel
-    try:
-        frontend.async_remove_panel(hass, URL_PATH)
-    except Exception:
-        pass
-
-    # 2. Stop AutoUpdateManager
-    mgr = hass.data.get(DOMAIN, {}).get("auto_update")
-    if mgr:
-        mgr.stop()
-
-    # 3. Remove all services
-    hass.services.async_remove(DOMAIN, "refresh")
-    hass.services.async_remove(DOMAIN, "install_repository")
-    hass.services.async_remove(DOMAIN, "find_entity_refs")
-    hass.services.async_remove(DOMAIN, "replace_entity_refs")
-    for svc in ("auto_update_start", "auto_update_stop", "auto_update_trigger", "auto_update_reload_settings"):
-        try:
-            hass.services.async_remove(DOMAIN, svc)
-        except Exception:
-            pass
-
-    # 4. Remove event listeners
-    for listener in hass.data.get(DOMAIN, {}).get("listeners", []):
-        try:
-            listener()
-        except Exception:
-            pass
-
-    # 5. Close shared aiohttp session
-    api = hass.data.get(DOMAIN, {}).get("api")
-    if api and hasattr(api, 'async_close'):
-        try:
-            await api.async_close()
-        except Exception:
-            pass
-
-    # 6. Clean up data
-    hass.data.pop(DOMAIN, None)
+async def async_unload_entry(hass: HomeAssistant, entry: VisionConfigEntry) -> bool:
+    """卸载 HACS Vision——通过运行时容器集中清理。"""
+    await entry.runtime_data.shutdown()
     return True
