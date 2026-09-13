@@ -744,4 +744,4 @@ class RepoCard extends LitElement {
   }
 }
 
-customElements.define('repo-card', RepoCard);
+if (!customElements.get('repo-card')) customElements.define('repo-card', RepoCard);

@@ -1644,4 +1644,4 @@ class ConfigFlowDialog extends LitElement {
   }
 }
 
-customElements.define('config-flow-dialog', ConfigFlowDialog);
+if (!customElements.get('config-flow-dialog')) customElements.define('config-flow-dialog', ConfigFlowDialog);

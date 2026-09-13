@@ -1509,4 +1509,4 @@ class UpdatesView extends LitElement {
   }
 }
 
-customElements.define('updates-view', UpdatesView);
+if (!customElements.get('updates-view')) customElements.define('updates-view', UpdatesView);

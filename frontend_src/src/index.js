@@ -6,4 +6,4 @@ import './views/config-view.js';
 import './views/integrations-list.js';
 import './components/config-flow-dialog.js';
 
-customElements.define('hacs-vision-panel', HacsVisionPanel);
+if (!customElements.get('hacs-vision-panel')) customElements.define('hacs-vision-panel', HacsVisionPanel);
