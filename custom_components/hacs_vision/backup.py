@@ -1,12 +1,9 @@
-"""Backup and restore installed repository lists."""
+"""HACS Vision 备份平台。"""
 from __future__ import annotations
 from datetime import datetime, timezone
-from typing import TYPE_CHECKING
 
 from .hacs_data import HACSData
-
-if TYPE_CHECKING:
-    from .hacs_operator import HACSOperator
+from .hacs_operator import HACSOperator
 
 class BackupManager:
     def __init__(self, hass, shared_data: HACSData | None = None, operator: HACSOperator | None = None) -> None:
@@ -15,8 +12,8 @@ class BackupManager:
         self.operator = operator
 
     async def export(self) -> dict:
-        """Export installed repository list as JSON — uses HACS in-memory data for real-time accuracy."""
-        # Prefer HACS in-memory data (real-time) over .storage file (may be stale)
+        """将已安装仓库列表导出为 JSON——使用 HACS 内存数据以保证实时准确。"""
+        # 优先用 HACS 内存数据（实时），而非可能过期的 .storage 文件
         if self.operator and self.operator.available:
             installed = self.operator.get_installed_list()
             installed_records = [
@@ -28,7 +25,7 @@ class BackupManager:
                 for r in installed
             ]
         else:
-            # Fallback to storage file if HACS not available
+            # HACS 不可用时回退到存储文件
             installed_raw = await self.data.get_installed_repositories()
             installed_records = [
                 {
@@ -48,7 +45,7 @@ class BackupManager:
         }
 
     async def import_data(self, backup_data: dict) -> dict:
-        """Import repository list from backup dict — actually writes to HACS storage."""
+        """从备份字典导入仓库列表——实际写入 HACS 存储。"""
         if not backup_data or not isinstance(backup_data, dict):
             return {"success": False, "error": "empty_data"}
 
@@ -56,8 +53,6 @@ class BackupManager:
         custom = backup_data.get("custom_repositories", [])
 
         added_custom = 0
-
-        # 1. Add custom repositories to HACS config
         if custom and isinstance(custom, list):
             config = await self.data.get_config()
             existing_custom = config.get("custom_repositories", [])
@@ -74,8 +69,6 @@ class BackupManager:
             config["custom_repositories"] = existing_custom
             await self.data.update_config(config)
 
-        # 2. For installed repos, we can't directly install them (that requires HACS internal API),
-        # but we can return the list so the user knows what needs to be reinstalled
         count_installed = len(installed) if isinstance(installed, list) else 0
         count_custom = len(custom) if isinstance(custom, list) else 0
 
