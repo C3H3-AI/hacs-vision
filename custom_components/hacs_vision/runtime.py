@@ -69,8 +69,8 @@ class VisionRuntime:
                 pass
         self.listeners.clear()
 
-        # 5. 关闭共享 aiohttp 会话（如视图提供）
-        if self.api and hasattr(self.api, "async_close"):
+        # 5. 关闭 API 视图持有的会话（共享会话由 HA 管理，此处为空操作）
+        if self.api:
             try:
                 await self.api.async_close()
             except Exception:
