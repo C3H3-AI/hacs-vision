@@ -47,7 +47,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigType) -> bool:
         hacs_settings = await shared_data.get_settings()
         if hacs_settings.get("hide_hacs_panel"):
             from homeassistant.components.frontend import async_remove_panel
-            async_remove_panel(hass, "hacs")
+            async_remove_panel(hass, "hacs", warn_if_unknown=False)
             _LOGGER.info("Auto-hid HACS sidebar from settings")
     except Exception as exc:
         _LOGGER.debug("HACS panel auto-hide skipped: %s", exc)
@@ -140,7 +140,7 @@ async def _register_panel(hass: HomeAssistant) -> None:
     # 1. Remove any old registration
     for path in (URL_PATH,):
         try:
-            async_remove_panel(hass, path)
+            async_remove_panel(hass, path, warn_if_unknown=False)
         except Exception:
             pass
 
