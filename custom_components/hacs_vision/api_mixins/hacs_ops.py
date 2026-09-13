@@ -1,4 +1,4 @@
-"""Mixin: all HACS data/operation/system endpoints except GitHub-specific ones."""
+"""HACS Vision HACS 操作 API 平台。"""
 from __future__ import annotations
 
 import asyncio
@@ -9,13 +9,21 @@ import time
 import aiohttp
 from aiohttp import web
 
-from ..const import VERSION
 from ..entity_ref_finder import EntityRefFinder
-from ..response import _error, _ok, _not_found, _bad_request, _unauthorized, _rate_limited, _server_error, _upstream_error
-
+from ..response import _error, _not_found, _bad_request, _unauthorized, _rate_limited, _server_error, _upstream_error
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from datetime import datetime, timezone
+from homeassistant.components.frontend import (
+async_remove_panel,
+async_register_built_in_panel,
+)
+from homeassistant.helpers import device_registry as dr, entity_registry as er
+from homeassistant.helpers import area_registry as ar
+import re
+import os
 
 def _int_param(val, default: int, lo: int | None = None, hi: int | None = None) -> int:
-    """Safely convert a query parameter to int with bounds."""
+    """安全地将查询参数转换为带边界的整数。"""
     try:
         v = int(val)
     except (TypeError, ValueError):
@@ -28,7 +36,7 @@ def _int_param(val, default: int, lo: int | None = None, hi: int | None = None) 
 
 _LOGGER = logging.getLogger(__name__)
 
-# Server-side caches (shared state for README, download counts, star counts)
+# 服务端缓存（README、下载数、星标数的共享状态）
 _README_CACHE: dict[str, dict] = {}
 _README_CACHE_TTL = 3600
 _README_CACHE_MAX = 200
@@ -39,9 +47,8 @@ _STAR_CACHE: dict[str, dict] = {}
 _STAR_CACHE_TTL = 21600
 _STAR_CACHE_MAX = 500
 
-
 def _cache_put(cache: dict, key: str, value: dict, max_size: int) -> None:
-    """Put into cache with size limit — evict oldest entry if full."""
+    """写入缓存并限制大小——满时淘汰最旧条目。"""
     if len(cache) >= max_size:
         try:
             oldest = min(cache, key=lambda k: cache[k].get("timestamp", 0))
@@ -50,24 +57,18 @@ def _cache_put(cache: dict, key: str, value: dict, max_size: int) -> None:
             cache.clear()
     cache[key] = value
 
-
 class HACSOpsMixin:
-    """HACS operations, data queries, config flow proxy, and system endpoints."""
-
-    # ── Session ─────────────────────────────────────────
+    """HACS 操作、数据查询、配置流代理与系统端点。"""
 
     async def _get_session(self) -> aiohttp.ClientSession:
-        """Get HA's shared aiohttp session (reuses connection pool)."""
-        from homeassistant.helpers.aiohttp_client import async_get_clientsession
+        """获取 HA 共享的 aiohttp 会话（复用连接池）。"""
         return async_get_clientsession(self.hass)
 
     async def async_close(self) -> None:
-        """No-op: shared session is managed by HA."""
-
-    # ── Repositories (list, get, installed, stats) ───────
+        """空操作：共享会话由 HA 管理。"""
 
     async def _enrich_star_counts(self, repos: list[dict]) -> None:
-        """Batch refresh stargazers_count from GitHub API for installed repos."""
+        """为已安装仓库批量从 GitHub API 刷新星标数。"""
         token = await self._get_active_github_token()
         if not token:
             return
@@ -130,7 +131,7 @@ class HACSOpsMixin:
             _LOGGER.debug("Enriched star counts for %d repos", applied)
 
     async def _enrich_download_counts(self, repos: list[dict]) -> None:
-        """Enrich repos with GitHub release download counts where HACS data is 0."""
+        """当 HACS 数据为 0 时，用 GitHub 发布下载数补全仓库信息。"""
         now = time.monotonic()
         need_fetch = []
         for r in repos:
@@ -188,8 +189,7 @@ class HACSOpsMixin:
         repos = await self.operator.get_all_repos_from_hacs()
         if not repos:
             repos = await self.data.get_all_repositories()
-
-        # Cross-reference HA entities: clear has_update for skipped versions
+        # 交叉核对 HA 实体：对跳过的版本清除 has_update
         try:
             skipped_map = {}
             for state in self.hass.states.async_all():
@@ -534,16 +534,13 @@ class HACSOpsMixin:
             return web.json_response(result, status=500)
         return web.json_response(result)
 
-    # ── README / Changelog / Releases ───────────────────
-
     async def _get_readme(self, full_name: str) -> web.Response:
         cached = _README_CACHE.get(full_name)
         if cached and (time.monotonic() - cached["timestamp"] < _README_CACHE_TTL):
             return web.Response(text=cached["html"], content_type="text/html")
 
         session = await self._get_session()
-        import re as _re
-        if not _re.match(r"^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$", full_name or ""):
+        if not re.match(r"^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$", full_name or ""):
             return _bad_request("invalid_repo")
         url = f"https://api.github.com/repos/{full_name}/readme"
         headers = await self._get_github_headers()
@@ -640,8 +637,6 @@ class HACSOpsMixin:
             return _not_found()
         return web.json_response(status)
 
-    # ── Write operations ─────────────────────────────────
-
     async def _install(self, body: dict) -> web.Response:
         repo = body.get("repository", "")
         category = body.get("category", "integration")
@@ -650,7 +645,6 @@ class HACSOpsMixin:
             return _bad_request(f"invalid_category: {category}")
         result = await self.operator.install_repository(repo, category)
         if result.get("success"):
-            from datetime import datetime, timezone
             full_name = result.get("repository") or repo
             await self.data.set_install_time(full_name, datetime.now(timezone.utc).isoformat())
         return web.json_response(result)
@@ -678,7 +672,6 @@ class HACSOpsMixin:
         await self.data.remove_install_time(full_name)
         install_result = await self.operator.install_repository(full_name, category)
         if install_result.get("success"):
-            from datetime import datetime, timezone
             await self.data.set_install_time(full_name, datetime.now(timezone.utc).isoformat())
         return web.json_response(install_result)
 
@@ -784,14 +777,14 @@ class HACSOpsMixin:
             _LOGGER.error("_get_skipped_versions error: %s", e, exc_info=True)
         return web.json_response({"skipped": skipped})
 
-    # Allowed config keys to prevent arbitrary overwrite
+    # 允许的配置键，防止任意覆盖
     _ALLOWED_CONFIG_KEYS = {
         "custom_repositories", "ignored_repositories", "archived_repositories",
         "renamed_repositories",
     }
 
     async def _update_config(self, body: dict) -> web.Response:
-        # Only allow whitelisted keys to prevent config injection
+        # 仅允许白名单键 to prevent config injection
         filtered = {k: v for k, v in body.items() if k in self._ALLOWED_CONFIG_KEYS}
         if not filtered:
             return _bad_request("no allowed keys in body")
@@ -817,13 +810,12 @@ class HACSOpsMixin:
         result = await self.operator.install_repository_version(repo_id, version)
         if result.get("success"):
             self.operator.invalidate_index()
-            from datetime import datetime, timezone
             full_name = result.get("repository") or repo_id
             await self.data.set_install_time(full_name, datetime.now(timezone.utc).isoformat())
         return web.json_response(result)
 
     async def _get_repo_refs(self, query) -> web.Response:
-        """List branches and recent commits for the arbitrary-ref installer."""
+        """列出任意引用安装器可用的分支与近期提交。"""
         repo_id = query.get("id", "")
         if not repo_id:
             return _bad_request("id required")
@@ -831,14 +823,12 @@ class HACSOpsMixin:
         return web.json_response({"refs": refs})
 
     async def _install_repo_ref(self, body: dict) -> web.Response:
-        """Install a branch or commit SHA (install_version handles both)."""
+        """安装分支或提交 SHA（install_version 两者皆可处理）。"""
         return await self._install_repo_version(body)
 
     async def _import_backup(self, body: dict) -> web.Response:
         result = await self.backup.import_data(body)
         return web.json_response(result)
-
-    # ── Favorites ────────────────────────────────────────
 
     async def _get_favorites(self) -> web.Response:
         favorites = await self.data.get_favorites()
@@ -848,8 +838,6 @@ class HACSOpsMixin:
         favorites = body.get("favorites", [])
         ok = await self.data.set_favorites(favorites)
         return web.json_response({"success": ok, "favorites": favorites})
-
-    # ── Management ───────────────────────────────────────
 
     async def _purge_from_repos_storage(self, repo_name: str) -> list[str]:
         repos_data = await self.data.read_storage("repositories")
@@ -934,7 +922,6 @@ class HACSOpsMixin:
         await self._purge_from_data_storage(old_name)
         install_result = await self.operator.install_repository(new_name, category)
         if install_result.get("success"):
-            from datetime import datetime, timezone
             await self.data.set_install_time(new_name, datetime.now(timezone.utc).isoformat())
         self.operator.invalidate_index()
         return web.json_response({
@@ -962,15 +949,10 @@ class HACSOpsMixin:
             "success": True, "repository": old_name, "purged_ids": purged_ids,
         })
 
-    # ── Settings + Devices + Translations ───────────────
-
     async def _get_settings(self) -> web.Response:
         settings = await self.data.get_settings()
         return web.json_response(settings)
 
-    # Allowed settings keys to prevent injection
-    # Settings without a consumer were removed (refresh_interval,
-    # notify_updates, notify_restart were stored but never read anywhere).
     _ALLOWED_SETTINGS_KEYS = {
         "hide_hacs_panel", "default_view",
         "auto_update_enabled", "auto_update_repos", "auto_update_interval",
@@ -979,15 +961,11 @@ class HACSOpsMixin:
     }
 
     async def _update_settings(self, body: dict) -> web.Response:
-        # Only allow whitelisted keys
+        # 仅允许白名单键
         filtered = {k: v for k, v in body.items() if k in self._ALLOWED_SETTINGS_KEYS}
         if "hide_hacs_panel" in body:
             hide = body["hide_hacs_panel"]
             try:
-                from homeassistant.components.frontend import (
-                    async_remove_panel,
-                    async_register_built_in_panel,
-                )
                 if hide:
                     async_remove_panel(self.hass, "hacs")
                 else:
@@ -1009,11 +987,7 @@ class HACSOpsMixin:
                     )
             except Exception as exc:
                 _LOGGER.warning("Failed to toggle HACS panel: %s", exc)
-        # Merge with existing settings instead of replacing — partial updates
-        # from browse.js/updates.js (e.g. {auto_update_repos: [...]}) must not
-        # discard unrelated settings like hide_hacs_panel
-        # Validate numeric settings — a bad value reaching the auto-update
-        # scheduler used to crash the cycle (max() on a string).
+
         if "auto_update_interval" in filtered:
             try:
                 filtered["auto_update_interval"] = int(filtered["auto_update_interval"])
@@ -1027,8 +1001,6 @@ class HACSOpsMixin:
 
     async def _get_devices(self, entry_id: str) -> web.Response:
         try:
-            from homeassistant.helpers import device_registry as dr, entity_registry as er
-            import json
             device_reg = dr.async_get(self.hass)
             entity_reg = er.async_get(self.hass)
             devices = []
@@ -1065,7 +1037,6 @@ class HACSOpsMixin:
                 area_name = None
                 if device.area_id:
                     try:
-                        from homeassistant.helpers import area_registry as ar
                         area_reg = ar.async_get(self.hass)
                         area = area_reg.async_get_area(device.area_id)
                         if area:
@@ -1117,8 +1088,6 @@ class HACSOpsMixin:
         return web.json_response({"entries": mapping})
 
     async def _get_device_counts(self, domain: str | None = None) -> web.Response:
-        from homeassistant.helpers import device_registry as dr, entity_registry as er
-        import re
         if domain is not None:
             if not re.match(r'^[a-zA-Z0-9_-]+$', domain):
                 return _bad_request("invalid_domain")
@@ -1167,11 +1136,9 @@ class HACSOpsMixin:
             return _server_error()
 
     async def _get_translations(self, domain: str, lang: str) -> web.Response:
-        import os
-        import re
         if not re.match(r'^[a-zA-Z0-9_-]+$', domain):
             return _bad_request("invalid_domain")
-        # Sanitize lang to prevent path traversal
+        # 清洗 lang 参数防止路径穿越
         if lang and not re.match(r'^[a-z]{2}(-[a-zA-Z]{2,10})?$', lang):
             lang = "en"
         safe_domain = domain
@@ -1198,8 +1165,6 @@ class HACSOpsMixin:
                     continue
         return web.json_response({"data": {}, "domain": safe_domain, "lang": lang, "error": "not_found"}, status=404)
 
-    # ── Batch operations ─────────────────────────────────
-
     async def _batch_install(self, body: dict) -> web.Response:
         repos = body.get("repositories", [])
         results = []
@@ -1211,7 +1176,6 @@ class HACSOpsMixin:
             try:
                 result = await self.operator.install_repository(repo_name, category)
                 if result.get("success"):
-                    from datetime import datetime, timezone
                     await self.data.set_install_time(repo_name, datetime.now(timezone.utc).isoformat())
                 results.append({"repository": repo_name, "result": result})
             except Exception as e:
@@ -1265,8 +1229,6 @@ class HACSOpsMixin:
             _LOGGER.error("Check updates+notify failed: %s", e, exc_info=True)
             return _server_error()
 
-    # ── Entity Reference Finder ─────────────────────────
-
     async def _entity_refs_find(self, query) -> web.Response:
         entity_id = query.get("q", "")
         if not entity_id:
@@ -1313,8 +1275,6 @@ class HACSOpsMixin:
             _LOGGER.error("Entity refs reload failed: %s", e, exc_info=True)
             return _server_error()
 
-    # ── Restart / Reload ─────────────────────────────────
-
     async def _restart(self) -> web.Response:
         try:
             await self.hass.services.async_call("homeassistant", "restart", blocking=False)
@@ -1330,8 +1290,6 @@ class HACSOpsMixin:
         except Exception as e:
             _LOGGER.error("Core reload failed: %s", e, exc_info=True)
             return _server_error()
-
-    # ── Config Flow proxy ────────────────────────────────
 
     def _extract_token(self, request: web.Request) -> str:
         auth = request.headers.get("Authorization", "")
@@ -1546,9 +1504,8 @@ class HACSOpsMixin:
             _LOGGER.error("Subentry flow step error %s: %s", flow_id, e, exc_info=True)
             return _error(f"subentry_step_error: {e}", 500)
 
-
 def _read_json_text(path: str) -> dict | None:
-    """Blocking JSON text file read — must run via executor."""
+    """阻塞式 JSON 文本读取——须通过 executor 执行。"""
     try:
         with open(path, "r", encoding="utf-8") as f:
             return json.load(f)

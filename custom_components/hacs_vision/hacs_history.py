@@ -1,4 +1,4 @@
-"""Update history data manager for HACS Vision."""
+"""HACS Vision HACS 历史平台。"""
 from __future__ import annotations
 import asyncio
 import json
@@ -12,9 +12,8 @@ _LOGGER = logging.getLogger(__name__)
 
 HISTORY_RETENTION_DAYS = 30
 
-
 class HACSHubHistory:
-    """Manages update history records."""
+    """管理更新历史记录。"""
 
     def __init__(self, hass) -> None:
         self.hass = hass
@@ -62,7 +61,7 @@ class HACSHubHistory:
         self._write_json(path, {"history": history})
 
     def _write_json(self, path: str, data: dict) -> None:
-        # Atomic replace — a plain overwrite here could truncate the file on crash
+        # 原子替换：普通覆盖在崩溃时会截断文件
         temp_path = f"{path}.tmp"
         try:
             with open(temp_path, "w", encoding="utf-8") as f:

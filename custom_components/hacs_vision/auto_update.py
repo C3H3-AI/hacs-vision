@@ -1,17 +1,8 @@
-"""Auto-update manager for HACS Vision — periodic scheduling engine.
-
-Design:
-  - Uses async_track_time_interval for reliable periodic scheduling
-  - Non-overlapping runs: skips if previous cycle still in progress
-  - Whitelist-based: only auto-updates repos the user has explicitly opted in
-  - Sends HA persistent notifications for results
-  - Supports scheduled restart at user-defined time after updates installed
-  - Respects GitHub API rate limits via existing HACSOperator mechanisms
-"""
+"""HACS Vision 自动更新平台。"""
 from __future__ import annotations
 
 import logging
-from datetime import timedelta, datetime, time
+from datetime import timedelta
 
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.event import async_track_time_interval, async_track_point_in_time
@@ -33,21 +24,11 @@ from .const import (
 )
 
 _LOGGER = logging.getLogger(__name__)
-
 SIGNAL_AUTO_UPDATE_STATE = f"{DOMAIN}_auto_update_state"
-
 NOTIFICATION_ID = "hacs_vision_auto_update"
 
-
 class AutoUpdateManager:
-    """Manages periodic auto-update of HACS repositories.
-
-    Lifecycle:
-      1. Created during async_setup_entry
-      2. start() begins periodic scheduling
-      3. stop() cancels the interval
-      4. trigger() performs a one-shot update cycle
-    """
+    """管理 HACS 仓库的周期性自动更新。"""
 
     def __init__(self, hass: HomeAssistant, operator, data) -> None:
         self.hass = hass
@@ -96,8 +77,6 @@ class AutoUpdateManager:
     async def reload_settings(self) -> None:
         await self._apply_settings(reschedule=True)
 
-    # ── Internal ─────────────────────────────────────────
-
     async def _apply_settings(self, reschedule: bool = False) -> None:
         settings = await self.data.get_settings()
         enabled = settings.get(CONF_AUTO_UPDATE_ENABLED, DEFAULT_AUTO_UPDATE_ENABLED)
@@ -117,7 +96,7 @@ class AutoUpdateManager:
         try:
             interval_seconds = int(interval_seconds)
         except (TypeError, ValueError):
-            interval_seconds = 21600  # malformed setting — fall back to 6h
+            interval_seconds = 21600  # 配置畸形——回退到 6 小时
         interval = timedelta(seconds=max(interval_seconds, 600))
 
         async def _first_then_interval(_now=None):
@@ -155,11 +134,7 @@ class AutoUpdateManager:
         self._pending_restart = False
 
     def _schedule_restart_at_time(self, time_str: str) -> None:
-        """Schedule a restart at the next occurrence of HH:MM.
-
-        If the time has passed today, schedule for tomorrow.
-        The restart only fires if _pending_restart is still True.
-        """
+        """在每天 HH:MM 预约重启 HA，仅当仍有待定更新时触发。"""
         self._cancel_restart_timer()
         if not time_str:
             return
@@ -221,7 +196,7 @@ class AutoUpdateManager:
 
             _LOGGER.debug("Auto-update cycle starting (source=%s)", source)
 
-            # Refresh HACS repository data from GitHub before checking updates
+            # 检查更新前先从 GitHub 刷新 HACS 仓库数据
             refresh_result = await self.operator.refresh_repositories()
             if not refresh_result.get("success", False):
                 _LOGGER.warning("Auto-update: repository refresh failed: %s", refresh_result.get("error"))
@@ -273,7 +248,7 @@ class AutoUpdateManager:
 
             has_updates = bool(updated)
 
-            # Notification
+            # 通知
             if notify:
                 msg_lines = [f"🔄 HACS Vision 自动更新 ({source})"]
                 if updated:
@@ -294,11 +269,11 @@ class AutoUpdateManager:
                     notification_id=NOTIFICATION_ID,
                 )
 
-            # Schedule restart at user-defined time if updates were installed
+            # 若已安装更新，在用户设定时间安排重启
             if has_updates and restart_time:
                 self._schedule_restart_at_time(restart_time)
-                self._pending_restart = True  # Must be set AFTER _schedule_restart_at_time
-                                            # because _cancel_restart_timer() resets it
+                # 必须在预约重启之后设置，因为 _cancel_restart_timer 会重置它
+                self._pending_restart = True
             elif has_updates and not restart_time:
                 self._pending_restart = False
 

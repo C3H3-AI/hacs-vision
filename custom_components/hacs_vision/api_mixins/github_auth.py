@@ -1,4 +1,4 @@
-"""Mixin: GitHub authentication (token verify, OAuth device flow, user info)."""
+"""HACS Vision GitHub 认证平台。"""
 from __future__ import annotations
 
 import asyncio
@@ -8,18 +8,15 @@ import logging
 import aiohttp
 from aiohttp import web
 
-from ..response import _error, _ok, _not_found, _bad_request, _unauthorized, _server_error, _timeout
+from ..response import _ok, _not_found, _bad_request, _unauthorized, _server_error, _timeout
 
 _LOGGER = logging.getLogger(__name__)
 
-
 class GitHubAuthMixin:
-    """GitHub authentication operations — token management and OAuth device flow."""
-
-    # ── Token helpers ───────────────────────────────────
+    """GitHub 认证操作——令牌管理与 OAuth 设备流。"""
 
     def _get_hacs_token(self) -> str | None:
-        """Get GitHub token from HACS config entry — used only for explicit HACS import."""
+        """从 HACS 配置项获取 GitHub 令牌——仅用于显式导入 HACS。"""
         try:
             for entry in self.hass.config_entries.async_entries("hacs"):
                 token = entry.data.get("token")
@@ -30,7 +27,7 @@ class GitHubAuthMixin:
         return None
 
     async def _get_vision_github_token(self) -> str | None:
-        """Get GitHub token from hacs-vision own storage."""
+        """从 hacs-vision 自身存储获取 GitHub 令牌。"""
         try:
             data = await self.data.read_storage("github_token")
             if data and isinstance(data, dict) and data.get("token"):
@@ -40,30 +37,23 @@ class GitHubAuthMixin:
         return None
 
     async def _get_active_github_token(self) -> str | None:
-        """Get the active GitHub token.
+        """获取当前生效的 GitHub 令牌。"""
 
-        Merged account model (2026-07-26): Vision no longer requires a separate
-        GitHub login. It reuses the token HACS itself already obtained via the
-        GitHub device flow, so the user authenticates exactly once (in HACS).
-        Vision's own stored token remains only as a fallback for legacy setups.
-        """
         hacs_token = self._get_hacs_token()
         if hacs_token:
             return hacs_token
         return await self._get_vision_github_token()
 
     async def _get_github_headers(self) -> dict[str, str]:
-        """Build GitHub API headers with the active token."""
+        """用当前令牌构造 GitHub API 请求头。"""
         headers = {"Accept": "application/vnd.github.v3+json"}
         token = await self._get_active_github_token()
         if token:
             headers["Authorization"] = f"token {token}"
         return headers
 
-    # ── Generic GitHub API caller ───────────────────────
-
     async def _github_api(self, method: str, path: str, body: dict | None = None) -> dict:
-        """Call GitHub API with the active token."""
+        """用当前令牌调用 GitHub API。"""
         token = await self._get_active_github_token()
         headers = {"Accept": "application/vnd.github.v3+json"}
         if token:
@@ -87,16 +77,14 @@ class GitHubAuthMixin:
         except Exception as e:
             return {"error": "operation_failed", "status": 0}
 
-    # ── Token verification ─────────────────────────────
-
     async def _github_verify_token(self, body: dict) -> web.Response:
-        """Verify and store a GitHub personal access token."""
+        """校验并保存 GitHub 个人访问令牌。"""
         token = body.get("token", "").strip()
         if not token:
-            # Empty token = logout: clear stored token
+            # 空令牌即登出：清除已存令牌
             await self.data.write_storage("github_token", {})
             return web.json_response({"ok": True, "logout": True})
-        # Verify by calling GitHub user API
+        # 通过调用 GitHub 用户接口校验
         headers = {"Authorization": f"Bearer {token}", "Accept": "application/vnd.github.v3+json"}
         try:
             session = await self._get_session()
@@ -106,19 +94,19 @@ class GitHubAuthMixin:
                     return _bad_request("invalid_token")
                 user = await resp.json()
                 login = user.get("login", "?")
-                # Check rate limit
+                # 检查速率限制
                 async with session.get("https://api.github.com/rate_limit", headers=headers,
                                        timeout=aiohttp.ClientTimeout(total=10)) as rl_resp:
                     rl = await rl_resp.json()
                     remaining = rl.get("rate", {}).get("remaining", 0)
         except Exception as e:
             return _server_error()
-        # Store token to Vision's own storage
+        # 将令牌存入 Vision 自身存储
         await self.data.write_storage("github_token", {"token": token, "user": login})
         return web.json_response({"ok": True, "user": login, "avatar_url": user.get("avatar_url"), "rate_limit_remaining": remaining})
 
     async def _github_user(self) -> web.Response:
-        """Get current GitHub user info from Vision's stored token."""
+        """用 Vision 存储的令牌获取当前 GitHub 用户信息。"""
         token = await self._get_active_github_token()
         if not token:
             return _unauthorized()
@@ -135,11 +123,11 @@ class GitHubAuthMixin:
         return web.json_response({"login": user.get("login"), "avatar_url": user.get("avatar_url")})
 
     async def _github_import_token(self) -> web.Response:
-        """Import GitHub token from HACS and save to Vision's own storage."""
+        """从 HACS 导入 GitHub 令牌并保存到 Vision 自身存储。"""
         token = self._get_hacs_token()
         if not token:
             return _not_found("hacs_no_token")
-        # Verify the token before saving
+        # 保存前先校验令牌
         headers = {"Authorization": f"Bearer {token}", "Accept": "application/vnd.github.v3+json"}
         try:
             session = await self._get_session()
@@ -154,10 +142,8 @@ class GitHubAuthMixin:
         except Exception as e:
             return _server_error()
 
-    # ── OAuth device flow ──────────────────────────────
-
     async def _github_oauth_start(self, body: dict) -> web.Response:
-        """Start GitHub OAuth device flow using bare aiohttp to bypass SSRF."""
+        """用裸 aiohttp 发起 GitHub OAuth 设备流以绕开 SSRF 防护。"""
         try:
             from custom_components.hacs.const import CLIENT_ID
 
@@ -173,7 +159,7 @@ class GitHubAuthMixin:
                     _LOGGER.debug("GitHub device code registered (status=%d, keys=%s)", resp.status, sorted(data.keys()))
                     if "error" in data:
                         return _bad_request(data.get("error_description", data["error"]))
-                    # Store device_code for poll
+                    # 保存 device_code 供轮询使用
                     self._oauth_device_code = data.get("device_code", "")
                     return web.json_response({
                         "user_code": data["user_code"],
@@ -189,7 +175,7 @@ class GitHubAuthMixin:
             return _server_error()
 
     async def _github_oauth_poll(self, body: dict) -> web.Response:
-        """Poll for OAuth device flow activation using bare aiohttp."""
+        """用裸 aiohttp 轮询 OAuth 设备流激活。"""
         device_code = body.get("device_code", "")
         if not device_code:
             return _bad_request("device_code_required")
@@ -220,7 +206,7 @@ class GitHubAuthMixin:
 
             token = data["access_token"]
 
-            # Get user info
+            # 获取用户信息
             gh_headers = {"Authorization": f"Bearer {token}", "Accept": "application/vnd.github.v3+json"}
             async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(force_close=True)) as session2:
                 async with session2.get("https://api.github.com/user",

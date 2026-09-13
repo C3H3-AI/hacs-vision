@@ -1,5 +1,4 @@
-"""Entity Reference Finder - 查找和替换 HA 中所有对 entity_id 的引用."""
-
+"""HACS Vision 实体引用查找平台。"""
 from __future__ import annotations
 
 import json
@@ -7,12 +6,13 @@ import logging
 import re
 from typing import Any
 
+from homeassistant.components.blueprint.models import DomainBlueprints
+from homeassistant.components.lovelace.const import LOVELACE_DATA
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 _LOGGER = logging.getLogger(__name__)
 
-# 匹配标准 entity_id 格式：domain.object_id
-# 包含 HA 官方所有标准 entity domain，按字母序排列便于维护
 # 参见: https://www.home-assistant.io/integrations/#entity
 _ENTITY_ID_RE = re.compile(
     r"\b(?:"
@@ -90,7 +90,6 @@ _DEEP_KEYS = {
     "metadata",
 }
 
-
 class EntityRefResult:
     """单条引用结果."""
 
@@ -122,7 +121,6 @@ class EntityRefResult:
 
     def __repr__(self) -> str:
         return f"[{self.source_type}] {self.source_id} → {self.field_path}"
-
 
 class EntityRefFinder:
     """查找 HA 中所有对指定 entity_id 的引用."""
@@ -164,16 +162,16 @@ class EntityRefFinder:
                 "total_refs": len(refs),
             }
 
-        # Execute mode
+        # 执行模式
         updated = {"automations": [], "scripts": [], "scenes": [], "dashboards": []}
 
-        # Group refs by source
+        # 按来源分组引用
         auto_refs = [r for r in self._results if r.source_type == "automation"]
         script_refs = [r for r in self._results if r.source_type == "script"]
         scene_refs = [r for r in self._results if r.source_type == "scene"]
         dash_refs = [r for r in self._results if r.source_type == "dashboard"]
 
-        # Update automations
+        # 更新自动化
         for r in auto_refs:
             try:
                 config = await self._get_auto_config(r.source_id)
@@ -185,7 +183,7 @@ class EntityRefFinder:
             except Exception as e:
                 _LOGGER.error("Failed to update automation %s: %s", r.source_id, e, exc_info=True)
 
-        # Update scripts
+        # 更新脚本
         for r in script_refs:
             try:
                 config = await self._get_script_config(r.source_id)
@@ -195,7 +193,7 @@ class EntityRefFinder:
             except Exception as e:
                 _LOGGER.error("Failed to update script %s: %s", r.source_id, e, exc_info=True)
 
-        # Update scenes
+        # 更新场景
         for r in scene_refs:
             try:
                 config = await self._get_scene_config(r.source_id)
@@ -205,7 +203,7 @@ class EntityRefFinder:
             except Exception as e:
                 _LOGGER.error("Failed to update scene %s: %s", r.source_id, e, exc_info=True)
 
-        # Update dashboards
+        # 更新仪表盘
         updated_dashboards = await self._update_dashboards(dash_refs, old_id, new_id)
         updated["dashboards"] = updated_dashboards
 
@@ -218,7 +216,7 @@ class EntityRefFinder:
         }
 
     async def reload_affected(self) -> dict[str, Any]:
-        """Reload automations, scripts, scenes after replacement."""
+        """替换后重新加载自动化、脚本、场景。"""
         result = {"automations": False, "scripts": False, "scenes": False}
         try:
             await self.hass.services.async_call("automation", "reload", blocking=True)
@@ -237,10 +235,10 @@ class EntityRefFinder:
             _LOGGER.error("Failed to reload scenes: %s", e, exc_info=True)
         return result
 
-    # ── Scan implementations ─────────────────────────────
+    # ── 扫描实现 ─────────────────────────────
 
     async def _scan_automations(self) -> None:
-        """Scan all automations for entity_id references."""
+        """扫描所有自动化以查找 entity_id 引用。"""
         entity_ids = self.hass.states.async_entity_ids("automation")
         for eid in entity_ids:
             try:
@@ -256,7 +254,7 @@ class EntityRefFinder:
                 _LOGGER.debug("Skip automation %s: %s", eid, exc)
 
     async def _scan_scripts(self) -> None:
-        """Scan all scripts for entity_id references."""
+        """扫描所有脚本以查找 entity_id 引用。"""
         entity_ids = self.hass.states.async_entity_ids("script")
         for eid in entity_ids:
             try:
@@ -272,7 +270,7 @@ class EntityRefFinder:
                 _LOGGER.debug("Skip script %s: %s", eid, exc)
 
     async def _scan_scenes(self) -> None:
-        """Scan all scenes for entity_id references."""
+        """扫描所有场景以查找 entity_id 引用。"""
         entity_ids = self.hass.states.async_entity_ids("scene")
         for eid in entity_ids:
             try:
@@ -288,15 +286,13 @@ class EntityRefFinder:
                 _LOGGER.debug("Skip scene %s: %s", eid, exc)
 
     async def _scan_dashboards(self) -> None:
-        """Scan all Lovelace dashboards for entity_id references."""
-        from homeassistant.components.lovelace.const import LOVELACE_DATA
-
+        """扫描所有 Lovelace 仪表盘以查找 entity_id 引用。"""
         lovelace_data = self.hass.data.get(LOVELACE_DATA)
         if not lovelace_data:
             return
 
         dashboards = getattr(lovelace_data, "dashboards", {})
-        # Scan default dashboard
+        # 扫描默认仪表盘
         try:
             config = await self._get_dash_config(None)
             if config:
@@ -309,7 +305,7 @@ class EntityRefFinder:
         except Exception as exc:
             _LOGGER.debug("Skip default dashboard: %s", exc)
 
-        # Scan custom dashboards
+        # 扫描自定义仪表盘
         for url_path, dash in dashboards.items():
             try:
                 config = await self._get_dash_config(url_path)
@@ -324,9 +320,8 @@ class EntityRefFinder:
                 _LOGGER.debug("Skip dashboard %s: %s", url_path, exc)
 
     async def _scan_blueprints(self) -> None:
-        """Scan blueprints for entity_id references (via REST API / SSH)."""
+        """扫描蓝图以查找 entity_id 引用（经 REST API / SSH）。"""
         try:
-            from homeassistant.components.blueprint.models import DomainBlueprints
             for domain in ("automation", "script"):
                 blueprints: DomainBlueprints | None = self.hass.data.get(
                     f"blueprint.{domain}"
@@ -352,10 +347,8 @@ class EntityRefFinder:
         except Exception as exc:
             _LOGGER.debug("Skip blueprint scan: %s", exc)
 
-    # ── Core scanning logic ──────────────────────────────
-
     def _scan_value(self, value: Any, *, source_type: str, source_id: str, path: str) -> None:
-        """Recursively scan a value for entity_id references."""
+        """递归扫描值以查找 entity_id 引用。"""
         if value is None:
             return
 
@@ -368,7 +361,7 @@ class EntityRefFinder:
                 child_path = f"{path}.{key}"
                 if key in _ENTITY_KEYS and isinstance(val, str):
                     self._check_entity_match(val, source_type, source_id, child_path)
-                # Scan both key (for template strings) and value
+                # 同时扫描键（模板字符串）与值
                 if isinstance(key, str):
                     self._scan_string(key, source_type, source_id, child_path)
                 self._scan_value(val, source_type=source_type, source_id=source_id, path=child_path)
@@ -380,12 +373,12 @@ class EntityRefFinder:
                 self._scan_value(item, source_type=source_type, source_id=source_id, path=child_path)
             return
 
-        # Other types (numbers, bools) - skip
+        # 其他类型（数字、布尔）——跳过
         return
 
     def _scan_string(self, text: str, source_type: str, source_id: str, path: str) -> None:
-        """Scan a string for direct entity_id or template references."""
-        # Direct entity_id match
+        """扫描字符串以查找直接 entity_id 或模板引用。"""
+        # 直接 entity_id 匹配
         for match in _ENTITY_ID_RE.finditer(text):
             if match.group(0) == self._target:
                 ctx = self._get_context(text, match.start(), match.end())
@@ -399,7 +392,7 @@ class EntityRefFinder:
                     )
                 )
 
-        # Jinja2 template match
+        # Jinja2 模板匹配
         for match in _JINJA_STATES_RE.finditer(text):
             captured = match.group(1)
             if captured == self._target:
@@ -414,7 +407,7 @@ class EntityRefFinder:
                     )
                 )
 
-        # hass.states["xxx"] match
+        # hass.states["xxx"] 匹配
         for match in _HASS_STATES_RE.finditer(text):
             captured = match.group(1)
             if captured == self._target:
@@ -430,7 +423,7 @@ class EntityRefFinder:
                 )
 
     def _check_entity_match(self, text: str, source_type: str, source_id: str, path: str) -> None:
-        """Check if text exactly matches the target entity_id."""
+        """检查文本是否精确匹配目标 entity_id。"""
         if text == self._target:
             self._results.append(
                 EntityRefResult(
@@ -444,17 +437,15 @@ class EntityRefFinder:
 
     @staticmethod
     def _get_context(text: str, start: int, end: int, width: int = 60) -> str:
-        """Extract surrounding context for a match."""
+        """提取匹配项的上下文。"""
         ctx_start = max(0, start - width)
         ctx_end = min(len(text), end + width)
         prefix = "…" if ctx_start > 0 else ""
         suffix = "…" if ctx_end < len(text) else ""
         return f"{prefix}{text[ctx_start:ctx_end]}{suffix}"
 
-    # ── Replace helper ───────────────────────────────────
-
     def _replace_in_value(self, value: Any, old_id: str, new_id: str) -> bool:
-        """Recursively replace entity_id references in a config structure."""
+        """在配置结构中递归替换 entity_id 引用。"""
         changed = False
         if isinstance(value, dict):
             for key, val in list(value.items()):
@@ -463,7 +454,7 @@ class EntityRefFinder:
                         value[key] = new_id
                         changed = True
                     elif old_id in val:
-                        # Also handle embedded occurrences (templates, etc.)
+                        # 同时处理内嵌出现（模板等）
                         new_val = val.replace(old_id, new_id)
                         if new_val != val:
                             value[key] = new_val
@@ -487,10 +478,8 @@ class EntityRefFinder:
                         changed = True
         return changed
 
-    # ── HA Config API helpers ────────────────────────────
-
     async def _read_storage_file(self, filename: str) -> dict | None:
-        """Read a .storage JSON file directly (async — no blocking call)."""
+        """直接读取 .storage JSON 文件（异步——无阻塞调用）。"""
         try:
             path = self.hass.config.path(".storage", filename)
             return await self.hass.async_add_executor_job(self._read_json_file, path)
@@ -498,7 +487,7 @@ class EntityRefFinder:
             return None
 
     def _read_json_file(self, path: str) -> dict | None:
-        """Synchronous JSON file read — runs in executor."""
+        """同步 JSON 文件读取——在 executor 中运行。"""
         try:
             with open(path, "r", encoding="utf-8") as f:
                 return json.load(f)
@@ -506,22 +495,22 @@ class EntityRefFinder:
             return None
 
     async def _get_auto_config(self, entity_id: str) -> dict | None:
-        """Get automation config via HA API."""
-        # Method 1: state.attributes["config"] (HA <2025.7)
+        """通过 HA API 获取自动化配置。"""
+        # 方式1：state.attributes["config"]（HA <2025.7）
         try:
             state = self.hass.states.get(entity_id)
             if state and "config" in state.attributes:
                 return dict(state.attributes["config"])
         except Exception:
             pass
-        # Method 2: hass.data automation_config (HA internal)
+        # 方法 2：hass.data automation_config（HA 内部）
         try:
             config = self.hass.data.get("automation_config", {})
             if entity_id in config:
                 return dict(config[entity_id])
         except Exception:
             pass
-        # Method 3: read .storage file directly (HA 2025.7+)
+        # 方式3：直接读取 .storage 文件（HA 2025.7+）
         try:
             auto_id = entity_id.split(".", 1)[1] if "." in entity_id else entity_id
             storage_data = await self._read_storage_file(f"automation.{auto_id}")
@@ -532,7 +521,7 @@ class EntityRefFinder:
         return None
 
     async def _save_auto_config(self, entity_id: str, config: dict) -> bool:
-        """Save automation config via HA API, restoring the on/off state after."""
+        """通过 HA API 保存自动化配置，并恢复开/关状态。"""
         auto_id = entity_id.split(".", 1)[1] if "." in entity_id else entity_id
         was_on = self.hass.states.is_state(entity_id, "on")
         try:
@@ -542,21 +531,19 @@ class EntityRefFinder:
         except Exception:
             pass
         saved = False
-        # Method 1: internal API (HA <2025.9)
+        # 方法 1：内部 API（HA <2025.9）
         try:
-            from homeassistant.components.automation.config import (
-                async_set_automation_config,
-            )
+            from homeassistant.components.automation.config import async_set_automation_config
+
             await async_set_automation_config(
                 self.hass, auto_id, config, source="storage"
             )
             saved = True
         except Exception:
             saved = False
-        # Method 2: REST API fallback (HA 2025.9+) — use the token passed from API handler
+        # 方法 2：REST API 回退（HA 2025.9+）——使用 API 处理器传入的令牌
         if not saved and self._hass_token:
             try:
-                from homeassistant.helpers.aiohttp_client import async_get_clientsession
                 base_url = self.hass.http.get_url()
                 headers = {"Authorization": f"Bearer {self._hass_token}", "Content-Type": "application/json"}
                 session = async_get_clientsession(self.hass)
@@ -568,8 +555,8 @@ class EntityRefFinder:
             except Exception as e:
                 _LOGGER.error("Save auto config failed: %s", e, exc_info=True)
                 saved = False
-        # turn_off above disabled the automation — restore its prior state so a
-        # successful (or failed) edit never leaves it permanently off.
+        # 上面的 turn_off 已禁用自动化——恢复其先前状态，使
+        # 成功（或失败）的编辑都不会让它永久关闭。
         if was_on:
             try:
                 await self.hass.services.async_call(
@@ -580,7 +567,7 @@ class EntityRefFinder:
         return saved
 
     async def _get_script_config(self, entity_id: str) -> dict | None:
-        """Get script config via HA API."""
+        """通过 HA API 获取脚本配置。"""
         try:
             state = self.hass.states.get(entity_id)
             if state and "config" in state.attributes:
@@ -597,12 +584,11 @@ class EntityRefFinder:
         return None
 
     async def _save_script_config(self, entity_id: str, config: dict) -> bool:
-        """Save script config via HA API."""
+        """通过 HA API 保存脚本配置。"""
         script_id = entity_id.split(".", 1)[1] if "." in entity_id else entity_id
         try:
-            from homeassistant.components.script.config import (
-                async_set_script_config,
-            )
+            from homeassistant.components.script.config import async_set_script_config
+
             await async_set_script_config(
                 self.hass, script_id, config, source="storage"
             )
@@ -612,7 +598,7 @@ class EntityRefFinder:
             return False
 
     async def _get_scene_config(self, entity_id: str) -> dict | None:
-        """Get scene config via HA API."""
+        """通过 HA API 获取场景配置。"""
         try:
             state = self.hass.states.get(entity_id)
             if state and "config" in state.attributes:
@@ -629,12 +615,11 @@ class EntityRefFinder:
         return None
 
     async def _save_scene_config(self, entity_id: str, config: dict) -> bool:
-        """Save scene config via HA API."""
+        """通过 HA API 保存场景配置。"""
         scene_id = entity_id.split(".", 1)[1] if "." in entity_id else entity_id
         try:
-            from homeassistant.components.scene.config import (
-                async_set_scene_config,
-            )
+            from homeassistant.components.scene.config import async_set_scene_config
+
             await async_set_scene_config(
                 self.hass, scene_id, config, source="storage"
             )
@@ -644,9 +629,8 @@ class EntityRefFinder:
             return False
 
     async def _get_dash_config(self, url_path: str | None) -> dict | None:
-        """Get Lovelace dashboard config via internal API."""
+        """通过内部 API 获取 Lovelace 仪表盘配置。"""
         try:
-            from homeassistant.components.lovelace.const import LOVELACE_DATA
 
             lovelace_data = self.hass.data.get(LOVELACE_DATA)
             if not lovelace_data:
@@ -662,9 +646,7 @@ class EntityRefFinder:
     async def _update_dashboards(
         self, refs: list[EntityRefResult], old_id: str, new_id: str
     ) -> list[str]:
-        """Update entity_id references in dashboards."""
-        from homeassistant.components.lovelace.const import LOVELACE_DATA
-
+        """更新仪表盘中的 entity_id 引用。"""
         lovelace_data = self.hass.data.get(LOVELACE_DATA)
         if not lovelace_data:
             return []

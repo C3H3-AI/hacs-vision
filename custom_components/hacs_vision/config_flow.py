@@ -1,15 +1,14 @@
-"""Config flow for HACS Vision — panel integration, no options flow."""
+"""HACS Vision 配置流平台。"""
 from homeassistant import config_entries
 from .const import DOMAIN, PANEL_TITLE
 
-
 class HACSEnhancedConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
-    """Handle a config flow for HACS Vision."""
+    """处理 HACS Vision 的配置流。"""
 
     VERSION = 1
 
     async def async_step_user(self, user_input=None):
-        """Handle the initial step — zero-config, create entry immediately."""
+        """初始步骤：零配置，立即创建集成实体。"""
         if self._async_current_entries():
             return self.async_abort(reason="single_instance_allowed")
         if "hacs" not in self.hass.config.components:
