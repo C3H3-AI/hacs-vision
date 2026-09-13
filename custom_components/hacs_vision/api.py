@@ -1,8 +1,9 @@
-"""REST API endpoints + static file serving for HACS Vision."""
+"""HACS Vision API 平台。"""
 from __future__ import annotations
 import json
 import logging
 import os
+import re
 
 from aiohttp import web
 from homeassistant.components.http import HomeAssistantView
@@ -12,7 +13,7 @@ from .hacs_data import HACSData
 from .hacs_operator import HACSOperator
 from .backup import BackupManager
 from .dependency_checker import DependencyChecker
-from .response import _error, _ok, _not_found, _bad_request
+from .response import _error, _not_found, _bad_request
 from .api_mixins.github_auth import GitHubAuthMixin
 from .api_mixins.github_actions import GitHubActionsMixin
 from .api_mixins.hacs_ops import HACSOpsMixin
@@ -23,14 +24,8 @@ _LOGGER = logging.getLogger(__name__)
 
 FRONTEND_DIR = os.path.join(os.path.dirname(__file__), "frontend")
 
-
 class HACSEnhancedStaticView(HomeAssistantView):
-    """Serve frontend static files — no auth required for JS/CSS assets.
-
-    HA's panel loader uses native ``import()`` which cannot send Authorization
-    headers, so the static view must allow unauthenticated access.  All data
-    API endpoints remain auth-protected.
-    """
+    """提供前端静态文件——JS/CSS 资源无需鉴权。"""
 
     url = f"{API_BASE}/static/{{filename:.*}}"
     name = "api:hacs_vision_static"
@@ -40,21 +35,19 @@ class HACSEnhancedStaticView(HomeAssistantView):
         self.hass = hass
 
     async def get(self, request, filename: str = "panel.js") -> web.Response:
-        """Serve a static file."""
+        """提供静态文件。"""
         filepath = os.path.join(FRONTEND_DIR, filename)
-        # Prevent path traversal — commonpath has no sibling-prefix pitfall
-        # that startswith() has (e.g. a "frontendX" directory).
+
         if os.path.commonpath([os.path.realpath(filepath), os.path.realpath(FRONTEND_DIR)]) != os.path.realpath(FRONTEND_DIR):
             return _bad_request("invalid_path")
         try:
             content = await self.hass.async_add_executor_job(self._read_file, filepath)
             ctype = "application/javascript" if filename.endswith(".js") else "text/html" if filename.endswith(".html") else "text/plain"
-            # Inject version into HTML for JS cache-busting
+
             if filename.endswith(".html"):
                 content = content.replace("__VERSION__", VERSION)
             resp = web.Response(text=content, content_type=ctype)
-            # HTML: always revalidate so the app pulls the latest ?v=VERSION panel.js
-            # JS:  always revalidate too (dev-active project; cache causes stale UX)
+
             if filename.endswith(".html") or filename.endswith(".js") or filename == "build.json":
                 resp.headers["Cache-Control"] = "no-cache, must-revalidate"
             else:
@@ -64,13 +57,12 @@ class HACSEnhancedStaticView(HomeAssistantView):
             return _error("file_not_found", 404)
 
     def _read_file(self, path: str) -> str:
-        """Synchronous file read."""
+        """同步读取文件。"""
         with open(path, "r", encoding="utf-8") as f:
             return f.read()
 
-
 class HACSEnhancedAPI(GitHubAuthMixin, GitHubActionsMixin, HACSOpsMixin, ReadmeTranslateMixin, HomeAssistantView):
-    """HACS Vision REST API — data endpoints (requires auth)."""
+    """HACS Vision REST API——数据端点（需鉴权）。"""
 
     url = f"{API_BASE}/{{path:.*}}"
     name = "api:hacs_vision"
@@ -83,14 +75,14 @@ class HACSEnhancedAPI(GitHubAuthMixin, GitHubActionsMixin, HACSOpsMixin, ReadmeT
         self.operator = operator or HACSOperator(hass, shared_data=self.data)
         self.backup = backup or BackupManager(hass, shared_data=self.data, operator=self.operator)
         self.checker = checker or DependencyChecker(hass, shared_data=self.data)
-        # Schedule first-run auto-import from HACS after setup completes
+        # 安装完成后安排首次从 HACS 自动导入
         self._auto_import_done = False
         self._oauth_device = None
         self._oauth_device_code = None
 
     @property
     def _ha_base_url(self) -> str:
-        """Get HA base URL dynamically (prefer internal, fallback to external)."""
+        """动态获取 HA 基础地址（优先内网，回退外网）。"""
         try:
             return self.hass.http.get_url()
         except Exception:
@@ -99,19 +91,16 @@ class HACSEnhancedAPI(GitHubAuthMixin, GitHubActionsMixin, HACSOpsMixin, ReadmeT
             except Exception:
                 return "http://localhost:8123"
 
-    # ── GET ──────────────────────────────────────────────
-
     def _forbid_non_admin(self, request) -> web.Response | None:
-        """Require an admin user — panel registration is admin-only, but any
-        authenticated non-admin could otherwise call install/remove/restart
-        endpoints directly."""
+        """要求管理员用户——面板注册仅管理员可用，但任何已鉴权的非管理员都能直接调用安装/移除/重启等端点。"""
+
         user = request.get("hass_user")
         if user is None or not user.is_admin:
             return _error("admin_required", 403)
         return None
 
     async def get(self, request, path: str = "") -> web.Response:
-        """Handle GET requests."""
+        """处理 GET 请求。"""
         if (resp := self._forbid_non_admin(request)) is not None:
             return resp
         if path.startswith("static/"):
@@ -203,10 +192,8 @@ class HACSEnhancedAPI(GitHubAuthMixin, GitHubActionsMixin, HACSOpsMixin, ReadmeT
         records = await history.get_history()
         return web.json_response({"history": records})
 
-    # ── POST ─────────────────────────────────────────────
-
     async def post(self, request, path: str = "") -> web.Response:
-        """Handle POST requests."""
+        """处理 POST 请求。"""
         if (resp := self._forbid_non_admin(request)) is not None:
             return resp
         try:
@@ -268,7 +255,7 @@ class HACSEnhancedAPI(GitHubAuthMixin, GitHubActionsMixin, HACSOpsMixin, ReadmeT
             return await self._entity_refs_replace(body, request)
         if path in ("entity_refs/reload", "entity_refs/reload/"):
             return await self._entity_refs_reload()
-        # ── GitHub Auth ──
+        # ── GitHub 鉴权 ──
         if path in ("github/verify_token", "github/verify_token/"):
             return await self._github_verify_token(body)
         if path in ("github/star", "github/star/"):
@@ -283,13 +270,13 @@ class HACSEnhancedAPI(GitHubAuthMixin, GitHubActionsMixin, HACSOpsMixin, ReadmeT
             return await self._github_auto_star()
         if path in ("github/create-issue", "github/create-issue/"):
             return await self._github_create_issue(body)
-        # ── OAuth device flow ──
+        # ── OAuth 设备流 ──
         if path in ("github/oauth/start", "github/oauth/start/"):
             return await self._github_oauth_start(body)
         if path in ("github/oauth/poll", "github/oauth/poll/"):
             return await self._github_oauth_poll(body)
 
-        # ── Config Flow proxy ──
+        # ── 配置流代理 ──
         if path == "config_flow/start":
             return await self._config_flow_start(request, body)
         if path == "config_flow/options/start":
@@ -300,7 +287,7 @@ class HACSEnhancedAPI(GitHubAuthMixin, GitHubActionsMixin, HACSOpsMixin, ReadmeT
         if path.startswith("config_flow/step/"):
             flow_id = path.split("/")[-1]
             return await self._config_flow_step(request, flow_id, body)
-        # ── Subentry Flow proxy ──
+        # ── 子配置项流代理 ──
         if path == "config_flow/subentry/start":
             return await self._config_flow_subentry_start(request, body)
         if path.startswith("config_flow/subentry/step/"):
@@ -309,12 +296,8 @@ class HACSEnhancedAPI(GitHubAuthMixin, GitHubActionsMixin, HACSOpsMixin, ReadmeT
 
         return _not_found()
 
-    # ── Config Flow proxy methods are inherited from HACSOpsMixin ──
-
-    # ── DELETE ───────────────────────────────────────────
-
     async def delete(self, request, path: str = "") -> web.Response:
-        """Handle DELETE requests."""
+        """处理 DELETE 请求。"""
         if (resp := self._forbid_non_admin(request)) is not None:
             return resp
         if path == "config/custom":
@@ -323,31 +306,23 @@ class HACSEnhancedAPI(GitHubAuthMixin, GitHubActionsMixin, HACSOpsMixin, ReadmeT
             except (json.JSONDecodeError, ValueError):
                 return _bad_request("invalid_json")
             return await self._remove_custom_repo(body)
-        # Config flow cancellation
+        # 配置流取消
         if path.startswith("config_flow/flow/"):
             flow_id = path.split("/")[-1]
             return await self._config_flow_cancel(request, flow_id)
-        # Subentry flow cancellation
+        # 子配置项流取消
         if path.startswith("config_flow/subentry/flow/"):
             flow_id = path.split("/")[-1]
             return await self._config_flow_subentry_cancel(request, flow_id)
         return _not_found()
 
-
 def _read_file_binary(path: str) -> bytes:
-    """Blocking binary file read — must run via executor."""
+    """阻塞式二进制文件读取——须通过 executor 执行。"""
     with open(path, "rb") as f:
         return f.read()
 
-
 class HACSBrandIconView(HomeAssistantView):
-    """Serve custom component brand icons (no auth - for <img> tags).
-
-    Supports:
-      /api/hacs_vision_brand/{domain}        -> icon.png / icon.svg
-      /api/hacs_vision_brand/{domain}/icon   -> icon.png / icon.svg
-      /api/hacs_vision_brand/{domain}/logo   -> logo.png / logo.svg
-    """
+    """提供自定义集成品牌图标（免鉴权，供 <img> 标签使用）。"""
 
     url = "/api/hacs_vision_brand/{domain:.*}"
     name = "api:hacs_vision_brand"
@@ -357,14 +332,11 @@ class HACSBrandIconView(HomeAssistantView):
         self.hass = hass
 
     async def get(self, request, domain):
-        import os
-        import re
-        # Parse path first: could be "cn_im_hub" or "cn_im_hub/icon" or "cn_im_hub/logo"
+        # 先解析路径：可能是 "cn_im_hub"、"cn_im_hub/icon" 或 "cn_im_hub/logo"
         parts = domain.split("/")
         actual_domain = parts[0]
         asset_type = parts[1] if len(parts) > 1 else "icon"
-        # Sanitize each segment separately — validating the whole path as one
-        # token rejects the documented /icon and /logo subpaths.
+        # 分段单独校验：把整个路径当一个令牌校验会拒绝文档规定的 /icon 与 /logo 子路径。
         if not re.match(r'^[a-zA-Z0-9_-]+$', actual_domain) \
                 or not re.match(r'^(icon|logo)$', asset_type):
             return web.Response(status=404)
