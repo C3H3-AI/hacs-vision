@@ -2,7 +2,7 @@
 
 ## v6.8.0 (2026-09-13) — 重构与服务治理 / Refactor & Service Governance
 
-**Recommended.** Minimum Home Assistant version: 2024.1.0.
+**Recommended.** Minimum Home Assistant version: 2026.1.0.
 
 本版本将 `v6.7.0` 之后合并到 main 的 8 个 PR（#30–#37）统一发布，主要是内部治理与稳定性改进。
 
