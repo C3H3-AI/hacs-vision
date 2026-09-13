@@ -1,5 +1,35 @@
 # Changelog
 
+## v6.8.0 (2026-09-13) — 重构与服务治理 / Refactor & Service Governance
+
+**Recommended.** Minimum Home Assistant version: 2024.1.0.
+
+本版本将 `v6.7.0` 之后合并到 main 的 8 个 PR（#30–#37）统一发布，主要是内部治理与稳定性改进。
+
+### 重构 / Refactor
+
+- **运行期状态迁入 `entry.runtime_data`**：新增 `runtime.py`（`VisionRuntime` 容器统一持有 operator / shared_data / backup / checker / api_view / auto_update / listeners / bg_tasks），卸载逻辑集中到 `runtime.shutdown()`，同时修复重载时视图未反注册的崩溃
+- **服务独立模块**：服务定义抽出到 `services.py`，改在 `async_setup` 中注册，卸载清理更完整
+- **15 个模块整理**：散落的 `import` 统一上提、删除无引用死代码、docstring/注释统一为中文
+
+### 修复 / Fixes
+
+- **面板幂等注册**：10 处 `customElements.define` 改为幂等，避免 `?v` 变化触发模块二次求值中断导致页面滞留旧实现
+- **删除按钮渲染 `false`**：移除 `integrations-list` 上重复的 `title` 属性，修复集成管理页按钮错位并渲染出字面量 `false`
+- **消除 `Removing unknown panel` 误告警**：`async_remove_panel` 补 `warn_if_unknown=False`
+- **manifest 依赖声明**：声明 `http` 依赖与 `blueprint/frontend/lovelace` 后置依赖，修复 hassfest 校验；版本对齐 `const.py`
+
+### CI / 工程
+
+- 新增 hassfest 与 HACS Action 校验工作流，替换旧的 `validate.yml`
+- `const.py` 与 `manifest.json` 版本统一为 `6.8.0`
+
+### English summary
+
+This release bundles the 8 PRs merged after v6.7.0 (#30–#37), focused on internal governance and stability: runtime state moved into `entry.runtime_data` with a `VisionRuntime` container and centralized `runtime.shutdown()`, services extracted to a dedicated `services.py`, idempotent `customElements.define` registration, a fix for the delete button rendering literal `false`, suppressed `Removing unknown panel` warnings, declared manifest dependencies to fix hassfest validation, and a new hassfest/HACS CI workflow.
+
+---
+
 ## v6.7.0 (2026-09-11) — 稳定版 / Stable Release
 
 从 beta1 到 beta5 的全部改动 + 2 个 hotfix（sync-favorites UnboundLocalError、custom brand 404→204）。
