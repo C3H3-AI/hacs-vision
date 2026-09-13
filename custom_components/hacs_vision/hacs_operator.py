@@ -1,15 +1,16 @@
-"""HACS internal operations via hass.data['hacs']."""
+"""HACS Vision HACS 操作平台。"""
 from __future__ import annotations
 import asyncio
 import logging
 import re
 import threading
-from typing import Any
 
+import aiohttp
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from packaging.version import Version, InvalidVersion
 
-from .const import DOMAIN_HACS, VERSION
+from .const import DOMAIN_HACS
 from .hacs_data import HACSData
 from .hacs_history import HACSHubHistory
 
@@ -17,22 +18,17 @@ _LOGGER = logging.getLogger(__name__)
 
 _PRERELEASE_RE = re.compile(r'(?i)(?:[-_.]?(?:alpha|beta|pre|rc|dev)\d*|b\d+)')
 
-
 def _compare_versions(v1: str, v2: str) -> int:
-    """Compare two version strings using PEP 440 semantics.
-    Returns 1 if v1 > v2, -1 if v1 < v2, 0 if equal.
-    Handles semver-style and PEP 440 versions: '2.0.0' > '2.0.0b24', '5.0.0.alpha1' < '5.0.0'."""
-    # import lazily to avoid startup overhead when HA may not have it in path
+    """用 PEP 440 语义比较两个版本字符串。"""
     try:
-        from packaging.version import Version, InvalidVersion
         p1, p2 = Version(v1), Version(v2)
         if p1 > p2:
             return 1
         if p1 < p2:
             return -1
         return 0
-    except (ImportError, InvalidVersion):
-        # Fallback: lexicographic sort on cleaned strings
+    except InvalidVersion:
+        # 兜底：对清洗后的字符串做字典序排序
         pass
     v1c, v2c = v1.strip().lower(), v2.strip().lower()
     if v1c > v2c:
@@ -41,47 +37,43 @@ def _compare_versions(v1: str, v2: str) -> int:
         return -1
     return 0
 
-
 def _is_prerelease_version(version: str | None) -> bool:
-    """Check if a version string indicates a pre-release (alpha/beta/rc/dev).
-
-    Handles common patterns: 2.0.0b24, 1.0.0-alpha.1, 2.0.0-rc1, 1.0.0.dev0.
-    """
+    """判断版本字符串是否表示预发布（alpha/beta/rc/dev）。"""
     if not version:
         return False
     v = version.lstrip('vV').strip()
     return bool(_PRERELEASE_RE.search(v))
 
 class HACSOperator:
-    """Operate HACS via its internal API."""
+    """通过 HACS 内部 API 操作。"""
 
     def __init__(self, hass: HomeAssistant, shared_data: HACSData | None = None) -> None:
         self.hass = hass
-        # N3: Accept shared HACSData instance to avoid redundant file reads
+        # N3：接受共享的 HACSData 实例，避免重复读文件
         self._data = shared_data or HACSData(hass)
         self._history = HACSHubHistory(hass)
         self._repo_index_by_id = None
         self._repo_index_by_name = None
         self._index_lock = threading.Lock()
-        # P1: Install/update/remove locks for idempotency protection
+        # P1：安装/更新/移除加锁以保护幂等
         self._install_locks: dict[str, asyncio.Lock] = {}
-        # F1: Track whether custom repos have been verified from config in this session
+        # F1：跟踪本会话中自定义仓库是否已从配置验证
         self._custom_repos_verified: bool = False
-        # P2: Real-time install progress tracking (for frontend progress bar)
+        # P2：实时安装进度追踪（供前端进度条）
         self._install_progress: dict[str, dict] = {}
 
     @property
     def _hacs(self):
-        """Dynamically get HACS instance — may not be available at init time."""
+        """动态获取 HACS 实例——初始化时可能尚不可用。"""
         return self.hass.data.get(DOMAIN_HACS)
 
     @property
     def available(self) -> bool:
-        """Check if HACS is loaded and accessible."""
+        """检查 HACS 是否已加载且可访问。"""
         return self._hacs is not None
 
     def _ensure_index(self):
-        """Build lookup index if not cached — thread-safe."""
+        """若未缓存则构建查找索引——线程安全。"""
         with self._index_lock:
             if self._repo_index_by_id is not None:
                 return
@@ -94,23 +86,19 @@ class HACSOperator:
                     self._repo_index_by_name[repo.data.full_name] = repo
             except (AttributeError, KeyError, TypeError) as e:
                 _LOGGER.error("Index build error: %s", e, exc_info=True)
-            # An empty HACS registry means HACS wasn't ready — leave the index
-            # uncached so the next access retries instead of caching emptiness.
+            # 空的 HACS 注册表说明 HACS 尚未就绪——保留索引
+            # 不缓存，下次访问重试，而非缓存空结果。
             if not self._repo_index_by_id:
                 self._repo_index_by_id = None
                 self._repo_index_by_name = None
 
     def invalidate_index(self):
-        """Clear cached index, will be rebuilt on next access."""
+        """清除缓存索引，下次访问时重建。"""
         self._repo_index_by_id = None
         self._repo_index_by_name = None
 
     async def _ensure_custom_repos_registered(self):
-        """Ensure HACS repository index is ready.
-
-        HACS 2.0 handles custom repo registration internally via is_default().
-        This method just ensures the lookup index is built.
-        """
+        """确保 HACS 仓库索引就绪。"""
         if not self.available:
             return
         if self._custom_repos_verified:
@@ -118,13 +106,12 @@ class HACSOperator:
         self._custom_repos_verified = True
         self._ensure_index()
 
-    
-
     def _get_lock(self, repo_id: str) -> asyncio.Lock:
-        """Get or create an asyncio.Lock for a specific repo."""
+        """获取或创建某仓库的 asyncio.Lock。"""
         if repo_id not in self._install_locks:
-            # _cleanup_lock is invoked while the lock is still held (inside
-            # `async with`), so entries would never be removed — sweep instead.
+            # _cleanup_lock 在锁仍持有（位于 `async with` 内）时被调用，
+
+            # 因此条目永远不会被移除——改为定期清理。
             if len(self._install_locks) > 128:
                 for rid in [k for k, v in self._install_locks.items() if not v.locked()]:
                     del self._install_locks[rid]
@@ -132,7 +119,7 @@ class HACSOperator:
         return self._install_locks[repo_id]
 
     def _cleanup_lock(self, repo_id: str) -> None:
-        """Remove a lock that's no longer in use."""
+        """移除不再使用的锁。"""
         lock = self._install_locks.get(repo_id)
         if lock and not lock.locked():
             del self._install_locks[repo_id]
@@ -153,32 +140,29 @@ class HACSOperator:
             return None
         return entry
 
-    def clear_install_progress(self, repo_key: str) -> None:
-        self._install_progress.pop(repo_key, None)
-
     def _find_repo_by_id(self, repo_id: str):
-        """Find a repository object by its string ID."""
+        """按字符串 ID 查找仓库对象。"""
         if not self.available:
             return None
         self._ensure_index()
         return self._repo_index_by_id.get(str(repo_id))
 
     def _find_repo_by_full_name(self, full_name: str):
-        """Find a repository object by its full_name."""
+        """按 full_name 查找仓库对象。"""
         if not self.available:
             return None
         self._ensure_index()
         return self._repo_index_by_name.get(full_name)
 
     def _find_repo(self, repo_id_or_name: str):
-        """Find repo by full_name first, then by ID."""
+        """先按 full_name 再按 ID 查找仓库。"""
         repo = self._find_repo_by_full_name(repo_id_or_name)
         if not repo:
             repo = self._find_repo_by_id(repo_id_or_name)
         return repo
 
     async def install_repository(self, repo_id_or_name: str, category: str) -> dict:
-        """Install a repository via HACS internal API — with idempotency lock."""
+        """经 HACS 内部 API 安装仓库——带幂等锁。"""
         if not self.available:
             return {"success": False, "error": "HACS not available"}
 
@@ -192,7 +176,7 @@ class HACSOperator:
                 if not repo:
                     return {"success": False, "error": f"Repository '{repo_id_or_name}' not found in HACS catalog"}
 
-                # Idempotency: already installed?
+                # 幂等：已安装？
                 if repo.data.installed:
                     return {
                         "success": True,
@@ -202,7 +186,7 @@ class HACSOperator:
                     }
 
                 await repo.async_install(version=repo.display_available_version)
-                # N1: Invalidate index after mutation
+                # N1：变更后使索引失效
                 self.invalidate_index()
                 return {
                     "success": True,
@@ -219,7 +203,7 @@ class HACSOperator:
                 self._cleanup_lock(repo_id_or_name)
 
     async def update_repositories(self, repo_ids: list[str]) -> dict:
-        """Batch update repositories — with per-repo locks."""
+        """批量更新仓库——带逐仓库锁。"""
         if not self.available:
             return {"success": False, "error": "HACS not available"}
 
@@ -253,13 +237,13 @@ class HACSOperator:
                 finally:
                     self._cleanup_lock(rid)
 
-        # N1: Invalidate index after batch mutations
+        # N1：批量变更后使索引失效
         if results["success"]:
             self.invalidate_index()
         return results
 
     async def remove_repository(self, repo_id_or_name: str) -> dict:
-        """Uninstall an installed repository — with idempotency lock."""
+        """卸载已安装仓库——带幂等锁。"""
         if not self.available:
             return {"success": False, "error": "HACS not available"}
 
@@ -277,7 +261,7 @@ class HACSOperator:
                     return {"success": True, "repository": repo.data.full_name, "note": "not_installed"}
 
                 await repo.uninstall()
-                # N1: Invalidate index after mutation
+                # N1：变更后使索引失效
                 self.invalidate_index()
                 return {"success": True, "repository": repo.data.full_name}
             except (AttributeError, KeyError, ValueError) as e:
@@ -290,24 +274,15 @@ class HACSOperator:
                 self._cleanup_lock(repo_id_or_name)
 
     async def _get_available_with_prerelease(self, repo, installed: str | None, available: str | None) -> str | None:
-        """Get latest available version, falling back to GitHub API for pre-release detection.
+        """获取最新可用版本，预发布检测回退到 GitHub API。"""
 
-        Rules:
-        - Stable → Stable only (use HACS as-is)
-        - Pre-release → Any NEWER version from GitHub (pre-release OR stable).
-          Beta testers want to know when the stable release ships.
-        """
         if not installed or not available:
             return available
         installed_prerelease = _is_prerelease_version(installed)
         available_prerelease = _is_prerelease_version(available)
         if not installed_prerelease:
-            return available  # Stable user: no override needed
-
-        # Pre-release user: always check GitHub for ANY newer version
-        # Handles two scenarios:
-        #   A. installed=beta.3, available=beta.3 (same version) → check if v5.0.0 stable exists
-        #   B. installed=beta.3, available=v5.0.0 (HACS says stable only) → check if newer pre-release exists
+            return available  # 稳定版用户：无需覆盖
+        # 预发布用户：总是向 GitHub 查询任意更新的版本
         full_name = getattr(repo.data, 'full_name', '')
         if '/' in full_name:
             try:
@@ -317,13 +292,13 @@ class HACSOperator:
                     tag = r.get("tag_name", "")
                     clean_tag = tag.lstrip("vV")
                     if clean_tag and clean_tag != installed_clean and _compare_versions(clean_tag, installed_clean) > 0:
-                        return tag  # Return full tag (with v prefix) for changelog API
+                        return tag  # 返回完整标签（含 v 前缀）供更新日志 API 使用
             except Exception:
                 pass
         return available
 
     def get_installed_list(self) -> list[dict]:
-        """Get actually installed repos from HACS in-memory data."""
+        """从 HACS 内存数据获取实际已安装仓库。"""
         if not self.available:
             return []
         result = []
@@ -362,7 +337,7 @@ class HACSOperator:
         return result
 
     async def get_available_updates(self) -> list[dict]:
-        """Get list of repositories with available updates from HACS."""
+        """从 HACS 获取有可用更新的仓库列表。"""
         if not self.available:
             return []
         updates = []
@@ -392,11 +367,10 @@ class HACSOperator:
         return updates
 
     async def get_updates_from_ha_entities(self) -> list[dict]:
-        """Get repositories with available updates from HA update.* entities.
+        """从 HA 的 update.* 实体获取有可用更新的仓库。"""
 
-        Primary data source — reads HA state machine directly instead of iterating
-        HACS internal data. Falls back to HACS repo index only for category/name.
-        """
+        if not self.available:
+            return []
         updates = []
         try:
             for state in self.hass.states.async_all():
@@ -408,14 +382,14 @@ class HACSOperator:
                 release_url = (state.attributes.get("release_url", "") or "")
                 if "github.com" not in release_url.lower():
                     continue
-                # Parse owner/repo from release_url
-                # Pattern: https://github.com/owner/repo/...
+                # 从 release_url 解析 owner/repo
+                # 模式：https://github.com/owner/repo/...
                 path = release_url.replace("https://github.com/", "").replace("http://github.com/", "")
                 parts = path.split("/")
                 if len(parts) < 2:
                     continue
                 full_name = f"{parts[0]}/{parts[1]}"
-                # Look up HACS repo for category and name
+                # 查 HACS 仓库以获取类别与名称
                 repo = self._find_repo_by_full_name(full_name)
                 category = repo.data.category if repo else "integration"
                 name = (repo.data.name or parts[1]) if repo else parts[1]
@@ -439,17 +413,11 @@ class HACSOperator:
         return updates
 
     async def get_all_repos_from_hacs(self) -> list[dict]:
-        """Get ALL repositories from HACS in-memory data (same source as HACS UI)."""
+        """从 HACS 内存数据获取全部仓库（与 HACS 界面同源）。"""
         if not self.available:
             return []
 
-        # F1: Ensure custom repos from config are registered in HACS memory
-        # (handles restart race condition where HACS hasn't loaded custom repos yet)
         await self._ensure_custom_repos_registered()
-
-        # Pre-load custom repo names from HACS config + our backup storage for is_custom detection
-        # HACS 2.0 may not populate custom_repositories in hacs.hacs, so our backup
-        # (hacs_vision_custom_repos.json) ensures reliable detection across restarts.
         custom_repo_names = set()
         try:
             config = await self._data.get_config()
@@ -468,7 +436,6 @@ class HACSOperator:
         except Exception:
             pass
 
-        # Build domain→entry_id map once (avoids N+1 config entry traversal)
         _domain_entry_map = {}
         try:
             for _entry in self.hass.config_entries.async_entries():
@@ -477,9 +444,6 @@ class HACSOperator:
         except Exception:
             pass
 
-        # Snapshot HACS's in-memory default-repository set and its per-category
-        # coverage. HACS populates this set category-by-category from the catalog
-        # data client — an unloaded category must not be treated as "all custom".
         default_ids = set()
         default_category_counts = {}
         try:
@@ -500,8 +464,8 @@ class HACSOperator:
             for i, repo in enumerate(repo_list):
                 try:
                     installed_ver = repo.data.installed_version
-                    # Capture HACS's original available version before _get_available_with_prerelease
-                    # may override it with a GitHub result
+                    # 在 _get_available_with_prerelease 前捕获 HACS 原始可用版本
+                    # 可能被 GitHub 结果覆盖
                     hacs_available = (
                         repo.display_available_version
                         or getattr(repo.data, 'available_version', None)
@@ -510,9 +474,7 @@ class HACSOperator:
                     latest_ver = await self._get_available_with_prerelease(
                         repo, installed_ver, hacs_available
                     )
-                    # Channel detection: prevent stable→prerelease, but allow prerelease→stable
-                    # ONLY when _get_available_with_prerelease actually returned a verified-newer
-                    # version from GitHub (not just the stale HACS cache)
+                    # 通道检测：阻止稳定→预发布，但允许预发布→稳定）
                     installed_prerelease = _is_prerelease_version(installed_ver)
                     latest_prerelease = _is_prerelease_version(latest_ver)
                     same_channel = installed_prerelease or installed_prerelease == latest_prerelease
@@ -545,7 +507,7 @@ class HACSOperator:
                     if hasattr(repo.data, 'new') and repo.data.new:
                         status = "new"
 
-                    # Get manifest_name safely
+                    # 安全获取 manifest_name
                     manifest_name = getattr(repo.data, 'manifest_name', None)
                     if not manifest_name and hasattr(repo.data, 'repository_manifest') and repo.data.repository_manifest:
                         try:
@@ -553,23 +515,15 @@ class HACSOperator:
                         except Exception:
                             pass
 
-                    # is_custom detection: name lists are authoritative;
-                    # is_default() is only a positive exclusion signal.
                     is_custom = False
                     full_name_lower = repo.data.full_name.lower()
                     if full_name_lower in custom_repo_names:
                         is_custom = True
                     elif repo.data.id and default_ids and str(repo.data.id) not in default_ids:
-                        # Not in the default catalog → HACS-registered custom repo.
-                        # Only trusted when the cached default catalog actually
-                        # covers this repo's category — HACS populates the
-                        # in-memory default set per category and an unloaded
-                        # category would otherwise flag EVERY repo as custom.
+
                         if default_category_counts.get(repo.data.category, 0) > 0:
                             is_custom = True
-
-                    # authors: filter out "@user" placeholder HACS sets for custom repos,
-                    # fallback to GitHub owner extracted from full_name
+                    # 作者：过滤 HACS 为自定义仓库设的 "@user" 占位符，
                     authors_raw = repo.data.authors or []
                     _authors = [a.lstrip('@') for a in authors_raw if a and a != "@user"]
                     if not _authors:
@@ -615,7 +569,7 @@ class HACSOperator:
         return result
 
     async def get_repo_releases(self, repo_id_or_name: str) -> list[dict]:
-        """Get available releases for a repository — falls back to GitHub API if HACS cache is thin."""
+        """获取仓库可用发布——HACS 缓存稀薄时回退 GitHub API。"""
         if not self.available:
             return []
         repo = self._find_repo(repo_id_or_name)
@@ -623,7 +577,7 @@ class HACSOperator:
             return []
         releases = []
         try:
-            # Try HACS internal releases first
+            # 优先尝试 HACS 内部发布
             if hasattr(repo, 'releases') and repo.releases:
                 try:
                     releases_iter = iter(repo.releases)
@@ -637,12 +591,12 @@ class HACSOperator:
                         "published_at": getattr(release, 'published_at', ''),
                     })
 
-            # If HACS cache is thin (< 3 releases), fetch from GitHub API directly
+            # 若 HACS 缓存稀薄（< 3 个发布），直接从 GitHub API 拉取
             full_name = getattr(repo.data, 'full_name', repo_id_or_name)
             if len(releases) < 3 and '/' in full_name:
                 try:
                     gh_releases = await self._fetch_github_releases(full_name)
-                    # Merge: prefer API data, deduplicate by tag_name
+                    # 合并：优先用 API 数据，按 tag_name 去重
                     seen_tags = {r["tag_name"] for r in releases}
                     for r in gh_releases:
                         if r["tag_name"] not in seen_tags:
@@ -652,7 +606,7 @@ class HACSOperator:
                 except Exception as e:
                     _LOGGER.debug("GitHub API fetch for %s failed: %s", full_name, e)
 
-            # Last resort: at least show last_version
+            # 最后手段：至少展示 last_version
             if not releases and hasattr(repo.data, 'last_version') and repo.data.last_version:
                 releases.append({
                     "tag_name": repo.data.last_version,
@@ -666,15 +620,14 @@ class HACSOperator:
             return []
 
     async def _fetch_github_releases(self, full_name: str) -> list[dict]:
-        """Fetch releases from GitHub API."""
+        """从 GitHub API 拉取发布。"""
         try:
-            import aiohttp
             headers = {"Accept": "application/vnd.github.v3+json"}
             token = self._get_github_token()
             if token:
                 headers["Authorization"] = f"token {token}"
             url = f"https://api.github.com/repos/{full_name}/releases?per_page=20"
-            # HA's shared session — a per-call ClientSession leaks connectors.
+            # HA 的共享会话——每次调用新建 ClientSession 会泄漏连接器。
             session = async_get_clientsession(self.hass)
             async with session.get(url, headers=headers, timeout=aiohttp.ClientTimeout(total=15)) as resp:
                 if resp.status == 200:
@@ -691,7 +644,7 @@ class HACSOperator:
         return []
 
     def _get_github_token(self) -> str | None:
-        """Get GitHub token from HACS config entry."""
+        """从 HACS 配置项获取 GitHub 令牌。"""
         try:
             for entry in self.hass.config_entries.async_entries("hacs"):
                 token = entry.data.get("token")
@@ -701,25 +654,20 @@ class HACSOperator:
             pass
         return None
 
-    # A git ref must be a safe path segment: no separators, no traversal,
-    # no whitespace, and reasonable length. Multi-segment names allowed
-    # only for feature branches (feature/foo), never tags/ or heads/ prefixes.
+    # 仅用于特性分支（feature/foo），绝不用 tags/ 或 heads/ 前缀。
     _REF_RE = re.compile(r"^[A-Za-z0-9._](?:[A-Za-z0-9._-]*/)*[A-Za-z0-9._-]{0,200}$")
     _REF_BAD = re.compile(r"(\.\.|//|^/|\\|[\s\r\n]|^(tags|heads)/)")
 
     @staticmethod
     def _normalize_ref(version: str | None) -> str | None:
-        """Validate a user-supplied ref and reject anything unsafe.
+        """校验用户提供的引用并拒绝任何不安全内容。"""
 
-        Accepts branch names (foo/bar, v1.x) and short/full commit SHAs.
-        Returns the stripped ref, or None when invalid.
-        """
         if not version or not isinstance(version, str):
             return None
         ref = version.strip()
         if not ref or len(ref) > 200:
             return None
-        # Hex string of 7-40 chars → commit SHA, pass through
+        # 7-40 位十六进制字符串 → 提交 SHA，直接透传
         if re.fullmatch(r"[a-fA-F0-9]{7,40}", ref):
             return ref.lower() if len(ref) == 40 else ref
         if not HACSOperator._REF_RE.match(ref) or HACSOperator._REF_BAD.search(ref):
@@ -727,7 +675,7 @@ class HACSOperator:
         return ref
 
     async def _fetch_repo_meta(self, full_name: str) -> dict:
-        """Fetch live repo metadata (default_branch etc.) from GitHub."""
+        """从 GitHub 获取仓库实时元数据（默认分支等）。"""
         session = async_get_clientsession(self.hass)
         headers = {"Accept": "application/vnd.github.v3+json"}
         token = self._get_github_token()
@@ -743,18 +691,8 @@ class HACSOperator:
         return {}
 
     async def install_repository_version(self, repo_id_or_name: str, version: str | None = None) -> dict:
-        """Install a specific version of a repository.
+        """安装仓库的特定版本。"""
 
-        Two distinct paths:
-        - Release tag → repo.async_install(version=tag) (HACS native).
-        - Arbitrary ref (branch / commit SHA) → repo.async_download_repository(ref=ref),
-          HACS' official ref installer which manages selected_tag/force_branch
-          itself and restores them in its own finally block.
-        `repo.data.default_branch` from HACS storage is unreliable (often None),
-        so the live value is fetched and patched in before install — HACS
-        compares `version_to_install == data.default_branch` internally to
-        decide between the heads/ and tags/ archive URLs.
-        """
         if not self.available:
             return {"success": False, "error": "HACS not available"}
         lock = self._get_lock(repo_id_or_name)
@@ -775,10 +713,6 @@ class HACSOperator:
                         return {"success": False, "error": "invalid_ref"}
 
                 is_release = version and self._is_release_version(repo, version)
-
-                # Patch in the live default branch — HACS decides between
-                # heads/ and tags/ archive URLs by comparing the requested
-                # version against data.default_branch.
                 saved_releases_objects = None
                 saved_file_name = None
                 if version and not is_release:
@@ -786,18 +720,8 @@ class HACSOperator:
                     live_default = meta.get("default_branch")
                     if live_default:
                         repo.data.default_branch = live_default
-                    # Force a tree refresh for the new ref: HACS' etag
-                    # short-circuit would otherwise keep the PREVIOUS ref's
-                    # tree, leaving content.path.remote=None → "No content
-                    # to download".
                     repo.data.etag_repository = None
                     repo.tree = []
-                    # Temporarily hide release assets so HACS' plugin
-                    # update_filenames() computes content.path.remote from
-                    # the requested REF's tree instead of pinning it to
-                    # "release" (the latest release asset path) — for a
-                    # branch install that mismatch yields "No content to
-                    # download".
                     saved_releases_objects = repo.releases.objects
                     saved_file_name = repo.data.file_name
                     repo.releases.objects = []
@@ -806,14 +730,14 @@ class HACSOperator:
 
                 try:
                     if version and not is_release:
-                        # Official arbitrary-ref installer: handles
-                        # selected_tag / force_branch / ref internally.
+                        # 官方任意引用安装器：处理
+                        # selected_tag / force_branch / ref（内部）。
                         await repo.async_download_repository(ref=version)
                     else:
                         await repo.async_install(version=version or repo.display_available_version)
                 finally:
-                    # Belt-and-braces restore (async_download_repository also
-                    # restores these itself in its own finally block).
+                    # 双保险恢复（async_download_repository 亦
+                    # 在其自身 finally 块中恢复这些）。
                     if version and getattr(repo.data, "selected_tag", None) == version:
                         repo.data.selected_tag = None
                     if version and getattr(repo, "force_branch", False):
@@ -836,13 +760,10 @@ class HACSOperator:
                 return {"success": False, "error": str(e)}
 
     def _is_release_version(self, repo, version: str) -> bool:
-        """Check whether `version` is a known release tag for this repo.
+        """判断 `version` 是否为该仓库已知的发布标签。"""
 
-        Accepts a tag with or without the leading 'v'. Anything else (branch
-        name, short or full commit SHA) is treated as an arbitrary git ref.
-        """
         if not version:
-            return True  # let HACS pick the default
+            return True  # 让 HACS 选择默认
         candidate = version.lstrip("vV")
         try:
             for release in (getattr(repo, "releases", None) or []):
@@ -854,17 +775,8 @@ class HACSOperator:
         return False
 
     async def get_repo_refs(self, repo_id_or_name: str) -> list[dict]:
-        """List branches and recent commits available for install.
+        """列出可用于安装的分支与近期提交。 """
 
-        The default branch is fetched LIVE from the GitHub API — HACS'
-        stored `repo.data.default_branch` is unreliable (often None).
-        Version badges: a release's `target_commitish` is a BRANCH name,
-        not a SHA, so badges are attached to branches by name match
-        (branch == target_commitish of a release).
-
-        Returns [{"type": "branch"|"commit", "name", "sha", "date",
-                   "message", "version" (optional), "default" (bool)}].
-        """
         repo = self._find_repo(repo_id_or_name) if self.available else None
         full_name = getattr(getattr(repo, "data", None), "full_name", "") or repo_id_or_name
         if "/" not in full_name:
@@ -875,13 +787,13 @@ class HACSOperator:
         if token:
             headers["Authorization"] = f"token {token}"
 
-        # Live repo metadata — storage default_branch is unreliable.
+        # 实时仓库元数据——存储的 default_branch 不可靠。
         meta = await self._fetch_repo_meta(full_name)
         default_branch = meta.get("default_branch") \
             or getattr(getattr(repo, "data", None), "default_branch", None) \
             or "main"
 
-        # Release tag → target branch map (target_commitish is a branch name).
+        # 发布标签 → 目标分支映射（target_commitish 为分支名）。
         tag_by_branch: dict[str, str] = {}
         try:
             url = f"https://api.github.com/repos/{full_name}/releases?per_page=30"
@@ -897,7 +809,7 @@ class HACSOperator:
 
         refs: list[dict] = []
 
-        # Branches
+        # 分支
         try:
             url = f"https://api.github.com/repos/{full_name}/branches?per_page=30"
             async with session.get(url, headers=headers, timeout=15) as resp:
@@ -923,7 +835,7 @@ class HACSOperator:
         except Exception as e:
             _LOGGER.debug("Fetch branches failed for %s: %s", full_name, e)
 
-        # Recent commits on the LIVE default branch
+        # 实时默认分支上的近期提交
         try:
             url = f"https://api.github.com/repos/{full_name}/commits?per_page=15&sha={default_branch}"
             async with session.get(url, headers=headers, timeout=15) as resp:
@@ -948,7 +860,7 @@ class HACSOperator:
         return refs
 
     def get_repo_rt_status(self, repo_id_or_name: str) -> dict | None:
-        """Get real-time status from HACS in-memory data (not from .storage file)."""
+        """从 HACS 内存数据（而非 .storage 文件）获取实时状态。"""
         repo = self._find_repo(repo_id_or_name)
         if not repo:
             return None
@@ -963,14 +875,14 @@ class HACSOperator:
             "has_update": bool(installed and available and installed != available),
             "pending_restart": getattr(repo, 'pending_restart', False),
         }
-        # Attach install progress if available
+        # 若可用则附加安装进度
         progress = self.get_install_progress(repo.data.full_name) or self.get_install_progress(repo_id_or_name)
         if progress:
             result["progress"] = progress
         return result
 
     async def refresh_repositories(self) -> dict:
-        """Refresh HACS repository data — concurrent update with rate-limit awareness."""
+        """刷新 HACS 仓库数据——并发更新并感知速率限制。"""
         if not self.available:
             return {"success": False, "error": "HACS not available"}
 
@@ -985,7 +897,7 @@ class HACSOperator:
         errors = []
         rate_limited = False
 
-        # Limit concurrency to 5 to avoid hammering GitHub API
+        # 限制并发为 5，避免猛击 GitHub API
         sem = asyncio.Semaphore(5)
 
         async def _update_one(repo):
@@ -1016,7 +928,7 @@ class HACSOperator:
         }
 
     async def add_custom_repository(self, full_name: str, category: str) -> dict:
-        """Add a custom repository to HACS."""
+        """向 HACS 添加自定义仓库。"""
         config = await self._data.get_config()
         custom_repos = config.get("custom_repositories", [])
 
@@ -1029,7 +941,7 @@ class HACSOperator:
             if not ok:
                 return {"success": False, "error": "write_failed"}
 
-        # Also persist to our backup storage (HACS 2.0 may strip custom_repositories)
+        # 同时持久化到我们的备份存储（HACS 2.0 可能剥离 custom_repositories）
         our_repos = await self._data.get_custom_repos_list()
         if not any(r.get("repository") == full_name for r in our_repos):
             our_repos.append({"repository": full_name, "category": category})
@@ -1049,19 +961,15 @@ class HACSOperator:
                     )
                 except Exception as e:
                     err_str = str(e).lower()
-                    # E1: Retry with check=False + repository_id when the latest stable
-                    # release doesn't have the HACS directory structure (e.g. repo has
-                    # a pre-release with custom_components/ but the stable release is
-                    # still the old Docker-based version). This allows the repo to be
-                    # registered; the user can then install the pre-release version.
+
                     if "not compliant" in err_str or "structure" in err_str:
                         _LOGGER.warning(
                             "HACS validation failed for %s (likely latest stable release "
                             "lacks custom_components/). Retrying with check=False...",
                             full_name
                         )
-                        # Fetch the GitHub repo ID so HACS's register() won't skip it
-                        # (register() returns early when repo.data.id == "0").
+                        # 抓取 GitHub 仓库 ID，使 HACS 的 register() 不会跳过
+                        #（register() 在 repo.data.id == "0" 时提前返回）。
                         repo_id = await self._fetch_github_repo_id(full_name)
                         if repo_id:
                             try:
@@ -1108,7 +1016,7 @@ class HACSOperator:
                         _LOGGER.warning("HACS register failed after add: %s", e, exc_info=True)
                         return {"success": False, "error": f"HACS register failed: {e}"}
 
-            # Persist the newly registered repo to .storage/hacs.repositories immediately.
+            # 立即将新注册的仓库持久化到 .storage/hacs.repositories。
             try:
                 await self._hacs.data.async_write()
             except Exception as e:
@@ -1117,11 +1025,8 @@ class HACSOperator:
         return {"success": True, "repository": full_name}
 
     async def _fetch_github_repo_id(self, full_name: str) -> str | None:
-        """Fetch the GitHub repository numeric ID via the API.
+        """通过 API 获取 GitHub 仓库数字 ID。"""
 
-        This is needed when HACS's async_register_repository(check=False) is used
-        — without the ID, HACS's register() silently skips the repo.
-        """
         session = async_get_clientsession(self.hass)
         url = f"https://api.github.com/repos/{full_name}"
         try:
@@ -1139,24 +1044,12 @@ class HACSOperator:
             _LOGGER.warning("GitHub API error for %s: %s", full_name, ex)
         return None
 
-    async def _find_config_entry_id(self, domain: str | None) -> str | None:
-        """Find HA config entry ID for a given integration domain."""
-        if not domain:
-            return None
-        try:
-            for entry in self.hass.config_entries.async_entries():
-                if entry.domain == domain:
-                    return entry.entry_id
-        except Exception:
-            pass
-        return None
-
     async def remove_custom_repository(self, full_name: str) -> dict:
-        """Remove a custom repository from HACS."""
+        """从 HACS 移除自定义仓库。"""
         if not self.available:
             return {"success": False, "error": "HACS not available"}
 
-        # Clean up our backup storage
+        # 清理我们的备份存储
         our_repos = await self._data.get_custom_repos_list()
         filtered = [r for r in our_repos if r.get("repository", "").lower() != full_name.lower()]
         if len(filtered) < len(our_repos):

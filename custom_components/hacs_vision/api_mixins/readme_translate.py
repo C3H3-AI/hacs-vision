@@ -1,10 +1,4 @@
-"""Mixin: README translation powered by HA conversation agents.
-
-Lets the user translate any repository's README inside the HACS Vision popup
-by calling the HA ``conversation.process`` service with a user-selected agent
-(e.g. MiMo / GPT / Ollama Assist pipelines). No hardcoded endpoints, no extra
-API keys — the agent is chosen in the HACS Vision settings page.
-"""
+"""HACS Vision README 翻译平台。"""
 from __future__ import annotations
 
 import logging
@@ -12,7 +6,7 @@ import time
 
 import aiohttp
 
-from ..response import _ok, _bad_request, _error, _upstream_error
+from ..response import _ok, _bad_request, _error
 from .hacs_ops import (
     _README_CACHE,
     _README_CACHE_TTL,
@@ -20,15 +14,14 @@ from .hacs_ops import (
     _cache_put,
 )
 
-
 _LOGGER = logging.getLogger(__name__)
 
-# Translation result cache keyed by (full_name, target_lang)
+# 翻译结果缓存，键为 (full_name, target_lang)
 _README_TRANS_CACHE: dict[tuple[str, str], dict] = {}
 _README_TRANS_CACHE_TTL = 21600  # 6h
 _README_TRANS_CACHE_MAX = 100
 
-# Supported target languages (key → human label for the prompt)
+# 支持的目标语言（键 → 提示词中的人类可读标签）
 SUPPORTED_TRANSLATION_LANGS = {
     "zh": "Chinese (中文)",
     "en": "English",
@@ -36,12 +29,11 @@ SUPPORTED_TRANSLATION_LANGS = {
     "ru": "Russian (Русский)",
 }
 
-# The built-in command router is not an LLM translator — exclude from the picker.
+# 内置命令路由不是 LLM 翻译器——从选择器排除。
 _DEFAULT_CONVERSATION_ENTITY = "conversation.home_assistant"
 
-
 def _trans_cache_put(key: tuple[str, str], value: dict) -> None:
-    """Put into translation cache with size limit (evict oldest by timestamp)."""
+    """写入翻译缓存并限制大小（按时间戳淘汰最旧）。"""
     if len(_README_TRANS_CACHE) >= _README_TRANS_CACHE_MAX:
         try:
             oldest = min(_README_TRANS_CACHE, key=lambda k: _README_TRANS_CACHE[k].get("timestamp", 0))
@@ -50,19 +42,12 @@ def _trans_cache_put(key: tuple[str, str], value: dict) -> None:
             _README_TRANS_CACHE.clear()
     _README_TRANS_CACHE[key] = value
 
-
 class ReadmeTranslateMixin:
-    """Provides README translation via HA conversation agents."""
-
-    # ── Fetch source README (reuses the shared upstream cache) ──
+    """通过 HA 对话代理提供 README 翻译。"""
 
     async def _fetch_readme_html(self, full_name: str) -> tuple[str | None, str | None]:
-        """Fetch rendered README HTML.
+        """获取渲染后的 README HTML。"""
 
-        Reuses the exact upstream logic from ``HACSOpsMixin._get_readme`` so the
-        translated view shares the same GitHub cache as the original view.
-        Returns ``(html, error_code)``; ``error_code`` is ``None`` on success.
-        """
         cached = _README_CACHE.get(full_name)
         if cached and (time.monotonic() - cached["timestamp"] < _README_CACHE_TTL):
             return cached["html"], None
@@ -98,15 +83,11 @@ class ReadmeTranslateMixin:
             _LOGGER.error("README fetch unexpected error: %s", e, exc_info=True)
             return None, "operation_failed"
 
-    # ── Call HA conversation agent to translate ──
-
     async def _call_conversation_agent(
         self, agent_id: str, target_lang: str, source_html: str
     ) -> tuple[str | None, str | None]:
-        """Translate ``source_html`` into ``target_lang`` via a HA conversation agent.
+        """通过 HA 对话代理将 ``source_html`` 翻译为 ``target_lang``。"""
 
-        Returns ``(translated_html, error_code)``.
-        """
         lang_name = SUPPORTED_TRANSLATION_LANGS.get(target_lang, "English")
         prompt = (
             f"Translate the following GitHub README documentation from its original "
@@ -135,25 +116,20 @@ class ReadmeTranslateMixin:
 
     @staticmethod
     def _extract_agent_text(result) -> str | None:
-        """Robustly extract the spoken text from a conversation.process response.
-
-        HA returns the result either as a ``ConversationResult`` dict
-        (``response.speech.plain.speech``) or already flattened
-        (``speech.plain.speech``). Handle both shapes defensively.
-        """
+        """稳健地从 conversation.process 响应中提取语音文本。"""
         if not result:
             return None
 
         speech = None
-        # Shape 1: nested under "response"
+        # 形态 1：嵌套在 "response" 下
         if isinstance(result, dict):
             resp = result.get("response")
             if isinstance(resp, dict):
                 speech = resp.get("speech")
-            # Shape 2: flattened
+            # 形态 2：扁平结构
             if speech is None:
                 speech = result.get("speech")
-            # Shape 3: direct plain text field
+            # 形态 3：直接纯文本字段
             if speech is None and isinstance(result.get("text"), str):
                 return result["text"]
 
@@ -165,16 +141,11 @@ class ReadmeTranslateMixin:
         text = plain.get("speech")
         return text if isinstance(text, str) else None
 
-    # ── Public translate entry ──
-
     async def _translate_readme(
         self, full_name: str, target_lang: str, agent_id: str | None = None
     ) -> tuple[str | None, str | None]:
-        """Translate a repository README into ``target_lang``.
+        """将仓库 README 翻译为 ``target_lang``。"""
 
-        ``target_lang == "original"`` short-circuits to the cached/source HTML.
-        Returns ``(html, error_code)``.
-        """
         if target_lang == "original":
             return await self._fetch_readme_html(full_name)
 
@@ -190,7 +161,7 @@ class ReadmeTranslateMixin:
         if err:
             return None, err
 
-        # Resolve agent: explicit arg wins, else read from saved settings
+        # 解析代理：显式参数优先，否则读取已保存设置
         if not agent_id:
             settings = await self.data.get_settings()
             agent_id = settings.get("translation_agent")
@@ -205,7 +176,7 @@ class ReadmeTranslateMixin:
         return translated_html, None
 
     async def _translate_readme_endpoint(self, body: dict) -> object:
-        """HTTP POST handler for ``readme/translate``."""
+        """readme/translate 的 HTTP POST 处理器。"""
         full_name = (body or {}).get("full_name")
         target_lang = (body or {}).get("target_lang")
         if not full_name or not target_lang:

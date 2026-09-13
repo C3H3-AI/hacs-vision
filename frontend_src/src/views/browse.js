@@ -1519,4 +1519,4 @@ class BrowseView extends LitElement {
   }
 }
 
-customElements.define('browse-view', BrowseView);
+if (!customElements.get('browse-view')) customElements.define('browse-view', BrowseView);

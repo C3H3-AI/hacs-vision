@@ -1,4 +1,4 @@
-"""Mixin: GitHub interactions (star/unstar, issue creation, log fetching, sync)."""
+"""HACS Vision GitHub 动作平台。"""
 from __future__ import annotations
 
 import asyncio
@@ -11,17 +11,19 @@ from aiohttp import web
 
 from ..const import VERSION, VALID_HACS_CATEGORIES
 from ..response import _error, _ok, _not_found, _bad_request, _unauthorized, _server_error
+import os as _os
+import re as _re
+from homeassistant.const import __version__ as ha_version
+import asyncio as _asyncio
+import uuid as _uuid
 
 _LOGGER = logging.getLogger(__name__)
 
-
 class GitHubActionsMixin:
-    """GitHub star/unstar, issue creation, log fetching, and starred-repo sync."""
-
-    # ── Star / Unstar ──────────────────────────────────
+    """GitHub 点赞/取消点赞、议题创建、日志获取与已点赞仓库同步。"""
 
     async def _github_star(self, body: dict) -> web.Response:
-        """Star a repository."""
+        """给仓库加星。"""
         repo = body.get("repo", "").strip()
         if not repo or "/" not in repo:
             return _bad_request("invalid_repo")
@@ -41,7 +43,7 @@ class GitHubActionsMixin:
             return _server_error()
 
     async def _github_auto_star(self) -> web.Response:
-        """Auto-star hacs-vision repo if not already starred."""
+        """若尚未加星则自动给 hacs-vision 仓库加星。"""
         repo = "C3H3-AI/hacs-vision"
         check_resp = await self._github_check_starred(repo)
         check_data = json.loads(check_resp.body)
@@ -50,7 +52,7 @@ class GitHubActionsMixin:
         return await self._github_star({"repo": repo})
 
     async def _github_unstar(self, body: dict) -> web.Response:
-        """Unstar a repository."""
+        """取消仓库星标。"""
         repo = body.get("repo", "").strip()
         if not repo or "/" not in repo:
             return _bad_request("invalid_repo")
@@ -69,7 +71,7 @@ class GitHubActionsMixin:
             return _server_error()
 
     async def _github_check_starred(self, repo: str) -> web.Response:
-        """Check if the authenticated user has starred a repo."""
+        """检查当前用户是否已点赞某仓库。"""
         if not repo or "/" not in repo:
             return _bad_request("invalid_repo")
         token = await self._get_active_github_token()
@@ -85,7 +87,7 @@ class GitHubActionsMixin:
             return web.json_response({"starred": False, "error": "operation_failed"})
 
     async def _github_list_starred(self) -> web.Response:
-        """Fetch all starred repos for the authenticated user, paginated."""
+        """分页获取已认证用户的所有星标仓库。"""
         token = await self._get_active_github_token()
         if not token:
             return _unauthorized(repos=[])
@@ -131,8 +133,7 @@ class GitHubActionsMixin:
         except Exception as e:
             _LOGGER.error("_github_list_starred error: %s", e, exc_info=True)
             return _server_error(repos=repos)
-        # Annotate which starred repos are already registered in HACS — the UI
-        # hides those from the add-as-custom selection (they're already there).
+        # 标注已在 HACS 注册的星标仓库——界面会
         try:
             hacs_repos = await self.operator.get_all_repos_from_hacs()
             if not hacs_repos:
@@ -145,7 +146,7 @@ class GitHubActionsMixin:
         return web.json_response({"repos": repos, "total": len(repos)})
 
     async def _github_list_org_repos(self, query) -> web.Response:
-        """List repos of a GitHub user or organization, optionally filtering for HA-related."""
+        """列出 GitHub 用户或组织的仓库，可按 HA 相关过滤。"""
         org = query.get("org", "").strip()
         if not org:
             return _bad_request("org_required")
@@ -213,7 +214,7 @@ class GitHubActionsMixin:
         return web.json_response({"repos": repos, "total": len(repos)})
 
     def _detect_hacs_category(self, repo: dict) -> str:
-        """Detect HACS category from a GitHub repo's metadata."""
+        """从 GitHub 仓库元数据探测 HACS 分类。"""
         topics = [t.lower() for t in (repo.get("topics") or [])]
         desc = (repo.get("description") or "").lower()
         lang = (repo.get("language") or "").lower()
@@ -250,20 +251,10 @@ class GitHubActionsMixin:
         if any(w in desc for w in ["home assistant", "home-assistant", "hacs"]) or "home-assistant" in topics:
             return "integration"
 
-        # No HACS signal at all — the repo is not installable via HACS.
-        # (The old fallback returned "integration" for everything, which made
-        # every random starred repo look like an addable integration.)
         return None
 
-    # ── Sync starred to custom repos / favorites ───────
-
     async def _github_sync_starred(self, body: dict) -> web.Response:
-        """Add selected starred repos as custom repositories.
-
-        Only installable repos pass: the repo must not already be registered
-        in HACS, and its category must be a real HACS category (heuristic
-        detections like "addon" are not installable via HACS).
-        """
+        """将选中的星标仓库添加为自定义仓库。 """
         selected = body.get("repos", [])
         if not selected:
             return _bad_request("no_repos")
@@ -299,7 +290,7 @@ class GitHubActionsMixin:
         return web.json_response({"results": results})
 
     async def _github_sync_favorites(self) -> web.Response:
-        """Sync GitHub starred repos to local favorites. One backend call, all internal."""
+        """将 GitHub 星标仓库同步到本地收藏。单次后端调用，全内部处理。"""
         token = await self._get_active_github_token()
         if not token:
             return _unauthorized(added=[], synced=0, total=0)
@@ -341,8 +332,8 @@ class GitHubActionsMixin:
         current_set = {str(f) for f in current}
         installable_current = {f for f in current_set if f in known_names}
         added = sorted(starred_names - current_set)
-        # Favorites pointing at repos HACS can't install are junk (e.g. blind
-        # star imports) — a sync is the natural moment to drop them.
+        # 指向 HACS 无法安装仓库的收藏是无用的（如盲目
+        # 加星导入）——同步时正好顺手清理掉。
         removed = sorted(current_set - installable_current)
         new_favs = sorted(installable_current | starred_names)
         if added or removed:
@@ -355,17 +346,9 @@ class GitHubActionsMixin:
             "total": len(new_favs),
         })
 
-    # ── Log fetching ───────────────────────────────────
-
     async def _github_fetch_logs(self, domain: str | None = None, max_lines: int = 50) -> str:
-        """Fetch HA error logs, optionally filtered by domain.
-
-        Priority: supervisor Docker logs -> system_log component -> error_log API -> file fallback
-        """
+        """获取 HA 错误日志，可按域过滤。"""
         text = ""
-        import os as _os
-
-        # 1. Supervisor API
         if not text:
             try:
                 token = _os.environ.get("SUPERVISOR_TOKEN")
@@ -381,7 +364,6 @@ class GitHubActionsMixin:
                                 raw = await resp.text()
                                 if raw and len(raw) > 50:
                                     lines = raw.strip().split("\n")
-                                    import re as _re
                                     clean = []
                                     for ln in lines:
                                         ln = ln.strip()
@@ -396,7 +378,6 @@ class GitHubActionsMixin:
             except Exception:
                 pass
 
-        # 2. HA system_log component
         if not text:
             try:
                 log_data = self.hass.data.get("system_log")
@@ -424,7 +405,6 @@ class GitHubActionsMixin:
             except Exception:
                 pass
 
-        # 3. HA error_log API
         if not text:
             try:
                 session = await self._get_session()
@@ -448,7 +428,6 @@ class GitHubActionsMixin:
             except Exception:
                 pass
 
-        # 4. Docker CLI
         if not text:
             try:
                 proc = await asyncio.create_subprocess_exec(
@@ -461,7 +440,6 @@ class GitHubActionsMixin:
             except Exception:
                 pass
 
-        # 5. HA log file
         if not text:
             for log_path in ("/share/second-core/home-assistant.log", "/config/home-assistant.log"):
                 try:
@@ -487,15 +465,9 @@ class GitHubActionsMixin:
 
         return "\n".join(filtered[-max_lines:])
 
-    # ── Issue creation ─────────────────────────────────
-
     async def _build_issue_body(self, repo_info: dict | None, user_title: str, user_body: str,
                                   repo_domain: str | None) -> str:
-        """Build a detailed GitHub issue body with system info and logs."""
-        try:
-            from homeassistant.const import __version__ as ha_version
-        except ImportError:
-            ha_version = getattr(self.hass, "version", "unknown") or "unknown"
+        """构造含系统信息与日志的详细 GitHub 议题正文。"""
         lines = []
         lines.append(f"## 描述\n{user_body}\n" if user_body else "## 描述\n_无详细描述_\n")
         lines.append("## 系统信息")
@@ -523,7 +495,7 @@ class GitHubActionsMixin:
         return "\n".join(lines)
 
     async def _github_issue_preview(self, query) -> web.Response:
-        """Preview logs and system info before creating an issue."""
+        """创建议题前预览日志与系统信息。"""
         repo = (query.get("repo") if hasattr(query, "get") else query or "").strip()
         repo_info = None
         repo_domain = None
@@ -535,10 +507,6 @@ class GitHubActionsMixin:
             pass
 
         logs = await self._github_fetch_logs(repo_domain, max_lines=60)
-        try:
-            from homeassistant.const import __version__ as ha_version
-        except ImportError:
-            ha_version = getattr(self.hass, "version", "unknown") or "unknown"
 
         return web.json_response({
             "ha_version": ha_version,
@@ -550,9 +518,8 @@ class GitHubActionsMixin:
         })
 
     async def _save_screenshot(self, base64_data: str, filename: str) -> str | None:
-        """Save a base64 screenshot to HA's www dir and return accessible URL."""
+        """将 base64 截图保存到 HA 的 www 目录并返回可访问 URL。"""
         try:
-            import os as _os
             www_dir = self.hass.config.path("www", "hacs_vision_screenshots")
             _os.makedirs(www_dir, exist_ok=True)
             raw = base64_data
@@ -578,8 +545,6 @@ class GitHubActionsMixin:
                 except Exception:
                     pass
             if not ha_url:
-                # No external/internal URL configured in HA — derive a best-effort
-                # base URL from the local HA host/port instead of a hard-coded domain.
                 host = getattr(self.hass.config, "host", None) or "localhost"
                 http = getattr(self.hass, "http", None)
                 port = getattr(http, "server_port", 8123) if http else 8123
@@ -591,8 +556,7 @@ class GitHubActionsMixin:
         return None
 
     def _cleanup_screenshots(self, filenames: list[str]) -> None:
-        """Remove temporary screenshot files."""
-        import os as _os
+        """清理临时截图文件。"""
         if not filenames:
             return
         www_dir = self.hass.config.path("www", "hacs_vision_screenshots")
@@ -605,13 +569,12 @@ class GitHubActionsMixin:
                 _LOGGER.warning("Cleanup screenshot %s error: %s", fname, e)
 
     async def _delayed_cleanup(self, filenames: list[str], delay: int = 300) -> None:
-        """Clean up screenshots after a delay to let GitHub cache them."""
-        import asyncio as _asyncio
+        """延迟清理截图，以便 GitHub 缓存。"""
         await _asyncio.sleep(delay)
         self._cleanup_screenshots(filenames)
 
     async def _github_create_issue(self, body: dict) -> web.Response:
-        """Create a GitHub issue with auto-collected error logs."""
+        """创建自动收集错误日志的 GitHub 议题。"""
         repo = body.get("repo", "").strip()
         title = body.get("title", "").strip()
         user_body = body.get("body", "").strip()
@@ -636,7 +599,6 @@ class GitHubActionsMixin:
         screenshot_files = []
         screenshots = body.get("screenshots", [])
         if screenshots and isinstance(screenshots, list):
-            import uuid as _uuid
             _LOGGER.info("Saving %d screenshots to HA www...", len(screenshots))
             for i, ss_b64 in enumerate(screenshots):
                 if not ss_b64 or not isinstance(ss_b64, str) or len(ss_b64) < 100:
@@ -665,7 +627,7 @@ class GitHubActionsMixin:
             _LOGGER.info("Created issue #%s for %s: %s", number, repo, html_url)
             if screenshot_files:
                 _LOGGER.info("Screenshots will be cleaned up in 5 minutes")
-                # Keep a reference — fire-and-forget tasks can be GC'd mid-flight
+                # 保留引用——fire-and-forget 任务可能在执行中被 GC 回收
                 self._pending_cleanups = getattr(self, "_pending_cleanups", set())
                 _t = asyncio.ensure_future(self._delayed_cleanup(screenshot_files, 300))
                 self._pending_cleanups.add(_t)

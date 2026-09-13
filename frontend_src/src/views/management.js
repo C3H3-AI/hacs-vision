@@ -1337,4 +1337,4 @@ export class ManagementView extends LitElement {
   }
 }
 
-customElements.define('management-view', ManagementView);
+if (!customElements.get('management-view')) customElements.define('management-view', ManagementView);
