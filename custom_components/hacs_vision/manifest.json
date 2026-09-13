@@ -6,7 +6,6 @@
   "config_flow": true,
   "dependencies": ["http", "hacs"],
   "documentation": "https://github.com/C3H3-AI/hacs-vision",
-  "homeassistant": "2026.1.0",
   "integration_type": "hub",
   "iot_class": "calculated",
   "issue_tracker": "https://github.com/C3H3-AI/hacs-vision/issues",
