@@ -1,1 +1,1 @@
-"""API Mixins for HACS Enhanced API — split by responsibility."""
+"""HACS Vision API 混合模块。"""
