@@ -468,4 +468,4 @@ document.head.appendChild(script);
   }
 }
 
-customElements.define('card-preview-dialog', CardPreviewDialog);
+if (!customElements.get('card-preview-dialog')) customElements.define('card-preview-dialog', CardPreviewDialog);
