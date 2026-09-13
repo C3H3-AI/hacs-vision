@@ -1,16 +1,14 @@
 {
-  "codeowners": [
-    "@C3H3-AI"
-  ],
-  "config_flow": true,
-  "dependencies": [
-    "hacs"
-  ],
-  "documentation": "https://github.com/C3H3-AI/hacs-vision",
   "domain": "hacs_vision",
+  "name": "HACS Vision",
+  "after_dependencies": ["blueprint", "frontend", "lovelace"],
+  "codeowners": ["@C3H3-AI"],
+  "config_flow": true,
+  "dependencies": ["http", "hacs"],
+  "documentation": "https://github.com/C3H3-AI/hacs-vision",
+  "integration_type": "hub",
   "iot_class": "calculated",
   "issue_tracker": "https://github.com/C3H3-AI/hacs-vision/issues",
-  "name": "HACS Vision",
   "requirements": [],
-  "version": "6.7.0"
+  "version": "6.7.1"
 }
