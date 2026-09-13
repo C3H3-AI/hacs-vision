@@ -143,8 +143,13 @@ class GitHubAuthMixin:
             return _server_error()
 
     async def _github_oauth_start(self, body: dict) -> web.Response:
-        """用裸 aiohttp 发起 GitHub OAuth 设备流以绕开 SSRF 防护。"""
+        """发起 GitHub OAuth 设备流。
+
+        用裸 aiohttp 会话而非 HA 共享会话：目标是 github.com 外部端点，
+        且不需要 HA 的 SSRF 重定向中间件。
+        """
         try:
+            # HACS 可能未安装，延迟到调用点导入其 CLIENT_ID
             from custom_components.hacs.const import CLIENT_ID
 
             register_url = "https://github.com/login/device/code"
@@ -175,11 +180,12 @@ class GitHubAuthMixin:
             return _server_error()
 
     async def _github_oauth_poll(self, body: dict) -> web.Response:
-        """用裸 aiohttp 轮询 OAuth 设备流激活。"""
+        """轮询 OAuth 设备流激活。"""
         device_code = body.get("device_code", "")
         if not device_code:
             return _bad_request("device_code_required")
         try:
+            # HACS 可能未安装，延迟到调用点导入其 CLIENT_ID
             from custom_components.hacs.const import CLIENT_ID
 
             poll_url = "https://github.com/login/oauth/access_token"
