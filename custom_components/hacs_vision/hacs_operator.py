@@ -714,19 +714,69 @@ class HACSOperator:
 
                 is_release = version and self._is_release_version(repo, version)
                 saved_releases_objects = None
-                saved_file_name = None
+                saved_download_content = None
                 if version and not is_release:
+                    # Patch in the live default branch: HACS compares the
+                    # requested version against data.default_branch to choose
+                    # between the heads/ and tags/ archive URLs, and the value
+                    # stored by HACS is frequently stale/None.
                     meta = await self._fetch_repo_meta(repo_key)
                     live_default = meta.get("default_branch")
                     if live_default:
                         repo.data.default_branch = live_default
-                    repo.data.etag_repository = None
-                    repo.tree = []
+
+                    # The tree is refreshed inside a download_content hook
+                    # (not here): HACS only assigns self.ref = <requested ref>
+                    # inside async_download_repository(), which runs after this
+                    # block. Refreshing here caches the PREVIOUS ref's tree,
+                    # leaving content.path.remote pointing at the latest
+                    # release asset ("release") while download_content() is
+                    # called with the branch/SHA — release_contents() then
+                    # finds no matching release, gathering yields no files and
+                    # the install fails with "No content to download".
+                    #
+                    # The hook also hides release assets while the refresh
+                    # runs, so HACS' update_filenames() derives file_name and
+                    # content.path.remote from the requested ref's tree rather
+                    # than from the latest release asset.
                     saved_releases_objects = repo.releases.objects
-                    saved_file_name = repo.data.file_name
-                    repo.releases.objects = []
-                    repo.data.file_name = None
-                    await repo.update_repository(force=True)
+                    saved_download_content = repo.download_content
+
+                    async def _download_content_for_ref(
+                        version=None, _orig=saved_download_content, _repo=repo
+                    ):
+                        try:
+                            # Refresh the tree for the requested ref (self.ref
+                            # is already assigned by async_download_repository).
+                            _repo.data.etag_repository = None
+                            await _repo.update_repository(force=True)
+                            # update_repository() refills releases, and HACS'
+                            # update_filenames() prefers a release asset over
+                            # the ref's tree — which pins content.path.remote
+                            # to "release" and makes download_content() look
+                            # for a release named after the branch/SHA. Clear
+                            # the assets afterwards and re-derive file_name /
+                            # content.path.remote from the ref's tree.
+                            _repo.releases.objects = []
+                            # update_filenames() derives the expected asset
+                            # name from data.name ("<name>.js"); for a repo
+                            # whose name was never populated that yields
+                            # "None.js" and nothing matches. Fall back to the
+                            # repository slug, as HACS does once the manifest
+                            # is parsed.
+                            if not _repo.data.name:
+                                _repo.data.name = (
+                                    (_repo.data.full_name or "").split("/")[-1]
+                                    or _repo.data.name
+                                )
+                            _repo.content.path.remote = None
+                            _repo.data.file_name = None
+                            _repo.update_filenames()
+                            return await _orig(version)
+                        finally:
+                            _repo.releases.objects = saved_releases_objects
+
+                    repo.download_content = _download_content_for_ref
 
                 try:
                     if version and not is_release:
@@ -742,10 +792,13 @@ class HACSOperator:
                         repo.data.selected_tag = None
                     if version and getattr(repo, "force_branch", False):
                         repo.force_branch = False
+                    if saved_download_content is not None:
+                        repo.download_content = saved_download_content
                     if saved_releases_objects is not None:
                         repo.releases.objects = saved_releases_objects
-                    if saved_file_name is not None:
-                        repo.data.file_name = saved_file_name
+                    # file_name is intentionally NOT restored: it was derived
+                    # from the installed ref's tree and the post-install step
+                    # (dashboard resource URL) relies on that value.
 
                 self.set_install_progress(repo_key, 75, "installing", "Installing...")
                 self.invalidate_index()
