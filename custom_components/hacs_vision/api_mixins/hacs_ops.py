@@ -892,13 +892,16 @@ class HACSOpsMixin:
             await self.data.update_config(config)
         if self.operator and self.operator.available:
             try:
-                hacs_config = self.operator._hacs.configuration
+                hacs = self.operator._hacs
+                hacs_config = hacs.configuration
                 if hasattr(hacs_config, 'archived_repositories'):
                     hacs_archived = list(hacs_config.archived_repositories or [])
                     if repo_name in hacs_archived:
                         hacs_archived.remove(repo_name)
                         hacs_config.archived_repositories = hacs_archived
-                await self.operator._hacs.data.async_write()
+                # 显式探测 data.async_write 存在性，避免 HACS 版本差异导致 AttributeError
+                if getattr(hacs, "data", None) is not None and hasattr(hacs.data, "async_write"):
+                    await hacs.data.async_write()
             except Exception as e:
                 _LOGGER.warning("Failed to update HACS memory state: %s", e, exc_info=True)
         purged_ids = await self._purge_from_repos_storage(repo_name)
