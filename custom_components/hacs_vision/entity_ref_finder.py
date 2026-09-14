@@ -330,8 +330,6 @@ class EntityRefFinder:
 
     async def _scan_blueprints(self) -> None:
         """扫描自动化 / 脚本蓝图以查找 entity_id 引用。"""
-        # 蓝图的容器键是 automation_blueprints / script_blueprints，
-        # 公开取法是各域 helpers 的 async_get_blueprints(hass)
         getters = {
             "automation": async_get_automation_blueprints,
             "script": async_get_script_blueprints,
@@ -451,15 +449,17 @@ class EntityRefFinder:
     def _replace_in_value(self, value: Any, old_id: str, new_id: str) -> bool:
         """在配置结构中递归替换 entity_id 引用。"""
         changed = False
+        # 按整词匹配：实体 ID 由 [a-z0-9_] 组成，. 非单词字符，故 \b 边界
+        # 不会跨过 _ 等单词字符，从而区分 light.kitchen 与 light.kitchen_table。
+        pattern = re.compile(r"\b" + re.escape(old_id) + r"\b")
         if isinstance(value, dict):
             for key, val in list(value.items()):
                 if isinstance(val, str):
                     if val == old_id:
                         value[key] = new_id
                         changed = True
-                    elif old_id in val:
-                        # 同时处理内嵌出现（模板等）
-                        new_val = val.replace(old_id, new_id)
+                    elif pattern.search(val):
+                        new_val = pattern.sub(new_id, val)
                         if new_val != val:
                             value[key] = new_val
                             changed = True
@@ -472,8 +472,8 @@ class EntityRefFinder:
                     if item == old_id:
                         value[i] = new_id
                         changed = True
-                    elif old_id in item:
-                        new_item = item.replace(old_id, new_id)
+                    elif pattern.search(item):
+                        new_item = pattern.sub(new_id, item)
                         if new_item != item:
                             value[i] = new_item
                             changed = True
@@ -483,11 +483,7 @@ class EntityRefFinder:
         return changed
 
     async def _read_config_file(self, filename: str):
-        """读取 HA 配置目录下的 YAML 配置——解析交给 executor，避免阻塞事件循环。
-
-        文件缺失抛 FileNotFoundError；其余 OSError 与 YAML 解析失败
-        统一被 load_yaml 包成 HomeAssistantError。
-        """
+        """读取 HA 配置目录下的 YAML 配置——解析交给 executor，避免阻塞事件循环。"""
         try:
             return await self.hass.async_add_executor_job(
                 load_yaml, self.hass.config.path(filename)
@@ -496,11 +492,7 @@ class EntityRefFinder:
             return None
 
     def _config_key(self, entity_id: str) -> str:
-        """取配置键。
-
-        automation / scene 的 entity_id 由名称派生，只有实体注册表的
-        unique_id 才是配置文件里的 id（= 配置接口的 {config_key}）。
-        """
+        """取配置键。"""
         entry = er.async_get(self.hass).async_get(entity_id)
         if entry is not None and entry.unique_id:
             return entry.unique_id
@@ -569,11 +561,7 @@ class EntityRefFinder:
         )
 
     async def _async_post_config(self, domain: str, config_key: str, config: dict) -> bool:
-        """经 HA 配置接口写回 automation / script / scene 配置。
-
-        三个域共用同一路由形态：/api/config/{domain}/config/{config_key}
-        （见 HA 的 EditIdBasedConfigView / EditKeyBasedConfigView）。
-        """
+        """经 HA 配置接口写回 automation / script / scene 配置。"""
         if not self._hass_token:
             _LOGGER.error("Cannot save %s config: no HA access token", domain)
             return False
