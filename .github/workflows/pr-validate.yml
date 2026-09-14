@@ -1,0 +1,106 @@
+name: Validate with PR
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+
+    steps:
+
+      # Validate branch
+      - name: Validate branch
+        env:
+          BRANCH: ${{ github.event.pull_request.head.ref }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          echo "Checking branch: $BRANCH"
+
+          if [[ "$BRANCH" == "main" || "$BRANCH" == "master" ]]; then
+            echo "❌ Direct PR from main/master is forbidden"
+            echo "Closing PR #$PR_NUMBER"
+
+            curl -s -X PATCH \
+              -H "Authorization: token $GITHUB_TOKEN" \
+              -H "Accept: application/vnd.github.v3+json" \
+              https://api.github.com/repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER} \
+              -d '{"state":"closed"}'
+
+            exit 1
+          fi
+
+          echo "✅ Branch passed"
+
+      # Validate PR title
+      - name: Validate PR title
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        shell: bash
+        run: |
+          echo "Checking PR title"
+
+          if [[ -z "$PR_TITLE" ]]; then
+              echo "❌ PR title is empty"
+              exit 1
+          fi
+
+          # 如果包含冒号，则要求格式为 <something>: <something>
+          if [[ "$PR_TITLE" == *:* ]]; then
+              if [[ ! "$PR_TITLE" =~ ^[^:]+:[[:space:]]*.+ ]]; then
+                  echo "❌ Invalid PR title format"
+                  echo "Format: <type>: <description>"
+                  exit 1
+              fi
+          fi
+
+          echo "✅ PR title passed"
+
+      # Validate PR body
+      - name: Validate PR content
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+        shell: bash
+        run: |
+          echo "Checking PR content"
+
+          if [[ -z "$PR_BODY" ]]; then
+            echo "❌ PR body is empty"
+            exit 1
+          fi
+
+          # Description check
+          DESCRIPTION=$(echo "$PR_BODY" \
+            | sed '/<!--/,/-->/d' \
+            | awk '
+              /^## Description/ {flag=1; next}
+              /^## / {flag=0}
+              flag
+            ' \
+            | sed '/^[[:space:]]*$/d')
+
+          if [[ -z "$DESCRIPTION" ]]; then
+            echo "❌ Description is empty"
+            exit 1
+          fi
+
+          echo "✅ Description passed"
+
+          # Change type check
+          TYPE_COUNT=$(echo "$PR_BODY" \
+            | grep -Ec '\[x\].*(bugfix|new feature|refactor|breaking|docs):')
+
+
+          if [[ "$TYPE_COUNT" -ne 1 ]]; then
+            echo "❌ Select exactly one change type"
+            exit 1
+          fi
+
+          PR_TYPE=$(echo "$PR_BODY" \
+            | grep -E '\[x\].*(bugfix|new feature|refactor|breaking|docs):' \
+            | sed -E 's/.*\] ([^:]+):.*/\1/')
+
+          echo "✅ Change type: $PR_TYPE"

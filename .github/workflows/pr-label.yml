@@ -1,0 +1,113 @@
+name: Auto Label PR Type
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize]
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  label:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Detect change type and sync label
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+        shell: bash
+        run: |
+
+          echo "Checking change type"
+
+
+          PR_TYPE=$(echo "$PR_BODY" \
+            | grep -E '\[x\].*(bugfix|new feature|refactor|breaking|docs):' \
+            | sed -E 's/.*\] ([^:]+):.*/\1/')
+
+
+          if [[ -z "$PR_TYPE" ]]; then
+            echo "❌ No change type selected"
+            exit 1
+          fi
+
+
+          echo "Detected type: $PR_TYPE"
+
+
+          case "$PR_TYPE" in
+            bugfix)
+              LABEL="🐛 Bug Fix"
+              ;;
+            "new feature")
+              LABEL="✨ Feature"
+              ;;
+            refactor)
+              LABEL="🔧 Refactor"
+              ;;
+            breaking)
+              LABEL="⚠️ Breaking"
+              ;;
+            docs)
+              LABEL="📝 Docs"
+              ;;
+            *)
+              echo "❌ Invalid type: $PR_TYPE"
+              exit 1
+              ;;
+          esac
+
+
+          echo "Target label: $LABEL"
+
+
+          CURRENT_LABELS=$(gh pr view "$PR_NUMBER" \
+            --repo "$REPO" \
+            --json labels \
+            -q '.labels[].name')
+
+
+          if echo "$CURRENT_LABELS" | grep -Fxq "$LABEL"; then
+            echo "✅ Label already exists: $LABEL"
+            exit 0
+          fi
+
+
+          echo "Updating labels"
+
+
+          OLD_LABELS=(
+            "🐛 Bug Fix"
+            "✨ Feature"
+            "🔧 Refactor"
+            "⚠️ Breaking"
+            "📝 Docs"
+          )
+
+
+          for OLD_LABEL in "${OLD_LABELS[@]}"; do
+            if echo "$CURRENT_LABELS" | grep -Fxq "$OLD_LABEL"; then
+              echo "Removing old label: $OLD_LABEL"
+
+              gh pr edit "$PR_NUMBER" \
+                --repo "$REPO" \
+                --remove-label "$OLD_LABEL"
+            fi
+          done
+
+
+          echo "Adding label: $LABEL"
+
+
+          gh pr edit "$PR_NUMBER" \
+            --repo "$REPO" \
+            --add-label "$LABEL"
+
+
+          echo "✅ Label updated: $LABEL"

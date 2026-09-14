@@ -1,0 +1,89 @@
+name: Auto Release Draft
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'custom_components/**/manifest.json'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-draft:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # 版本号严格比较
+      - name: Version Increment Check
+        id: check
+        run: |
+          MANIFEST_FILE=$(ls custom_components/*/manifest.json | head -n 1)
+          COMPONENT_NAME=$(basename $(dirname $MANIFEST_FILE))
+          NEW_VERSION=$(python3 -c "import json; print(json.load(open('$MANIFEST_FILE'))['version'])")
+
+          LATEST_TAG=$(git tag -l "v*" --sort=-v:refname | head -n 1)
+          if [ -z "$LATEST_TAG" ]; then
+            LATEST_TAG="v0.0.0"
+          fi
+          OLD_VERSION=${LATEST_TAG#v}
+
+          echo "检测到新版本: $NEW_VERSION"
+          echo "检测到旧版本: $OLD_VERSION"
+
+          python3 -m pip install packaging
+          IS_INCREASED=$(python3 -c "from packaging import version; print(version.parse('$NEW_VERSION') > version.parse('$OLD_VERSION'))")
+
+          if [ "$IS_INCREASED" = "True" ]; then
+            echo "compare_result=success" >> $GITHUB_OUTPUT
+            echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
+            echo "comp_name=$COMPONENT_NAME" >> $GITHUB_OUTPUT
+
+            COMMIT_TITLE=$(git log -1 --pretty=format:"%s")
+            echo "commit_title=$COMMIT_TITLE" >> $GITHUB_OUTPUT
+
+            if [[ $NEW_VERSION == *"beta"* ]] || [[ $NEW_VERSION == *"rc"* ]] || [[ $NEW_VERSION == *"alpha"* ]]; then
+              echo "is_prerelease=true" >> $GITHUB_OUTPUT
+            else
+              echo "is_prerelease=false" >> $GITHUB_OUTPUT
+            fi
+          else
+            echo "compare_result=skip" >> $GITHUB_OUTPUT
+            echo "❌ 错误：新版本 $NEW_VERSION 并不大于旧版本 $OLD_VERSION。跳过发布。"
+          fi
+
+      # 构建 ZIP
+      - name: Create ZIP file
+        if: steps.check.outputs.compare_result == 'success'
+        run: |
+          cd custom_components/${{ steps.check.outputs.comp_name }}
+          zip -r ../../${{ steps.check.outputs.comp_name }}.zip .
+
+      # 创建 Release Draft
+      - name: Create GitHub Release Draft
+        if: steps.check.outputs.compare_result == 'success'
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: v${{ steps.check.outputs.version }}
+      
+          name: v${{ steps.check.outputs.version }} - ${{ steps.check.outputs.commit_title }}
+      
+          files: |
+            ${{ steps.check.outputs.comp_name }}.zip
+      
+          draft: true
+      
+          prerelease: ${{ steps.check.outputs.is_prerelease }}
+      
+          generate_release_notes: true
+      
+          target_commitish: ${{ github.sha }}
+      
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -1,0 +1,74 @@
+name: Close Stale Issues
+
+# This workflow automatically marks inactive issues as stale and closes them if they remain inactive.
+# It is designed to be generic and reusable across repositories.
+# 此工作流自动将长期无活动的问题标记为过期，并在持续无活动时关闭。
+# 设计为通用、可复用，可直接用于其他仓库。
+#
+# Schedule: runs daily at 01:30 UTC
+# 计划：每天 UTC 01:30 运行
+
+on:
+  schedule:
+    - cron: "30 1 * * *"
+  workflow_dispatch:
+
+permissions:
+  issues: write
+
+jobs:
+  stale:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Mark and close stale issues
+        uses: actions/stale@v9
+        with:
+          # === Timing / 时间设置 ===
+          # Days of inactivity before an issue is marked stale
+          # 问题无活动多少天后标记为过期
+          days-before-stale: 15
+
+          # Days after being marked stale before the issue is closed
+          # 标记为过期后多少天关闭问题
+          days-before-close: 5
+
+          # Only process issues, not pull requests
+          # 仅处理问题，不处理拉取请求
+          days-before-pr-stale: -1
+          days-before-pr-close: -1
+
+          # === Exempt labels / 豁免标签 ===
+          # Issues with any of these labels will not be processed
+          # 带有以下标签的问题不会被处理
+          exempt-issue-labels: bug
+
+          # === Labels to apply / 要添加的标签 ===
+          stale-issue-label: stale
+          close-issue-label: stale-closed
+
+          # === Messages (bilingual) / 消息（双语）===
+          stale-issue-message: >-
+            This issue has been inactive for 15 days and is being marked as stale.
+            该问题已 15 天无活动，正在标记为过期。
+
+            If this issue is still relevant, please leave a comment to keep it open.
+            如果此问题仍然相关，请留言以保持其开启状态。
+
+            Otherwise, it will be closed in 5 days.
+            否则，将在 5 天后自动关闭。
+
+          close-issue-message: >-
+            This issue was closed due to prolonged inactivity after being marked stale.
+            该问题在标记为过期后因持续无活动而被关闭。
+
+            If you believe this was closed in error, please reopen it with a comment.
+            如果您认为这是错误关闭的，请留言并重新打开。
+
+          # === Behavior / 行为设置 ===
+          # Remove the stale label when the issue is updated
+          # 问题有更新时移除过期标签
+          remove-stale-when-updated: true
+
+          # Maximum operations per run (avoids GitHub API rate limits)
+          # 每次运行最大操作数（避免触发 GitHub API 速率限制）
+          operations-per-run: 30
