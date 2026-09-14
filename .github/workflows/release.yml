@@ -66,24 +66,48 @@ jobs:
           zip -r ../../${{ steps.check.outputs.comp_name }}.zip .
 
       # 创建 Release Draft
-      - name: Create GitHub Release Draft
+      #
+      # 用 gh CLI 替代 softprops/action-gh-release：后者在 draft 模式下不创建
+      # 真实 tag，只分配 untagged-<hash> 占位符，且人工点击 Publish 后该占位符
+      # 不会被替换成版本 tag。结果是 release 表面发布成功，但 vX.Y.Z tag 不存在，
+      # HACS 依赖 tag 识别版本，用户收不到更新（v7.0.0 实测复现）。
+      # gh 的 tag 与 release 是原子创建，不存在中间态。
+      - name: Create draft release
         if: steps.check.outputs.compare_result == 'success'
-        uses: softprops/action-gh-release@v3
-        with:
-          tag_name: v${{ steps.check.outputs.version }}
-      
-          name: v${{ steps.check.outputs.version }} - ${{ steps.check.outputs.commit_title }}
-      
-          files: |
-            ${{ steps.check.outputs.comp_name }}.zip
-      
-          draft: true
-      
-          prerelease: ${{ steps.check.outputs.is_prerelease }}
-      
-          generate_release_notes: true
-      
-          target_commitish: ${{ github.sha }}
-      
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ steps.check.outputs.version }}
+          COMP_NAME: ${{ steps.check.outputs.comp_name }}
+          COMMIT_TITLE: ${{ steps.check.outputs.commit_title }}
+          IS_PRERELEASE: ${{ steps.check.outputs.is_prerelease }}
+        run: |
+          set -euo pipefail
+
+          TAG="v${VERSION}"
+
+          PRERELEASE_FLAG=""
+          if [[ "${IS_PRERELEASE}" == "true" ]]; then
+            PRERELEASE_FLAG="--prerelease"
+          fi
+
+          gh release create "${TAG}" \
+            --draft \
+            --target "${{ github.sha }}" \
+            --title "${TAG} - ${COMMIT_TITLE}" \
+            --generate-notes \
+            ${PRERELEASE_FLAG} \
+            "${COMP_NAME}.zip"
+
+          echo "✅ Draft release created for ${TAG}"
+
+      # 校验 tag 已随 release 一并创建。
+      # 把「静默失败」变成「显式失败」——否则要等到用户反馈收不到更新才会发现。
+      - name: Verify tag exists
+        if: steps.check.outputs.compare_result == 'success'
+        run: |
+          TAG="v${{ steps.check.outputs.version }}"
+          if ! git ls-remote --tags origin | grep -q "refs/tags/${TAG}$"; then
+            echo "::error::Tag ${TAG} was not created — the release will not reach HACS"
+            exit 1
+          fi
+          echo "✅ Tag ${TAG} exists"
