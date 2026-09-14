@@ -10,14 +10,14 @@
 
 ### ⚠️ 破坏性变更 / Breaking
 
-- **最低 HA 版本提升至 2026.1.0** — `hacs.json` 与 `manifest.json` 均声明 `homeassistant: 2026.1.0`，HACS 会对低版本用户拦截安装
+- **最低 HA 版本提升至 2026.1.0** — 由 `hacs.json` 的 `homeassistant: 2026.1.0` 声明，HACS 会对低版本用户拦截安装（Home Assistant 的 `manifest.json` 不支持该字段，最低版本只能由 `hacs.json` 声明）
 - **剔除旧版 API 与兼容分支 ([#41](https://github.com/C3H3-AI/hacs-vision/pull/41))** — 移除针对旧版 HA 的探测与回退分支，统一走现行 API：
   - 配置项变更改订阅 `SIGNAL_CONFIG_ENTRY_CHANGED`，替代不存在的 `config_entry_updated` / `config_entry_removed` 总线事件（此前缓存重建永不触发）
   - `hass.http.get_url()` → `helpers.network.get_url`；`hass.data["system_log"]` → `LogErrorHandler.records.to_list()`
   - 设备注册表改用 `dr.async_entries_for_config_entry`，替代 2026.9 起弃用的容器视图
   - 蓝图与场景改走 `async_get_blueprints(hass)` 等公开 API；配置写入统一走 `POST /api/config/{domain}/config/{key}`
   - 共 8 个文件，`+284 -358`（净删 74 行）
-- **Minimum HA raised to 2026.1.0** — declared in both `hacs.json` and `manifest.json`; HACS blocks older installs
+- **Minimum HA raised to 2026.1.0** — declared through `hacs.json` (`homeassistant: 2026.1.0`); HACS blocks older installs (Home Assistant's `manifest.json` has no such field — the minimum can only be declared in `hacs.json`)
 - **Legacy API and compatibility branches removed ([#41](https://github.com/C3H3-AI/hacs-vision/pull/41))** — all old-version probing and fallbacks are gone; the integration now targets current APIs only
 
 ### 🔧 修复 / Fixed
