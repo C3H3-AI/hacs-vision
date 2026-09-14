@@ -6,11 +6,15 @@ import logging
 import os
 import time
 
+import homeassistant.components
 from homeassistant.helpers.translation import async_get_translations
 
 from .const import STORAGE_PATHS
 
 _LOGGER = logging.getLogger(__name__)
+
+# HA 内置组件目录——用于回退读取内置集成的翻译与 manifest
+BUILTIN_COMPONENTS_PATH = os.path.dirname(homeassistant.components.__file__)
 
 class HACSData:
     """通过 SSH/文件访问读写 HACS 存储数据。"""
@@ -251,23 +255,9 @@ class HACSData:
                 )
                 # 再尝试内置组件的翻译
                 if not os.path.isfile(trans_path):
-                    try:
-                        import homeassistant.components as ha_comp
-                        comp_base = os.path.dirname(
-                            ha_comp.__file__
-                        ) if hasattr(ha_comp, '__file__') and ha_comp.__file__ else None
-                        # 回退：components 目录相对 homeassistant 包
-                        if not comp_base or not os.path.isdir(comp_base):
-                            import homeassistant
-                            comp_base = os.path.join(
-                                os.path.dirname(homeassistant.__file__), "components"
-                            )
-                        if comp_base and os.path.isdir(comp_base):
-                            trans_path = os.path.join(
-                                comp_base, domain, "translations", f"{lang}.json"
-                            )
-                    except Exception:
-                        pass
+                    trans_path = os.path.join(
+                        BUILTIN_COMPONENTS_PATH, domain, "translations", f"{lang}.json"
+                    )
 
                 if trans_path and os.path.isfile(trans_path):
                     try:
@@ -308,44 +298,10 @@ class HACSData:
 
         for entry in self.hass.config_entries.async_entries():
             if entry.domain:
-                entry_state = None
-                try:
-                    if hasattr(entry, 'state') and entry.state is not None:
-                        entry_state = entry.state.name.lower()
-                except Exception:
-                    pass
-                subentry_types = None
-                try:
-                    if hasattr(entry, 'supported_subentry_types'):
-                        st = entry.supported_subentry_types
-                        if st:
-                            subentry_types = list(st.keys())
-                except Exception:
-                    pass
-                supports_options = None
-                try:
-                    if hasattr(entry, 'supports_options'):
-                        supports_options = entry.supports_options
-                except Exception:
-                    pass
-                supports_reconfigure = None
-                try:
-                    if hasattr(entry, 'supports_reconfigure'):
-                        supports_reconfigure = entry.supports_reconfigure
-                except Exception:
-                    pass
-                supports_remove_device = None
-                try:
-                    if hasattr(entry, 'supports_remove_device'):
-                        supports_remove_device = entry.supports_remove_device
-                except Exception:
-                    pass
-                num_subentries = 0
-                try:
-                    if hasattr(entry, 'num_subentries'):
-                        num_subentries = entry.num_subentries
-                except Exception:
-                    pass
+                # 以下成员自 HA 2026.1.0 起均为 ConfigEntry 的稳定字段/属性
+                entry_state = entry.state.value if entry.state else None
+                subentry_types = list(entry.supported_subentry_types.keys()) or None
+                num_subentries = len(entry.subentries)
                 # 读取 manifest 中的 iot_class
                 iot_class = None
                 manifest_path = self.hass.config.path(
@@ -354,10 +310,9 @@ class HACSData:
                 is_custom = os.path.isfile(manifest_path)
                 # 也尝试内置组件的 manifest
                 if not is_custom:
-                    import homeassistant.components as ha_comp
-                    builtin_base = os.path.dirname(ha_comp.__file__) if hasattr(ha_comp, '__file__') and ha_comp.__file__ else None
-                    if builtin_base and os.path.isdir(builtin_base):
-                        manifest_path = os.path.join(builtin_base, entry.domain, "manifest.json")
+                    manifest_path = os.path.join(
+                        BUILTIN_COMPONENTS_PATH, entry.domain, "manifest.json"
+                    )
                 if os.path.isfile(manifest_path):
                     try:
                         manifest = await self.hass.async_add_executor_job(
@@ -375,10 +330,10 @@ class HACSData:
                     "translated_name": translations.get(entry.domain),
                     "source": entry.source,
                     "state": entry_state or "loaded",
-                    "disabled_by": entry.disabled_by.value if hasattr(entry.disabled_by, 'value') else entry.disabled_by,
-                    "supports_options": supports_options,
-                    "supports_reconfigure": supports_reconfigure,
-                    "supports_remove_device": supports_remove_device,
+                    "disabled_by": entry.disabled_by.value if entry.disabled_by else None,
+                    "supports_options": entry.supports_options,
+                    "supports_reconfigure": entry.supports_reconfigure,
+                    "supports_remove_device": entry.supports_remove_device,
                     "supported_subentry_types": subentry_types,
                     "num_subentries": num_subentries,
                     "is_custom": is_custom,
@@ -400,40 +355,16 @@ class HACSData:
                 entry = live_entries.get(eid)
                 if not entry:
                     continue
-                # 状态
-                try:
-                    item["state"] = entry.state.name.lower() if entry.state else "loaded"
-                except Exception:
-                    item["state"] = "loaded"
-                # 支持选项
-                try:
-                    item["supports_options"] = entry.supports_options if hasattr(entry, 'supports_options') else None
-                except Exception:
-                    item["supports_options"] = None
-                # 是否支持重配置
-                try:
-                    item["supports_reconfigure"] = entry.supports_reconfigure if hasattr(entry, 'supports_reconfigure') else None
-                except Exception:
-                    item["supports_reconfigure"] = None
-                # 支持移除设备
-                try:
-                    item["supports_remove_device"] = entry.supports_remove_device if hasattr(entry, 'supports_remove_device') else None
-                except Exception:
-                    item["supports_remove_device"] = None
-                # 子配置项类型 + 数量
-                try:
-                    st = entry.supported_subentry_types if hasattr(entry, 'supported_subentry_types') else None
-                    if st:
-                        item["supported_subentry_types"] = list(st.keys()) if isinstance(st, dict) else list(st)
-                    else:
-                        item["supported_subentry_types"] = None
-                except Exception:
-                    pass
-                try:
-                    if hasattr(entry, 'num_subentries'):
-                        item["num_subentries"] = entry.num_subentries
-                except Exception:
-                    pass
+                # 状态与能力字段——2026.1.0 起均为稳定字段/属性
+                item["state"] = entry.state.value if entry.state else "loaded"
+                item["supports_options"] = entry.supports_options
+                item["supports_reconfigure"] = entry.supports_reconfigure
+                item["supports_remove_device"] = entry.supports_remove_device
+                subentry_types = entry.supported_subentry_types
+                item["supported_subentry_types"] = (
+                    list(subentry_types.keys()) if subentry_types else None
+                )
+                item["num_subentries"] = len(entry.subentries)
         except Exception as exc:
             _LOGGER.warning("Dynamic field refresh error: %s", exc)
 

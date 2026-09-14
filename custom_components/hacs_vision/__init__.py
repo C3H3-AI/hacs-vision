@@ -16,8 +16,14 @@ from homeassistant.components.websocket_api import (
     async_response,
     websocket_command,
 )
+from homeassistant.config_entries import (
+    SIGNAL_CONFIG_ENTRY_CHANGED,
+    ConfigEntry,
+    ConfigEntryChange,
+)
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import aiohttp_client
+from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.typing import ConfigType
 
 from .api import HACSEnhancedAPI, HACSEnhancedStaticView, HACSBrandIconView
@@ -106,16 +112,19 @@ async def async_setup_entry(hass: HomeAssistant, entry: VisionConfigEntry) -> bo
     try:
         await shared_data.get_config_entries_map()
 
-        async def _rebuild_cache(event):
-            """任何变更时立即重建配置项缓存。"""
+        async def _rebuild_cache(
+            change: ConfigEntryChange, entry: ConfigEntry
+        ) -> None:
+            """任何配置项变更时立即重建缓存。"""
             try:
                 await shared_data.get_config_entries_map(force_refresh=True)
             except Exception as exc:
                 _LOGGER.warning("Config cache rebuild error: %s", exc)
 
-        unsub1 = hass.bus.async_listen("config_entry_updated", _rebuild_cache)
-        unsub2 = hass.bus.async_listen("config_entry_removed", _rebuild_cache)
-        runtime.listeners = [unsub1, unsub2]
+        unsub = async_dispatcher_connect(
+            hass, SIGNAL_CONFIG_ENTRY_CHANGED, _rebuild_cache
+        )
+        runtime.listeners = [unsub]
     except Exception as exc:
         _LOGGER.warning("Config entries cache init error: %s", exc)
 

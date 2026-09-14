@@ -1,15 +1,24 @@
 """HACS Vision 实体引用查找平台。"""
 from __future__ import annotations
 
-import json
 import logging
 import re
 from typing import Any
 
-from homeassistant.components.blueprint.models import DomainBlueprints
+from homeassistant.components.automation.helpers import (
+    async_get_blueprints as async_get_automation_blueprints,
+)
+from homeassistant.components.blueprint.models import Blueprint, DomainBlueprints
 from homeassistant.components.lovelace.const import LOVELACE_DATA
+from homeassistant.components.script.helpers import (
+    async_get_blueprints as async_get_script_blueprints,
+)
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import HomeAssistantError
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.helpers.network import NoURLAvailableError, get_url
+from homeassistant.util.yaml import load_yaml
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -291,7 +300,7 @@ class EntityRefFinder:
         if not lovelace_data:
             return
 
-        dashboards = getattr(lovelace_data, "dashboards", {})
+        dashboards = lovelace_data.dashboards
         # 扫描默认仪表盘
         try:
             config = await self._get_dash_config(None)
@@ -306,7 +315,7 @@ class EntityRefFinder:
             _LOGGER.debug("Skip default dashboard: %s", exc)
 
         # 扫描自定义仪表盘
-        for url_path, dash in dashboards.items():
+        for url_path in dashboards:
             try:
                 config = await self._get_dash_config(url_path)
                 if config:
@@ -320,32 +329,27 @@ class EntityRefFinder:
                 _LOGGER.debug("Skip dashboard %s: %s", url_path, exc)
 
     async def _scan_blueprints(self) -> None:
-        """扫描蓝图以查找 entity_id 引用（经 REST API / SSH）。"""
-        try:
-            for domain in ("automation", "script"):
-                blueprints: DomainBlueprints | None = self.hass.data.get(
-                    f"blueprint.{domain}"
-                )
-                if not blueprints:
-                    continue
-                for bp_path, bp in blueprints.blueprints.items():
-                    if bp is None:
+        """扫描自动化 / 脚本蓝图以查找 entity_id 引用。"""
+        # 蓝图的容器键是 automation_blueprints / script_blueprints，
+        # 公开取法是各域 helpers 的 async_get_blueprints(hass)
+        getters = {
+            "automation": async_get_automation_blueprints,
+            "script": async_get_script_blueprints,
+        }
+        for domain, get_blueprints in getters.items():
+            try:
+                blueprints: DomainBlueprints = get_blueprints(self.hass)
+                for bp_path, bp in (await blueprints.async_get_blueprints()).items():
+                    if not isinstance(bp, Blueprint):
                         continue
                     self._scan_value(
-                        bp.metadata,
+                        bp.data,
                         source_type="blueprint",
                         source_id=bp_path,
                         path="$",
                     )
-                    if bp.blueprint:
-                        self._scan_value(
-                            bp.blueprint,
-                            source_type="blueprint",
-                            source_id=bp_path,
-                            path="$.blueprint",
-                        )
-        except Exception as exc:
-            _LOGGER.debug("Skip blueprint scan: %s", exc)
+            except Exception as exc:
+                _LOGGER.debug("Skip %s blueprint scan: %s", domain, exc)
 
     def _scan_value(self, value: Any, *, source_type: str, source_id: str, path: str) -> None:
         """递归扫描值以查找 entity_id 引用。"""
@@ -478,85 +482,56 @@ class EntityRefFinder:
                         changed = True
         return changed
 
-    async def _read_storage_file(self, filename: str) -> dict | None:
-        """直接读取 .storage JSON 文件（异步——无阻塞调用）。"""
+    async def _read_config_file(self, filename: str):
+        """读取 HA 配置目录下的 YAML 配置——解析交给 executor，避免阻塞事件循环。
+
+        文件缺失抛 FileNotFoundError；其余 OSError 与 YAML 解析失败
+        统一被 load_yaml 包成 HomeAssistantError。
+        """
         try:
-            path = self.hass.config.path(".storage", filename)
-            return await self.hass.async_add_executor_job(self._read_json_file, path)
-        except Exception:
+            return await self.hass.async_add_executor_job(
+                load_yaml, self.hass.config.path(filename)
+            )
+        except (OSError, HomeAssistantError):
             return None
 
-    def _read_json_file(self, path: str) -> dict | None:
-        """同步 JSON 文件读取——在 executor 中运行。"""
-        try:
-            with open(path, "r", encoding="utf-8") as f:
-                return json.load(f)
-        except Exception:
-            return None
+    def _config_key(self, entity_id: str) -> str:
+        """取配置键。
+
+        automation / scene 的 entity_id 由名称派生，只有实体注册表的
+        unique_id 才是配置文件里的 id（= 配置接口的 {config_key}）。
+        """
+        entry = er.async_get(self.hass).async_get(entity_id)
+        if entry is not None and entry.unique_id:
+            return entry.unique_id
+        return entity_id.split(".", 1)[1] if "." in entity_id else entity_id
+
+    def _get_entity_raw_config(self, entity_id: str) -> dict | None:
+        """读取实体状态属性 config——automation / script 实体均暴露其 raw_config。"""
+        state = self.hass.states.get(entity_id)
+        config = state.attributes.get("config") if state is not None else None
+        return dict(config) if isinstance(config, dict) else None
 
     async def _get_auto_config(self, entity_id: str) -> dict | None:
-        """通过 HA API 获取自动化配置。"""
-        # 方式1：state.attributes["config"]（HA <2025.7）
-        try:
-            state = self.hass.states.get(entity_id)
-            if state and "config" in state.attributes:
-                return dict(state.attributes["config"])
-        except Exception:
-            pass
-        # 方法 2：hass.data automation_config（HA 内部）
-        try:
-            config = self.hass.data.get("automation_config", {})
-            if entity_id in config:
-                return dict(config[entity_id])
-        except Exception:
-            pass
-        # 方式3：直接读取 .storage 文件（HA 2025.7+）
-        try:
-            auto_id = entity_id.split(".", 1)[1] if "." in entity_id else entity_id
-            storage_data = await self._read_storage_file(f"automation.{auto_id}")
-            if storage_data and "config" in storage_data:
-                return dict(storage_data["config"])
-        except Exception:
-            pass
-        return None
+        """读取自动化原始配置。"""
+        return self._get_entity_raw_config(entity_id)
 
     async def _save_auto_config(self, entity_id: str, config: dict) -> bool:
-        """通过 HA API 保存自动化配置，并恢复开/关状态。"""
-        auto_id = entity_id.split(".", 1)[1] if "." in entity_id else entity_id
+        """保存自动化配置，并恢复其原有开关状态。"""
         was_on = self.hass.states.is_state(entity_id, "on")
+        # 保存会触发自动化重载——先临时关闭，避免编辑期间被触发
         try:
             await self.hass.services.async_call(
                 "automation", "turn_off", {"entity_id": entity_id}, blocking=False
             )
         except Exception:
             pass
-        saved = False
-        # 方法 1：内部 API（HA <2025.9）
-        try:
-            from homeassistant.components.automation.config import async_set_automation_config
 
-            await async_set_automation_config(
-                self.hass, auto_id, config, source="storage"
-            )
-            saved = True
-        except Exception:
-            saved = False
-        # 方法 2：REST API 回退（HA 2025.9+）——使用 API 处理器传入的令牌
-        if not saved and self._hass_token:
-            try:
-                base_url = self.hass.http.get_url()
-                headers = {"Authorization": f"Bearer {self._hass_token}", "Content-Type": "application/json"}
-                session = async_get_clientsession(self.hass)
-                async with session.post(
-                    f"{base_url}/api/config/automation/config/{auto_id}",
-                    json=config, headers=headers
-                ) as resp:
-                    saved = resp.status == 200
-            except Exception as e:
-                _LOGGER.error("Save auto config failed: %s", e, exc_info=True)
-                saved = False
-        # 上面的 turn_off 已禁用自动化——恢复其先前状态，使
-        # 成功（或失败）的编辑都不会让它永久关闭。
+        saved = await self._async_post_config(
+            "automation", self._config_key(entity_id), config
+        )
+
+        # 无论保存成功与否都恢复先前的开关状态
         if was_on:
             try:
                 await self.hass.services.async_call(
@@ -567,65 +542,74 @@ class EntityRefFinder:
         return saved
 
     async def _get_script_config(self, entity_id: str) -> dict | None:
-        """通过 HA API 获取脚本配置。"""
-        try:
-            state = self.hass.states.get(entity_id)
-            if state and "config" in state.attributes:
-                return dict(state.attributes["config"])
-        except Exception:
-            pass
-        try:
-            script_id = entity_id.split(".", 1)[1] if "." in entity_id else entity_id
-            storage_data = await self._read_storage_file(f"script.{script_id}")
-            if storage_data and "config" in storage_data:
-                return dict(storage_data["config"])
-        except Exception:
-            pass
-        return None
+        """读取脚本原始配置。"""
+        return self._get_entity_raw_config(entity_id)
 
     async def _save_script_config(self, entity_id: str, config: dict) -> bool:
-        """通过 HA API 保存脚本配置。"""
-        script_id = entity_id.split(".", 1)[1] if "." in entity_id else entity_id
-        try:
-            from homeassistant.components.script.config import async_set_script_config
-
-            await async_set_script_config(
-                self.hass, script_id, config, source="storage"
-            )
-            return True
-        except Exception as e:
-            _LOGGER.error("Save script config failed: %s", e, exc_info=True)
-            return False
+        """保存脚本配置。"""
+        return await self._async_post_config(
+            "script", self._config_key(entity_id), config
+        )
 
     async def _get_scene_config(self, entity_id: str) -> dict | None:
-        """通过 HA API 获取场景配置。"""
-        try:
-            state = self.hass.states.get(entity_id)
-            if state and "config" in state.attributes:
-                return dict(state.attributes["config"])
-        except Exception:
-            pass
-        try:
-            scene_id = entity_id.split(".", 1)[1] if "." in entity_id else entity_id
-            storage_data = await self._read_storage_file(f"scene.{scene_id}")
-            if storage_data and "config" in storage_data:
-                return dict(storage_data["config"])
-        except Exception:
-            pass
+        """读取场景配置——场景实体不暴露 config 属性，须回查 scenes.yaml。"""
+        scene_id = self._config_key(entity_id)
+        entries = await self._read_config_file("scenes.yaml")
+        if not isinstance(entries, list):
+            return None
+        for entry in entries:
+            if isinstance(entry, dict) and entry.get("id") == scene_id:
+                return dict(entry)
         return None
 
     async def _save_scene_config(self, entity_id: str, config: dict) -> bool:
-        """通过 HA API 保存场景配置。"""
-        scene_id = entity_id.split(".", 1)[1] if "." in entity_id else entity_id
-        try:
-            from homeassistant.components.scene.config import async_set_scene_config
+        """保存场景配置。"""
+        return await self._async_post_config(
+            "scene", self._config_key(entity_id), config
+        )
 
-            await async_set_scene_config(
-                self.hass, scene_id, config, source="storage"
+    async def _async_post_config(self, domain: str, config_key: str, config: dict) -> bool:
+        """经 HA 配置接口写回 automation / script / scene 配置。
+
+        三个域共用同一路由形态：/api/config/{domain}/config/{config_key}
+        （见 HA 的 EditIdBasedConfigView / EditKeyBasedConfigView）。
+        """
+        if not self._hass_token:
+            _LOGGER.error("Cannot save %s config: no HA access token", domain)
+            return False
+        try:
+            base_url = get_url(self.hass)
+        except NoURLAvailableError:
+            _LOGGER.error("Cannot save %s config: no HA URL available", domain)
+            return False
+
+        try:
+            session = async_get_clientsession(self.hass)
+            async with session.post(
+                f"{base_url}/api/config/{domain}/config/{config_key}",
+                json=config,
+                headers={
+                    "Authorization": f"Bearer {self._hass_token}",
+                    "Content-Type": "application/json",
+                },
+            ) as resp:
+                if resp.status != 200:
+                    _LOGGER.error(
+                        "Saving %s config %s failed: HTTP %s",
+                        domain,
+                        config_key,
+                        resp.status,
+                    )
+                    return False
+                return True
+        except Exception as err:
+            _LOGGER.error(
+                "Saving %s config %s failed: %s",
+                domain,
+                config_key,
+                err,
+                exc_info=True,
             )
-            return True
-        except Exception as e:
-            _LOGGER.error("Save scene config failed: %s", e, exc_info=True)
             return False
 
     async def _get_dash_config(self, url_path: str | None) -> dict | None:
@@ -635,7 +619,7 @@ class EntityRefFinder:
             lovelace_data = self.hass.data.get(LOVELACE_DATA)
             if not lovelace_data:
                 return None
-            dashboards = getattr(lovelace_data, "dashboards", {})
+            dashboards = lovelace_data.dashboards
             config_obj = dashboards.get(url_path)
             if config_obj:
                 return await config_obj.async_load(False)
@@ -652,7 +636,7 @@ class EntityRefFinder:
             return []
 
         updated = []
-        dashboards = getattr(lovelace_data, "dashboards", {})
+        dashboards = lovelace_data.dashboards
 
         dash_urls = set(r.source_id for r in refs)
 
