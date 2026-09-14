@@ -11,14 +11,6 @@
       "hacs_not_found": "Необходимая интеграция HACS не найдена."
     }
   },
-  "options": {
-    "step": {
-      "init": {
-        "title": "HACS Vision",
-        "description": "Текущая версия: {version}\n\nДополнительная настройка этой интеграции не требуется."
-      }
-    }
-  },
   "services": {
     "refresh": {
       "name": "Обновить данные HACS",
