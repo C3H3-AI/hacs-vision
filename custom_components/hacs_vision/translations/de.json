@@ -65,6 +65,22 @@
           "description": "True für Vorschau, False für Ausführung der Ersetzung."
         }
       }
+    },
+    "auto_update_start": {
+      "name": "Auto-Update starten",
+      "description": "Startet das geplante Auto-Update von HACS Vision."
+    },
+    "auto_update_stop": {
+      "name": "Auto-Update stoppen",
+      "description": "Stoppt das geplante Auto-Update von HACS Vision."
+    },
+    "auto_update_trigger": {
+      "name": "Auto-Update auslösen",
+      "description": "Löst sofort eine Auto-Update-Prüfung und -Installation aus."
+    },
+    "auto_update_reload_settings": {
+      "name": "Auto-Update-Einstellungen neu laden",
+      "description": "Lädt die Auto-Update-Konfiguration neu und plant sie erneut."
     }
   }
 }
