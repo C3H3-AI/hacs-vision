@@ -23,15 +23,27 @@ def _get_runtime(hass: HomeAssistant) -> VisionRuntime | None:
     return None
 
 async def _create_service_token(hass: HomeAssistant) -> str | None:
-    """为 replace_entity_refs 服务生成一个短期 HA 访问令牌。"""
+    """为 replace_entity_refs 服务签发一个短期 HA 访问令牌。
+
+    访问令牌不能直接签发，必须先从 refresh token 派生：
+      1. async_create_refresh_token(user, ...)  → models.RefreshToken
+      2. async_create_access_token(refresh_token) → JWT 字符串（同步 @callback）
+    早期实现把 user 直接传给 async_create_access_token 并附加不存在的
+    client_name / expires 关键字参数，导致 TypeError、令牌恒为 None，
+    写回静默失败（仅预览可用）。
+    """
     try:
         owner = await hass.auth.async_get_owner()
         if owner is None:
             _LOGGER.warning("replace_entity_refs: 无 owner 用户，无法签发访问令牌")
             return None
-        return await hass.auth.async_create_access_token(
-            owner, client_name="hacs_vision", expires=timedelta(minutes=2)
+        refresh_token = await hass.auth.async_create_refresh_token(
+            owner,
+            client_id=DOMAIN,
+            client_name="hacs_vision",
+            access_token_expiration=timedelta(minutes=5),
         )
+        return hass.auth.async_create_access_token(refresh_token)
     except Exception as err:
         _LOGGER.warning("replace_entity_refs: 签发访问令牌失败: %s", err)
         return None
