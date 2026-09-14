@@ -1,5 +1,14 @@
 # Changelog
 
+## v6.8.1 (2026-09-14) — 任意分支/commit 安装修复 / Arbitrary Ref Install Fix
+
+### 🔧 修复 / Fixed
+
+- **任意分支 / commit 安装完全失效 ([#43](https://github.com/C3H3-AI/hacs-vision/pull/43))** — 版本选择器「Commit / 分支」页签选择任意分支或 commit 安装时必然失败，报 `No content to download`。根因是刷新仓库 tree 的调用早于 HACS 赋值 `self.ref`，缓存到的是**上一个 ref** 的 tree；随后 HACS 的 `update_filenames()` 又优先采用最新 release 的资源文件，把 `content.path.remote` 钉成 `"release"`，导致以分支名调用 `release_contents()` 匹配不到任何 release、文件收集为空
+- **修复方式** — 把 tree 刷新移入 `download_content` 钩子（此时 `self.ref` 已是请求的 ref），刷新后清空 `releases.objects` 让 HACS 依据该 ref 的 tree 重新推导 `file_name` / `content.path.remote`；`data.name` 为空时回退为仓库 slug（否则会拼出 `"None.js"` 匹配不到文件）；安装结束完整还原 `releases.objects` / `selected_tag` / `force_branch` / `download_content`
+- **Arbitrary branch/commit install was completely broken ([#43](https://github.com/C3H3-AI/hacs-vision/pull/43))** — Installing any branch or commit from the version selector's "Commit / Branch" tab always failed with `No content to download`. The repository tree was refreshed before HACS assigned `self.ref`, so it cached the *previous* ref's tree; HACS' `update_filenames()` then preferred the latest release asset and pinned `content.path.remote` to `"release"`, making `release_contents(<branch>)` match no release and file gathering return empty
+- **Fix** — The tree refresh now runs inside a `download_content` hook (when `self.ref` is already the requested ref), releases are hidden afterwards so HACS re-derives `file_name` / `content.path.remote` from that ref's tree, `data.name` falls back to the repository slug (a missing name builds `"None.js"`, matching nothing), and `releases.objects` / `selected_tag` / `force_branch` / `download_content` are restored once the install finishes
+
 ## v6.8.0 (2026-09-13) — 重构与服务治理 / Refactor & Service Governance
 
 **Recommended.** Minimum Home Assistant version: 2026.1.0.
