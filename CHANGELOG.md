@@ -1,5 +1,10 @@
 # Changelog
 
+## v7.0.1 (2026-09-14) — 版本号提升（发布流程验证）/ Version bump (release pipeline verification)
+
+无功能改动，仅提升版本号以验证自动发布流程。
+No functional changes — version bump only, to verify the automated release pipeline.
+
 ## v7.0.0 (2026-09-14) — 最低 HA 版本提升至 2026.1.0 / Minimum HA raised to 2026.1.0
 
 > ⚠️ **破坏性变更 / BREAKING CHANGE** — 最低 Home Assistant 版本由 `2024.1.0` 提升至 **`2026.1.0`**。
