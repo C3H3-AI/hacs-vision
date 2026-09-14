@@ -1,0 +1,63 @@
+# ============================
+# Default GitHub Labels (with Chinese translation)
+# ============================
+
+- name: bug
+  color: d73a4a
+  description: Something isn't working / 出现了问题或功能异常
+
+- name: documentation
+  color: 0075ca
+  description: Improvements or additions to documentation / 文档改进或补充
+
+- name: duplicate
+  color: cfd3d7
+  description: This issue or pull request already exists / 重复的问题或拉取请求
+
+- name: enhancement
+  color: a2eeef
+  description: New feature or request / 新功能或改进请求
+
+- name: good first issue
+  color: 7057ff
+  description: Good for newcomers / 适合新贡献者的简单问题
+
+- name: help wanted
+  color: 008672
+  description: Extra attention is needed / 需要额外帮助或关注
+
+- name: invalid
+  color: e4e669
+  description: This doesn't seem right / 无效或不符合要求的问题
+
+- name: question
+  color: d876e3
+  description: Further information is requested / 需要进一步信息或澄清
+
+- name: wontfix
+  color: ffffff
+  description: This will not be worked on / 不会处理或修复的问题
+
+# ============================
+# Custom Labels (Your Labels)
+# ============================
+
+- name: 🐛 Bug Fix
+  color: d73a4a
+  description: Bug fixes and issue corrections / 修复问题和错误
+
+- name: ✨ Feature
+  color: a2eeef
+  description: New features and functionality improvements / 新功能和功能增强
+
+- name: 🔧 Refactor
+  color: fbca04
+  description: Code refactoring and internal improvements / 代码重构和内部优化
+
+- name: ⚠️ Breaking
+  color: b60205
+  description: Breaking changes that may affect existing behavior / 可能影响现有行为的破坏性变更
+
+- name: 📝 Docs
+  color: 0075ca
+  description: Documentation updates and improvements / 文档更新和改进

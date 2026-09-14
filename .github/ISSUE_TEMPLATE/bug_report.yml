@@ -1,0 +1,58 @@
+name: 🐛 Bug Report / 报告问题
+description: Report a bug / 报告问题
+
+body:
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Description / 问题描述
+      description: |
+        What happened?
+        发生了什么问题？
+    validations:
+      required: true
+
+
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce / 复现步骤
+      description: |
+        How to reproduce?
+        如何复现？
+      placeholder: |
+        1.
+        2.
+        3.
+
+
+  - type: input
+    id: ha_version
+    attributes:
+      label: Home Assistant Version / Home Assistant 版本
+      description: |
+        Settings → About
+        设置 → 关于 Home Assistant
+      placeholder: "2026.3.0"
+    validations:
+      required: true
+
+  - type: input
+    id: integration_version
+    attributes:
+      label: Integration Version / 集成版本
+      description: |
+        Found in Settings → Devices & services → Integration.
+        可在 设置 → 设备与服务 → 集成 页面查看。
+      placeholder: "v1.0.0"
+    validations:
+      required: true
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional Context / 其他说明
+      description: |
+        Add screenshots, logs or other information.
+        添加截图、日志或其他补充信息。
