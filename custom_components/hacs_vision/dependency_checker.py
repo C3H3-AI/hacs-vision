@@ -64,7 +64,14 @@ class DependencyChecker:
             missing = []
             for req in requirements:
 
-                pkg_name = req.split(">=")[0].split("==")[0].split("<=")[0].split("<")[0].split(">")[0].split("[")[0].split("!=")[0].split("~=")[0].strip()
+                # 需求串可能含环境标记（如 `pkg; python_version>="3.8"`），
+                # 分号前才是包说明，其余为安装时评估的标记，不参与导入检查
+                pkg_spec = req.split(";", 1)[0].strip()
+                pkg_name = (
+                    pkg_spec.split(">=")[0].split("==")[0].split("<=")[0]
+                    .split("<")[0].split(">")[0].split("[")[0]
+                    .split("!=")[0].split("~=")[0].strip()
+                )
                 if pkg_name and not await self.hass.async_add_executor_job(
                     _check_import, pkg_name
                 ):
