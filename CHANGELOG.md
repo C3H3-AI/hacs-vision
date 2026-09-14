@@ -1,5 +1,20 @@
 # Changelog
 
+## v7.0.1 (2026-09-14) — 服务令牌签发修复 / Service Token Issuance Fix
+
+### 🔧 修复 / Fixed
+
+- **`replace_entity_refs` 服务写回静默失败 ([#55](https://github.com/C3H3-AI/hacs-vision/pull/55))** — 调用服务返回成功，但配置从未写入。原因：签发临时访问令牌时把 `User` 对象直接传给 `hass.auth.async_create_access_token()`，并附加了不存在的 `client_name` / `expires` 关键字参数，触发 `TypeError` 使令牌恒为 `None`，仅在日志中以 WARNING 记录。访问令牌不能直接签发，须先从 refresh token 派生（`async_create_refresh_token(...)` → `async_create_access_token(refresh_token)`），其中 `client_id` 为 NORMAL 类型令牌的必填项
+- **`replace_entity_refs` silently failed to write config back ([#55](https://github.com/C3H3-AI/hacs-vision/pull/55))** — The service reported success while the config was never written: the temporary access token was requested by passing a `User` object to `hass.auth.async_create_access_token()` along with non-existent `client_name` / `expires` keyword arguments, raising `TypeError` and leaving the token `None` (logged as a warning only). Access tokens must be derived from a refresh token (`async_create_refresh_token(...)` → `async_create_access_token(refresh_token)`), with `client_id` required for NORMAL-type tokens
+
+### ⚙️ 内部改进 / Internal
+
+- **OAuth `client_id` 解析失败时回退而非崩溃 ([#53](https://github.com/C3H3-AI/hacs-vision/pull/53))** — HACS 未安装时不再抛 `ImportError`，改为返回明确的错误响应
+- **HACS 仓库注册结果核验 ([#52](https://github.com/C3H3-AI/hacs-vision/pull/52))** — 注册后校验仓库确已进入 HACS 内存，避免静默跳过后续操作找不到仓库
+- **数据层加固 ([#51](https://github.com/C3H3-AI/hacs-vision/pull/51))** — 存储键锁改为有界 `OrderedDict`；自动更新调度任务销毁时取消，避免悬空任务
+- **服务注册运行时无关化 ([#49](https://github.com/C3H3-AI/hacs-vision/pull/49))** — 服务处理器按配置项解析运行时容器；实体引用替换改为整词匹配，避免 `light.kitchen` 误伤 `light.kitchen_table`
+- **移除多余 i18n `options` 块 ([#50](https://github.com/C3H3-AI/hacs-vision/pull/50))** — 清理无对应 OptionsFlow 的翻译键
+
 ## v7.0.0 (2026-09-14) — 最低 HA 版本提升至 2026.1.0 / Minimum HA raised to 2026.1.0
 
 > ⚠️ **破坏性变更 / BREAKING CHANGE** — 最低 Home Assistant 版本由 `2024.1.0` 提升至 **`2026.1.0`**。
