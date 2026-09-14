@@ -1,6 +1,7 @@
 """HACS Vision 自动更新平台。"""
 from __future__ import annotations
 
+import asyncio
 import logging
 from datetime import timedelta
 
@@ -40,6 +41,7 @@ class AutoUpdateManager:
         self._coalescing: bool = False
         self._pending_restart: bool = False
         self._restart_timer: callable | None = None
+        self._scheduled_task: asyncio.Task | None = None
 
     @property
     def is_running(self) -> bool:
@@ -60,7 +62,15 @@ class AutoUpdateManager:
     def stop(self) -> None:
         self._cancel_interval()
         self._cancel_restart_timer()
+        self._cancel_scheduled_task()
         _LOGGER.info("AutoUpdateManager stopped")
+
+    def _cancel_scheduled_task(self) -> None:
+        """取消合并/待触发的更新任务，避免卸载后悬空任务访问已销毁资源。"""
+        task = self._scheduled_task
+        self._scheduled_task = None
+        if task is not None and not task.done():
+            task.cancel()
 
     async def trigger(self) -> dict:
         if self._running or self._coalescing:
@@ -300,6 +310,9 @@ class AutoUpdateManager:
                     self._coalescing = True
                     self._scheduled_task = self.hass.async_create_task(
                         self._run_update_cycle(source="manual")
+                    )
+                    self._scheduled_task.add_done_callback(
+                        lambda _t: setattr(self, "_scheduled_task", None)
                     )
 
     def _dispatch_state(self) -> None:

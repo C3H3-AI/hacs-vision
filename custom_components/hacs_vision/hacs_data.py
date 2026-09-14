@@ -5,6 +5,7 @@ import json
 import logging
 import os
 import time
+from collections import OrderedDict
 
 import homeassistant.components
 from homeassistant.helpers.translation import async_get_translations
@@ -23,13 +24,17 @@ class HACSData:
         self.hass = hass
         self._config_cache = None  # 配置项缓存映射
         self._cache_ready = False
-        self._key_locks: dict[str, asyncio.Lock] = {}
+        self._key_locks: "OrderedDict[str, asyncio.Lock]" = OrderedDict()
 
     def _key_lock(self, key: str) -> asyncio.Lock:
         """按存储键加锁——串行化读-改-写周期。"""
-        if key not in self._key_locks:
-            self._key_locks[key] = asyncio.Lock()
-        return self._key_locks[key]
+        lock = self._key_locks.get(key)
+        if lock is None:
+            lock = asyncio.Lock()
+            self._key_locks[key] = lock
+            while len(self._key_locks) > 64:
+                self._key_locks.popitem(last=False)
+        return lock
 
     async def update_storage(self, key: str, updater) -> bool:
         """对存储文件加锁的读-改-写。"""

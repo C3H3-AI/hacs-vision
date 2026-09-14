@@ -322,7 +322,7 @@ def _read_file_binary(path: str) -> bytes:
         return f.read()
 
 class HACSBrandIconView(HomeAssistantView):
-    """提供自定义集成品牌图标（免鉴权，供 <img> 标签使用）。"""
+    """提供自定义集成品牌图标（公开静态资源，供前端 <img> 引用，无需鉴权）。"""
 
     url = "/api/hacs_vision_brand/{domain:.*}"
     name = "api:hacs_vision_brand"
