@@ -1,5 +1,39 @@
 # Changelog
 
+## v7.0.0 (2026-09-14) — 最低 HA 版本提升至 2026.1.0 / Minimum HA raised to 2026.1.0
+
+> ⚠️ **破坏性变更 / BREAKING CHANGE** — 最低 Home Assistant 版本由 `2024.1.0` 提升至 **`2026.1.0`**。
+> 运行 HA 2024.1 ~ 2025.12 的用户**无法**使用本版本，请先升级 Home Assistant。
+>
+> **BREAKING:** The minimum supported Home Assistant version is raised from `2024.1.0` to **`2026.1.0`**.
+> Users on HA 2024.1 – 2025.12 cannot run this release — upgrade Home Assistant first.
+
+### ⚠️ 破坏性变更 / Breaking
+
+- **最低 HA 版本提升至 2026.1.0** — 由 `hacs.json` 的 `homeassistant: 2026.1.0` 声明，HACS 会对低版本用户拦截安装（Home Assistant 的 `manifest.json` 不支持该字段，最低版本只能由 `hacs.json` 声明）
+- **剔除旧版 API 与兼容分支 ([#41](https://github.com/C3H3-AI/hacs-vision/pull/41))** — 移除针对旧版 HA 的探测与回退分支，统一走现行 API：
+  - 配置项变更改订阅 `SIGNAL_CONFIG_ENTRY_CHANGED`，替代不存在的 `config_entry_updated` / `config_entry_removed` 总线事件（此前缓存重建永不触发）
+  - `hass.http.get_url()` → `helpers.network.get_url`；`hass.data["system_log"]` → `LogErrorHandler.records.to_list()`
+  - 设备注册表改用 `dr.async_entries_for_config_entry`，替代 2026.9 起弃用的容器视图
+  - 蓝图与场景改走 `async_get_blueprints(hass)` 等公开 API；配置写入统一走 `POST /api/config/{domain}/config/{key}`
+  - 共 8 个文件，`+284 -358`（净删 74 行）
+- **Minimum HA raised to 2026.1.0** — declared through `hacs.json` (`homeassistant: 2026.1.0`); HACS blocks older installs (Home Assistant's `manifest.json` has no such field — the minimum can only be declared in `hacs.json`)
+- **Legacy API and compatibility branches removed ([#41](https://github.com/C3H3-AI/hacs-vision/pull/41))** — all old-version probing and fallbacks are gone; the integration now targets current APIs only
+
+### 🔧 修复 / Fixed
+
+- **任意分支 / commit 安装完全失效 ([#43](https://github.com/C3H3-AI/hacs-vision/pull/43))** — 版本选择器「Commit / 分支」页签选择任意分支或 commit 安装时必然失败，报 `No content to download`。根因是刷新仓库 tree 的调用早于 HACS 赋值 `self.ref`，缓存到的是**上一个 ref** 的 tree；随后 HACS 的 `update_filenames()` 又优先采用最新 release 的资源文件，把 `content.path.remote` 钉成 `"release"`，导致以分支名调用 `release_contents()` 匹配不到任何 release、文件收集为空
+- **修复方式** — 把 tree 刷新移入 `download_content` 钩子（此时 `self.ref` 已是请求的 ref），刷新后清空 `releases.objects` 让 HACS 依据该 ref 的 tree 重新推导 `file_name` / `content.path.remote`；`data.name` 为空时回退为仓库 slug（否则会拼出 `"None.js"` 匹配不到文件）；安装结束完整还原 `releases.objects` / `selected_tag` / `force_branch` / `download_content`
+- **Arbitrary branch/commit install was completely broken ([#43](https://github.com/C3H3-AI/hacs-vision/pull/43))** — Installing any branch or commit from the version selector's "Commit / Branch" tab always failed with `No content to download`. The repository tree was refreshed before HACS assigned `self.ref`, so it cached the *previous* ref's tree; HACS' `update_filenames()` then preferred the latest release asset and pinned `content.path.remote` to `"release"`, making `release_contents(<branch>)` match no release and file gathering return empty
+- **Fix** — The tree refresh now runs inside a `download_content` hook (when `self.ref` is already the requested ref), releases are hidden afterwards so HACS re-derives `file_name` / `content.path.remote` from that ref's tree, `data.name` falls back to the repository slug (a missing name builds `"None.js"`, matching nothing), and `releases.objects` / `selected_tag` / `force_branch` / `download_content` are restored once the install finishes
+
+### 📌 升级须知 / Upgrade notes
+
+- HA < 2026.1.0：**请勿升级**本集成，保持在 v6.8.0；或先将 Home Assistant 升级至 2026.1.0 及以上
+- HA ≥ 2026.1.0：正常升级即可，无需手动迁移配置
+- HA < 2026.1.0: **do not upgrade** this integration — stay on v6.8.0, or upgrade Home Assistant first
+- HA ≥ 2026.1.0: upgrade normally; no manual migration required
+
 ## v6.8.0 (2026-09-13) — 重构与服务治理 / Refactor & Service Governance
 
 **Recommended.** Minimum Home Assistant version: 2026.1.0.
