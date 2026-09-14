@@ -65,6 +65,22 @@
           "description": "True to preview only, false to execute the replacement."
         }
       }
+    },
+    "auto_update_start": {
+      "name": "Start auto-update",
+      "description": "Start the HACS Vision scheduled auto-update."
+    },
+    "auto_update_stop": {
+      "name": "Stop auto-update",
+      "description": "Stop the HACS Vision scheduled auto-update."
+    },
+    "auto_update_trigger": {
+      "name": "Trigger auto-update",
+      "description": "Immediately trigger an auto-update check and installation."
+    },
+    "auto_update_reload_settings": {
+      "name": "Reload auto-update settings",
+      "description": "Reload the auto-update configuration and reschedule."
     }
   }
 }
