@@ -737,9 +737,27 @@ class HACSOperator:
                                     (_repo.data.full_name or "").split("/")[-1]
                                     or _repo.data.name
                                 )
-                            _repo.content.path.remote = None
+                            # update_filenames() 会按需重新推导 file_name，
+                            # 但 content.path.remote 是 Repository 子类在
+                            # __init__ 中设置的固定值（IntegrationRepository 为
+                            # "custom_components"），update_repository() /
+                            # update_filenames() 都不会重新填充它。
+                            #
+                            # 历史教训：此处曾写 `_repo.content.path.remote = None`，
+                            # 期望 update_filenames() 重设。但当该条件不成立时，
+                            # path.remote 会保持 None，随后
+                            # base.gather_files_to_download() 中的
+                            # `path.full_path.startswith(self.content.path.remote)`
+                            # 抛 TypeError: startswith first arg must be str...
+                            # 安装会在「旧文件已删除、新文件未写入」的中间态中断，
+                            # 表现为主目录整体消失（如 hotata 于 2026-09-16 丢失）。
+                            saved_remote = _repo.content.path.remote
                             _repo.data.file_name = None
                             _repo.update_filenames()
+                            # 防御：无论 update_filenames() 是否推导出 remote，
+                            # 都不能让它是 None。
+                            if _repo.content.path.remote is None:
+                                _repo.content.path.remote = saved_remote
                             return await _orig(version)
                         finally:
                             _repo.releases.objects = saved_releases_objects
