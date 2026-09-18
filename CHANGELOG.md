@@ -1,5 +1,17 @@
 # Changelog
 
+## v7.0.2 (2026-09-18) — 安装原子性 / Atomic Installation
+
+### 🔧 修复 / Fixed
+
+- **安装失败导致集成目录凭空消失 ([#59](https://github.com/C3H3-AI/hacs-vision/pull/59))** — 用「任意 ref / 分支 / commit」安装器更新一个已安装的 integration 时，如果下载环节抛异常，整个集成目录会消失，而 `config_entry` 与实体仍留在注册表中，HA 持续报 `Integration '<domain>' not found`，用户侧只看到「设备全部不可用」。原因：HACS 的安装流程是「先删除已安装目录 → 再下载新版本」，下载一旦失败目录就停留在已删除状态，而本集成此前没有任何补偿。现在安装前会把当前目录快照到同级 `<path>.hacs_vision_bak_<ts>`，成功后丢弃、失败则自动回滚，并在返回值中标记 `rolled_back: true`。实测事故：`hotata` 于 2026-09-16 经本集成安装后目录丢失，17 个实体全部不可用
+- **Install failure made the whole integration directory vanish ([#59](https://github.com/C3H3-AI/hacs-vision/pull/59))** — Updating an installed integration through the "arbitrary ref / branch / commit" installer could wipe the entire integration directory when the download step raised, while the `config_entry` and its entities stayed in the registry — HA kept logging `Integration '<domain>' not found` and users only saw "all devices unavailable". HACS installs by *deleting the existing directory first, then downloading*, so a failed download leaves nothing behind, and this integration had no compensation. The install now snapshots the current directory to a sibling `<path>.hacs_vision_bak_<ts>`, drops it on success and rolls back automatically on failure, reporting `rolled_back: true`. Real-world case: `hotata` lost its directory this way on 2026-09-16, leaving all 17 entities unavailable
+
+### ⚠️ 已知遗留 / Known Remaining
+
+- 本版本只增加保护层，未修复 `content.path.remote` 被置为 `None` 的根因，日志中仍可能看到 `startswith first arg must be str or a tuple of str, not NoneType`。区别在于：**不会再导致目录丢失**。该字段是 HACS 子类推导远端目录的触发条件，修复需同时重构推导与下载路径选择，计划单独处理
+- This release only adds a safety net; the root cause (`content.path.remote` set to `None`) is **not** fixed and the log error may still appear — it will no longer destroy the installed directory. The field is a trigger condition for HACS' own remote-path derivation, so a proper fix needs to rework both the derivation and the download-path selection; tracked separately
+
 ## v7.0.1 (2026-09-14) — 服务令牌签发修复 / Service Token Issuance Fix
 
 ### 🔧 修复 / Fixed
