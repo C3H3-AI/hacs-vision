@@ -1,5 +1,14 @@
 # Changelog
 
+## v7.0.3 (2026-10-17) — 安装快照移出 custom_components / Install Snapshots Moved Out of custom_components
+
+### 🔧 修复 / Fixed
+
+- **快照残留会打挂集成的配置向导 ([#61](https://github.com/C3H3-AI/hacs-vision/issues/61))** — v7.0.2 把安装快照写在 `custom_components/<domain>.hacs_vision_bak_<ts>`：目录名含点号，且内部 `manifest.json` 声明的 domain 与正主相同。HA 启动扫描 `custom_components/` 时会把这类目录当成「同一 domain 的另一个实现」去 import，而 Python 无法把 `slac.hacs_vision_bak_1759…` 解析成模块名，import 失败 → 该 domain 的 `config_flow` 处理器不会注册 → 前端添加该集成报 `无法加载配置向导: {"message":"Invalid handler specified"}`，`POST /api/config/config_entries/flow` 返回 404，日志留下 `Error occurred loading flow for integration <domain>: No module named 'custom_components.<domain>.bak'`。快照此前只在安装成功分支丢弃，安装中途重启 / 进程被杀 / 删除失败都会留下残留，重启后即长期生效。实测事故：一次性打挂 `slac`、`lixiang_auto`、`xiaomi_gateway3` 三个集成的 config flow（同机 `hotata` 无残留 → 正常，可作对照）。现在快照统一落在 `custom_components/` 之外的 `.storage/hacs_vision_snapshots/`，无论怎么中断都不会再污染组件扫描
+- **启动兜底清理历史残留** — 新增启动清扫：把 `custom_components/` 下遗留的 `*.hacs_vision_bak_*` 目录搬进 `.storage/hacs_vision_snapshots/`（只搬不删，保住回滚能力），并发出持久通知告知受影响用户。已有残留的用户升级后无需手工清理，重启即自愈
+- **Snapshot leftovers broke an integration's config flow ([#61](https://github.com/C3H3-AI/hacs-vision/issues/61))** — v7.0.2 wrote install snapshots to `custom_components/<domain>.hacs_vision_bak_<ts>`: the directory name contains a dot, and the snapshot's own `manifest.json` declares the same domain as the original. On startup HA treats such a directory as another implementation of that domain and imports it; Python cannot resolve a dotted module name, the import fails, the domain's `config_flow` handler is never registered, and adding the integration reports `Invalid handler specified` with `POST /api/config/config_entries/flow` returning 404, leaving `Error occurred loading flow for integration <domain>: No module named 'custom_components.<domain>.bak'` in the log. The snapshot was only dropped on the success path, so a restart or kill mid-install, or a failing delete, left a leftover that broke the domain on every later restart. Real-world case: it took out the config flows of `slac`, `lixiang_auto` and `xiaomi_gateway3` at once, while `hotata` on the same instance had no leftover and stayed healthy. Snapshots now live outside `custom_components/`, under `.storage/hacs_vision_snapshots/`, so an interrupted install can no longer pollute the component scan
+- **Startup sweep for existing leftovers** — Added a startup sweep that moves any leftover `*.hacs_vision_bak_*` directory out of `custom_components/` into `.storage/hacs_vision_snapshots/` (moved, not deleted, so rollback still works) and raises a persistent notification. Users who already have leftovers need no manual cleanup — one restart heals them
+
 ## v7.0.2 (2026-09-18) — 安装原子性 / Atomic Installation
 
 ### 🔧 修复 / Fixed
