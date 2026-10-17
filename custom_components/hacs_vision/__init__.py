@@ -7,7 +7,7 @@ import os
 
 from aiohttp import ClientTimeout
 
-from homeassistant.components import panel_custom
+from homeassistant.components import panel_custom, persistent_notification
 from homeassistant.components.frontend import (
     add_extra_js_url,
     async_remove_panel,
@@ -35,7 +35,7 @@ from .backup import BackupManager
 from .const import DOMAIN, PANEL_TITLE, PANEL_ICON, URL_PATH, VERSION
 from .dependency_checker import DependencyChecker
 from .hacs_data import HACSData
-from .hacs_operator import HACSOperator
+from .hacs_operator import HACSOperator, async_purge_legacy_snapshots
 from .runtime import VisionConfigEntry, VisionRuntime
 from .services import register_services
 
@@ -63,7 +63,37 @@ CONFIG_SCHEMA = cv.removed(DOMAIN, raise_if_present=True)
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     """集成入口：注册服务（早于配置项，便于自动化编辑/校验）。"""
     register_services(hass)
+    await _async_clean_legacy_snapshots(hass)
     return True
+
+async def _async_clean_legacy_snapshots(hass: HomeAssistant) -> None:
+    """启动兜底：把 custom_components/ 下遗留的旧版安装快照搬走并提示用户。
+
+    v7.0.2 及以前快照直接落在 custom_components/ 内，残留时会让对应集成的
+    config flow 加载失败（前端报 Invalid handler specified）。
+    """
+    try:
+        moved = await async_purge_legacy_snapshots(hass)
+    except Exception as exc:  # noqa: BLE001
+        _LOGGER.warning("Legacy install snapshot sweep failed: %s", exc)
+        return
+    if not moved:
+        return
+    _LOGGER.warning(
+        "Moved %d legacy install snapshot(s) out of custom_components: %s",
+        len(moved), ", ".join(moved),
+    )
+    persistent_notification.async_create(
+        hass,
+        "Found legacy HACS Vision install snapshots inside `custom_components/` "
+        "and moved them out. Left in place they make the matching integration "
+        "unloadable (\"Invalid handler specified\").\n\n"
+        "在 `custom_components/` 中发现 HACS Vision 旧版安装快照残留，已移出该目录。"
+        "残留会导致对应集成无法加载配置向导（Invalid handler specified）。\n\n- "
+        + "\n- ".join(moved),
+        title="HACS Vision: legacy install snapshots moved",
+        notification_id=f"{DOMAIN}_legacy_snapshots",
+    )
 
 async def async_setup_entry(hass: HomeAssistant, entry: VisionConfigEntry) -> bool:
     """从配置项安装 HACS Vision。"""

@@ -4,6 +4,7 @@ import asyncio
 import logging
 import os
 import re
+import shutil
 import threading
 
 import aiohttp
@@ -11,7 +12,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from packaging.version import Version, InvalidVersion
 
-from .const import DOMAIN_HACS
+from .const import DOMAIN_HACS, SNAPSHOT_DIR, SNAPSHOT_SUFFIX
 from .hacs_data import HACSData
 from .hacs_history import HACSHubHistory
 
@@ -44,6 +45,49 @@ def _is_prerelease_version(version: str | None) -> bool:
         return False
     v = version.lstrip('vV').strip()
     return bool(_PRERELEASE_RE.search(v))
+
+def _snapshot_root(hass: HomeAssistant) -> str:
+    """安装快照的根目录——必须位于 custom_components/ 之外。"""
+    return hass.config.path(SNAPSHOT_DIR)
+
+def _ensure_dir(path: str) -> None:
+    """确保目录存在——须经 executor 调用。"""
+    os.makedirs(path, exist_ok=True)
+
+def _move_legacy_snapshots(custom_dir: str, snap_root: str) -> list[str]:
+    """把 custom_components/ 下遗留的旧版快照搬到快照根目录，返回搬走的目录名。
+
+    v7.0.2 及以前快照直接落在 custom_components/ 内。快照目录名（含点号）会被
+    HA 当成集成模块名去 import：import 失败则该 domain 的 config_flow 处理器不会
+    注册，前端添加该集成时报 Invalid handler specified。这里只搬不删，保住回滚能力。
+    """
+    moved: list[str] = []
+    if not os.path.isdir(custom_dir):
+        return moved
+    for name in os.listdir(custom_dir):
+        if SNAPSHOT_SUFFIX not in name:
+            continue
+        src = os.path.join(custom_dir, name)
+        if not os.path.isdir(src):
+            continue
+        try:
+            os.makedirs(snap_root, exist_ok=True)
+            dst = os.path.join(snap_root, name)
+            if os.path.exists(dst):
+                shutil.rmtree(dst, ignore_errors=True)
+            shutil.move(src, dst)
+            moved.append(name)
+        except OSError as e:
+            _LOGGER.error("Failed to move legacy snapshot %s: %s", src, e)
+    return moved
+
+async def async_purge_legacy_snapshots(hass: HomeAssistant) -> list[str]:
+    """启动兜底：清走 custom_components/ 下遗留的旧版安装快照。"""
+    return await hass.async_add_executor_job(
+        _move_legacy_snapshots,
+        hass.config.path("custom_components"),
+        _snapshot_root(hass),
+    )
 
 class HACSOperator:
     """通过 HACS 内部 API 操作。"""
@@ -804,20 +848,28 @@ class HACSOperator:
     # 一旦下载环节抛异常，目录会停留在已删除状态 —— 集成凭空消失，
     # 但 config_entry / 实体仍在注册表中，HA 持续报 not found。
     # 这里在安装前做快照，失败时回滚，避免上述中间态。
-    _SNAPSHOT_SUFFIX = ".hacs_vision_bak"
+    #
+    # 快照根目录必须位于 custom_components/ 之外（const.SNAPSHOT_DIR）。
+    # 若落在 custom_components/ 内，快照目录名会被 HA 当成集成模块名去 import，
+    # 残留一次（安装中重启 / 删除失败）就会让该集成的 config flow 加载失败。
 
     async def _snapshot_local_path(self, repo) -> str | None:
-        """把当前安装目录快照到同级备份目录，返回快照路径。"""
-        import shutil, time
+        """把当前安装目录快照到 custom_components 之外的备份目录，返回快照路径。"""
+        import time
         local = getattr(getattr(repo, "content", None), "path", None)
         local = getattr(local, "local", None)
         if not local:
             return None
         try:
-            exists = await self.hass.async_add_executor_job(os.path.exists, local)
-            if not exists:
+            local = os.path.normpath(str(local))
+            if not await self.hass.async_add_executor_job(os.path.exists, local):
                 return None
-            snap = f"{local}{self._SNAPSHOT_SUFFIX}_{int(time.time())}"
+            snap_root = _snapshot_root(self.hass)
+            await self.hass.async_add_executor_job(_ensure_dir, snap_root)
+            snap = os.path.join(
+                snap_root,
+                f"{os.path.basename(local)}{SNAPSHOT_SUFFIX}_{int(time.time())}",
+            )
             await self.hass.async_add_executor_job(shutil.copytree, local, snap)
             _LOGGER.info("Snapshot created for rollback: %s", snap)
             return snap
@@ -827,7 +879,6 @@ class HACSOperator:
 
     async def _drop_snapshot(self, snap: str | None) -> None:
         """安装成功后丢弃快照。"""
-        import shutil
         if not snap:
             return
         try:
@@ -838,7 +889,6 @@ class HACSOperator:
 
     async def _restore_snapshot(self, repo, snap: str | None) -> None:
         """安装失败后从快照回滚，恢复原安装目录。"""
-        import shutil
         if not snap:
             return
         local = getattr(getattr(repo, "content", None), "path", None)
@@ -846,6 +896,7 @@ class HACSOperator:
         if not local:
             return
         try:
+            local = os.path.normpath(str(local))
             exists = await self.hass.async_add_executor_job(os.path.exists, snap)
             if not exists:
                 return

@@ -4,7 +4,7 @@ from homeassistant.const import Platform
 DOMAIN = "hacs_vision"
 DOMAIN_HACS = "hacs"
 URL_PATH = "hacs-vision"
-VERSION = "7.0.1"
+VERSION = "7.0.3"
 
 PANEL_TITLE = "HACS Vision"
 PANEL_ICON = "hacs:hacs"
@@ -23,6 +23,13 @@ STORAGE_PATHS = {
 }
 
 API_BASE = "/api/hacs_vision"
+
+# ── 安装快照 ──
+# 快照必须放在 custom_components/ 之外：快照目录名（含点号）一旦留在
+# custom_components/ 内，HA 会把它当成集成模块名去 import，残留一次就会让
+# 对应集成的 config flow 加载失败（前端报 Invalid handler specified）。
+SNAPSHOT_DIR = ".storage/hacs_vision_snapshots"
+SNAPSHOT_SUFFIX = ".hacs_vision_bak"
 
 CONF_UPDATE_INTERVAL = "update_interval"
 DEFAULT_UPDATE_INTERVAL = 3600
