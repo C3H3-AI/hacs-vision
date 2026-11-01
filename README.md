@@ -405,6 +405,8 @@ hacs-vision/
 
 ## 开发指南
 
+提交 PR 前请先阅读 [CONTRIBUTING.md](CONTRIBUTING.md)，其中说明了 CI 会校验的四条硬性规则（分支、标题、`## Description` 段、变更类型勾选），以及版本号同步、前端产物与双后端兼容性的约定。
+
 ### 前端构建
 
 ```bash
