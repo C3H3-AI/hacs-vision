@@ -12,7 +12,10 @@ import uuid
 import aiohttp
 from aiohttp import web
 
-from homeassistant.components.system_log import DATA_SYSTEM_LOG
+try:  # HA ≥2026.11 去掉了 DATA_SYSTEM_LOG 常量，handler 落在 hass.data["system_log"]
+    from homeassistant.components.system_log import DATA_SYSTEM_LOG
+except ImportError:  # pragma: no cover - 版本分支
+    DATA_SYSTEM_LOG = "system_log"
 from homeassistant.const import __version__ as ha_version
 from homeassistant.helpers.network import NoURLAvailableError, get_url
 

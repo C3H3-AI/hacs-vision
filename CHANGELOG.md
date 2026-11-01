@@ -1,5 +1,36 @@
 # Changelog
 
+## v7.1.0 (2026-11-01) — 适配 HA 2026.11 内置 Marketplace / Adapt to the built-in Marketplace
+
+### ✨ 新增 / Added
+
+- **双后端支持，向下兼容 ([#63](https://github.com/C3H3-AI/hacs-vision/pull/63))** — HA 2026.11 起核心自带 `marketplace` 集成，启动时 `shutil.rmtree` 掉 `custom_components/hacs` 并把 `.storage/hacs.*` 改名成 `marketplace.*`。新增 `backend.py`：`async_detect_backend()` 先找 `marketplace` 的 config entry，找不到再回落到 `hass.data["hacs"]`。`MarketplaceBackend` 把 marketplace 的 Repository 包成 HACS Repository 的形状；`LegacyHacsBackend` 原样透传旧 HACS，**≤2026.10 行为零变化**。存储路径同步按后端解析（`hacs.repositories` → `marketplace.repositories`，`hacs.hacs` → `marketplace.common`），先探测文件是否存在，避免迁移未完成时读错
+- **Dual backends, backwards compatible ([#63](https://github.com/C3H3-AI/hacs-vision/pull/63))** — HA 2026.11 ships a built-in `marketplace` integration that `shutil.rmtree`s `custom_components/hacs` on startup and renames `.storage/hacs.*` to `marketplace.*`. New `backend.py`: `async_detect_backend()` looks for a `marketplace` config entry first and falls back to `hass.data["hacs"]`. `MarketplaceBackend` wraps marketplace's Repository into the HACS Repository shape; `LegacyHacsBackend` passes the old HACS through unchanged, so **behaviour on ≤2026.10 is untouched**. Storage paths resolve per backend (`hacs.repositories` → `marketplace.repositories`, `hacs.hacs` → `marketplace.common`), probing for the file first so an unfinished migration cannot be read wrongly
+
+### 🔧 修复 / Fixed
+
+- **适配器 `__slots__` 挡住 monkey-patch** — operator 按分支/SHA 安装时会写 `repo.download_content = ...`，`__slots__` 直接抛 `AttributeError`。改为 `__getattr__`/`__setattr__` 代理到原始对象
+- **`repo.data.name` 在 marketplace 是只读派生属性** — 赋值抛错，改为容错跳过
+- **卸载不落盘** — marketplace 的 `uninstall()` 只删目录、只改内存里的 `installed`，不像 `async_install_repository()` 那样在 `finally` 里 `async_write()`。不补写的话，重启前状态一直是错的。新增 `_persist_repo_state()`
+- **`has_update` 误报** — marketplace 会给**已卸载**的仓库保留 `version_installed`（上次装的版本）。只比版本差，5375 个仓库里有 54 个没装的被算成「可更新」。加 `installed` 前置条件后统计恢复正常
+- **指定版本安装走错路径** — 原路径是 HACS 专属做法（打补丁 `download_content` + 先清空 `content.path.remote`），marketplace 会抛 `There is no content to download`。marketplace 后端改走它自己的 `async_install_repository(ref=)`
+- **`system_log.DATA_SYSTEM_LOG` 在 2026.11 被移除** — 改为兼容导入
+- **manifest.json** — `dependencies` 去掉 `hacs`（2026.11 上不存在，会阻止加载），改列进 `after_dependencies`，同时加入 `marketplace`
+- **Adapter `__slots__` blocked monkey-patching** — installing by branch/SHA writes `repo.download_content = ...`, which `__slots__` rejects with `AttributeError`; now proxied to the raw object
+- **`repo.data.name` is read-only on marketplace** — assigning it raised; tolerated now
+- **Uninstall did not persist** — marketplace's `uninstall()` only removes the directory and flips the in-memory `installed` flag, unlike `async_install_repository()` which writes in a `finally`. Without an extra write the state stayed wrong until the next restart. Added `_persist_repo_state()`
+- **`has_update` false positives** — marketplace keeps `version_installed` ("last installed version") on uninstalled repositories, so comparing versions alone reported 54 not-installed repos as updatable
+- **Installing a specific version took the wrong path** — the old path is HACS-specific (patching `download_content` and clearing `content.path.remote` first), which made marketplace raise `There is no content to download`. The marketplace backend now uses its own `async_install_repository(ref=)`
+- **`system_log.DATA_SYSTEM_LOG` was removed in 2026.11** — guarded import
+- **manifest.json** — dropped `hacs` from `dependencies` (absent on 2026.11 and would block loading), listed it in `after_dependencies` next to `marketplace`
+
+### ✅ 验证 / Verified
+
+- HA 2026.11.0b2 + marketplace：主题安装/卸载、集成安装（adaptive-lighting）与清理、指定版本安装与升级、故意失败触发回滚、5375 个仓库列表与筛选分页，全部通过
+- HA 2026.10.2 + HACS 2.0.5：后端识别为 `hacs`，4173 个仓库、72 个已安装正常读取，主题安装落盘正常
+- HA 2026.11.0b2 + marketplace: theme install/uninstall, integration install (adaptive-lighting) and clean uninstall, specific-version install and upgrade, rollback on a deliberate failure, and 5375-repo listing with filters/pagination all pass
+- HA 2026.10.2 + HACS 2.0.5: backend detected as `hacs`, 4173 repos and 72 installed read correctly, theme install lands on disk
+
 ## v7.0.3 (2026-10-17) — 安装快照移出 custom_components / Install Snapshots Moved Out of custom_components
 
 ### 🔧 修复 / Fixed
