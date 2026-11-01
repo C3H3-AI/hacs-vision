@@ -862,8 +862,22 @@ class HACSOperator:
                     async def _download_content_for_ref(
                         version=None, _orig=saved_download_content, _repo=repo
                     ):
+                        # 备份会被这次下载改掉的状态，成功失败都要还原——
+                        # Vision 改的是 HACS 共享的 repository 对象，残留会污染后续操作。
+                        saved_remote = _repo.content.path.remote
+                        saved_file_name = _repo.data.file_name
                         try:
                             _repo.data.etag_repository = None
+                            # update_repository() 会按新 ref 重新解析 remote。
+                            # integration 的实现是：
+                            #   if remote == "custom_components":
+                            #       remote = f"custom_components/{真实目录}"
+                            # 也就是说 remote 必须保持 async_pre_install() 设好的
+                            # 锚点值（"custom_components"），它才能解析出真实目录。
+                            # 旧代码在这里把 remote 清成 None：条件不成立 → remote 一直是
+                            # None → 下载阶段 gather_files_to_download() 里
+                            # path.full_path.startswith(None) 抛 TypeError。
+                            # 所以这里不做任何清空，交给 update_repository() 自己算。
                             await _repo.update_repository(force=True)
                             _repo.releases.objects = []
                             if not _repo.data.name:
@@ -871,12 +885,13 @@ class HACSOperator:
                                     (_repo.data.full_name or "").split("/")[-1]
                                     or _repo.data.name
                                 )
-                            _repo.content.path.remote = None
-                            _repo.data.file_name = None
                             _repo.update_filenames()
                             return await _orig(version)
                         finally:
                             _repo.releases.objects = saved_releases_objects
+                            # 还原共享状态，避免 Vision 的 ref 安装污染 HACS 本体
+                            _repo.content.path.remote = saved_remote
+                            _repo.data.file_name = saved_file_name
 
                     repo.download_content = _download_content_for_ref
 

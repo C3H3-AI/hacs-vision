@@ -1,5 +1,12 @@
 # Changelog
 
+## v7.1.1 (2026-11-01) — 修复按 ref 安装集成时 remote 路径被清空 / Fix remote path reset on ref install
+
+### 🔧 修复 / Fixed
+
+- **按 ref 安装集成报 `TypeError: startswith first arg must be str or a tuple of str, not NoneType` ([#63](https://github.com/C3H3-AI/hacs-vision/issues/63))** — `install_repository_version()` 给 `download_content` 打的包装器里有 `_repo.content.path.remote = None`。而 HACS 的 `integration.update_repository()` 是这么解析目录的：`if remote == "custom_components": remote = f"custom_components/{真实目录}"`。锚点被清成 `None` 后这个分支永远不成立，`remote` 停在 `None`，于是 `download_content()` 里 `if ... and remote is not None` 走不进 archive 下载，只能落到 `gather_files_to_download()`，第一行 `path.full_path.startswith(None)` 直接抛 `TypeError`。现在不再清空 `remote`，交给 `update_repository()` 自己解析；同时在 `finally` 里还原 `remote` 与 `file_name`，避免 Vision 的 ref 安装改动污染 HACS 共享的 repository 对象
+- **`TypeError: startswith first arg must be str or a tuple of str, not NoneType` when installing an integration by ref ([#63](https://github.com/C3H3-AI/hacs-vision/issues/63))** — The wrapper `install_repository_version()` installs over `download_content` set `_repo.content.path.remote = None`. HACS resolves the directory in `integration.update_repository()` with `if remote == "custom_components": remote = f"custom_components/{real_dir}"`. With the anchor cleared to `None` that branch never fires, `remote` stays `None`, so in `download_content()` the guard `if ... and remote is not None` skips the archive download, execution falls through to `gather_files_to_download()`, and its first line `path.full_path.startswith(None)` raises the `TypeError`. The wrapper no longer clears `remote` and lets `update_repository()` resolve it; `remote` and `file_name` are restored in `finally` so a ref install no longer leaks state into the repository object HACS shares
+
 ## v7.1.0 (2026-11-01) — 适配 HA 2026.11 内置 Marketplace / Adapt to the built-in Marketplace
 
 ### ✨ 新增 / Added
