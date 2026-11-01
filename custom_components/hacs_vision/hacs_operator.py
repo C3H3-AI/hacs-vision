@@ -13,6 +13,7 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from packaging.version import Version, InvalidVersion
 
 from .const import DOMAIN_HACS, SNAPSHOT_DIR, SNAPSHOT_SUFFIX
+from .backend import async_detect_backend
 from .hacs_data import HACSData
 from .hacs_history import HACSHubHistory
 
@@ -106,16 +107,52 @@ class HACSOperator:
         self._custom_repos_verified: bool = False
         # P2：实时安装进度追踪（供前端进度条）
         self._install_progress: dict[str, dict] = {}
+        # 后端名（hacs / marketplace），仅在变化时打一次日志
+        self._backend_name: str | None = None
+
+    @property
+    def _backend(self):
+        """动态获取后端（HACS 或 HA 2026.11+ 内置 marketplace）。
+
+        每次访问都重新检测：初始化时后端可能尚未就绪，也可能在
+        marketplace 首次接管、HACS 被移除之后换成新对象。
+        """
+        backend = async_detect_backend(self.hass)
+        if backend is not None and backend.name != self._backend_name:
+            _LOGGER.info("hacs_vision: 当前后端 = %s", backend.name)
+            self._backend_name = backend.name
+        return backend
 
     @property
     def _hacs(self):
-        """动态获取 HACS 实例——初始化时可能尚不可用。"""
-        return self.hass.data.get(DOMAIN_HACS)
+        """兼容旧代码：返回后端对象（形状与 HACS 实例一致）。"""
+        return self._backend
 
     @property
     def available(self) -> bool:
-        """检查 HACS 是否已加载且可访问。"""
-        return self._hacs is not None
+        """检查后端是否已加载且可访问。"""
+        return self._backend is not None
+
+    @property
+    def backend_name(self) -> str | None:
+        """当前后端名（hacs / marketplace），供面板与诊断展示。"""
+        backend = self._backend
+        return None if backend is None else backend.name
+
+    async def _persist_repo_state(self) -> None:
+        """把后端内存里的仓库状态落盘，失败只记日志不抛。
+
+        两个后端的落盘时机不一致：HACS 的 uninstall 自己会写，
+        marketplace 的 uninstall 不写、只有 async_install_repository 写。
+        统一在这里补一次，调用方不必区分后端。
+        """
+        backend = self._backend
+        if backend is None:
+            return
+        try:
+            await backend.data.async_write()
+        except Exception as e:  # noqa: BLE001
+            _LOGGER.warning("后端状态落盘失败（后端=%s）：%s", backend.name, e)
 
     def _ensure_index(self):
         """若未缓存则构建查找索引——线程安全。"""
@@ -309,6 +346,10 @@ class HACSOperator:
                     return {"success": True, "repository": repo.data.full_name, "note": "not_installed"}
 
                 await repo.uninstall()
+                # marketplace 的 uninstall() 只删目录、只改内存里的 installed，
+                # 不像 async_install_repository() 那样自己落盘——必须补写一次，
+                # 否则重启后已卸载的仓库会被当成还装着。
+                await self._persist_repo_state()
                 # N1：变更后使索引失效
                 self.invalidate_index()
                 return {"success": True, "repository": repo.data.full_name}
@@ -526,8 +567,11 @@ class HACSOperator:
                     installed_prerelease = _is_prerelease_version(installed_ver)
                     latest_prerelease = _is_prerelease_version(latest_ver)
                     same_channel = installed_prerelease or installed_prerelease == latest_prerelease
+                    # marketplace 会保留已卸载仓库的 version_installed（上次装的版本），
+                    # 只比版本会把没装的仓库算成“可更新”，必须同时要求真的装着。
                     has_update = bool(
-                        installed_ver and latest_ver
+                        repo.data.installed
+                        and installed_ver and latest_ver
                         and installed_ver != latest_ver
                         and same_channel
                     )
@@ -767,6 +811,44 @@ class HACSOperator:
                 # 安装原子性：任何安装动作前先快照已装目录。
                 # HACS 会先删除旧目录再下载，下载失败即造成目录丢失，这里用于回滚。
                 install_snapshot = await self._snapshot_local_path(repo)
+
+                # marketplace 有自己的 ref 安装入口，别走 HACS 那套打补丁的路子：
+                # 它的 download_content(version=) 只在 remote=="release" 时才认 version，
+                # 先把 remote 清空再去调，只会得到 "There is no content to download"。
+                if version and self.backend_name == "marketplace":
+                    try:
+                        await repo.async_install_repository(ref=version)
+                    except Exception as e:  # noqa: BLE001
+                        _LOGGER.error("marketplace ref install failed: %s", e, exc_info=True)
+                        if install_snapshot:
+                            try:
+                                await self._restore_snapshot(
+                                    self._find_repo(repo_id_or_name), install_snapshot
+                                )
+                            except Exception:  # noqa: BLE001
+                                _LOGGER.error("snapshot restore failed", exc_info=True)
+                            return {
+                                "success": False,
+                                "error": str(e),
+                                "rolled_back": True,
+                                "note": "安装失败，已回滚到安装前的版本",
+                            }
+                        return {"success": False, "error": str(e)}
+                    await self._drop_snapshot(install_snapshot)
+                    self.invalidate_index()
+                    self._cleanup_lock(repo_id_or_name)
+                    to_version = repo.display_installed_version or ""
+                    if from_version and to_version and from_version != to_version:
+                        await self._history.add_record(
+                            repo.data.full_name, from_version, to_version
+                        )
+                    self.set_install_progress(repo_key, 100, "complete", "Update complete")
+                    return {
+                        "success": True,
+                        "repository": repo.data.full_name,
+                        "version": to_version,
+                    }
+
                 if version and not is_release:
 
                     meta = await self._fetch_repo_meta(repo_key)
@@ -1027,7 +1109,9 @@ class HACSOperator:
             "installed": repo.data.installed or False,
             "installed_version": installed,
             "latest_version": available,
-            "has_update": bool(installed and available and installed != available),
+            "has_update": bool(
+                repo.data.installed and installed and available and installed != available
+            ),
             "pending_restart": getattr(repo, 'pending_restart', False),
         }
         # 若可用则附加安装进度

@@ -10,6 +10,7 @@ from collections import OrderedDict
 import homeassistant.components
 from homeassistant.helpers.translation import async_get_translations
 
+from .backend import resolve_storage_path
 from .const import STORAGE_PATHS
 
 _LOGGER = logging.getLogger(__name__)
@@ -59,7 +60,9 @@ class HACSData:
         rel_path = STORAGE_PATHS.get(key)
         if not rel_path:
             raise ValueError(f"Unknown storage key: {key}")
-        return self.hass.config.path(rel_path)
+        # HA 2026.11+ 内置 marketplace 改了存储文件名，按当前后端解析
+        resolved = resolve_storage_path(self.hass, key, STORAGE_PATHS) or rel_path
+        return self.hass.config.path(resolved)
 
     async def _async_read_file(self, path: str) -> str | None:
         """在 executor 中读取文件以避免阻塞。"""
