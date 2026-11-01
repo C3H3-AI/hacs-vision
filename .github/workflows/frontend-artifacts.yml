@@ -1,0 +1,110 @@
+name: Validate Frontend Artifacts
+
+on:
+  pull_request:
+    paths:
+      - 'frontend_src/**'
+      - 'custom_components/**/frontend/**'
+      - '.github/workflows/frontend-artifacts.yml'
+
+jobs:
+  artifacts-in-sync:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # 判断按目录分组，哪一侧改了
+      - name: Detect changed paths
+        id: changes
+        shell: bash
+        run: |
+          BASE="origin/${{ github.base_ref }}"
+          git fetch --no-tags --depth=1 origin "${{ github.base_ref }}"
+
+          CHANGED=$(git diff --name-only "$BASE"...HEAD)
+          echo "$CHANGED" | sed 's/^/  /' | head -50
+
+          SRC_CHANGED=no
+          ARTIFACT_CHANGED=no
+
+          while IFS= read -r f; do
+            [ -z "$f" ] && continue
+            case "$f" in
+              frontend_src/*)                      SRC_CHANGED=yes ;;
+              custom_components/*/frontend/*)      ARTIFACT_CHANGED=yes ;;
+            esac
+          done <<< "$CHANGED"
+
+          echo "src_changed=$SRC_CHANGED"           >> "$GITHUB_OUTPUT"
+          echo "artifact_changed=$ARTIFACT_CHANGED" >> "$GITHUB_OUTPUT"
+          echo "source changed:   $SRC_CHANGED"
+          echo "artifact changed: $ARTIFACT_CHANGED"
+
+      # 只改了源码、没更新产物 —— 这是最常见的问题
+      - name: Source changed but artifacts were not rebuilt
+        if: steps.changes.outputs.src_changed == 'yes' && steps.changes.outputs.artifact_changed == 'no'
+        shell: bash
+        run: |
+          echo "❌ frontend_src/ 有改动，但 custom_components/*/frontend/ 下的构建产物没有更新"
+          echo ""
+          echo "HACS 用户安装的是仓库里提交的构建产物，不是源码。"
+          echo "只改源码不重新构建，改动对用户不会生效。"
+          echo ""
+          echo "请执行："
+          echo "  cd frontend_src"
+          echo "  npm ci"
+          echo "  npm run build"
+          echo "  git add ../custom_components/hacs_vision/frontend/"
+          echo ""
+          echo "参考：https://github.com/${{ github.repository }}/blob/main/CONTRIBUTING.md"
+          exit 1
+
+      # 产物与源码都变了 —— 验证产物确实是当前源码构建出来的
+      - name: Verify artifacts match a fresh build
+        if: steps.changes.outputs.src_changed == 'yes' && steps.changes.outputs.artifact_changed == 'yes'
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          cd frontend_src
+          echo "::group::npm ci"
+          npm ci --no-audit --no-fund
+          echo "::endgroup::"
+
+          echo "::group::npm run build"
+          npm run build
+          echo "::endgroup::"
+
+          cd ..
+          # build.json 只记录缓存哈希，会随内容变化，一并比较
+          if ! git diff --quiet -- custom_components/hacs_vision/frontend/; then
+            echo ""
+            echo "❌ 提交的构建产物与「用当前源码重新构建」的结果不一致"
+            echo ""
+            git diff --stat -- custom_components/hacs_vision/frontend/
+            echo ""
+            echo "常见原因："
+            echo "  - 产物不是用当前 package-lock.json 构建的"
+            echo "  - 改完源码忘了重新 npm run build"
+            echo "  - 手工编辑过 panel.js / index.html"
+            echo ""
+            echo "请重新构建并提交："
+            echo "  cd frontend_src && npm ci && npm run build"
+            echo "  git add ../custom_components/hacs_vision/frontend/"
+            exit 1
+          fi
+
+          echo "✅ 提交的产物与重新构建的结果一致"
+
+      # 只改了产物、没动源码 —— 允许（例如纯构建修复），但给出提示
+      - name: Artifacts changed without source changes
+        if: steps.changes.outputs.src_changed == 'no' && steps.changes.outputs.artifact_changed == 'yes'
+        shell: bash
+        run: |
+          echo "⚠️ 本次只更新了构建产物，frontend_src/ 未改动。"
+          echo "如果这是刻意的（例如用更新的依赖重新构建），可以忽略此提示。"
+          echo "否则请确认源码是否需要同步修改。"
