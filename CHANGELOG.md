@@ -1,5 +1,25 @@
 # Changelog
 
+## v7.1.2 (2026-11-02) — 重新构建前端产物 / Rebuild frontend with patched DOMPurify
+
+### 🔧 修复 / Fixed
+
+- **v7.1.1 的 dompurify 升级没有生效** — 上个版本只改了 `frontend_src/package.json` 与 `package-lock.json`，但没有重新构建并提交 `custom_components/hacs_vision/frontend/panel.js`。而 HACS 用户安装的是仓库里提交的构建产物，不是源码，因此升级对用户完全无效——`panel.js` 内嵌的仍是 dompurify `3.4.8`。本版重新执行 `npm run build`，产物内嵌版本已更新为 `3.4.17`
+- **The dompurify upgrade in v7.1.1 never reached users** — The release only changed `frontend_src/package.json` and `package-lock.json` without rebuilding and committing `custom_components/hacs_vision/frontend/panel.js`. HACS installs the committed build artifact, not the sources, so the `panel.js` shipped with v7.1.1 still bundled dompurify `3.4.8`. This release runs `npm run build` again; the artifact now bundles `3.4.17`
+
+### 📝 说明 / Notes
+
+GHSA-cg2g-xh64-v4q7 的触发需要 `SAFE_FOR_TEMPLATES` 与 DOM 返回模式同时启用，本仓库均未使用，实际不可达。但依赖与产物都不应停留在已知漏洞版本上。
+
+GHSA-cg2g-xh64-v4q7 requires `SAFE_FOR_TEMPLATES` together with a DOM-returning mode; this repository uses neither, so it was never reachable. The dependency and artifact should still not ship a known-vulnerable version.
+
+### ✅ 验证 / Verified
+
+- `panel.js` 内嵌 dompurify 版本：`3.4.8` → `3.4.17`
+- `node --check panel.js` 语法通过
+- 9 个 `customElements.define` 全部存在，`DOMPurify.sanitize` 调用点完好
+- 构建缓存哈希 `38c7e7854e`
+
 ## v7.1.1 (2026-11-01) — 修复按 ref 安装集成时 remote 路径被清空 / Fix remote path reset on ref install
 
 ### 🔧 修复 / Fixed
