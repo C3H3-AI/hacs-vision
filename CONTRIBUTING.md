@@ -135,11 +135,32 @@ The template already contains every required structure. Keep it as-is and only f
 
 ### 前端产物 / Frontend artifacts
 
-`custom_components/hacs_vision/frontend/` 下的 `panel.js`、`index.html`、`build.json` 是构建产物。
+`custom_components/hacs_vision/frontend/` 下的 `panel.js`、`index.html`、`build.json` 是构建产物，**会提交进仓库**，HACS 用户安装的就是它们。
 
 - **不要手工编辑**这三个文件
-- 改了 `frontend_src/` 之后运行 `npm run build` 重新生成
-- 产物与源码请分开提交，便于 review
+- 改了 `frontend_src/` 之后必须运行 `npm run build` 重新生成并一起提交
+- 产物与源码请分开 commit，便于 review
+
+`Validate Frontend Artifacts` 工作流会强制校验：
+
+| 情形 | 结果 |
+|---|---|
+| 改了 `frontend_src/`，产物未更新 | ❌ 失败 |
+| 源码与产物都改，但产物与重新构建结果不一致 | ❌ 失败 |
+| 只更新产物（如用新依赖重建） | ⚠️ 通过并提示 |
+| 未涉及前端 | 不触发 |
+
+修复步骤：
+
+```bash
+cd frontend_src
+npm ci
+npm run build
+git add ../custom_components/hacs_vision/frontend/
+git commit -m "build: 重新构建前端产物"
+```
+
+> 这条检查来自一次真实事故：v7.1.1 只升级了 `frontend_src` 里的 dompurify 依赖，没有重建产物，结果用户装到的 `panel.js` 里仍是旧版本，安全升级完全没生效。
 
 ### 兼容性 / Compatibility
 
