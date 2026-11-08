@@ -511,8 +511,9 @@ class HACSOperator:
         try:
             config = await self._data.get_config()
             for r in config.get("custom_repositories", []):
-                repo_name = r.get("repository", "")
-                if repo_name:
+                # marketplace 存的是仓库 ID，不是名字，取不到 owner/repo 就跳过
+                repo_name = self._custom_repo_name(r)
+                if repo_name and "/" in repo_name:
                     custom_repo_names.add(repo_name.lower())
         except Exception:
             pass
@@ -1181,19 +1182,41 @@ class HACSOperator:
             "rate_limited": rate_limited,
         }
 
+    @staticmethod
+    def _custom_repo_name(entry) -> str:
+        """从一条自定义仓库记录里取出仓库全名。
+
+        marketplace 把 custom_repositories 存成仓库 ID 字符串的集合，
+        旧 HACS 存成 {"repository": ..., "category": ...} 字典，两种都要能读。
+        """
+        if isinstance(entry, str):
+            return entry
+        if isinstance(entry, dict):
+            return str(entry.get("repository") or "")
+        return ""
+
     async def add_custom_repository(self, full_name: str, category: str) -> dict:
         """向 HACS 添加自定义仓库。"""
-        config = await self._data.get_config()
-        custom_repos = config.get("custom_repositories", [])
+        # marketplace 的 custom_repositories 是「仓库 ID 字符串」集合，由
+        # async_register_repository() 在注册成功时写进内存，再随
+        # data.async_write() 整份落盘。直接往配置文件里塞 dict 会写坏它的形状，
+        # 而且下一次 marketplace 自己的 async_write 还会把外部改动覆盖掉，
+        # 所以 marketplace 下这一层完全不碰配置，只在末尾补一次 ID 登记。
+        if self.backend_name != "marketplace":
+            config = await self._data.get_config()
+            custom_repos = config.get("custom_repositories", [])
 
-        already_in_config = any(r.get("repository") == full_name for r in custom_repos)
+            already_in_config = any(
+                self._custom_repo_name(r).lower() == full_name.lower()
+                for r in custom_repos
+            )
 
-        if not already_in_config:
-            custom_repos.append({"repository": full_name, "category": category})
-            config["custom_repositories"] = custom_repos
-            ok = await self._data.update_config(config)
-            if not ok:
-                return {"success": False, "error": "write_failed"}
+            if not already_in_config:
+                custom_repos.append({"repository": full_name, "category": category})
+                config["custom_repositories"] = custom_repos
+                ok = await self._data.update_config(config)
+                if not ok:
+                    return {"success": False, "error": "write_failed"}
 
         # 同时持久化到我们的备份存储（HACS 2.0 可能剥离 custom_repositories）
         our_repos = await self._data.get_custom_repos_list()
@@ -1279,6 +1302,22 @@ class HACSOperator:
                 )
                 return {"success": False, "error": "HACS register did not take effect"}
 
+            # marketplace 只在 check=True 的注册里自己往 custom_repositories
+            # 里加仓库 ID，走 check=False 的兜底路径时不会加，这里补一次，
+            # 否则仓库在内存里注册成功、重启后却不再是「自定义仓库」。
+            if self.backend_name == "marketplace":
+                try:
+                    raw = self._hacs.raw
+                    repo = self._hacs.repositories.get_by_full_name(full_name)
+                    repo_id = str(getattr(getattr(repo, "data", None), "id", "") or "")
+                    if repo_id and repo_id != "0":
+                        raw.common.custom_repositories.add(repo_id)
+                except Exception as e:
+                    _LOGGER.warning(
+                        "marketplace custom_repositories update failed for %s: %s",
+                        full_name, e, exc_info=True,
+                    )
+
             # 立即将新注册的仓库持久化到 .storage/hacs.repositories。
             try:
                 await self._hacs.data.async_write()
@@ -1326,7 +1365,21 @@ class HACSOperator:
                         repository = r
                         break
             if repository:
+                repo_id = str(
+                    getattr(getattr(repository, "data", None), "id", "") or ""
+                )
                 self._hacs.repositories.unregister(repository)
+                # marketplace 卸载时不清理 custom_repositories，会让已删的仓库
+                # 一直留在自定义列表里，这里补一次（与它自己的 remove 命令一致）。
+                if self.backend_name == "marketplace" and repo_id and repo_id != "0":
+                    try:
+                        self._hacs.raw.common.custom_repositories.discard(repo_id)
+                        await self._hacs.data.async_write()
+                    except Exception as e:
+                        _LOGGER.warning(
+                            "marketplace custom_repositories cleanup failed for %s: %s",
+                            full_name, e, exc_info=True,
+                        )
                 self.invalidate_index()
                 return {"success": True, "repository": full_name}
             return {"success": False, "error": "not_found"}
