@@ -1255,14 +1255,14 @@ class HACSOpsMixin:
             _LOGGER.error("Entity refs find failed: %s", e, exc_info=True)
             return _server_error()
 
-    async def _entity_refs_replace(self, body: dict, request: web.Request | None = None) -> web.Response:
+    async def _entity_refs_replace(self, body: dict, request: web.Request) -> web.Response:
         old_id = body.get("old_id", "")
         new_id = body.get("new_id", "")
         preview = body.get("preview", True)
         if not old_id or not new_id:
             return _bad_request("old_id and new_id required")
         try:
-            token = self._extract_token(request) if request else self._current_token
+            token = self._extract_token(request)
             finder = EntityRefFinder(self.hass, hass_token=token)
             result = await finder.replace(old_id, new_id, preview=preview)
             if not preview and result.get("total_updated", 0) > 0:
