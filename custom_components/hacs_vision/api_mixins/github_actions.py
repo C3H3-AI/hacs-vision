@@ -12,7 +12,10 @@ import uuid
 import aiohttp
 from aiohttp import web
 
-from homeassistant.components.system_log import DATA_SYSTEM_LOG
+try:  # ≤2026.10：常量在包根；2026.11 起：移入 const 子模块且不再从包根导出
+    from homeassistant.components.system_log import DATA_SYSTEM_LOG
+except ImportError:  # pragma: no cover - 模块布局差异
+    from homeassistant.components.system_log.const import DATA_SYSTEM_LOG
 from homeassistant.const import __version__ as ha_version
 from homeassistant.helpers.network import NoURLAvailableError, get_url
 
