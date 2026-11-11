@@ -8,7 +8,7 @@
     },
     "abort": {
       "single_instance_allowed": "Only a single instance of HACS Vision is allowed.",
-      "hacs_not_found": "HACS integration is required but not found."
+      "hacs_not_found": "HACS or the built-in Marketplace integration is required, but neither was found."
     }
   },
   "services": {
