@@ -12,10 +12,10 @@ import uuid
 import aiohttp
 from aiohttp import web
 
-try:  # HA ≥2026.11 去掉了 DATA_SYSTEM_LOG 常量，handler 落在 hass.data["system_log"]
+try:  # ≤2026.10：常量在包根；2026.11 起：移入 const 子模块且不再从包根导出
     from homeassistant.components.system_log import DATA_SYSTEM_LOG
-except ImportError:  # pragma: no cover - 版本分支
-    DATA_SYSTEM_LOG = "system_log"
+except ImportError:  # pragma: no cover - 模块布局差异
+    from homeassistant.components.system_log.const import DATA_SYSTEM_LOG
 from homeassistant.const import __version__ as ha_version
 from homeassistant.helpers.network import NoURLAvailableError, get_url
 
@@ -23,6 +23,11 @@ from ..const import VERSION, VALID_HACS_CATEGORIES
 from ..response import _error, _ok, _not_found, _bad_request, _unauthorized, _server_error
 
 _LOGGER = logging.getLogger(__name__)
+
+def _ensure_dir(path: str) -> None:
+    """同步创建目录——须经 executor 调用。"""
+    os.makedirs(path, exist_ok=True)
+
 
 class GitHubActionsMixin:
     """GitHub 点赞/取消点赞、议题创建、日志获取与已点赞仓库同步。"""
@@ -524,7 +529,7 @@ class GitHubActionsMixin:
         """将 base64 截图保存到 HA 的 www 目录并返回可访问 URL。"""
         try:
             www_dir = self.hass.config.path("www", "hacs_vision_screenshots")
-            os.makedirs(www_dir, exist_ok=True)
+            await self.hass.async_add_executor_job(_ensure_dir, www_dir)
             raw = base64_data
             if "," in raw:
                 raw = raw.split(",", 1)[1]
