@@ -43,7 +43,9 @@ FRONTEND_DIR = os.path.join(os.path.dirname(__file__), "frontend")
 BUILD_JSON_PATH = os.path.join(FRONTEND_DIR, "build.json")
 
 _LOGGER = logging.getLogger(__name__)
-_REGISTERED_VIEWS: set = set()
+# 视图只注册一次：aiohttp 路由在 register_view 时绑定实例，重载无法换绑，
+# 故重载时把新的运行时组件绑回既有实例（HACSEnhancedAPI.bind）。
+_VIEW_INSTANCES: dict[type, object] = {}
 
 def _read_file(path: str) -> str:
     """同步读取文件——须经 executor 调用。"""
@@ -103,17 +105,27 @@ async def async_setup_entry(hass: HomeAssistant, entry: VisionConfigEntry) -> bo
     backup = BackupManager(hass, shared_data=shared_data, operator=operator)
     checker = DependencyChecker(hass, shared_data=shared_data)
 
-    # 幂等注册：重加载时跳过已注册的视图，避免 aiohttp 重复路由抛出 ValueError
-    if HACSEnhancedStaticView not in _REGISTERED_VIEWS:
-        hass.http.register_view(HACSEnhancedStaticView(hass))
-        _REGISTERED_VIEWS.add(HACSEnhancedStaticView)
-    api_view = HACSEnhancedAPI(hass, data=shared_data, operator=operator, backup=backup, checker=checker)
-    if HACSEnhancedAPI not in _REGISTERED_VIEWS:
+    # 幂等注册：重加载时复用已注册实例，避免 aiohttp 重复路由抛出 ValueError
+    static_view = _VIEW_INSTANCES.get(HACSEnhancedStaticView)
+    if static_view is None:
+        static_view = HACSEnhancedStaticView(hass)
+        hass.http.register_view(static_view)
+        _VIEW_INSTANCES[HACSEnhancedStaticView] = static_view
+
+    api_view = _VIEW_INSTANCES.get(HACSEnhancedAPI)
+    if api_view is None:
+        api_view = HACSEnhancedAPI(hass, data=shared_data, operator=operator, backup=backup, checker=checker)
         hass.http.register_view(api_view)
-        _REGISTERED_VIEWS.add(HACSEnhancedAPI)
-    if HACSBrandIconView not in _REGISTERED_VIEWS:
-        hass.http.register_view(HACSBrandIconView(hass))
-        _REGISTERED_VIEWS.add(HACSBrandIconView)
+        _VIEW_INSTANCES[HACSEnhancedAPI] = api_view
+    else:
+        # 路由仍指向首个实例，把新运行时组件绑过去，HTTP 与 WS 才共用同一份状态
+        api_view.bind(hass, data=shared_data, operator=operator, backup=backup, checker=checker)
+
+    brand_view = _VIEW_INSTANCES.get(HACSBrandIconView)
+    if brand_view is None:
+        brand_view = HACSBrandIconView(hass)
+        hass.http.register_view(brand_view)
+        _VIEW_INSTANCES[HACSBrandIconView] = brand_view
     cache_key = await _read_build_hash(hass)
     await _register_panel(hass, cache_key)
 
