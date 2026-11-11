@@ -12,9 +12,11 @@
 [![Deutsch](https://img.shields.io/badge/lang-de-green.svg)](README.de.md)
 [![Русский](https://img.shields.io/badge/lang-ru-blue.svg)](README.ru.md)
 
-> **Current version**: v7.0.1 | **Minimum HA**: 2026.1.0
+> **Current version**: v7.1.4 | **Minimum HA**: 2026.1.0
 
-> **⚠️ Prerequisite**: [HACS](https://hacs.xyz) must be installed and configured.
+> **⚠️ Backend requirement**: either **HACS** (HA ≤ 2026.10) or the **built-in Marketplace** (HA 2026.11+)
+
+> **🔄 For HA 2026.11+ users**: this release replaces HACS with the built-in `marketplace`. HACS Vision has supported both backends since v7.1.0, so HACS is no longer required — but you must add the **Marketplace** integration under Settings → Devices & Services first, otherwise the config flow aborts with `hacs_not_found`.
 
 ---
 
@@ -65,7 +67,9 @@
 
 ## Installation
 
-### Via HACS Custom Repository (Recommended)
+> **Pick your backend**: HACS on HA ≤ 2026.10, the built-in Marketplace on HA 2026.11+. Both run the same HACS Vision integration.
+
+### Via HACS Custom Repository (HA ≤ 2026.10, recommended)
 
 > ⚠️ **HACS Vision is NOT in the default HACS store** and cannot be installed by searching the store. Add this repo via "Custom repositories" using the URL below.
 
@@ -75,6 +79,14 @@
 4. Category: **Integration**
 5. Click **Install**
 6. **Restart Home Assistant**
+
+### Via the built-in Marketplace (HA 2026.11+)
+
+1. Go to **Settings → Devices & Services → Add Integration** and add **Marketplace**
+2. Open **Marketplace → Custom repositories** (top-right menu; the exact entry point may differ in your build)
+3. Add repository URL: `https://github.com/C3H3-AI/hacs-vision`
+4. Category: **Integration**
+5. Install, then **restart Home Assistant**
 
 ### Manual Installation
 

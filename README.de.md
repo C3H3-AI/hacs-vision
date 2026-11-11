@@ -12,9 +12,11 @@
 [![Deutsch](https://img.shields.io/badge/lang-de-green.svg)](#)
 [![Русский](https://img.shields.io/badge/lang-ru-blue.svg)](README.ru.md)
 
-> **Aktuelle Version**: v7.0.1 | **Minimale HA-Version**: 2026.1.0
+> **Aktuelle Version**: v7.1.4 | **Minimale HA-Version**: 2026.1.0
 
-> **⚠️ Voraussetzung**: [HACS](https://hacs.xyz) muss installiert und konfiguriert sein.
+> **⚠️ Backend-Voraussetzung**: entweder **HACS** (HA ≤ 2026.10) oder das **integrierte Marketplace** (HA 2026.11+)
+
+> **🔄 Für Nutzer von HA 2026.11+**: Diese Version ersetzt HACS durch das integrierte `marketplace`. HACS Vision unterstützt seit v7.1.0 beide Backends – HACS ist also nicht mehr erforderlich. Das **Marketplace**-Integration muss jedoch zuerst unter Einstellungen → Geräte & Dienste hinzugefügt werden, sonst bricht der Konfigurationsdialog mit `hacs_not_found` ab.
 
 ---
 
@@ -65,7 +67,9 @@
 
 ## Installation
 
-### Über HACS-Benutzerrepository installieren (Empfohlen)
+> **Backend wählen**: HACS auf HA ≤ 2026.10, das integrierte Marketplace auf HA 2026.11+. Beide nutzen dieselbe HACS-Vision-Integration.
+
+### Über HACS-Benutzerrepository installieren (HA ≤ 2026.10, empfohlen)
 
 > ⚠️ **HACS Vision ist NICHT im standardmäßigen HACS-Store enthalten** und kann nicht über die Storesuche installiert werden. Fügen Sie dieses Repository über „Benutzerdefinierte Repositorys“ mit der unten stehenden URL hinzu.
 
@@ -75,6 +79,14 @@
 4. Kategorie: **Integration**
 5. Klicken Sie auf **Installieren**
 6. **Home Assistant neu starten**
+
+### Über das integrierte Marketplace installieren (HA 2026.11+)
+
+1. Gehen Sie zu **Einstellungen → Geräte & Dienste → Integration hinzufügen** und fügen Sie **Marketplace** hinzu
+2. Öffnen Sie **Marketplace → Benutzerdefinierte Repositorys** (Menü oben rechts; der genaue Einstiegspunkt kann je nach Build abweichen)
+3. Fügen Sie die Repository-URL hinzu: `https://github.com/C3H3-AI/hacs-vision`
+4. Kategorie: **Integration**
+5. Installieren, dann **Home Assistant neu starten**
 
 ### Manuelle Installation
 
