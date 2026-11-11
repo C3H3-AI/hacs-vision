@@ -8,7 +8,7 @@
     },
     "abort": {
       "single_instance_allowed": "HACS Vision 只允许配置一个实例。",
-      "hacs_not_found": "需要 HACS 集成但未找到。"
+      "hacs_not_found": "需要 HACS 或内置 Marketplace 集成，但两者都未找到。"
     }
   },
   "services": {
