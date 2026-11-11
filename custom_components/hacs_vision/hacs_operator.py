@@ -6,6 +6,7 @@ import os
 import re
 import shutil
 import threading
+import time
 
 import aiohttp
 from homeassistant.core import HomeAssistant
@@ -13,7 +14,7 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from packaging.version import Version, InvalidVersion
 
 from .const import DOMAIN_HACS, SNAPSHOT_DIR, SNAPSHOT_SUFFIX
-from .backend import async_detect_backend
+from .backend import async_detect_backend, legacy_github_token
 from .hacs_data import HACSData
 from .hacs_history import HACSHubHistory
 
@@ -737,15 +738,11 @@ class HACSOperator:
         return []
 
     def _get_github_token(self) -> str | None:
-        """从 HACS 配置项获取 GitHub 令牌。"""
+        """从前身集成（HACS / marketplace）获取 GitHub 令牌。"""
         try:
-            for entry in self.hass.config_entries.async_entries("hacs"):
-                token = entry.data.get("token")
-                if token:
-                    return token
+            return legacy_github_token(self.hass)
         except Exception:
-            pass
-        return None
+            return None
 
     # 仅用于特性分支（feature/foo），绝不用 tags/ 或 heads/ 前缀。
     _REF_RE = re.compile(r"^[A-Za-z0-9._](?:[A-Za-z0-9._-]*/)*[A-Za-z0-9._-]{0,200}$")
@@ -953,7 +950,6 @@ class HACSOperator:
 
     async def _snapshot_local_path(self, repo) -> str | None:
         """把当前安装目录快照到 custom_components 之外的备份目录，返回快照路径。"""
-        import time
         local = getattr(getattr(repo, "content", None), "path", None)
         local = getattr(local, "local", None)
         if not local:
@@ -1239,7 +1235,13 @@ class HACSOperator:
                 except Exception as e:
                     err_str = str(e).lower()
 
-                    if "not compliant" in err_str or "structure" in err_str:
+                    # marketplace 的校验失败由适配层转成异常（消息含
+                    # "registration failed"），同样走 check=False 降级重试。
+                    if (
+                        self.backend_name == "marketplace"
+                        or "not compliant" in err_str
+                        or "structure" in err_str
+                    ):
                         _LOGGER.warning(
                             "HACS validation failed for %s (likely latest stable release "
                             "lacks custom_components/). Retrying with check=False...",

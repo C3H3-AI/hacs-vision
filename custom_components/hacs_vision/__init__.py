@@ -31,6 +31,7 @@ from homeassistant.helpers.typing import ConfigType
 
 from .api import HACSEnhancedAPI, HACSEnhancedStaticView, HACSBrandIconView
 from .auto_update import AutoUpdateManager
+from .backend import legacy_github_token
 from .backup import BackupManager
 from .const import DOMAIN, PANEL_TITLE, PANEL_ICON, URL_PATH, VERSION
 from .dependency_checker import DependencyChecker
@@ -177,29 +178,27 @@ async def async_setup_entry(hass: HomeAssistant, entry: VisionConfigEntry) -> bo
     return True
 
 async def _auto_import_token(hass: HomeAssistant, shared_data) -> None:
-    """首次启动时，若 Vision 无令牌则尝试从 HACS 导入。"""
+    """首次启动时，若 Vision 无令牌则尝试从前身集成（HACS / marketplace）导入。"""
     try:
         current = await shared_data.read_storage("github_token")
         if current and isinstance(current, dict) and current.get("token"):
             return  # 已有令牌，跳过
-        # 尝试获取 HACS 令牌
-        for entry in hass.config_entries.async_entries("hacs"):
-            token = entry.data.get("token")
-            if token:
-                # 校验并保存
-                session = aiohttp_client.async_get_clientsession(hass)
-                headers = {"Authorization": f"Bearer {token}", "Accept": "application/vnd.github.v3+json"}
-                async with session.get(
-                    "https://api.github.com/user",
-                    headers=headers,
-                    timeout=ClientTimeout(total=10),
-                ) as resp:
-                    if resp.status == 200:
-                        user = await resp.json()
-                        login = user.get("login", "?")
-                        await shared_data.write_storage("github_token", {"token": token, "user": login})
-                        _LOGGER.info("Auto-imported GitHub token from HACS (user: %s)", login)
-                break
+        # 尝试获取前身集成的令牌
+        token = legacy_github_token(hass)
+        if token:
+            # 校验并保存
+            session = aiohttp_client.async_get_clientsession(hass)
+            headers = {"Authorization": f"Bearer {token}", "Accept": "application/vnd.github.v3+json"}
+            async with session.get(
+                "https://api.github.com/user",
+                headers=headers,
+                timeout=ClientTimeout(total=10),
+            ) as resp:
+                if resp.status == 200:
+                    user = await resp.json()
+                    login = user.get("login", "?")
+                    await shared_data.write_storage("github_token", {"token": token, "user": login})
+                    _LOGGER.info("Auto-imported GitHub token from HACS/Marketplace (user: %s)", login)
     except Exception as e:
         _LOGGER.debug("Auto-import token skipped: %s", e)
 

@@ -15,6 +15,7 @@ get_by_full_name / is_registered / register / unregister`、
 from __future__ import annotations
 
 import logging
+import os
 from typing import Any
 
 from homeassistant.core import HomeAssistant
@@ -27,6 +28,20 @@ DOMAIN_MARKETPLACE = "marketplace"
 
 BACKEND_HACS = "hacs"
 BACKEND_MARKETPLACE = "marketplace"
+
+
+def legacy_github_token(hass: HomeAssistant) -> str | None:
+    """读取前身集成（内置 marketplace / HACS）的 GitHub 令牌。
+
+    HA 2026.11 起 marketplace 取代 HACS，令牌落在 marketplace 配置项的
+    `data["token"]`；更早版本则读 HACS 配置项。marketplace 优先。
+    """
+    for domain in (DOMAIN_MARKETPLACE, DOMAIN_HACS):
+        for entry in hass.config_entries.async_entries(domain):
+            token = entry.data.get("token")
+            if token:
+                return token
+    return None
 
 
 # ─────────────────────────── Marketplace 适配 ───────────────────────────
@@ -186,9 +201,17 @@ class MarketplaceBackend:
         category: str,
         **kwargs: Any,
     ) -> Any:
-        return await self._manager.async_register_repository(
-            repository_full_name, category
+        # check / repository_id 必须透传：check=False 是校验失败后的降级路径，
+        # repository_id 用于补上 marketplace 无法从目录取到的仓库 ID。
+        errors = await self._manager.async_register_repository(
+            repository_full_name, category, **kwargs
         )
+        if errors:
+            # marketplace 校验失败不抛异常，只返回 MarketplaceError 列表；转成
+            # 异常既能让调用方展示原因，也能复用 check=False 的重试分支。
+            detail = "; ".join(str(err) for err in errors)
+            raise RuntimeError(f"marketplace registration failed: {detail}")
+        return None
 
     @property
     def raw(self) -> Any:
@@ -280,8 +303,6 @@ def resolve_storage_path(hass: HomeAssistant, key: str, defaults: dict[str, str]
         return rel
 
     # 新旧并存时以哪个为准：marketplace 文件存在就用它
-    import os
-
     if os.path.isfile(hass.config.path(renamed)):
         return renamed
     return rel
