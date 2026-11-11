@@ -12,9 +12,11 @@
 [![Deutsch](https://img.shields.io/badge/lang-de-green.svg)](README.de.md)
 [![Русский](https://img.shields.io/badge/lang-ru-blue.svg)](README.ru.md)
 
-> **当前版本**: v7.0.3 | **最低 HA 版本**: 2026.1.0
+> **当前版本**: v7.1.4 | **最低 HA 版本**: 2026.1.0
 
-> **⚠️ 前置条件**: 必须先安装并配置好 [HACS](https://hacs.xyz)
+> **⚠️ 后端要求**: 需要 **HACS**（HA ≤ 2026.10）或 **HA 内置 Marketplace**（HA 2026.11+）之一
+
+> **🔄 HA 2026.11+ 用户请注意**: 该版本已用内置 `marketplace` 取代 HACS。HACS Vision 自 v7.1.0 起同时适配两代后端，无需 HACS 也能使用；但仍须先在「设备与服务」中添加内置的 **Marketplace** 集成，否则配置流程会以 `hacs_not_found` 中止。
 
 ---
 
@@ -67,7 +69,9 @@
 
 ## 安装方法
 
-### 通过 HACS 自定义仓库安装（推荐）
+> **选择你的后端**：HA ≤ 2026.10 用 HACS；HA 2026.11+ 用内置 Marketplace。两种后端都装同一个 HACS Vision 集成。
+
+### 通过 HACS 自定义仓库安装（HA ≤ 2026.10，推荐）
 
 > ⚠️ **HACS Vision 未收录进 HACS 默认商店**，无法在商店里直接搜索安装。请通过下方「自定义仓库」手动添加本仓库 URL。
 
@@ -77,6 +81,14 @@
 4. 类别：**集成**
 5. 点击 **安装**
 6. **重启 Home Assistant**
+
+### 通过内置 Marketplace 安装（HA 2026.11+）
+
+1. 进入 **设置 → 设备与服务 → 添加集成**，搜索并添加 **Marketplace**
+2. 进入 **Marketplace → 右上角菜单 → 自定义仓库**（若你的版本把入口放在 Marketplace 面板内，以实际界面为准）
+3. 添加仓库 URL：`https://github.com/C3H3-AI/hacs-vision`
+4. 类别：**集成**
+5. 安装后 **重启 Home Assistant**
 
 ### 手动安装
 
@@ -120,6 +132,16 @@
 ---
 
 ## 更新日志
+
+### v7.1.4 (2026-11-11) — 把 2026.11 的修复真正发出去
+- **修复**: **配置流程在 2026.11 必然中止** — `async_step_user` 仍要求存在 `hacs` 集成，而 HA 2026.11 已完整移除它，导致升级前未配置过的实例全部卡在 `hacs_not_found`。现在接受 `hacs` 或 `marketplace` 任一后端
+- **修复**: **Marketplace 令牌读取与仓库注册被丢弃** — 注册时关键字参数全部丢失，`check=False` 降级路径不可达；令牌导入只扫 HACS 配置项，2026.11 上恒为空
+- **重构**: 配置项重载后 HTTP 路由与 WebSocket 共用同一视图实例；清理事件循环内的阻塞调用与死分支
+
+### v7.1.0 (2026-11-01) — 适配 HA 2026.11 内置 Marketplace
+- **新增**: **双后端支持** — HA 2026.11 起内置 `marketplace` 取代 HACS，本版让 HACS Vision 在两代后端下都能工作，旧 HACS 行为零变化
+- **新增**: `backend.py` 后端抽象层，自动探测当前后端并统一成同一套接口
+- **修复**: 适配器 `__slots__` 挡住 monkey-patch、`repo.data.name` 只读、卸载不落盘、`has_update` 误报、指定版本安装走错路径、**回滚静默跳过导致集成目录凭空消失**、`DATA_SYSTEM_LOG` 被移除
 
 ### v6.5.1 (2026-07-16) — 翻译结果本地持久化
 - **优化**: **翻译结果本地缓存** — 翻译成功后的 README 会存入浏览器 `localStorage`（默认保留 7 天，单条上限 1MB、最多 50 条 LRU 淘汰）。关闭窗口、刷新页面或重启 HA 后再次打开弹窗，命中缓存即**瞬间显示、不再调用大模型**，零耗时零 token 消耗
