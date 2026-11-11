@@ -8,6 +8,7 @@ import logging
 import aiohttp
 from aiohttp import web
 
+from ..backend import legacy_github_token
 from ..response import _ok, _not_found, _bad_request, _unauthorized, _server_error, _timeout
 
 _LOGGER = logging.getLogger(__name__)
@@ -19,12 +20,18 @@ GITHUB_OAUTH_CLIENT_ID_FALLBACK = ""
 def _resolve_hacs_client_id() -> str:
     """解析 GitHub OAuth client_id。
 
-    优先复用 HACS 已注册 OAuth 应用的 client_id；HACS 未安装时回退到本地常量。
-    两者皆缺时返回空串，由调用方转译为明确错误，而非抛 ImportError 致流程崩溃。
+    优先复用 HACS 已注册 OAuth 应用的 client_id；HA 2026.11+ 改用内置
+    marketplace 的 OAuth 应用；两者皆缺时回退到本地常量。皆缺时返回空串，
+    由调用方转译为明确错误，而非抛 ImportError 致流程崩溃。
     """
     try:
         from custom_components.hacs.const import CLIENT_ID as _hacs_client_id
         return _hacs_client_id
+    except ImportError:
+        pass
+    try:
+        from homeassistant.components.marketplace.const import CLIENT_ID as _marketplace_client_id
+        return _marketplace_client_id
     except ImportError:
         return GITHUB_OAUTH_CLIENT_ID_FALLBACK
 
@@ -32,15 +39,11 @@ class GitHubAuthMixin:
     """GitHub 认证操作——令牌管理与 OAuth 设备流。"""
 
     def _get_hacs_token(self) -> str | None:
-        """从 HACS 配置项获取 GitHub 令牌——仅用于显式导入 HACS。"""
+        """从前身集成（HACS / marketplace）获取 GitHub 令牌——仅用于显式导入。"""
         try:
-            for entry in self.hass.config_entries.async_entries("hacs"):
-                token = entry.data.get("token")
-                if token:
-                    return token
+            return legacy_github_token(self.hass)
         except Exception:
-            pass
-        return None
+            return None
 
     async def _get_vision_github_token(self) -> str | None:
         """从 hacs-vision 自身存储获取 GitHub 令牌。"""
