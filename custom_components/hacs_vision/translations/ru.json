@@ -8,7 +8,7 @@
     },
     "abort": {
       "single_instance_allowed": "Допускается только один экземпляр HACS Vision.",
-      "hacs_not_found": "Необходимая интеграция HACS не найдена."
+      "hacs_not_found": "Требуется интеграция HACS или встроенный Marketplace, но ни одна не найдена."
     }
   },
   "services": {
