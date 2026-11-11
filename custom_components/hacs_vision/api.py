@@ -83,6 +83,23 @@ class HACSEnhancedAPI(GitHubAuthMixin, GitHubActionsMixin, HACSOpsMixin, ReadmeT
         self._oauth_device_code = None
         self._pending_cleanups: set[asyncio.Task] = set()
 
+    def bind(self, hass, data: HACSData, operator: HACSOperator,
+             backup: BackupManager, checker: DependencyChecker) -> None:
+        """配置项重载时，把新运行时组件接回已注册实例。
+
+        aiohttp 的路由在首次 register_view 时固定了视图实例，无法换绑；与其
+        新建一个只被 WebSocket 使用、HTTP 路由却指向旧对象的实例，不如把依赖
+        全部指到新组件，并丢弃属于旧配置项的 OAuth 中间状态。
+        """
+        self.hass = hass
+        self.data = data
+        self.operator = operator
+        self.backup = backup
+        self.checker = checker
+        self._auto_import_done = False
+        self._oauth_device = None
+        self._oauth_device_code = None
+
     @property
     def _ha_base_url(self) -> str:
         """动态获取 HA 基础地址（优先内网，回退外网）。"""
