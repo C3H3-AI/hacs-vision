@@ -1,5 +1,38 @@
 # Changelog
 
+## v7.1.4 (2026-11-11) — 让 2026.11 的修复真正到达用户 / Ship the 2026.11 fixes to users
+
+v7.1.3 之后合并的四个 PR 都没有改动 `manifest.json`，而 `release.yml` 只在
+`custom_components/**/manifest.json` 变化时才发版 —— 因此这些修复停在 `main` 上，
+从 HACS 安装或跟 tag 更新的用户拿不到。本版只提升版本号，让那两个修复真正发布出去。
+
+The four PRs merged after v7.1.3 did not touch `manifest.json`, and `release.yml`
+only releases when `custom_components/**/manifest.json` changes — so those fixes
+stayed on `main` and users installing through HACS never received them. This release
+only bumps the version so those two fixes actually ship.
+
+### 🔧 修复 / Fixed
+
+- **配置流程在 2026.11 必然中止** (#74) — `async_step_user` 仍要求 `"hacs" in hass.config.components`，而 HA 2026.11 已完整移除 HACS。所有在升级前尚未配置 HACS Vision 的实例都会无条件以 `hacs_not_found` 中止，装都装不上。现在接受 `hacs` 或 `marketplace` 任一后端，并同步更新 en / de / ru / zh-Hans 四种语言的中止文案。HA ≤ 2026.10 行为不变
+- **Marketplace 的令牌读取与仓库注册被丢弃** (#76) — `MarketplaceBackend.async_register_repository` 会丢掉全部关键字参数，`check=False` 降级路径永远传不到 Marketplace，`repository_id` 也永远无法提供；且 Marketplace 校验失败时返回 `MarketplaceError` 列表而非抛异常，调用方只看到「注册未生效」拿不到原因。令牌导入同样只扫 `hass.config_entries.async_entries("hacs")`，2026.11 上恒为空。现在透传参数、把错误列表转成带详情的 `RuntimeError`，并新增共享的 `legacy_github_token()` 优先读 Marketplace 配置项
+- **Configuration flow aborts on every 2026.11 install** (#74) — `async_step_user` still required `"hacs" in hass.config.components`, but HA 2026.11 removed HACS entirely, so every instance that had not configured HACS Vision before upgrading aborted with `hacs_not_found`. Both backends are now accepted, and the abort message is updated in en / de / ru / zh-Hans. Unchanged on HA ≤ 2026.10
+- **Marketplace token import and repository registration were dropped** (#76) — `MarketplaceBackend.async_register_repository` discarded all keyword arguments, so `check=False` never reached Marketplace and `repository_id` could never be supplied; Marketplace also returns a `MarketplaceError` list instead of raising, leaving callers with no reason. Token import scanned only `hass.config_entries.async_entries("hacs")`, always empty on 2026.11. Arguments are now forwarded, error lists become a detailed `RuntimeError`, and a shared `legacy_github_token()` prefers the Marketplace entry
+
+### 🔧 重构 / Refactored
+
+- **配置项重载后视图实例不一致** (#77) — `aiohttp` 在 `register_view()` 时就把路由绑定到视图实例，而 `async_setup_entry` 的幂等护栏保留首个 `HACSEnhancedAPI` 实例、新实例又赋给 `entry.runtime_data` 供 WebSocket 使用。结果是重载后 HTTP 路由仍持有旧的 `data` / `operator` / `backup` / `checker`，WebSocket 却用新的。改为实例映射 `_VIEW_INSTANCES` 并新增 `HACSEnhancedAPI.bind()`
+- **清理失效分支与事件循环内的阻塞调用** (#75) — `_save_screenshot` 直接在事件循环里 `os.makedirs()`，改走 `async_add_executor_job`；`api_mixins/hacs_ops.py` 中回退到从未定义的 `self._current_token` 的死分支已删除，`request` 改为必传
+- **View instances diverge after a config entry reload** (#77) — `aiohttp` binds routes to the view instance at `register_view()`, while the idempotence guard in `async_setup_entry` keeps the first `HACSEnhancedAPI` and the newly built one is assigned to `entry.runtime_data` for WebSocket use. After a reload the HTTP routes still held the old `data` / `operator` / `backup` / `checker` while WebSocket used the new ones. Replaced with an instance map `_VIEW_INSTANCES` and a new `HACSEnhancedAPI.bind()`
+- **Dead branch and blocking calls in the event loop** (#75) — `_save_screenshot` called `os.makedirs()` directly on the event loop; it now goes through `async_add_executor_job`. The dead fallback to the never-defined `self._current_token` in `api_mixins/hacs_ops.py` is removed and `request` is now required
+
+### 📝 说明 / Notes
+
+本版无逻辑改动，仅版本号提升 + 本 CHANGELOG 条目，用于触发 `release.yml`。
+合并后会自动打出 `v7.1.4` 的 tag 并生成 draft release，点发布即可让 HACS 用户收到更新。
+
+No logic changes: only the version bump and this changelog entry, to trigger `release.yml`.
+Merging creates the `v7.1.4` tag and a draft release; publishing it delivers the fixes to HACS users.
+
 ## v7.1.2 (2026-11-02) — 重新构建前端产物 / Rebuild frontend with patched DOMPurify
 
 ### 🔧 修复 / Fixed
