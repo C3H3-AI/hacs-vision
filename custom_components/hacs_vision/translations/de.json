@@ -8,7 +8,7 @@
     },
     "abort": {
       "single_instance_allowed": "Es ist nur eine einzige Instanz von HACS Vision erlaubt.",
-      "hacs_not_found": "Die HACS-Integration wird benötigt, wurde aber nicht gefunden."
+      "hacs_not_found": "Die HACS- oder die integrierte Marketplace-Integration wird benötigt, aber keine wurde gefunden."
     }
   },
   "services": {
