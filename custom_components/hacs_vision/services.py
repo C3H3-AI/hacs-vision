@@ -8,6 +8,7 @@ import voluptuous as vol
 from homeassistant.core import HomeAssistant, ServiceCall, SupportsResponse
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers import translation
 
 from .const import DOMAIN, VALID_HACS_CATEGORIES
 from .entity_ref_finder import EntityRefFinder
@@ -41,6 +42,24 @@ async def _create_service_token(hass: HomeAssistant) -> str | None:
     except Exception as err:
         _LOGGER.warning("replace_entity_refs: 签发访问令牌失败: %s", err)
         return None
+
+_TRANSLATION_PREFIX = f"component.{DOMAIN}.common."
+
+
+async def _async_notification_strings(hass: HomeAssistant) -> dict[str, str]:
+    """取通知文案：自定义集成没有 notification 段，文案放在 translations 的 common 段。"""
+    return await translation.async_get_translations(
+        hass, hass.config.language, "common", {DOMAIN}
+    )
+
+
+def _localized(strings: dict[str, str], key: str, **placeholders: object) -> str:
+    """渲染一条通知文案的占位符。"""
+    text = strings[f"{_TRANSLATION_PREFIX}{key}"]
+    for name, value in placeholders.items():
+        text = text.replace("{" + name + "}", str(value))
+    return text
+
 
 def register_services(hass: HomeAssistant) -> None:
     """为 HACS Vision 注册全部 HA 服务。"""
@@ -104,24 +123,40 @@ def register_services(hass: HomeAssistant) -> None:
         finder = EntityRefFinder(hass)
         refs = await finder.find(entity_id)
         if not call.return_response:
-            by_type: dict = {}
+            strings = await _async_notification_strings(hass)
+            by_type: dict[str, list[str]] = {}
             for r in refs:
                 by_type.setdefault(r["source_type"], []).append(r["source_id"])
+            sources = len({(r["source_type"], r["source_id"]) for r in refs})
             lines = [
-                f"Entity reference results for {entity_id}:",
-                f"Found {len(refs)} references across "
-                f"{len({(r['source_type'], r['source_id']) for r in refs})} sources\n",
+                _localized(
+                    strings,
+                    "entity_refs_header",
+                    entity_id=entity_id,
+                    total=len(refs),
+                    sources=sources,
+                ),
+                "",
             ]
             for stype, sids in by_type.items():
                 unique_ids = list(set(sids))
-                lines.append(f"  **{stype}** ({len(unique_ids)}): {', '.join(unique_ids[:5])}")
+                line = "  " + _localized(
+                    strings,
+                    "entity_refs_source",
+                    source_type=stype,
+                    count=len(unique_ids),
+                    ids=", ".join(unique_ids[:5]),
+                )
                 if len(unique_ids) > 5:
-                    lines[-1] += f" ...and {len(unique_ids) - 5} more"
+                    line += " " + _localized(
+                        strings, "entity_refs_more", count=len(unique_ids) - 5
+                    )
+                lines.append(line)
             await hass.services.async_call(
                 "persistent_notification",
                 "create",
                 {
-                    "title": f"HACS Vision - Entity Reference Finder",
+                    "title": strings[f"{_TRANSLATION_PREFIX}entity_refs_title"],
                     "message": "\n".join(lines),
                 },
                 blocking=False,
@@ -152,33 +187,42 @@ def register_services(hass: HomeAssistant) -> None:
             reload_result = await finder.reload_affected()
             result["reload"] = reload_result
         if not call.return_response:
+            strings = await _async_notification_strings(hass)
             if preview:
-                msg = (
-                    f"**Preview**: Replace {old_id} → {new_id}\n"
-                    f"Found {result['total_refs']} references, "
-                    f"{result['affected_count']} sources affected\n\n"
-                    f"Send `preview: false` to execute replacement"
+                msg = _localized(
+                    strings,
+                    "entity_refs_preview",
+                    old_id=old_id,
+                    new_id=new_id,
+                    total_refs=result["total_refs"],
+                    affected_count=result["affected_count"],
                 )
             else:
                 updated = result.get("updated", {})
-                total = result.get("total_updated", 0)
                 reload = result.get("reload", {})
-                msg = (
-                    f"**Replacement executed**: {old_id} → {new_id}\n"
-                    f"Updated {total} references\n"
-                    f"Automations: {len(updated.get('automations', []))}\n"
-                    f"Scripts: {len(updated.get('scripts', []))}\n"
-                    f"Scenes: {len(updated.get('scenes', []))}\n"
-                    f"Dashboards: {len(updated.get('dashboards', []))}\n"
-                    f"Reload: automations{' OK' if reload.get('automations') else ' FAIL'} "
-                    f"scripts{' OK' if reload.get('scripts') else ' FAIL'} "
-                    f"scenes{' OK' if reload.get('scenes') else ' FAIL'}"
+                ok = strings[f"{_TRANSLATION_PREFIX}reload_ok"]
+                fail = strings[f"{_TRANSLATION_PREFIX}reload_fail"]
+                msg = _localized(
+                    strings,
+                    "entity_refs_done",
+                    old_id=old_id,
+                    new_id=new_id,
+                    total_updated=result.get("total_updated", 0),
+                    automations=len(updated.get("automations", [])),
+                    scripts=len(updated.get("scripts", [])),
+                    scenes=len(updated.get("scenes", [])),
+                    dashboards=len(updated.get("dashboards", [])),
+                    reload_automations=ok if reload.get("automations") else fail,
+                    reload_scripts=ok if reload.get("scripts") else fail,
+                    reload_scenes=ok if reload.get("scenes") else fail,
                 )
             await hass.services.async_call(
                 "persistent_notification",
                 "create",
                 {
-                    "title": f"HACS Vision - Entity Reference Replace",
+                    "title": strings[
+                        f"{_TRANSLATION_PREFIX}entity_refs_replace_title"
+                    ],
                     "message": msg,
                 },
                 blocking=False,
