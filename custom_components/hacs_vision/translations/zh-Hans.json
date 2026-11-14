@@ -74,5 +74,16 @@
       "name": "重载自动更新设置",
       "description": "重新加载自动更新配置并重新调度。"
     }
+  },
+  "common": {
+    "entity_refs_title": "HACS Vision - 实体引用查找",
+    "entity_refs_header": "实体 {entity_id} 的引用查找结果：\n共找到 {total} 处引用，分布在 {sources} 个来源",
+    "entity_refs_source": "**{source_type}**（{count}）：{ids}",
+    "entity_refs_more": "……另有 {count} 个",
+    "entity_refs_replace_title": "HACS Vision - 实体引用替换",
+    "entity_refs_preview": "**预览**：将 {old_id} 替换为 {new_id}\n共找到 {total_refs} 处引用，影响 {affected_count} 个来源\n\n发送 `preview: false` 以执行替换",
+    "entity_refs_done": "**替换完成**：{old_id} → {new_id}\n已更新 {total_updated} 处引用\n自动化：{automations}\n脚本：{scripts}\n场景：{scenes}\n仪表盘：{dashboards}\n重载：自动化 {reload_automations}，脚本 {reload_scripts}，场景 {reload_scenes}",
+    "reload_ok": "成功",
+    "reload_fail": "失败"
   }
 }

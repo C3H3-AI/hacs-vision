@@ -74,5 +74,16 @@
       "name": "Auto-Update-Einstellungen neu laden",
       "description": "Lädt die Auto-Update-Konfiguration neu und plant sie erneut."
     }
+  },
+  "common": {
+    "entity_refs_title": "HACS Vision - Entity-Referenzsuche",
+    "entity_refs_header": "Ergebnisse der Referenzsuche für {entity_id}:\n{total} Referenzen in {sources} Quellen gefunden",
+    "entity_refs_source": "**{source_type}** ({count}): {ids}",
+    "entity_refs_more": "…und {count} weitere",
+    "entity_refs_replace_title": "HACS Vision - Entity-Referenzen ersetzen",
+    "entity_refs_preview": "**Vorschau**: {old_id} → {new_id} ersetzen\n{total_refs} Referenzen gefunden, {affected_count} Quellen betroffen\n\nSende `preview: false`, um die Ersetzung auszuführen",
+    "entity_refs_done": "**Ersetzung ausgeführt**: {old_id} → {new_id}\n{total_updated} Referenzen aktualisiert\nAutomatisierungen: {automations}\nSkripte: {scripts}\nSzenen: {scenes}\nDashboards: {dashboards}\nNeuladen: Automatisierungen {reload_automations} Skripte {reload_scripts} Szenen {reload_scenes}",
+    "reload_ok": "OK",
+    "reload_fail": "FEHLER"
   }
 }

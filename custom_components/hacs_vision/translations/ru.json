@@ -74,5 +74,16 @@
       "name": "Перезагрузить настройки автообновления",
       "description": "Перезагрузить конфигурацию автообновления и перепланировать."
     }
+  },
+  "common": {
+    "entity_refs_title": "HACS Vision — поиск ссылок на сущность",
+    "entity_refs_header": "Результаты поиска ссылок для {entity_id}:\nНайдено {total} ссылок в {sources} источниках",
+    "entity_refs_source": "**{source_type}** ({count}): {ids}",
+    "entity_refs_more": "…и ещё {count}",
+    "entity_refs_replace_title": "HACS Vision — замена ссылок на сущность",
+    "entity_refs_preview": "**Предпросмотр**: заменить {old_id} → {new_id}\nНайдено {total_refs} ссылок, затронуто {affected_count} источников\n\nОтправьте `preview: false`, чтобы выполнить замену",
+    "entity_refs_done": "**Замена выполнена**: {old_id} → {new_id}\nОбновлено {total_updated} ссылок\nАвтоматизации: {automations}\nСкрипты: {scripts}\nСцены: {scenes}\nПанели: {dashboards}\nПерезагрузка: автоматизации {reload_automations}, скрипты {reload_scripts}, сцены {reload_scenes}",
+    "reload_ok": "OK",
+    "reload_fail": "ОШИБКА"
   }
 }
