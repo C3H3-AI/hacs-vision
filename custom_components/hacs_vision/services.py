@@ -5,7 +5,7 @@ import logging
 from datetime import timedelta
 
 import voluptuous as vol
-from homeassistant.core import HomeAssistant, ServiceCall
+from homeassistant.core import HomeAssistant, ServiceCall, SupportsResponse
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 from homeassistant.helpers import config_validation as cv
 
@@ -54,22 +54,20 @@ def register_services(hass: HomeAssistant) -> None:
                 "Marketplace backend is available"
             )
             return
-        try:
-            result = await runtime.operator.refresh_repositories()
-            updated = result.get("updated", 0)
-            errors = result.get("errors", [])
-            rate_limited = result.get("rate_limited", False)
-            if errors:
-                _LOGGER.warning(
-                    "Refresh service: updated %d repos, %d errors, rate_limited=%s",
-                    updated,
-                    len(errors),
-                    rate_limited,
-                )
-            else:
-                _LOGGER.info("Refresh service: updated %d repos successfully", updated)
-        except Exception as e:
-            _LOGGER.error("Refresh service failed: %s", e, exc_info=True)
+        # 真实失败直接抛出（不再吞掉）：自动化里刷新失败必须可见
+        result = await runtime.operator.refresh_repositories()
+        updated = result.get("updated", 0)
+        errors = result.get("errors", [])
+        rate_limited = result.get("rate_limited", False)
+        if errors:
+            _LOGGER.warning(
+                "Refresh service: updated %d repos, %d errors, rate_limited=%s",
+                updated,
+                len(errors),
+                rate_limited,
+            )
+        else:
+            _LOGGER.info("Refresh service: updated %d repos successfully", updated)
 
     async def handle_install_repository(call: ServiceCall) -> None:
         """处理安装仓库服务调用。"""
@@ -103,9 +101,9 @@ def register_services(hass: HomeAssistant) -> None:
         entity_id = call.data.get("entity_id", "").strip()
         if not entity_id:
             raise ServiceValidationError("find_entity_refs: 'entity_id' 不能为空")
-        try:
-            finder = EntityRefFinder(hass)
-            refs = await finder.find(entity_id)
+        finder = EntityRefFinder(hass)
+        refs = await finder.find(entity_id)
+        if not call.return_response:
             by_type: dict = {}
             for r in refs:
                 by_type.setdefault(r["source_type"], []).append(r["source_id"])
@@ -128,8 +126,7 @@ def register_services(hass: HomeAssistant) -> None:
                 },
                 blocking=False,
             )
-        except Exception as e:
-            _LOGGER.error("find_entity_refs error: %s", e, exc_info=True)
+        return {"entity_id": entity_id, "total": len(refs), "refs": refs}
 
     async def handle_replace_entity_refs(call: ServiceCall) -> None:
         """处理替换实体引用服务调用。"""
@@ -149,12 +146,12 @@ def register_services(hass: HomeAssistant) -> None:
             _LOGGER.warning(
                 "replace_entity_refs: 未能获取访问令牌，仅预览可用"
             )
-        try:
-            finder = EntityRefFinder(hass, hass_token=token)
-            result = await finder.replace(old_id, new_id, preview=preview)
-            if not preview and result.get("total_updated", 0) > 0:
-                reload_result = await finder.reload_affected()
-                result["reload"] = reload_result
+        finder = EntityRefFinder(hass, hass_token=token)
+        result = await finder.replace(old_id, new_id, preview=preview)
+        if not preview and result.get("total_updated", 0) > 0:
+            reload_result = await finder.reload_affected()
+            result["reload"] = reload_result
+        if not call.return_response:
             if preview:
                 msg = (
                     f"**Preview**: Replace {old_id} → {new_id}\n"
@@ -186,8 +183,7 @@ def register_services(hass: HomeAssistant) -> None:
                 },
                 blocking=False,
             )
-        except Exception as e:
-            _LOGGER.error("replace_entity_refs error: %s", e, exc_info=True)
+        return result
 
     # ── 自动更新服务 ──
     def _auto_update_manager(service: str):
@@ -242,6 +238,7 @@ def register_services(hass: HomeAssistant) -> None:
         DOMAIN,
         "find_entity_refs",
         handle_find_entity_refs,
+        supports_response=SupportsResponse.OPTIONAL,
         schema=vol.Schema(
             {
                 vol.Required("entity_id"): cv.entity_id,
@@ -252,6 +249,7 @@ def register_services(hass: HomeAssistant) -> None:
         DOMAIN,
         "replace_entity_refs",
         handle_replace_entity_refs,
+        supports_response=SupportsResponse.OPTIONAL,
         schema=vol.Schema(
             {
                 vol.Required("old_id"): cv.entity_id,
