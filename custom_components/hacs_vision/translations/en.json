@@ -74,5 +74,16 @@
       "name": "Reload auto-update settings",
       "description": "Reload the auto-update configuration and reschedule."
     }
+  },
+  "common": {
+    "entity_refs_title": "HACS Vision - Entity Reference Finder",
+    "entity_refs_header": "Entity reference results for {entity_id}:\nFound {total} references across {sources} sources",
+    "entity_refs_source": "**{source_type}** ({count}): {ids}",
+    "entity_refs_more": "…and {count} more",
+    "entity_refs_replace_title": "HACS Vision - Entity Reference Replace",
+    "entity_refs_preview": "**Preview**: Replace {old_id} → {new_id}\nFound {total_refs} references, {affected_count} sources affected\n\nSend `preview: false` to execute replacement",
+    "entity_refs_done": "**Replacement executed**: {old_id} → {new_id}\nUpdated {total_updated} references\nAutomations: {automations}\nScripts: {scripts}\nScenes: {scenes}\nDashboards: {dashboards}\nReload: automations {reload_automations} scripts {reload_scripts} scenes {reload_scenes}",
+    "reload_ok": "OK",
+    "reload_fail": "FAIL"
   }
 }
