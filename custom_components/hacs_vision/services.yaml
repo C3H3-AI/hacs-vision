@@ -17,6 +17,7 @@ install_repository:
             - "appdaemon"
             - "python_script"
             - "netdaemon"
+            - "template"
 
 find_entity_refs:
   fields:
@@ -24,7 +25,7 @@ find_entity_refs:
       required: true
       example: "sensor.temperature"
       selector:
-        text:
+        entity: {}
 
 replace_entity_refs:
   fields:
@@ -32,12 +33,12 @@ replace_entity_refs:
       required: true
       example: "sensor.old_temperature"
       selector:
-        text:
+        entity: {}
     new_id:
       required: true
       example: "sensor.new_temperature"
       selector:
-        text:
+        entity: {}
     preview:
       required: false
       default: true

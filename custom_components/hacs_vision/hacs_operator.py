@@ -57,12 +57,7 @@ def _ensure_dir(path: str) -> None:
     os.makedirs(path, exist_ok=True)
 
 def _move_legacy_snapshots(custom_dir: str, snap_root: str) -> list[str]:
-    """把 custom_components/ 下遗留的旧版快照搬到快照根目录，返回搬走的目录名。
-
-    v7.0.2 及以前快照直接落在 custom_components/ 内。快照目录名（含点号）会被
-    HA 当成集成模块名去 import：import 失败则该 domain 的 config_flow 处理器不会
-    注册，前端添加该集成时报 Invalid handler specified。这里只搬不删，保住回滚能力。
-    """
+    """把 custom_components/ 下遗留的旧版快照搬到快照根目录，返回搬走的目录名。"""
     moved: list[str] = []
     if not os.path.isdir(custom_dir):
         return moved
@@ -113,11 +108,7 @@ class HACSOperator:
 
     @property
     def _backend(self):
-        """动态获取后端（HACS 或 HA 2026.11+ 内置 marketplace）。
-
-        每次访问都重新检测：初始化时后端可能尚未就绪，也可能在
-        marketplace 首次接管、HACS 被移除之后换成新对象。
-        """
+        """动态获取后端（HACS 或 HA 2026.11+ 内置 marketplace）。"""
         backend = async_detect_backend(self.hass)
         if backend is not None and backend.name != self._backend_name:
             _LOGGER.info("hacs_vision: 当前后端 = %s", backend.name)
@@ -141,12 +132,7 @@ class HACSOperator:
         return None if backend is None else backend.name
 
     async def _persist_repo_state(self) -> None:
-        """把后端内存里的仓库状态落盘，失败只记日志不抛。
-
-        两个后端的落盘时机不一致：HACS 的 uninstall 自己会写，
-        marketplace 的 uninstall 不写、只有 async_install_repository 写。
-        统一在这里补一次，调用方不必区分后端。
-        """
+        """把后端内存里的仓库状态落盘，失败只记日志不抛。"""
         backend = self._backend
         if backend is None:
             return
@@ -348,8 +334,6 @@ class HACSOperator:
 
                 await repo.uninstall()
                 # marketplace 的 uninstall() 只删目录、只改内存里的 installed，
-                # 不像 async_install_repository() 那样自己落盘——必须补写一次，
-                # 否则重启后已卸载的仓库会被当成还装着。
                 await self._persist_repo_state()
                 # N1：变更后使索引失效
                 self.invalidate_index()
@@ -1180,11 +1164,7 @@ class HACSOperator:
 
     @staticmethod
     def _custom_repo_name(entry) -> str:
-        """从一条自定义仓库记录里取出仓库全名。
-
-        marketplace 把 custom_repositories 存成仓库 ID 字符串的集合，
-        旧 HACS 存成 {"repository": ..., "category": ...} 字典，两种都要能读。
-        """
+        """从一条自定义仓库记录里取出仓库全名。"""
         if isinstance(entry, str):
             return entry
         if isinstance(entry, dict):
@@ -1193,11 +1173,6 @@ class HACSOperator:
 
     async def add_custom_repository(self, full_name: str, category: str) -> dict:
         """向 HACS 添加自定义仓库。"""
-        # marketplace 的 custom_repositories 是「仓库 ID 字符串」集合，由
-        # async_register_repository() 在注册成功时写进内存，再随
-        # data.async_write() 整份落盘。直接往配置文件里塞 dict 会写坏它的形状，
-        # 而且下一次 marketplace 自己的 async_write 还会把外部改动覆盖掉，
-        # 所以 marketplace 下这一层完全不碰配置，只在末尾补一次 ID 登记。
         if self.backend_name != "marketplace":
             config = await self._data.get_config()
             custom_repos = config.get("custom_repositories", [])
